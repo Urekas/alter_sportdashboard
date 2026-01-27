@@ -57,8 +57,8 @@ export function Dashboard() {
 
           if (turnovers.length === 0) {
               toast({
-                title: "No Data Found",
-                description: "No turnover events could be parsed from the file. Please check the content.",
+                title: "No Turnover Events Found",
+                description: 'The file was read, but no events containing "turnover" or "턴오버" were found. Please check the file content.',
                 variant: "destructive",
               });
               return;
@@ -70,7 +70,7 @@ export function Dashboard() {
           setMatchData(newMatchData);
           toast({
             title: "Analysis Complete",
-            description: `Generated a new match analysis based on ${file.name}.`,
+            description: `Found and processed ${turnovers.length} turnover events from ${file.name}.`,
           });
 
         } catch (error: any) {
