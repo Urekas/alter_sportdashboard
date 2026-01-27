@@ -29,11 +29,13 @@ const HockeyShootingCircle: FC = () => {
 
   // The D is a semi-circle with a radius of 14.63m centered on the goal's midpoint.
   const dRadius = scale(14.63);
-  const dPath = `M ${cx - dRadius},${goalLineY} A ${dRadius},${dRadius} 0 0 1 ${cx + dRadius},${goalLineY}`;
+  // The sweep-flag is 0 to draw the arc downwards (into the pitch).
+  const dPath = `M ${cx - dRadius},${goalLineY} A ${dRadius},${dRadius} 0 0 0 ${cx + dRadius},${goalLineY}`;
   
   // The broken circle is 5m outside the D.
   const brokenDRadius = scale(14.63 + 5);
-  const brokenDPath = `M ${cx - brokenDRadius},${goalLineY} A ${brokenDRadius},${brokenDRadius} 0 0 1 ${cx + brokenDRadius},${goalLineY}`;
+  // The sweep-flag is 0 to draw the arc downwards.
+  const brokenDPath = `M ${cx - brokenDRadius},${goalLineY} A ${brokenDRadius},${brokenDRadius} 0 0 0 ${cx + brokenDRadius},${goalLineY}`;
 
   // Penalty spot is 6.475m from the goal line.
   const penaltySpotY = goalLineY + scale(6.475);
@@ -45,22 +47,22 @@ const HockeyShootingCircle: FC = () => {
 
   return (
     <svg viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`} preserveAspectRatio="xMidYMin" className="w-full h-full">
-      <g stroke="hsl(var(--foreground))" strokeWidth="0.8" fill="none">
+      <g stroke="hsl(var(--foreground))" strokeWidth="1.5" fill="none">
         
         {/* Goal */}
-        <rect x={goalPostLeftX} y={goalLineY - goalDepth} width={goalWidth} height={goalDepth} strokeWidth="1" />
+        <rect x={goalPostLeftX} y={goalLineY - goalDepth} width={goalWidth} height={goalDepth} strokeWidth="1.5" />
         
         {/* Goal Line */}
-        <line x1="0" y1={goalLineY} x2={viewBoxWidth} y2={goalLineY} strokeWidth="1" />
+        <line x1="0" y1={goalLineY} x2={viewBoxWidth} y2={goalLineY} strokeWidth="1.5" />
         
         {/* The D (Shooting Circle) */}
-        <path d={dPath} strokeWidth="1.2" />
+        <path d={dPath} strokeWidth="1.5" />
         
         {/* Dashed Circle (5m from D) */}
-        <path d={brokenDPath} strokeDasharray="3,3" />
+        <path d={brokenDPath} strokeDasharray="4,4" strokeWidth="1.5" />
         
         {/* Penalty Spot */}
-        <circle cx={cx} cy={penaltySpotY} r="0.75" fill="hsl(var(--foreground))" stroke="none" />
+        <circle cx={cx} cy={penaltySpotY} r="1" fill="hsl(var(--foreground))" stroke="none" />
         
         {/* Penalty Corner Markings */}
         {/* Left Side */}
