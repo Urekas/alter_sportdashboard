@@ -25,7 +25,8 @@ const VerticalAttackingHalf: FC = () => (
         <path d="M 43 4 V 2 M 157 4 V 2" strokeWidth="1" /> {/* 10m marks */}
 
         {/* Circle (D) - 14.63m radius */}
-        <path d="M 29 4 A 71 71 0 0 1 171 4" strokeWidth="2" />
+        <path d="M 29 4 L 171 4" strokeWidth="2" /> {/* Straight part of the D */}
+        <path d="M 29 4 A 71 71 0 0 1 171 4" strokeWidth="2" /> {/* Arc part of the D */}
         
         {/* Dashed Circle (5m from D) */}
         <path d="M 5 4 A 95 95 0 0 1 195 4" strokeDasharray="4,4" strokeWidth="2" />
