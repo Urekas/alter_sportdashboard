@@ -22,6 +22,7 @@ const HorizontalPitchWithHeatmap: React.FC<{ turnovers: TurnoverEvent[], homeTea
     turnovers.forEach(turnover => {
       // Standardize coordinates: all turnovers are mapped as if attacking from left to right.
       const isHomeTeamEvent = turnover.team === homeTeam.name;
+      // If it's an away team event, flip coordinates to standardize L-R attack
       const x = isHomeTeamEvent ? turnover.x : PITCH_LENGTH - turnover.x;
       const y = isHomeTeamEvent ? turnover.y : PITCH_WIDTH - turnover.y;
 
@@ -29,6 +30,7 @@ const HorizontalPitchWithHeatmap: React.FC<{ turnovers: TurnoverEvent[], homeTea
       const laneIndex = LANES.findIndex(lane => y <= lane) - 1;
       
       if (bandIndex >= 0 && laneIndex >= 0 && bandIndex < homeCounts.length && laneIndex < homeCounts[0].length) {
+        // Here we count whose turnover it was in that standardized zone
         if (isHomeTeamEvent) {
             homeCounts[bandIndex][laneIndex]++;
         } else {
@@ -58,11 +60,11 @@ const HorizontalPitchWithHeatmap: React.FC<{ turnovers: TurnoverEvent[], homeTea
   }, [turnovers, homeTeam, awayTeam]);
 
   return (
-    <div className="w-full aspect-[91.4/55] bg-green-700 relative border-border rounded-lg overflow-hidden">
+    <div className="w-full aspect-[91.4/55] bg-card relative border-border rounded-lg overflow-hidden">
       <svg 
         viewBox={`-2 -2 ${PITCH_LENGTH + 4} ${PITCH_WIDTH + 4}`}
         className="w-full h-full"
-        style={{ backgroundColor: "hsl(120, 39%, 41%)" }}
+        style={{ backgroundColor: "hsl(var(--card))" }}
       >
         {/* Heatmap Rectangles */}
         <g>
@@ -70,8 +72,8 @@ const HorizontalPitchWithHeatmap: React.FC<{ turnovers: TurnoverEvent[], homeTea
               const intensity = Math.abs(diff) / maxAbsDiff;
               // Home team (blue) is positive diff, Away team (red) is negative diff
               const color = diff > 0 
-                  ? `rgba(59, 130, 246, ${0.15 + 0.8 * intensity})` // Blue for Home
-                  : `rgba(239, 68, 68, ${0.15 + 0.8 * intensity})`;  // Red for Away
+                  ? `rgba(59, 130, 246, ${0.1 + 0.85 * intensity})` // Blue for Home
+                  : `rgba(239, 68, 68, ${0.1 + 0.85 * intensity})`;  // Red for Away
               
               return (
                 <rect
@@ -87,18 +89,18 @@ const HorizontalPitchWithHeatmap: React.FC<{ turnovers: TurnoverEvent[], homeTea
         </g>
         
         {/* Pitch Markings */}
-        <g stroke="hsl(0, 0%, 100%, 0.7)" strokeWidth={0.3} fill="none">
+        <g stroke="hsl(var(--border))" strokeWidth={0.3} fill="none">
           <rect x="0" y="0" width={PITCH_LENGTH} height={PITCH_WIDTH} />
           <line x1={PITCH_LENGTH / 2} y1="0" x2={PITCH_LENGTH / 2} y2={PITCH_WIDTH} />
           <line x1={LINE_23M} y1="0" x2={LINE_23M} y2={PITCH_WIDTH} />
           <line x1={PITCH_LENGTH - LINE_23M} y1="0" x2={PITCH_LENGTH - LINE_23M} y2={PITCH_WIDTH} />
           
-          {/* Circles using path `A` command for arc */}
+          {/* Circles using path 'A' command for arc */}
           <path d={`M 0,${(PITCH_WIDTH/2) - 14.63} A 14.63,14.63 0 0,1 14.63,${PITCH_WIDTH/2} A 14.63,14.63 0 0,1 0,${(PITCH_WIDTH/2) + 14.63}`} />
           <path d={`M ${PITCH_LENGTH},${(PITCH_WIDTH/2) - 14.63} A 14.63,14.63 0 0,0 ${PITCH_LENGTH - 14.63},${PITCH_WIDTH/2} A 14.63,14.63 0 0,0 ${PITCH_LENGTH},${(PITCH_WIDTH/2) + 14.63}`} />
 
-          <circle cx={6.4} cy={PITCH_WIDTH / 2} r={0.3} fill="white" stroke="none" />
-          <circle cx={PITCH_LENGTH - 6.4} cy={PITCH_WIDTH / 2} r={0.3} fill="white" stroke="none" />
+          <circle cx={6.4} cy={PITCH_WIDTH / 2} r={0.3} fill="hsl(var(--border))" stroke="none" />
+          <circle cx={PITCH_LENGTH - 6.4} cy={PITCH_WIDTH / 2} r={0.3} fill="hsl(var(--border))" stroke="none" />
         </g>
         
         {/* Text Counts */}
@@ -111,15 +113,16 @@ const HorizontalPitchWithHeatmap: React.FC<{ turnovers: TurnoverEvent[], homeTea
                   y={(LANES[j] + LANES[j+1]) / 2}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fill="white"
+                  fill="hsl(var(--card-foreground))"
                   fontSize="2"
                   fontWeight="bold"
-                  stroke="black"
-                  strokeWidth="0.1"
+                  stroke="hsl(var(--card))"
+                  strokeWidth="0.2"
+                  paintOrder="stroke"
                 >
-                  <tspan fill="lightblue" dx="-2.5">{home}</tspan>
-                  <tspan fill="white"> | </tspan>
-                  <tspan fill="lightcoral" dx="0.5">{away}</tspan>
+                  <tspan fill="rgb(59, 130, 246)" dx="-2.5">{home}</tspan>
+                  <tspan fill="hsl(var(--muted-foreground))"> | </tspan>
+                  <tspan fill="rgb(239, 68, 68)" dx="0.5">{away}</tspan>
                 </text>
               );
           })}
@@ -127,11 +130,11 @@ const HorizontalPitchWithHeatmap: React.FC<{ turnovers: TurnoverEvent[], homeTea
       </svg>
       <div className="absolute bottom-2 left-2 bg-card/80 p-2 rounded text-xs flex gap-4 backdrop-blur-sm">
         <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full" style={{backgroundColor: 'lightblue'}}></div>
+          <div className="w-3 h-3 rounded-full" style={{backgroundColor: 'rgba(59, 130, 246, 0.7)'}}></div>
           <span>{homeTeam.name} Turnovers</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full" style={{backgroundColor: 'lightcoral'}}></div>
+          <div className="w-3 h-3 rounded-full" style={{backgroundColor: 'rgba(239, 68, 68, 0.7)'}}></div>
           <span>{awayTeam.name} Turnovers</span>
         </div>
       </div>
@@ -156,5 +159,3 @@ export function TurnoverHeatmap({ turnovers, homeTeam, awayTeam }: { turnovers: 
     </Card>
   );
 }
-
-    
