@@ -31,12 +31,18 @@ export interface TeamMatchStats {
     allowedSpp: number;
 }
 
+export interface AttackThreatDataPoint {
+  quarter: string;
+  [teamName: string]: number; // Attack Threat value
+}
+
 export interface MatchData {
   homeTeam: Team;
   awayTeam: Team;
   turnovers: TurnoverEvent[];
   pressureData: PressureDataPoint[];
   circleEntries: CircleEntry[];
+  attackThreatData: AttackThreatDataPoint[];
   build25Ratio: { home: number; away: number };
   spp: { home: number; away: number };
   matchStats: {

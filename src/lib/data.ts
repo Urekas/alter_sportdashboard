@@ -1,4 +1,4 @@
-import type { MatchData, TeamMatchStats } from './types';
+import type { MatchData, TeamMatchStats, AttackThreatDataPoint } from './types';
 
 const HOME_TEAM = { name: 'Blues', color: 'hsl(var(--chart-1))' };
 const AWAY_TEAM = { name: 'Reds', color: 'hsl(var(--chart-2))' };
@@ -63,12 +63,22 @@ function generateTeamMatchStats(): TeamMatchStats {
     }
 }
 
+function generateAttackThreatData(): AttackThreatDataPoint[] {
+    const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+    return quarters.map(q => ({
+        quarter: q,
+        [HOME_TEAM.name]: Math.floor(Math.random() * 8) + 2, // Random threat between 2 and 9
+        [AWAY_TEAM.name]: Math.floor(Math.random() * 8) + 2,
+    }));
+}
+
 export const mockMatchData: MatchData = {
   homeTeam: HOME_TEAM,
   awayTeam: AWAY_TEAM,
   pressureData: generatePressureData(),
   turnovers: generateTurnovers(),
   circleEntries: generateCircleEntries(),
+  attackThreatData: generateAttackThreatData(),
   build25Ratio: {
     home: 0.62,
     away: 0.51,

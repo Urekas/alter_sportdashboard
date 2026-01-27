@@ -11,6 +11,7 @@ import { PressureBattleChart } from "./pressure-battle-chart"
 import { ZoneHeatmap } from "./zone-heatmap"
 import { CircleEntryAnalysis } from "./circle-entry-analysis"
 import { BasicMatchStats } from "./basic-match-stats"
+import { AttackThreatChart } from "./attack-threat-chart"
 
 export function Dashboard() {
   const [matchData, setMatchData] = useState<MatchData | null>(null)
@@ -129,6 +130,11 @@ export function Dashboard() {
                   />
               </div>
               <CircleEntryAnalysis entries={matchData.circleEntries} />
+              <AttackThreatChart
+                data={matchData.attackThreatData}
+                homeTeam={matchData.homeTeam}
+                awayTeam={matchData.awayTeam}
+              />
             </div>
           </div>
         )}
