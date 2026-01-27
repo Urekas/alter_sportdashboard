@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from "react"
 import { Upload, Printer, FileText, TrendingUp, TrendingDown } from "lucide-react"
-import type { MatchData } from "@/lib/types"
+import type { MatchData, TurnoverEvent } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
@@ -12,7 +12,7 @@ import { TurnoverHeatmap } from "./turnover-heatmap"
 import { CircleEntryAnalysis } from "./circle-entry-analysis"
 import { BasicMatchStats } from "./basic-match-stats"
 import { AttackThreatChart } from "./attack-threat-chart"
-import { parseXMLData } from "@/lib/parser"
+import { parseXMLData, parseCSVData } from "@/lib/parser"
 
 
 export function Dashboard() {
@@ -40,37 +40,44 @@ export function Dashboard() {
       reader.onload = (e) => {
         try {
           const content = e.target?.result as string;
+          let turnovers: TurnoverEvent[] = [];
+          let toastTitle = "File Parsed Successfully";
+          let toastDescription = "";
           
           if (file.name.endsWith('.xml')) {
-            const turnovers = parseXMLData(content, mockMatchData.homeTeam.name, mockMatchData.awayTeam.name);
-            
-            // Create a new match data object, replacing turnovers but keeping other mock data
-            const newMatchData: MatchData = {
-              ...mockMatchData,
-              turnovers: turnovers,
-            };
-            
-            setMatchData(newMatchData);
-            toast({
-              title: "XML Parsed Successfully",
-              description: `${turnovers.length} turnover events loaded. Other charts still use demo data.`,
-            });
+            turnovers = parseXMLData(content, mockMatchData.homeTeam.name, mockMatchData.awayTeam.name);
+            toastDescription = `${turnovers.length} turnover events loaded from XML. Other charts still use demo data.`;
+          } else if (file.name.endsWith('.csv')) {
+            turnovers = parseCSVData(content);
+            toastDescription = `${turnovers.length} turnover events loaded from CSV. Other charts still use demo data.`;
           } else {
              toast({
               title: "File Type Not Supported",
-              description: `CSV parsing is not yet implemented. Please upload a SportsCode XML file.`,
+              description: `Please upload a SportsCode XML or a CSV file.`,
               variant: "destructive"
             });
+            return;
           }
-        } catch (error) {
+
+          // Create a new match data object, replacing turnovers but keeping other mock data
+          const newMatchData: MatchData = {
+            ...mockMatchData,
+            turnovers: turnovers,
+          };
+            
+          setMatchData(newMatchData);
+          toast({
+            title: toastTitle,
+            description: toastDescription,
+          });
+
+        } catch (error: any) {
           console.error("File parsing error:", error);
           toast({
             title: "File Parsing Error",
-            description: "Could not parse the file. Please ensure it is a valid SportsCode XML.",
+            description: error.message || "Could not parse the file. Please ensure it is a valid format.",
             variant: "destructive",
           });
-          // Load mock data as a fallback
-          setMatchData(mockMatchData);
         }
       };
       
@@ -182,5 +189,3 @@ export function Dashboard() {
     </div>
   )
 }
-
-    

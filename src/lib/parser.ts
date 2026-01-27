@@ -93,4 +93,61 @@ export const parseXMLData = (xmlText: string, homeTeamName: string, awayTeamName
   return events;
 };
 
-    
+
+/**
+ * Parses CSV data to extract turnover events.
+ * Assumes CSV format: id,team,quarter,time,x,y,locationLabel
+ * @param csvText The CSV content as a string.
+ * @returns An array of TurnoverEvent objects.
+ */
+export const parseCSVData = (csvText: string): TurnoverEvent[] => {
+  const events: TurnoverEvent[] = [];
+  const lines = csvText.trim().split('\n');
+  
+  // Return empty if file is empty or only has a header
+  if (lines.length < 2) {
+    return [];
+  }
+  
+  const headers = lines.shift()!.trim().split(',');
+
+  const idx = {
+    id: headers.indexOf('id'),
+    team: headers.indexOf('team'),
+    quarter: headers.indexOf('quarter'),
+    time: headers.indexOf('time'),
+    x: headers.indexOf('x'),
+    y: headers.indexOf('y'),
+    locationLabel: headers.indexOf('locationLabel'),
+  };
+
+  if (Object.values(idx).some(i => i === -1)) {
+    throw new Error(`CSV must contain headers: id, team, quarter, time, x, y, locationLabel`);
+  }
+
+  lines.forEach((line) => {
+    if (!line.trim()) return;
+    const values = line.trim().split(',');
+
+    const x = parseFloat(values[idx.x]);
+    const y = parseFloat(values[idx.y]);
+    const time = parseFloat(values[idx.time]);
+
+    if (isNaN(x) || isNaN(y) || isNaN(time)) {
+      console.warn("Skipping invalid CSV row:", line);
+      return;
+    }
+
+    events.push({
+      id: values[idx.id],
+      team: values[idx.team],
+      quarter: values[idx.quarter],
+      time,
+      x,
+      y,
+      locationLabel: values[idx.locationLabel],
+    });
+  });
+
+  return events;
+};
