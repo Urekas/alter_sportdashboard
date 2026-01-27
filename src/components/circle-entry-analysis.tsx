@@ -7,36 +7,34 @@ import type { CircleEntry } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { ArrowUp } from "lucide-react"
 
-// A detailed view of the attacking shooting circle, based on official dimensions.
+// A detailed view of the attacking shooting circle, based on user's specific geometric instructions.
 const HockeyShootingCircle: FC = () => (
-    <svg viewBox="0 0 100 55" preserveAspectRatio="xMidYMin" className="w-full h-full">
-      <g stroke="hsl(var(--foreground))" strokeWidth="1.5" fill="none">
-        {/* Goal Line */}
-        <line x1="0" y1="5" x2="100" y2="5" />
-
+    <svg viewBox="0 0 100 65" preserveAspectRatio="xMidYMin" className="w-full h-full">
+      <g stroke="hsl(var(--foreground))" strokeWidth="2" fill="none">
+        {/* The D-shape: a line and a semi-circle arc */}
+        {/* Straight line part of the D (also serves as goal line) */}
+        <line x1="15" y1="10" x2="85" y2="10" />
+        {/* Arc part of the D */}
+        <path d="M 15 10 A 35 35 0 0 1 85 10" />
+        
         {/* Goal */}
-        <rect x="45.6" y="0" width="8.8" height="5" />
-
-        {/* Shooting Circle (Solid Arc & Line) */}
-        <path d="M 15 5 A 35 35 0 0 1 85 5" />
-        <line x1="15" y1="5" x2="85" y2="5" />
+        <rect x="45.6" y="4" width="8.8" height="6" strokeWidth="1.5" />
         
         {/* Dashed Circle (5m from D) */}
-        <path d="M 5 5 A 45 45 0 0 1 95 5" strokeDasharray="4,4" />
+        <path d="M 5 10 A 45 45 0 0 1 95 10" strokeDasharray="5,5" />
         
         {/* Penalty Spot */}
-        <circle cx="50" cy="20.5" r="1.5" fill="hsl(var(--foreground))" stroke="none" />
+        <circle cx="50" cy="27" r="1.5" fill="hsl(var(--foreground))" stroke="none" />
         
         {/* Markings on Goal Line for Penalty Corner */}
-        {/* 5m and 10m from goal post */}
-        <line x1={50 - 16.33} y1="5" x2={50 - 16.33} y2="2" />
-        <line x1={50 + 16.33} y1="5" x2={50 + 16.33} y2="2" />
-        <line x1={50 - 28.29} y1="5" x2={50 - 28.29} y2="2" />
-        <line x1={50 + 28.29} y1="5" x2={50 + 28.29} y2="2" />
+        <line x1="33" y1="10" x2="33" y2="7" />
+        <line x1="67" y1="10" x2="67" y2="7" />
+        <line x1="23" y1="10" x2="23" y2="7" />
+        <line x1="77" y1="10" x2="77" y2="7" />
 
-        {/* Sideline Ticks */}
-        <path d="M 0 20 H 3 M 0 40 H 3" />
-        <path d="M 100 20 H 97 M 100 40 H 97" />
+        {/* Sideline Ticks (Decorative) */}
+        <path d="M 0 25 H 3 M 0 45 H 3" />
+        <path d="M 100 25 H 97 M 100 45 H 97" />
       </g>
     </svg>
 );
