@@ -48,7 +48,7 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
   // 2. 파이썬 코드 기반 상수 (단위: m)
   const FIELD_W = 55.0;
   const FIELD_H = 25.0;
-  const TOP_PADDING = 5.0; // 골대 표시를 위한 상단 여백
+  const TOP_PADDING = 4.0; // 골대 표시를 위한 상단 여백 (5.0 -> 4.0으로 수정)
   
   // 좌표 계산 (Center X)
   const CX = FIELD_W / 2; // 27.5
@@ -66,8 +66,8 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
       </CardHeader>
       <CardContent className="flex justify-center items-center p-4">
         
-        {/* SVG 컨테이너: 상단 여백 포함하여 55 x 30 비율 설정 */}
-        <div className="relative w-full max-w-2xl aspect-[55/30]">
+        {/* SVG 컨테이너: 상단 여백 포함하여 55 x 29 비율 설정 */}
+        <div className="relative w-full max-w-2xl aspect-[55/29]">
           <svg
             width="100%"
             height="100%"
@@ -84,22 +84,22 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
             {/* --- 1. Field Lines --- */}
             <g fill="none" stroke="black" strokeLinecap="round">
               
-              {/* Outer Box: (0, 5) ~ (55, 30) */}
+              {/* Outer Box */}
               <rect x="0" y={toSvgY(25)} width={FIELD_W} height={FIELD_H} strokeWidth="0.5" />
 
-              {/* Goal: 파이썬 y=25 라인(SVG y=5)보다 위쪽으로 돌출 */}
+              {/* Goal */}
               <rect 
                 x={CX - 1.83} 
-                y={toSvgY(25) - 1.2} // 5 - 1.2 = 3.8
+                y={toSvgY(25) - 1.2}
                 width={3.66} 
                 height={1.2} 
                 strokeWidth="0.5" 
               />
 
-              {/* Back Line (Goal Line) - 두께 수정 (0.8 -> 0.5) */}
+              {/* Back Line (Goal Line) */}
               <line x1={0} y1={toSvgY(25)} x2={FIELD_W} y2={toSvgY(25)} strokeWidth="0.5" />
 
-              {/* Ticks (파이썬: [-6, -3, 3, 6]) */}
+              {/* Ticks */}
               {[-6, -3, 3, 6].map((dx) => (
                 <line 
                   key={dx} 
@@ -110,7 +110,6 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
               ))}
 
               {/* --- Shooting Circle (D-zone) --- */}
-              {/* 파이썬: y=25(상단) 기준. SVG에서는 y=5에서 시작해서 아래로 둥글게 그려야 함(SweepFlag=1) */}
               <path
                 d={`
                   M ${CX - 1.83} ${toSvgY(25)}
@@ -122,7 +121,6 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
               />
 
               {/* --- 5m Dashed Line --- */}
-              {/* 반지름 14.63 + 5 = 19.63 */}
               <path
                 d={`
                   M ${CX - 1.83} ${toSvgY(25)}
@@ -133,19 +131,19 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
                 strokeDasharray="1, 1"
               />
 
-              {/* Penalty Spot (파이썬: back_y - 6.47) -> 약 y=18.53 */}
+              {/* Penalty Spot */}
               <circle cx={CX} cy={toSvgY(25 - 6.47)} r="0.15" fill="black" stroke="none" />
             </g>
 
             {/* --- 2. Arrows (파이썬 좌표 매핑) --- */}
             <g stroke="rgba(70, 130, 180, 0.7)" strokeWidth="0.8" markerEnd="url(#arrow-head-blue)">
-              {/* Left Arrow (유지) */}
+              {/* Left Arrow */}
               <line x1="2.75" y1={toSvgY(13)} x2="11.0" y2={toSvgY(21)} />
               
-              {/* Center Arrow (Flipped to point upwards) */}
+              {/* Center Arrow */}
               <line x1="27.5" y1={toSvgY(4)} x2="27.5" y2={toSvgY(15)} />
               
-              {/* Right Arrow (유지) */}
+              {/* Right Arrow */}
               <line x1="52.25" y1={toSvgY(13)} x2="44.0" y2={toSvgY(21)} />
             </g>
 
