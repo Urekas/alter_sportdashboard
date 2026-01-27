@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import type { CircleEntry } from "@/lib/types"
 
@@ -10,8 +10,6 @@ interface CircleEntryAnalysisProps {
 }
 
 export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisProps) {
-  const [imageError, setImageError] = useState(false);
-
   const analysis = useMemo(() => {
     const stats: Record<'Left' | 'Center' | 'Right', { entries: number; success: number }> = {
       Left: { entries: 0, success: 0 },
@@ -53,45 +51,83 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
       </CardHeader>
       <CardContent className="flex justify-center items-center p-2 sm:p-4 md:p-6">
         <div className="relative w-full max-w-lg mx-auto aspect-[55/30]">
-          {imageError ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-destructive/10 text-destructive border border-dashed border-destructive rounded-lg">
-                <div className="text-center p-4">
-                    <p className="font-bold">이미지 로드 오류</p>
-                    <p className="text-sm mt-1">
-                        <code>public/pitch-diagram.png</code><br/>
-                        경로에 파일이 있는지 확인 후 서버를 재시작해주세요.
-                    </p>
-                </div>
-            </div>
-          ) : (
-            <img
-                src="/pitch-diagram.png"
-                alt="Hockey pitch circle diagram"
-                className="absolute inset-0 w-full h-full object-contain"
-                data-ai-hint="hockey field"
-                onError={() => setImageError(true)}
-            />
-          )}
+          <svg
+            width="100%"
+            height="100%"
+            viewBox="0 0 55 30"
+            preserveAspectRatio="xMidYMin"
+            className="absolute inset-0 w-full h-full object-contain text-card-foreground"
+          >
+            {/* Pitch Diagram */}
+            <g stroke="currentColor" fill="none" strokeWidth="0.5">
+              {/* Baseline */}
+              <path d="M2,5 H53" />
+              {/* Goal */}
+              <rect x="25" y="3.5" width="5" height="1.5" />
+              {/* Ticks */}
+              <path d="M15,5 v-1 M20,5 v-1 M35,5 v-1 M40,5 v-1" />
+              {/* Solid Arc */}
+              <path d="M12.5,5 A 15 15 0 0 1 42.5,5" />
+              {/* Dashed Arc */}
+              <path
+                d="M7.5,5 A 20 20 0 0 1 47.5,5"
+                strokeDasharray="2,1.5"
+              />
+            </g>
+            {/* Penalty Spot */}
+            <circle cx="27.5" cy="15" r="0.75" fill="currentColor" stroke="none" />
 
-          {/* Arrow Overlays - Hide if image fails */}
-          {!imageError && (
-            <div className="absolute inset-0">
-                <svg width="100%" height="100%" viewBox="0 0 55 30" preserveAspectRatio="xMidYMin">
-                     <defs>
-                        <marker id="arrowhead-circle-analysis" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
-                            <path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(var(--accent))" />
-                        </marker>
-                    </defs>
-                    {/* Left Arrow */}
-                    <line x1="2.75" y1="17" x2="11" y2="9" stroke="hsl(var(--accent))" strokeWidth="1.5" opacity="0.8" markerEnd="url(#arrowhead-circle-analysis)" />
-                    {/* Center Arrow */}
-                    <line x1="27.5" y1="25" x2="27.5" y2="15" stroke="hsl(var(--accent))" strokeWidth="1.5" opacity="0.8" markerEnd="url(#arrowhead-circle-analysis)" />
-                    {/* Right Arrow */}
-                    <line x1="52.25" y1="17" x2="44" y2="9" stroke="hsl(var(--accent))" strokeWidth="1.5" opacity="0.8" markerEnd="url(#arrowhead-circle-analysis)" />
-                </svg>
-            </div>
-          )}
-
+            {/* Arrow Overlays */}
+            <g>
+              <defs>
+                <marker
+                  id="arrowhead-circle-analysis"
+                  viewBox="0 0 10 10"
+                  refX="5"
+                  refY="5"
+                  markerWidth="4"
+                  markerHeight="4"
+                  orient="auto-start-reverse"
+                >
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(var(--accent))" />
+                </marker>
+              </defs>
+              {/* Left Arrow */}
+              <line
+                x1="2.75"
+                y1="17"
+                x2="11"
+                y2="9"
+                stroke="hsl(var(--accent))"
+                strokeWidth="1.5"
+                opacity="0.8"
+                markerEnd="url(#arrowhead-circle-analysis)"
+              />
+              {/* Center Arrow */}
+              <line
+                x1="27.5"
+                y1="25"
+                x2="27.5"
+                y2="15"
+                stroke="hsl(var(--accent))"
+                strokeWidth="1.5"
+                opacity="0.8"
+                markerEnd="url(#arrowhead-circle-analysis)"
+              />
+              {/* Right Arrow */}
+              <line
+                x1="52.25"
+                y1="17"
+                x2="44"
+                y2="9"
+                stroke="hsl(var(--accent))"
+                strokeWidth="1.5"
+                opacity="0.8"
+                markerEnd="url(#arrowhead-circle-analysis)"
+              />
+            </g>
+          </svg>
+          
          {/* Text Overlays */}
           <div
               className="absolute text-center text-card-foreground whitespace-nowrap"
