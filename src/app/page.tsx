@@ -1,3 +1,9 @@
+import { Dashboard } from '@/components/dashboard';
+
 export default function Home() {
-  return <></>;
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <Dashboard />
+    </div>
+  );
 }
