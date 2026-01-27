@@ -1,7 +1,6 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import type { CircleEntry } from "@/lib/types"
 
@@ -65,11 +64,10 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
                 </div>
             </div>
           ) : (
-            <Image
+            <img
                 src="/pitch-diagram.png"
                 alt="Hockey pitch circle diagram"
-                fill
-                className="object-contain"
+                className="absolute inset-0 w-full h-full object-contain"
                 data-ai-hint="hockey field"
                 onError={() => setImageError(true)}
             />
