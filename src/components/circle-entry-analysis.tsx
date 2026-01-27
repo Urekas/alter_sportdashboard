@@ -46,19 +46,12 @@ export function CircleEntryAnalysis({ entries }: CircleEntryAnalysisProps) {
       </CardHeader>
       <CardContent className="flex justify-center items-center p-2 sm:p-4 md:p-6">
         <div className="relative w-full max-w-lg mx-auto aspect-[55/30]">
-          <div className="absolute inset-0 bg-accent/10 rounded-md">
-              <p className="flex items-center justify-center h-full text-sm text-center text-muted-foreground p-4">
-                  TODO: 1. Add your diagram image to the /public folder (e.g., /public/circle-diagram.png). 2. Uncomment the Image component below to display it.
-              </p>
-          </div>
-          {/*
           <Image
               src="/circle-diagram.png"
               alt="Hockey pitch circle diagram"
-              layout="fill"
-              objectFit="contain"
+              fill
+              className="object-contain"
           />
-          */}
 
           {/* Arrow Overlays */}
           <div className="absolute inset-0">
