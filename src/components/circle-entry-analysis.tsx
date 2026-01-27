@@ -43,7 +43,12 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
     <Card>
       <CardHeader>
         <CardTitle>{teamName} 써클 진입 분석</CardTitle>
-        <CardDescription>공격 채널별 진입 및 성공 효율 (공격 방향: 아래 → 위)</CardDescription>
+        <CardDescription>
+          공격 채널별 진입 및 성공 효율 (공격 방향: 아래 → 위)
+          <span className="mt-1 block text-xs text-muted-foreground/90">
+            (참고: 현재 이 데이터는 시뮬레이션으로 생성됩니다.)
+          </span>
+        </CardDescription>
       </CardHeader>
       <CardContent className="flex justify-center items-center p-2 sm:p-4 md:p-6">
         <div className="relative w-full max-w-lg mx-auto aspect-[55/30]">

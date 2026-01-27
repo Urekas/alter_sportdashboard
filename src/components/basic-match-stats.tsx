@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import type { MatchData } from "@/lib/types"
 
 interface BasicMatchStatsProps {
@@ -66,6 +66,9 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
     <Card>
       <CardHeader>
         <CardTitle>Basic Match Stats</CardTitle>
+        <CardDescription className="pt-2 text-xs">
+          (참고: Possession 통계는 턴오버 수치에 기반하며, 그 외 수치는 시뮬레이션으로 생성됩니다.)
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <Table>

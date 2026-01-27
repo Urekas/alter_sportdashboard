@@ -48,7 +48,12 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
     <Card>
       <CardHeader>
         <CardTitle>Attack Threat Trend</CardTitle>
-        <CardDescription>Total shots and penalty corners per quarter.</CardDescription>
+        <CardDescription>
+          Total shots and penalty corners per quarter.
+          <span className="mt-1 block text-xs text-muted-foreground/90">
+            (참고: 현재 이 데이터는 시뮬레이션으로 생성됩니다.)
+          </span>
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>

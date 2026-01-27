@@ -72,7 +72,12 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
     <Card>
       <CardHeader>
         <CardTitle>Pressure Battle</CardTitle>
-        <CardDescription>Seconds Per Press (SPP) over time. Lower is better.</CardDescription>
+        <CardDescription>
+          Seconds Per Press (SPP) over time. Lower is better.
+          <span className="mt-1 block text-xs text-muted-foreground/90">
+            (참고: 현재 이 데이터는 시뮬레이션으로 생성됩니다.)
+          </span>
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
