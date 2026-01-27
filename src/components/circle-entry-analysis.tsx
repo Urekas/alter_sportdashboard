@@ -10,65 +10,68 @@ import { ArrowUp } from "lucide-react"
 // A detailed, geometrically correct view of the attacking shooting circle.
 // Based on official field hockey dimensions, scaled to a viewBox.
 const HockeyShootingCircle: FC = () => {
-  // ViewBox: 0 0 100 70. Goal is at the top. Attack is from bottom to top.
-  // Field Dimensions to SVG unit mapping:
-  // Field Width: 55m -> 90 units (5 to 95) -> 1m = 1.636 units
-  // Goal Width: 3.66m -> 5.99 units
-  // Circle Radius: 14.63m -> 23.94 units
-  // Dashed Circle Radius: 19.63m -> 32.12 units
-  // Penalty Spot Distance: 6.475m -> 10.6 units
-  const goalWidth = 5.99;
-  const rMain = 23.94;
-  const rBroken = 32.12;
-  const penaltySpotY = 10 + 10.6;
-  const goalPostLeftX = 50 - goalWidth / 2;
-  const goalPostRightX = 50 + goalWidth / 2;
+  // ViewBox centered around a 110-unit width to give some padding.
+  // Proportions based on official FIH rules, scaled to fit the viewBox.
+  // 1m = 2 units for easy scaling.
+  const scale = (meters: number) => meters * 2;
 
-  const dPath = [
-    `M ${goalPostLeftX - rMain},10`, // Start of left arc on backline
-    `A ${rMain},${rMain} 0 0 1 ${goalPostLeftX},${10 + rMain}`, // Left quadrant arc
-    `L ${goalPostRightX},${10 + rMain}`, // Straight line part of the D
-    `A ${rMain},${rMain} 0 0 1 ${goalPostRightX + rMain},10` // Right quadrant arc
-  ].join(' ');
+  const viewBoxWidth = 110; // 55m width
+  const viewBoxHeight = 70; // Enough for 23m area + goal
+  const cx = viewBoxWidth / 2;
 
-  const dashedDPath = [
-    `M ${goalPostLeftX - rBroken},10`,
-    `A ${rBroken},${rBroken} 0 0 1 ${goalPostLeftX},${10 + rBroken}`,
-    `L ${goalPostRightX},${10 + rBroken}`,
-    `A ${rBroken},${rBroken} 0 0 1 ${goalPostRightX + rBroken},10`
-  ].join(' ');
+  // Position the goal line at the top
+  const goalLineY = 20;
+
+  const goalWidth = scale(3.66);
+  const goalDepth = scale(1.2);
+  const goalPostLeftX = cx - goalWidth / 2;
+  const goalPostRightX = cx + goalWidth / 2;
+
+  // The D is a semi-circle with a radius of 14.63m centered on the goal's midpoint.
+  const dRadius = scale(14.63);
+  const dPath = `M ${cx - dRadius},${goalLineY} A ${dRadius},${dRadius} 0 0 1 ${cx + dRadius},${goalLineY}`;
+  
+  // The broken circle is 5m outside the D.
+  const brokenDRadius = scale(14.63 + 5);
+  const brokenDPath = `M ${cx - brokenDRadius},${goalLineY} A ${brokenDRadius},${brokenDRadius} 0 0 1 ${cx + brokenDRadius},${goalLineY}`;
+
+  // Penalty spot is 6.475m from the goal line.
+  const penaltySpotY = goalLineY + scale(6.475);
+  
+  // Penalty corner markings are 5m and 10m from each goal post.
+  const pcMark5m = scale(5);
+  const pcMark10m = scale(10);
+  const markHeight = scale(0.3); // 300mm long
 
   return (
-    <svg viewBox="0 0 100 70" preserveAspectRatio="xMidYMin" className="w-full h-full">
+    <svg viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`} preserveAspectRatio="xMidYMin" className="w-full h-full">
       <g stroke="hsl(var(--foreground))" strokeWidth="0.8" fill="none">
-        {/* Pitch Outline (Attacking 25m Area) */}
-        <rect x="0" y="10" width="100" height="55" strokeWidth="0.5" />
+        
+        {/* Goal */}
+        <rect x={goalPostLeftX} y={goalLineY - goalDepth} width={goalWidth} height={goalDepth} strokeWidth="1" />
         
         {/* Goal Line */}
-        <line x1="0" y1="10" x2="100" y2="10" />
-
-        {/* Goal */}
-        <rect x={goalPostLeftX} y={8} width={goalWidth} height="2" strokeWidth="0.7" />
-
+        <line x1="0" y1={goalLineY} x2={viewBoxWidth} y2={goalLineY} strokeWidth="1" />
+        
         {/* The D (Shooting Circle) */}
-        <path d={dPath} />
+        <path d={dPath} strokeWidth="1.2" />
         
         {/* Dashed Circle (5m from D) */}
-        <path d={dashedDPath} strokeDasharray="3,3" />
-
-        {/* Penalty Spot */}
-        <circle cx="50" cy={penaltySpotY} r="0.75" fill="hsl(var(--foreground))" stroke="none" />
+        <path d={brokenDPath} strokeDasharray="3,3" />
         
-        {/* Penalty Corner Markings (5m and 10m from posts) */}
+        {/* Penalty Spot */}
+        <circle cx={cx} cy={penaltySpotY} r="0.75" fill="hsl(var(--foreground))" stroke="none" />
+        
+        {/* Penalty Corner Markings */}
         {/* Left Side */}
-        <line x1={goalPostLeftX - 8.18} y1="10" x2={goalPostLeftX - 8.18} y2="9" />
-        <line x1={goalPostLeftX - 16.36} y1="10" x2={goalPostLeftX - 16.36} y2="9" />
+        <line x1={goalPostLeftX - pcMark5m} y1={goalLineY} x2={goalPostLeftX - pcMark5m} y2={goalLineY + markHeight} />
+        <line x1={goalPostLeftX - pcMark10m} y1={goalLineY} x2={goalPostLeftX - pcMark10m} y2={goalLineY + markHeight} />
         {/* Right Side */}
-        <line x1={goalPostRightX + 8.18} y1="10" x2={goalPostRightX + 8.18} y2="9" />
-        <line x1={goalPostRightX + 16.36} y1="10" x2={goalPostRightX + 16.36} y2="9" />
+        <line x1={goalPostRightX + pcMark5m} y1={goalLineY} x2={goalPostRightX + pcMark5m} y2={goalLineY + markHeight} />
+        <line x1={goalPostRightX + pcMark10m} y1={goalLineY} x2={goalPostRightX + pcMark10m} y2={goalLineY + markHeight} />
       </g>
     </svg>
-  )
+  );
 };
 
 
@@ -125,7 +128,7 @@ export function CircleEntryAnalysis({ entries }: CircleEntryAnalysisProps) {
         <CardDescription>공격 채널별 진입 및 성공 효율</CardDescription>
       </CardHeader>
       <CardContent className="flex justify-center items-center p-2 sm:p-4 md:p-6">
-        <div className="relative w-full max-w-lg aspect-[100/70]">
+        <div className="relative w-full max-w-2xl aspect-[110/70]">
           <div className="absolute inset-0">
              <HockeyShootingCircle />
           </div>
@@ -133,8 +136,10 @@ export function CircleEntryAnalysis({ entries }: CircleEntryAnalysisProps) {
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="relative w-full h-full">
 
+              {/* Data Overlay: Positioned relative to the parent container */}
+              
               {/* Left Channel */}
-              <div className="absolute bottom-[10%] left-[5%] flex flex-col items-center gap-1 text-foreground">
+              <div className="absolute bottom-[5%] left-[10%] flex flex-col items-center gap-1 text-foreground">
                 <ArrowUp className="w-16 h-16 sm:w-20 sm:h-20 text-accent opacity-80 transform -rotate-[50deg]" strokeWidth={3}/>
                  <StatDisplay
                   label="Left"
@@ -156,7 +161,7 @@ export function CircleEntryAnalysis({ entries }: CircleEntryAnalysisProps) {
               </div>
 
               {/* Right Channel */}
-              <div className="absolute bottom-[10%] right-[5%] flex flex-col items-center gap-1 text-foreground">
+              <div className="absolute bottom-[5%] right-[10%] flex flex-col items-center gap-1 text-foreground">
                 <ArrowUp className="w-16 h-16 sm:w-20 sm:h-20 text-accent opacity-80 transform rotate-[50deg]" strokeWidth={3} />
                 <StatDisplay
                   label="Right"
