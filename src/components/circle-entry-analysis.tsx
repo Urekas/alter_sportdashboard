@@ -7,31 +7,36 @@ import type { CircleEntry } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { ArrowUp } from "lucide-react"
 
-// A vertical view of the attacking circle, based on official dimensions.
-const VerticalAttackingHalf: FC = () => (
-    <svg viewBox="0 0 100 75" preserveAspectRatio="xMidYMin" className="w-full h-full">
-      <g stroke="hsl(var(--foreground))" strokeWidth="2" fill="none">
+// A detailed view of the attacking shooting circle, based on official dimensions.
+const HockeyShootingCircle: FC = () => (
+    <svg viewBox="0 0 100 55" preserveAspectRatio="xMidYMin" className="w-full h-full">
+      <g stroke="hsl(var(--foreground))" strokeWidth="1.5" fill="none">
+        {/* Goal Line */}
+        <line x1="0" y1="5" x2="100" y2="5" />
+
         {/* Goal */}
-        <rect x="42" y="0" width="16" height="4" />
+        <rect x="45.6" y="0" width="8.8" height="5" />
 
-        {/* Pitch Outline */}
-        <rect x="0" y="4" width="100" height="71" />
-
-        {/* Backline Ticks */}
-        <path d="M 20 4 V 1 M 35 4 V 1 M 50 4 V 1 M 65 4 V 1 M 80 4 V 1" />
-
-        {/* Sideline Ticks */}
-        <path d="M 0 20 H 3 M 0 40 H 3 M 0 60 H 3" />
-        <path d="M 100 20 H 97 M 100 40 H 97 M 100 60 H 97" />
-        
-        {/* Circle (D) */}
-        <path d="M 15 4 A 35 35 0 0 1 85 4" />
+        {/* Shooting Circle (Solid Arc & Line) */}
+        <path d="M 15 5 A 35 35 0 0 1 85 5" />
+        <line x1="15" y1="5" x2="85" y2="5" />
         
         {/* Dashed Circle (5m from D) */}
-        <path d="M 5 4 A 45 45 0 0 1 95 4" strokeDasharray="5,5" />
+        <path d="M 5 5 A 45 45 0 0 1 95 5" strokeDasharray="4,4" />
         
         {/* Penalty Spot */}
-        <circle cx="50" cy="25" r="2" fill="hsl(var(--foreground))" stroke="none" />
+        <circle cx="50" cy="20.5" r="1.5" fill="hsl(var(--foreground))" stroke="none" />
+        
+        {/* Markings on Goal Line for Penalty Corner */}
+        {/* 5m and 10m from goal post */}
+        <line x1={50 - 16.33} y1="5" x2={50 - 16.33} y2="2" />
+        <line x1={50 + 16.33} y1="5" x2={50 + 16.33} y2="2" />
+        <line x1={50 - 28.29} y1="5" x2={50 - 28.29} y2="2" />
+        <line x1={50 + 28.29} y1="5" x2={50 + 28.29} y2="2" />
+
+        {/* Sideline Ticks */}
+        <path d="M 0 20 H 3 M 0 40 H 3" />
+        <path d="M 100 20 H 97 M 100 40 H 97" />
       </g>
     </svg>
 );
@@ -90,7 +95,7 @@ export function CircleEntryAnalysis({ entries }: CircleEntryAnalysisProps) {
       <CardContent className="flex justify-center items-center p-2 sm:p-6">
         <div className="relative w-full max-w-sm sm:max-w-md aspect-[100/75]">
           <div className="absolute inset-0">
-             <VerticalAttackingHalf />
+             <HockeyShootingCircle />
           </div>
 
           {/* Left Channel */}
