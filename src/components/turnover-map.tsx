@@ -26,14 +26,13 @@ const HorizontalHockeyPitch: FC<{ events: TurnoverEvent[], homeTeam: Team, awayT
           <line x1={LINE_23M} y1="0" x2={LINE_23M} y2={PITCH_WIDTH} />
           <line x1={PITCH_LENGTH - LINE_23M} y1="0" x2={PITCH_LENGTH - LINE_23M} y2={PITCH_WIDTH} />
           
-          {/* Left Circle (simplified semi-circle) */}
-          <path d={`M ${CIRCLE_RADIUS},${(PITCH_WIDTH/2) - CIRCLE_RADIUS} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,0 ${CIRCLE_RADIUS},${(PITCH_WIDTH/2) + CIRCLE_RADIUS}`} />
-          <path d={`M ${BROKEN_CIRCLE_RADIUS},${(PITCH_WIDTH/2) - BROKEN_CIRCLE_RADIUS} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,0 ${BROKEN_CIRCLE_RADIUS},${(PITCH_WIDTH/2) + BROKEN_CIRCLE_RADIUS}`} strokeDasharray="1,1"/>
+          {/* Circles using path `A` command for arc */}
+          <path d={`M 0,${(PITCH_WIDTH/2) - CIRCLE_RADIUS} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,1 ${CIRCLE_RADIUS},${PITCH_WIDTH/2} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,1 0,${(PITCH_WIDTH/2) + CIRCLE_RADIUS}`} />
+          <path d={`M 0,${(PITCH_WIDTH/2) - BROKEN_CIRCLE_RADIUS} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,1 ${BROKEN_CIRCLE_RADIUS},${PITCH_WIDTH/2} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,1 0,${(PITCH_WIDTH/2) + BROKEN_CIRCLE_RADIUS}`} strokeDasharray="1,1" />
           <circle cx={PENALTY_SPOT_DIST} cy={PITCH_WIDTH / 2} r={0.3} fill="white" stroke="none" />
           
-          {/* Right Circle (simplified semi-circle) */}
-          <path d={`M ${PITCH_LENGTH - CIRCLE_RADIUS},${(PITCH_WIDTH/2) - CIRCLE_RADIUS} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,1 ${PITCH_LENGTH - CIRCLE_RADIUS},${(PITCH_WIDTH/2) + CIRCLE_RADIUS}`} />
-          <path d={`M ${PITCH_LENGTH - BROKEN_CIRCLE_RADIUS},${(PITCH_WIDTH/2) - BROKEN_CIRCLE_RADIUS} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,1 ${PITCH_LENGTH - BROKEN_CIRCLE_RADIUS},${(PITCH_WIDTH/2) + BROKEN_CIRCLE_RADIUS}`} strokeDasharray="1,1"/>
+          <path d={`M ${PITCH_LENGTH},${(PITCH_WIDTH/2) - CIRCLE_RADIUS} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,0 ${PITCH_LENGTH - CIRCLE_RADIUS},${PITCH_WIDTH/2} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,0 ${PITCH_LENGTH},${(PITCH_WIDTH/2) + CIRCLE_RADIUS}`} />
+          <path d={`M ${PITCH_LENGTH},${(PITCH_WIDTH/2) - BROKEN_CIRCLE_RADIUS} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,0 ${PITCH_LENGTH - BROKEN_CIRCLE_RADIUS},${PITCH_WIDTH/2} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,0 ${PITCH_LENGTH},${(PITCH_WIDTH/2) + BROKEN_CIRCLE_RADIUS}`} strokeDasharray="1,1" />
           <circle cx={PITCH_LENGTH - PENALTY_SPOT_DIST} cy={PITCH_WIDTH / 2} r={0.3} fill="white" stroke="none" />
         </g>
         
@@ -87,3 +86,5 @@ export function TurnoverMap({ turnovers, homeTeam, awayTeam }: { turnovers: Turn
     </Card>
   )
 }
+
+    

@@ -12,6 +12,8 @@ import { TurnoverHeatmap } from "./turnover-heatmap"
 import { CircleEntryAnalysis } from "./circle-entry-analysis"
 import { BasicMatchStats } from "./basic-match-stats"
 import { AttackThreatChart } from "./attack-threat-chart"
+import { parseXMLData } from "@/lib/parser"
+
 
 export function Dashboard() {
   const [matchData, setMatchData] = useState<MatchData | null>(null)
@@ -32,16 +34,55 @@ export function Dashboard() {
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
-      const fileName = event.target.files[0].name
-      toast({
-        title: "File Upload In Progress",
-        description: `Parsing for "${fileName}" is not yet implemented. Displaying sample data instead.`,
-      })
-      // In a real app, you'd parse the file here.
-      // For now, we'll just load the mock data as a demonstration.
-      setTimeout(() => {
-        setMatchData(mockMatchData)
-      }, 1000)
+      const file = event.target.files[0];
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const content = e.target?.result as string;
+          
+          if (file.name.endsWith('.xml')) {
+            const turnovers = parseXMLData(content, mockMatchData.homeTeam.name, mockMatchData.awayTeam.name);
+            
+            // Create a new match data object, replacing turnovers but keeping other mock data
+            const newMatchData: MatchData = {
+              ...mockMatchData,
+              turnovers: turnovers,
+            };
+            
+            setMatchData(newMatchData);
+            toast({
+              title: "XML Parsed Successfully",
+              description: `${turnovers.length} turnover events loaded. Other charts still use demo data.`,
+            });
+          } else {
+             toast({
+              title: "File Type Not Supported",
+              description: `CSV parsing is not yet implemented. Please upload a SportsCode XML file.`,
+              variant: "destructive"
+            });
+          }
+        } catch (error) {
+          console.error("File parsing error:", error);
+          toast({
+            title: "File Parsing Error",
+            description: "Could not parse the file. Please ensure it is a valid SportsCode XML.",
+            variant: "destructive",
+          });
+          // Load mock data as a fallback
+          setMatchData(mockMatchData);
+        }
+      };
+      
+      reader.onerror = () => {
+        toast({
+            title: "File Read Error",
+            description: "Could not read the selected file.",
+            variant: "destructive"
+        });
+      };
+
+      reader.readAsText(file);
     }
   }
 
@@ -141,3 +182,5 @@ export function Dashboard() {
     </div>
   )
 }
+
+    

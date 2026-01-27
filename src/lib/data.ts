@@ -29,7 +29,7 @@ function generatePressureData(): MatchData['pressureData'] {
 function generateTurnovers(): TurnoverEvent[] {
   const turnovers: TurnoverEvent[] = [];
   for (let i = 0; i < 150; i++) {
-    const team = Math.random() > 0.55 ? HOME_TEAM.name : AWAY_TEAM.name;
+    const team = Math.random() > 0.5 ? HOME_TEAM.name : AWAY_TEAM.name;
     turnovers.push({
       id: `evt-${i}`,
       team,
@@ -100,3 +100,5 @@ export const mockMatchData: MatchData = {
     away: generateTeamMatchStats(),
   }
 };
+
+    
