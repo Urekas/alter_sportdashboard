@@ -36,9 +36,13 @@ export function Dashboard() {
         description: `${fileName} is being processed.`,
       })
       // In a real app, you'd parse the file here.
-      // For now, we'll just load the mock data as a demonstration.
+      // For now, we'll just load the mock data as a demonstration and inform the user.
       setTimeout(() => {
-        handleLoadMockData()
+        setMatchData(mockMatchData)
+        toast({
+          title: "Showing Demo Analysis",
+          description: `File parsing for "${fileName}" is not yet implemented. Displaying sample data instead.`,
+        })
       }, 1000)
     }
   }
