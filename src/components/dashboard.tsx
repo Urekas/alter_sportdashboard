@@ -12,7 +12,7 @@ import { TurnoverHeatmap } from "./turnover-heatmap"
 import { CircleEntryAnalysis } from "./circle-entry-analysis"
 import { BasicMatchStats } from "./basic-match-stats"
 import { AttackThreatChart } from "./attack-threat-chart"
-import { parseXMLData, parseCSVData } from "@/lib/parser"
+import { parseXMLData, parseCSVData, createMatchDataFromUpload } from "@/lib/parser"
 
 
 export function Dashboard() {
@@ -41,15 +41,11 @@ export function Dashboard() {
         try {
           const content = e.target?.result as string;
           let turnovers: TurnoverEvent[] = [];
-          let toastTitle = "File Parsed Successfully";
-          let toastDescription = "";
           
           if (file.name.endsWith('.xml')) {
             turnovers = parseXMLData(content, mockMatchData.homeTeam.name, mockMatchData.awayTeam.name);
-            toastDescription = `${turnovers.length} turnover events loaded from XML. Other charts still use demo data.`;
           } else if (file.name.endsWith('.csv')) {
             turnovers = parseCSVData(content);
-            toastDescription = `${turnovers.length} turnover events loaded from CSV. Other charts still use demo data.`;
           } else {
              toast({
               title: "File Type Not Supported",
@@ -59,23 +55,29 @@ export function Dashboard() {
             return;
           }
 
-          // Create a new match data object, replacing turnovers but keeping other mock data
-          const newMatchData: MatchData = {
-            ...mockMatchData,
-            turnovers: turnovers,
-          };
+          if (turnovers.length === 0) {
+              toast({
+                title: "No Data Found",
+                description: "No turnover events could be parsed from the file. Please check the content.",
+                variant: "destructive",
+              });
+              return;
+          }
+            
+          // Create a full match data object from the parsed turnovers
+          const newMatchData = createMatchDataFromUpload(turnovers, mockMatchData.homeTeam.name, mockMatchData.awayTeam.name);
             
           setMatchData(newMatchData);
           toast({
-            title: toastTitle,
-            description: toastDescription,
+            title: "Analysis Complete",
+            description: `Generated a new match analysis based on ${file.name}.`,
           });
 
         } catch (error: any) {
-          console.error("File parsing error:", error);
+          console.error("File processing error:", error);
           toast({
-            title: "File Parsing Error",
-            description: error.message || "Could not parse the file. Please ensure it is a valid format.",
+            title: "File Processing Error",
+            description: error.message || "Could not process the file. Please ensure it is a valid format.",
             variant: "destructive",
           });
         }
