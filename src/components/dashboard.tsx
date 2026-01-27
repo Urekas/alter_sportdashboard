@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { StatsCard } from "./stats-card"
 import { PressureBattleChart } from "./pressure-battle-chart"
-import { TurnoverMap } from "./turnover-map"
+import { TurnoverHeatmap } from "./turnover-heatmap"
 import { CircleEntryAnalysis } from "./circle-entry-analysis"
 import { BasicMatchStats } from "./basic-match-stats"
 import { AttackThreatChart } from "./attack-threat-chart"
@@ -129,7 +129,7 @@ export function Dashboard() {
                 homeTeam={matchData.homeTeam}
                 awayTeam={matchData.awayTeam}
               />
-               <TurnoverMap
+               <TurnoverHeatmap
                     turnovers={matchData.turnovers}
                     homeTeam={matchData.homeTeam}
                     awayTeam={matchData.awayTeam}
