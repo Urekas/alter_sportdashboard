@@ -9,30 +9,29 @@ import { ArrowUp } from "lucide-react"
 
 // A vertical view of the attacking circle, based on official dimensions.
 const VerticalAttackingHalf: FC = () => (
-    <svg viewBox="0 0 200 120" preserveAspectRatio="xMidYMin meet" className="w-full h-full">
-      <g stroke="hsl(var(--foreground))" strokeWidth="1.5" fill="none">
-        {/* Goal (3.66m wide) */}
-        <rect x="91" y="0" width="18" height="4" strokeWidth="1.5"/>
+    <svg viewBox="0 0 100 75" preserveAspectRatio="xMidYMin" className="w-full h-full">
+      <g stroke="hsl(var(--foreground))" strokeWidth="2" fill="none">
+        {/* Goal */}
+        <rect x="42" y="0" width="16" height="4" />
 
-        {/* Back line */}
-        <line x1="0" y1="4" x2="200" y2="4" />
+        {/* Pitch Outline */}
+        <rect x="0" y="4" width="100" height="71" />
 
-        {/* Markings on backline */}
-        {/* Goal posts */}
-        <path d="M 91 4 V 1 M 109 4 V 1" strokeWidth="1.5" />
-        {/* 5m and 10m PC marks from posts */}
-        <path d="M 67 4 V 2 M 133 4 V 2" strokeWidth="1" /> {/* 5m marks */}
-        <path d="M 43 4 V 2 M 157 4 V 2" strokeWidth="1" /> {/* 10m marks */}
+        {/* Backline Ticks */}
+        <path d="M 20 4 V 1 M 35 4 V 1 M 50 4 V 1 M 65 4 V 1 M 80 4 V 1" />
 
-        {/* Circle (D) - 14.63m radius */}
-        <path d="M 29 4 L 171 4" strokeWidth="2" /> {/* Straight part of the D */}
-        <path d="M 29 4 A 71 71 0 0 1 171 4" strokeWidth="2" /> {/* Arc part of the D */}
+        {/* Sideline Ticks */}
+        <path d="M 0 20 H 3 M 0 40 H 3 M 0 60 H 3" />
+        <path d="M 100 20 H 97 M 100 40 H 97 M 100 60 H 97" />
+        
+        {/* Circle (D) */}
+        <path d="M 15 4 A 35 35 0 0 1 85 4" />
         
         {/* Dashed Circle (5m from D) */}
-        <path d="M 5 4 A 95 95 0 0 1 195 4" strokeDasharray="4,4" strokeWidth="2" />
+        <path d="M 5 4 A 45 45 0 0 1 95 4" strokeDasharray="5,5" />
         
-        {/* Penalty Spot - 6.475m from goal line */}
-        <circle cx="100" cy="35" r="2" fill="hsl(var(--foreground))" stroke="none" />
+        {/* Penalty Spot */}
+        <circle cx="50" cy="25" r="2" fill="hsl(var(--foreground))" stroke="none" />
       </g>
     </svg>
 );
@@ -89,7 +88,7 @@ export function CircleEntryAnalysis({ entries }: CircleEntryAnalysisProps) {
         <CardDescription>공격 채널별 진입 및 성공 효율</CardDescription>
       </CardHeader>
       <CardContent className="flex justify-center items-center p-2 sm:p-6">
-        <div className="relative w-full max-w-sm sm:max-w-md aspect-[200/200]">
+        <div className="relative w-full max-w-sm sm:max-w-md aspect-[100/75]">
           <div className="absolute inset-0">
              <VerticalAttackingHalf />
           </div>
