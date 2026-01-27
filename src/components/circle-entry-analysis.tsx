@@ -10,17 +10,23 @@ import { ArrowUp } from "lucide-react"
 // A vertical view of the attacking circle, goal is at the top.
 const VerticalAttackingHalf: FC = () => (
     <svg viewBox="0 0 200 250" preserveAspectRatio="xMidYMin meet" className="w-full h-full">
-      <g stroke="hsl(var(--border))" strokeWidth="2" fill="none">
-         {/* Goal */}
-        <rect x="82" y="0" width="36" height="4" stroke="hsl(var(--foreground))" />
-        {/* Back line */}
+      <g stroke="hsl(var(--foreground))" strokeWidth="2" fill="none">
+        {/* Goal */}
+        <rect x="82" y="0" width="36" height="4" strokeWidth="2"/>
+
+        {/* Back line with Ticks */}
         <line x1="0" y1="4" x2="200" y2="4" />
+        <path d="M 82 4 V 1 M 118 4 V 1" strokeWidth="2" />
+        <path d="M 67 4 V 2 M 52 4 V 2 M 37 4 V 2 M 22 4 V 2 M 7 4 V 2 M 133 4 V 2 M 148 4 V 2 M 163 4 V 2 M 178 4 V 2 M 193 4 V 2" strokeWidth="1.5"/>
+
         {/* Circle */}
-        <path d="M 46 4 A 54 54 0 0 1 154 4" />
+        <path d="M 46 4 A 54 54 0 0 1 154 4" strokeWidth="2.5" />
+        
         {/* Dashed Circle */}
-        <path d="M 25 4 A 75 75 0 0 1 175 4" strokeDasharray="5,5" />
+        <path d="M 25 4 A 75 75 0 0 1 175 4" strokeDasharray="6,6" strokeWidth="2.5" />
+        
         {/* Penalty Spot */}
-        <circle cx="100" cy="70" r="3" fill="hsl(var(--foreground))" stroke="none" />
+        <circle cx="100" cy="30" r="2.5" fill="hsl(var(--foreground))" stroke="none" />
       </g>
     </svg>
 );
@@ -40,6 +46,10 @@ const StatDisplay: FC<{
     <p className="text-base font-bold">효율: {efficiency}</p>
   </div>
 );
+
+interface CircleEntryAnalysisProps {
+  entries: CircleEntry[]
+}
 
 export function CircleEntryAnalysis({ entries }: CircleEntryAnalysisProps) {
   const analysis = useMemo(() => {
