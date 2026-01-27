@@ -1,4 +1,4 @@
-import type { TurnoverEvent, MatchData, TeamMatchStats, AttackThreatDataPoint, PressureDataPoint } from './types';
+import type { TurnoverEvent, MatchData, TeamMatchStats, AttackThreatDataPoint, PressureDataPoint, CircleEntry } from './types';
 
 // Based on FIH Field Specifications
 const PITCH_LENGTH = 91.4;
@@ -174,13 +174,14 @@ function generatePressureData(homeTeamName: string, awayTeamName: string): Press
   return data;
 }
 
-function generateCircleEntries(): MatchData['circleEntries'] {
-    const entries = [];
+function generateCircleEntries(homeTeamName: string, awayTeamName: string): MatchData['circleEntries'] {
+    const entries: CircleEntry[] = [];
     const channels: ('Left' | 'Center' | 'Right')[] = ['Left', 'Center', 'Right'];
     const outcomes: ('Goal' | 'Shot On Target' | 'Shot Missed' | 'No Shot')[] = ['Goal', 'Shot On Target', 'Shot Missed', 'No Shot'];
     
     for (let i = 0; i < 40; i++) {
         entries.push({
+            team: Math.random() > 0.5 ? homeTeamName : awayTeamName,
             channel: channels[Math.floor(Math.random() * channels.length)],
             outcome: outcomes[Math.floor(Math.random() * outcomes.length)],
         });
@@ -241,7 +242,7 @@ export const createMatchDataFromUpload = (
     awayTeam: AWAY_TEAM,
     turnovers: turnovers,
     pressureData: generatePressureData(homeTeamName, awayTeamName),
-    circleEntries: generateCircleEntries(),
+    circleEntries: generateCircleEntries(homeTeamName, awayTeamName),
     attackThreatData: generateAttackThreatData(homeTeamName, awayTeamName),
     build25Ratio: {
       home: 0.4 + Math.random() * 0.3,

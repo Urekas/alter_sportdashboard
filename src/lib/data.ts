@@ -1,4 +1,4 @@
-import type { MatchData, TeamMatchStats, AttackThreatDataPoint, TurnoverEvent } from './types';
+import type { MatchData, TeamMatchStats, AttackThreatDataPoint, TurnoverEvent, CircleEntry } from './types';
 
 const HOME_TEAM = { name: 'Blues', color: 'hsl(var(--chart-1))' };
 const AWAY_TEAM = { name: 'Reds', color: 'hsl(var(--chart-2))' };
@@ -44,12 +44,13 @@ function generateTurnovers(): TurnoverEvent[] {
 }
 
 function generateCircleEntries(): MatchData['circleEntries'] {
-    const entries = [];
+    const entries: CircleEntry[] = [];
     const channels: ('Left' | 'Center' | 'Right')[] = ['Left', 'Center', 'Right'];
     const outcomes: ('Goal' | 'Shot On Target' | 'Shot Missed' | 'No Shot')[] = ['Goal', 'Shot On Target', 'Shot Missed', 'No Shot'];
     
     for (let i = 0; i < 40; i++) {
         entries.push({
+            team: Math.random() > 0.5 ? HOME_TEAM.name : AWAY_TEAM.name,
             channel: channels[Math.floor(Math.random() * channels.length)],
             outcome: outcomes[Math.floor(Math.random() * outcomes.length)],
         });

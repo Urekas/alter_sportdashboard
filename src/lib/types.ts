@@ -19,6 +19,7 @@ export interface PressureDataPoint {
 }
 
 export interface CircleEntry {
+  team: string;
   channel: 'Left' | 'Center' | 'Right';
   outcome: 'Goal' | 'Shot On Target' | 'Shot Missed' | 'No Shot';
 }

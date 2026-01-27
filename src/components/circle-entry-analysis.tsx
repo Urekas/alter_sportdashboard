@@ -7,9 +7,10 @@ import type { CircleEntry } from "@/lib/types"
 
 interface CircleEntryAnalysisProps {
   entries: CircleEntry[]
+  teamName: string
 }
 
-export function CircleEntryAnalysis({ entries }: CircleEntryAnalysisProps) {
+export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisProps) {
   const analysis = useMemo(() => {
     const stats: Record<'Left' | 'Center' | 'Right', { entries: number; success: number }> = {
       Left: { entries: 0, success: 0 },
@@ -39,9 +40,9 @@ export function CircleEntryAnalysis({ entries }: CircleEntryAnalysisProps) {
   }, [entries]);
 
   return (
-    <Card className="col-span-1 lg:col-span-2">
+    <Card>
       <CardHeader>
-        <CardTitle>써클 진입 분석</CardTitle>
+        <CardTitle>{teamName} 써클 진입 분석</CardTitle>
         <CardDescription>공격 채널별 진입 및 성공 효율 (공격 방향: 아래 → 위)</CardDescription>
       </CardHeader>
       <CardContent className="flex justify-center items-center p-2 sm:p-4 md:p-6">
@@ -57,16 +58,16 @@ export function CircleEntryAnalysis({ entries }: CircleEntryAnalysisProps) {
           <div className="absolute inset-0">
               <svg width="100%" height="100%" viewBox="0 0 55 30" preserveAspectRatio="xMidYMin">
                    <defs>
-                      <marker id="arrowhead" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                      <marker id="arrowhead-circle-analysis" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
                           <path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(var(--accent))" />
                       </marker>
                   </defs>
                   {/* Left Arrow */}
-                  <line x1="2.75" y1="17" x2="11" y2="9" stroke="hsl(var(--accent))" strokeWidth="1.5" opacity="0.8" markerEnd="url(#arrowhead)" />
+                  <line x1="2.75" y1="17" x2="11" y2="9" stroke="hsl(var(--accent))" strokeWidth="1.5" opacity="0.8" markerEnd="url(#arrowhead-circle-analysis)" />
                   {/* Center Arrow */}
-                  <line x1="27.5" y1="25" x2="27.5" y2="15" stroke="hsl(var(--accent))" strokeWidth="1.5" opacity="0.8" markerEnd="url(#arrowhead)" />
+                  <line x1="27.5" y1="25" x2="27.5" y2="15" stroke="hsl(var(--accent))" strokeWidth="1.5" opacity="0.8" markerEnd="url(#arrowhead-circle-analysis)" />
                   {/* Right Arrow */}
-                  <line x1="52.25" y1="17" x2="44" y2="9" stroke="hsl(var(--accent))" strokeWidth="1.5" opacity="0.8" markerEnd="url(#arrowhead)" />
+                  <line x1="52.25" y1="17" x2="44" y2="9" stroke="hsl(var(--accent))" strokeWidth="1.5" opacity="0.8" markerEnd="url(#arrowhead-circle-analysis)" />
               </svg>
           </div>
 

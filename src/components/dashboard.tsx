@@ -179,7 +179,16 @@ export function Dashboard() {
                     awayTeam={matchData.awayTeam}
                   />
               </div>
-              <CircleEntryAnalysis entries={matchData.circleEntries} />
+              <div className="col-span-1 lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <CircleEntryAnalysis
+                  teamName={matchData.homeTeam.name}
+                  entries={matchData.circleEntries.filter(e => e.team === matchData.homeTeam.name)}
+                />
+                <CircleEntryAnalysis
+                  teamName={matchData.awayTeam.name}
+                  entries={matchData.circleEntries.filter(e => e.team === matchData.awayTeam.name)}
+                />
+              </div>
               <AttackThreatChart
                 data={matchData.attackThreatData}
                 homeTeam={matchData.homeTeam}
