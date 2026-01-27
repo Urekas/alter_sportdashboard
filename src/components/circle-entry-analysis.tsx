@@ -134,19 +134,19 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
             {/* --- 2. Arrows --- */}
             <g stroke="rgba(70, 130, 180, 0.7)" strokeWidth="0.8" markerEnd="url(#arrow-head-blue)">
               {/* Left Arrow */}
-              <line x1="2.75" y1={toSvgY(17)} x2="11.0" y2={toSvgY(8)} />
+              <line x1="2.75" y1={toSvgY(17) + 8} x2="11.0" y2={toSvgY(8) + 8} />
               
               {/* Center Arrow */}
-              <line x1="27.5" y1={toSvgY(15)} x2="27.5" y2={toSvgY(5)} />
+              <line x1="27.5" y1={toSvgY(15) + 8} x2="27.5" y2={toSvgY(5) + 8} />
               
               {/* Right Arrow */}
-              <line x1="52.25" y1={toSvgY(17)} x2="44.0" y2={toSvgY(8)} />
+              <line x1="52.25" y1={toSvgY(17) + 8} x2="44.0" y2={toSvgY(8) + 8} />
             </g>
 
             {/* --- 3. Stats Text Overlay --- */}
             <g className="fill-black" style={{ fontSize: '1.1px', textAnchor: 'middle' }}>
               {/* Left Text */}
-              <text x="6.5" y={toSvgY(19)}>
+              <text x="6.5" y={toSvgY(19) + 8}>
                 <tspan x="6.5" dy="0" fontWeight="bold">Left</tspan>
                 <tspan x="6.5" dy="1.6" fontWeight="normal">진입: {analysis.Left.entries}회</tspan>
                 <tspan x="6.5" dy="1.6" fontWeight="normal">Success(슈팅/pc/득점): {analysis.Left.success}회</tspan>
@@ -154,7 +154,7 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
               </text>
 
               {/* Center Text */}
-              <text x="27.5" y={toSvgY(17)}>
+              <text x="27.5" y={toSvgY(17) + 8}>
                 <tspan x="27.5" dy="0" fontWeight="bold">Center</tspan>
                 <tspan x="27.5" dy="1.6" fontWeight="normal">진입: {analysis.Center.entries}회</tspan>
                 <tspan x="27.5" dy="1.6" fontWeight="normal">Success(슈팅/pc/득점): {analysis.Center.success}회</tspan>
@@ -162,7 +162,7 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
               </text>
 
               {/* Right Text */}
-              <text x="48" y={toSvgY(19)}>
+              <text x="48" y={toSvgY(19) + 8}>
                 <tspan x="48" dy="0" fontWeight="bold">Right</tspan>
                 <tspan x="48" dy="1.6" fontWeight="normal">진입: {analysis.Right.entries}회</tspan>
                 <tspan x="48" dy="1.6" fontWeight="normal">Success(슈팅/pc/득점): {analysis.Right.success}회</tspan>
