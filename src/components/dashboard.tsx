@@ -10,6 +10,7 @@ import { StatsCard } from "./stats-card"
 import { PressureBattleChart } from "./pressure-battle-chart"
 import { ZoneHeatmap } from "./zone-heatmap"
 import { CircleEntryAnalysis } from "./circle-entry-analysis"
+import { BasicMatchStats } from "./basic-match-stats"
 
 export function Dashboard() {
   const [matchData, setMatchData] = useState<MatchData | null>(null)
@@ -32,17 +33,13 @@ export function Dashboard() {
     if (event.target.files && event.target.files[0]) {
       const fileName = event.target.files[0].name
       toast({
-        title: "File Uploaded",
-        description: `${fileName} is being processed.`,
+        title: "File Upload In Progress",
+        description: `Parsing for "${fileName}" is not yet implemented. Displaying sample data instead.`,
       })
       // In a real app, you'd parse the file here.
-      // For now, we'll just load the mock data as a demonstration and inform the user.
+      // For now, we'll just load the mock data as a demonstration.
       setTimeout(() => {
         setMatchData(mockMatchData)
-        toast({
-          title: "Showing Demo Analysis",
-          description: `File parsing for "${fileName}" is not yet implemented. Displaying sample data instead.`,
-        })
       }, 1000)
     }
   }
@@ -114,6 +111,8 @@ export function Dashboard() {
                 />
               </div>
             </section>
+
+            <BasicMatchStats data={matchData} />
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">

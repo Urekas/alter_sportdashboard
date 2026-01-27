@@ -1,4 +1,4 @@
-import type { MatchData } from './types';
+import type { MatchData, TeamMatchStats } from './types';
 
 const HOME_TEAM = { name: 'Blues', color: 'hsl(var(--chart-1))' };
 const AWAY_TEAM = { name: 'Reds', color: 'hsl(var(--chart-2))' };
@@ -49,6 +49,19 @@ function generateCircleEntries(): MatchData['circleEntries'] {
     return entries;
 }
 
+function generateTeamMatchStats(): TeamMatchStats {
+    return {
+        goals: {
+            field: Math.floor(Math.random() * 3),
+            pc: Math.floor(Math.random() * 2),
+        },
+        shots: 8 + Math.floor(Math.random() * 10),
+        circleEntries: 15 + Math.floor(Math.random() * 10),
+        twentyFiveEntries: 25 + Math.floor(Math.random() * 15),
+        possession: 40 + Math.floor(Math.random() * 20),
+        allowedSpp: 10 + Math.random() * 5,
+    }
+}
 
 export const mockMatchData: MatchData = {
   homeTeam: HOME_TEAM,
@@ -64,4 +77,8 @@ export const mockMatchData: MatchData = {
     home: 9.87,
     away: 11.23,
   },
+  matchStats: {
+    home: generateTeamMatchStats(),
+    away: generateTeamMatchStats(),
+  }
 };

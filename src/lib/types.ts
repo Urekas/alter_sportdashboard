@@ -19,6 +19,18 @@ export interface CircleEntry {
   outcome: 'Goal' | 'Shot On Target' | 'Shot Missed' | 'No Shot';
 }
 
+export interface TeamMatchStats {
+    goals: {
+        field: number;
+        pc: number;
+    };
+    shots: number;
+    circleEntries: number;
+    twentyFiveEntries: number;
+    possession: number;
+    allowedSpp: number;
+}
+
 export interface MatchData {
   homeTeam: Team;
   awayTeam: Team;
@@ -27,4 +39,8 @@ export interface MatchData {
   circleEntries: CircleEntry[];
   build25Ratio: { home: number; away: number };
   spp: { home: number; away: number };
+  matchStats: {
+    home: TeamMatchStats;
+    away: TeamMatchStats;
+  };
 }
