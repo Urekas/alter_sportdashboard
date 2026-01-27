@@ -3,7 +3,7 @@
 import React, { useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import type { TurnoverEvent } from "@/lib/types"
-import { HockeyPitchSVG } from "./hockey-pitch-svg"
+import { HockeyPitchLandscapeSVG } from "./hockey-pitch-landscape-svg"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface ZoneHeatmapProps {
@@ -11,9 +11,9 @@ interface ZoneHeatmapProps {
   homeTeamName: string
 }
 
-// Corresponds to vertical pitch layout
-const ZONES_X = 6; // Zones across the width
-const ZONES_Y = 10; // Zones along the length
+// Corresponds to landscape pitch layout
+const ZONES_X = 10; // Zones along the length
+const ZONES_Y = 6; // Zones across the width
 
 export function ZoneHeatmap({ turnovers, homeTeamName }: ZoneHeatmapProps) {
   const heatmapData = useMemo(() => {
@@ -21,10 +21,11 @@ export function ZoneHeatmap({ turnovers, homeTeamName }: ZoneHeatmapProps) {
       .fill(0)
       .map(() => ({ total: 0, home: 0, away: 0 }))
 
-    // Let's assume `turnover.y` is along the pitch width (55m) and `turnover.x` is along the length (91.4m)
+    // For landscape pitch: turnover.x is along pitch length (ZONES_X), turnover.y is along pitch width (ZONES_Y)
     turnovers.forEach((turnover) => {
-      const x = Math.min(Math.floor(turnover.y / (100 / ZONES_X)), ZONES_X - 1)
-      const y = Math.min(Math.floor(turnover.x / (100 / ZONES_Y)), ZONES_Y - 1)
+      const x = Math.min(Math.floor(turnover.x / (100 / ZONES_X)), ZONES_X - 1)
+      const y = Math.min(Math.floor(turnover.y / (100 / ZONES_Y)), ZONES_Y - 1)
+      
       const index = y * ZONES_X + x;
       if(index >= 0 && index < grid.length) {
         grid[index].total++;
@@ -52,9 +53,9 @@ export function ZoneHeatmap({ turnovers, homeTeamName }: ZoneHeatmapProps) {
       </CardHeader>
       <CardContent>
         <TooltipProvider>
-          <div className="relative w-full aspect-[3/5] max-w-sm mx-auto">
-            <HockeyPitchSVG />
-            <div className="absolute inset-0 grid grid-cols-6 grid-rows-10">
+          <div className="relative w-full aspect-video max-w-2xl mx-auto">
+            <HockeyPitchLandscapeSVG />
+            <div className="absolute inset-0 grid grid-cols-10 grid-rows-6">
               {heatmapData.map((cell, index) => (
                 <Tooltip key={index} delayDuration={100}>
                   <TooltipTrigger asChild>
