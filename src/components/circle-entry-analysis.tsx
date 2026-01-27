@@ -19,7 +19,6 @@ interface CircleEntryAnalysisProps {
 }
 
 export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisProps) {
-  // 1. 데이터 집계
   const analysis = useMemo(() => {
     const stats: Record<'Left' | 'Center' | 'Right', { entries: number; success: number }> = {
       Left: { entries: 0, success: 0 },
@@ -45,18 +44,16 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
     };
   }, [entries]);
 
-  // 2. 파이썬 코드 기반 상수 (단위: m)
+  // SVG 좌표계 상수 (단위: m)
   const FIELD_W = 55.0;
   const FIELD_H = 25.0;
-  const TOP_PADDING = 4.0; // 골대 표시를 위한 상단 여백 (5.0 -> 4.0으로 수정)
+  const TOP_PADDING = 4.0;
   
-  // 좌표 계산 (Center X)
-  const CX = FIELD_W / 2; // 27.5
+  const CX = FIELD_W / 2;
   
-  // Y축 변환 (파이썬 좌표 -> SVG 좌표)
-  // 파이썬: y=25(Goal Line) ~ y=0(25y Line)
-  // SVG: y=TOP_PADDING(Goal Line) ~ y=TOP_PADDING+25(25y Line)
-  const toSvgY = (pythonY: number) => (FIELD_H - pythonY) + TOP_PADDING;
+  // Y축 변환 (SVG 좌표계 직접 사용, 위쪽이 0)
+  // 골대가 위(y=TOP_PADDING)에, 25야드 라인이 아래(y=TOP_PADDING+25)에 위치
+  const toSvgY = (diagramY: number) => diagramY + TOP_PADDING;
 
   return (
     <Card className="h-full border-2">
@@ -66,7 +63,6 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
       </CardHeader>
       <CardContent className="flex justify-center items-center p-4">
         
-        {/* SVG 컨테이너: 상단 여백 포함하여 55 x 29 비율 설정 */}
         <div className="relative w-full max-w-2xl aspect-[55/29]">
           <svg
             width="100%"
@@ -75,7 +71,6 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
             className="w-full h-full overflow-visible select-none bg-white"
           >
             <defs>
-              {/* 화살표 헤드 (파란색) */}
               <marker id="arrow-head-blue" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
                 <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(70, 130, 180, 0.9)" />
               </marker>
@@ -84,27 +79,27 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
             {/* --- 1. Field Lines --- */}
             <g fill="none" stroke="black" strokeLinecap="round">
               
-              {/* Outer Box */}
-              <rect x="0" y={toSvgY(25)} width={FIELD_W} height={FIELD_H} strokeWidth="0.5" />
+              {/* Outer Box (25y line to goal line) */}
+              <rect x="0" y={toSvgY(0)} width={FIELD_W} height={FIELD_H} strokeWidth="0.5" />
 
               {/* Goal */}
               <rect 
                 x={CX - 1.83} 
-                y={toSvgY(25) - 1.2}
+                y={toSvgY(0) - 1.2} 
                 width={3.66} 
                 height={1.2} 
                 strokeWidth="0.5" 
               />
 
               {/* Back Line (Goal Line) */}
-              <line x1={0} y1={toSvgY(25)} x2={FIELD_W} y2={toSvgY(25)} strokeWidth="0.5" />
+              <line x1={0} y1={toSvgY(0)} x2={FIELD_W} y2={toSvgY(0)} strokeWidth="0.5" />
 
-              {/* Ticks */}
+              {/* Ticks on goal line */}
               {[-6, -3, 3, 6].map((dx) => (
                 <line 
                   key={dx} 
-                  x1={CX + dx} y1={toSvgY(25)} 
-                  x2={CX + dx} y2={toSvgY(25) + 0.8} // 안쪽으로 눈금
+                  x1={CX + dx} y1={toSvgY(0)} 
+                  x2={CX + dx} y2={toSvgY(0) - 0.8} // 바깥쪽으로 눈금
                   strokeWidth="0.3" 
                 />
               ))}
@@ -112,45 +107,45 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
               {/* --- Shooting Circle (D-zone) --- */}
               <path
                 d={`
-                  M ${CX - 1.83} ${toSvgY(25)}
-                  L ${CX - 1.83 - 14.63} ${toSvgY(25)}
-                  A 14.63 14.63 0 0 0 ${CX + 1.83 + 14.63} ${toSvgY(25)}
-                  L ${CX + 1.83} ${toSvgY(25)}
+                  M ${CX - 1.83 - 14.63} ${toSvgY(0)}
+                  A 14.63 14.63 0 0 1 ${CX + 1.83 + 14.63} ${toSvgY(0)}
                 `}
                 strokeWidth="0.6"
               />
+              <line x1={CX - 1.83 - 14.63} y1={toSvgY(0)} x2={CX - 1.83 - 14.63} y2={toSvgY(14.63)} strokeWidth="0.6" />
+              <line x1={CX + 1.83 + 14.63} y1={toSvgY(0)} x2={CX + 1.83 + 14.63} y2={toSvgY(14.63)} strokeWidth="0.6" />
+
 
               {/* --- 5m Dashed Line --- */}
               <path
                 d={`
-                  M ${CX - 1.83} ${toSvgY(25)}
-                  M ${CX - 1.83 - 19.63} ${toSvgY(25)}
-                  A 19.63 19.63 0 0 0 ${CX + 1.83 + 19.63} ${toSvgY(25)}
+                  M ${CX - 1.83 - 19.63} ${toSvgY(0)}
+                  A 19.63 19.63 0 0 1 ${CX + 1.83 + 19.63} ${toSvgY(0)}
                 `}
                 strokeWidth="0.4"
                 strokeDasharray="1, 1"
               />
 
               {/* Penalty Spot */}
-              <circle cx={CX} cy={toSvgY(25 - 6.47)} r="0.15" fill="black" stroke="none" />
+              <circle cx={CX} cy={toSvgY(6.47)} r="0.15" fill="black" stroke="none" />
             </g>
 
-            {/* --- 2. Arrows (파이썬 좌표 매핑) --- */}
+            {/* --- 2. Arrows --- */}
             <g stroke="rgba(70, 130, 180, 0.7)" strokeWidth="0.8" markerEnd="url(#arrow-head-blue)">
               {/* Left Arrow */}
-              <line x1="2.75" y1={toSvgY(13)} x2="11.0" y2={toSvgY(21)} />
+              <line x1="2.75" y1={toSvgY(13)} x2="11.0" y2={toSvgY(4)} />
               
               {/* Center Arrow */}
-              <line x1="27.5" y1={toSvgY(4)} x2="27.5" y2={toSvgY(15)} />
+              <line x1="27.5" y1={toSvgY(10)} x2="27.5" y2={toSvgY(1)} />
               
               {/* Right Arrow */}
-              <line x1="52.25" y1={toSvgY(13)} x2="44.0" y2={toSvgY(21)} />
+              <line x1="52.25" y1={toSvgY(13)} x2="44.0" y2={toSvgY(4)} />
             </g>
 
             {/* --- 3. Stats Text Overlay --- */}
             <g className="fill-black" style={{ fontSize: '1.1px', textAnchor: 'middle' }}>
               {/* Left Text */}
-              <text x="6.5" y={toSvgY(11)}>
+              <text x="6.5" y={toSvgY(15)}>
                 <tspan x="6.5" dy="0" fontWeight="bold">Left</tspan>
                 <tspan x="6.5" dy="1.6" fontWeight="normal">진입: {analysis.Left.entries}회</tspan>
                 <tspan x="6.5" dy="1.6" fontWeight="normal">Success(슈팅/pc/득점): {analysis.Left.success}회</tspan>
@@ -158,7 +153,7 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
               </text>
 
               {/* Center Text */}
-              <text x="27.5" y={toSvgY(1)}>
+              <text x="27.5" y={toSvgY(13)}>
                 <tspan x="27.5" dy="0" fontWeight="bold">Center</tspan>
                 <tspan x="27.5" dy="1.6" fontWeight="normal">진입: {analysis.Center.entries}회</tspan>
                 <tspan x="27.5" dy="1.6" fontWeight="normal">Success(슈팅/pc/득점): {analysis.Center.success}회</tspan>
@@ -166,7 +161,7 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
               </text>
 
               {/* Right Text */}
-              <text x="48" y={toSvgY(11)}>
+              <text x="48" y={toSvgY(15)}>
                 <tspan x="48" dy="0" fontWeight="bold">Right</tspan>
                 <tspan x="48" dy="1.6" fontWeight="normal">진입: {analysis.Right.entries}회</tspan>
                 <tspan x="48" dy="1.6" fontWeight="normal">Success(슈팅/pc/득점): {analysis.Right.success}회</tspan>
