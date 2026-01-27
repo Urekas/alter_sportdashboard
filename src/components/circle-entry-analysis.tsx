@@ -4,46 +4,19 @@ import type { FC } from "react"
 import { useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import type { CircleEntry } from "@/lib/types"
-import { cn } from "@/lib/utils"
-import { ArrowUp } from "lucide-react"
-
-const HockeyShootingCircle: FC = () => {
-  return (
-    <svg viewBox="0 0 120 90" preserveAspectRatio="xMidYMin" className="w-full h-full">
-      <g stroke="hsl(var(--foreground))" strokeWidth="2.5" fill="none">
-        {/* Outer Box */}
-        <path d="M 10,20 V 80 H 110 V 20" />
-        
-        {/* Top line with Goal notch */}
-        <path d="M 10,20 H 54 V 25 H 66 V 20 H 110" />
-
-        {/* Arcs */}
-        <path d="M 25,20 A 35,35 0 0 1 95,20" />
-        <path d="M 15,20 A 45,45 0 0 1 105,20" strokeDasharray="6,6" />
-        
-        {/* Penalty Spot */}
-        <circle cx="60" cy="45" r="2" fill="hsl(var(--foreground))" stroke="none" />
-        
-        {/* Top & Side Ticks */}
-        <path d="M 30,20 V 16 M 42,20 V 16 M 78,20 V 16 M 90,20 V 16 M 10,45 H 6 M 10,65 H 6 M 110,45 H 114 M 110,65 H 114" />
-      </g>
-    </svg>
-  );
-};
-
 
 const StatDisplay: FC<{
   label: string;
   entries: number;
   success: number;
   efficiency: string;
-  className?: string;
-}> = ({ label, entries, success, efficiency, className }) => (
-  <div className={cn("text-center", className)}>
-    <h4 className="font-semibold text-lg">{label}</h4>
-    <p className="text-sm">진입: {entries}회</p>
-    <p className="text-sm">Success(슈팅/PC/득점): {success}회</p>
-    <p className="text-base font-bold">효율: {efficiency}</p>
+}> = ({ label, entries, success, efficiency }) => (
+  // Using a background to make text readable over any lines
+  <div className="text-center bg-card/75 backdrop-blur-sm p-1 rounded-md">
+    <h4 className="font-semibold text-base md:text-lg text-foreground">{label}</h4>
+    <p className="text-xs md:text-sm text-muted-foreground">진입: {entries}회</p>
+    <p className="text-xs md:text-sm text-muted-foreground">Success: {success}회</p>
+    <p className="text-sm md:text-base font-bold text-foreground">효율: {efficiency}</p>
   </div>
 );
 
@@ -77,58 +50,107 @@ export function CircleEntryAnalysis({ entries }: CircleEntryAnalysisProps) {
       right: { ...channels.Right, efficiency: calculateEfficiency(channels.Right.success, channels.Right.entries) },
     }
   }, [entries])
+  
+  // Dimensions based on meters from the provided Python code
+  const fieldW = 55.0;
+  const fieldH = 25.0;
+  const cx = fieldW / 2;
+
+  const goalW = 3.66;
+  const goalDepth = 1.2;
+  const goalPostLeft = cx - goalW / 2;
+  const goalPostRight = cx + goalW / 2;
+
+  const circleRadius = 14.63;
+  const circleStraightLineY = fieldH - circleRadius;
+
+  const dashedRadius = circleRadius + 5.0;
+  const dashedStraightLineY = fieldH - dashedRadius;
+
+  const penaltySpotY = fieldH - 6.475;
 
   return (
     <Card className="col-span-1 lg:col-span-2">
       <CardHeader>
         <CardTitle>써클 진입 분석</CardTitle>
-        <CardDescription>공격 채널별 진입 및 성공 효율</CardDescription>
+        <CardDescription>공격 채널별 진입 및 성공 효율 (공격 방향: 아래 → 위)</CardDescription>
       </CardHeader>
       <CardContent className="flex justify-center items-center p-2 sm:p-4 md:p-6">
-        <div className="relative w-full max-w-2xl aspect-[120/90]">
-          <div className="absolute inset-0">
-             <HockeyShootingCircle />
-          </div>
-          
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="relative w-full h-full">
-
-              {/* Data Overlay: Positioned relative to the parent container */}
+        <div className="w-full max-w-3xl">
+           <svg viewBox={`-5 -5 ${fieldW + 10} ${fieldH + 10}`} preserveAspectRatio="xMidYMin">
+            <defs>
+                <marker id="arrowhead" markerWidth="5" markerHeight="3.5" refX="4.5" refY="1.75" orient="auto">
+                    <polygon points="0 0, 5 1.75, 0 3.5" fill="hsl(var(--accent))" />
+                </marker>
+            </defs>
+            
+            {/* 1. Background Geometry Layer */}
+            <g stroke="hsl(var(--foreground))" strokeWidth="0.3" fill="none">
+              <rect x="0" y="0" width={fieldW} height={fieldH} />
+              <rect x={goalPostLeft} y={fieldH} width={goalW} height={goalDepth} />
               
-              {/* Left Channel */}
-              <div className="absolute top-[55%] left-[15%] flex flex-col items-center gap-1 text-foreground">
-                <ArrowUp className="w-16 h-16 sm:w-20 sm:h-20 text-accent opacity-80 transform -rotate-[50deg]" strokeWidth={3}/>
-                 <StatDisplay
+              {/* Shooting Circle Path (D-Zone) */}
+              <path d={`
+                  M ${goalPostLeft},${circleStraightLineY}
+                  A ${circleRadius},${circleRadius} 0 0 0 ${goalPostLeft - circleRadius},${fieldH}
+              `} />
+               <path d={`
+                  M ${goalPostRight},${circleStraightLineY}
+                  A ${circleRadius},${circleRadius} 0 0 1 ${goalPostRight + circleRadius},${fieldH}
+              `} />
+              <line x1={goalPostLeft} y1={circleStraightLineY} x2={goalPostRight} y2={circleStraightLineY} />
+              
+              {/* 5m Dashed Line Path */}
+              <path d={`
+                  M ${goalPostLeft},${dashedStraightLineY}
+                  A ${dashedRadius},${dashedRadius} 0 0 0 ${goalPostLeft - dashedRadius},${fieldH}
+              `} strokeDasharray="0.8, 0.8" />
+              <path d={`
+                  M ${goalPostRight},${dashedStraightLineY}
+                  A ${dashedRadius},${dashedRadius} 0 0 1 ${goalPostRight + dashedRadius},${fieldH}
+              `} strokeDasharray="0.8, 0.8" />
+              <line x1={goalPostLeft} y1={dashedStraightLineY} x2={goalPostRight} y2={dashedStraightLineY} strokeDasharray="0.8, 0.8" />
+              
+              {/* Penalty Spot */}
+              <circle cx={cx} cy={penaltySpotY} r="0.4" fill="hsl(var(--foreground))" stroke="none"/>
+            </g>
+
+            {/* 2. Data Visualization Layer */}
+            <g>
+              {/* Arrows */}
+              <line x1="2.75" y1="13" x2="10" y2="20" stroke="hsl(var(--accent))" strokeWidth="1" markerEnd="url(#arrowhead)" />
+              <line x1="27.5" y1="0" x2="27.5" y2="10" stroke="hsl(var(--accent))" strokeWidth="1" markerEnd="url(#arrowhead)" />
+              <line x1="52.25" y1="13" x2="45" y2="20" stroke="hsl(var(--accent))" strokeWidth="1" markerEnd="url(#arrowhead)" />
+
+              {/* Data Text using foreignObject for HTML content */}
+              <foreignObject x="1" y="4" width="22" height="15">
+                <StatDisplay
                   label="Left"
                   entries={analysis.left.entries}
                   success={analysis.left.success}
                   efficiency={analysis.left.efficiency}
                 />
-              </div>
-
-              {/* Center Channel */}
-              <div className="absolute top-[65%] left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-foreground">
-                <ArrowUp className="w-16 h-16 sm:w-24 sm:h-24 text-accent opacity-80" strokeWidth={3}/>
-                 <StatDisplay
+              </foreignObject>
+              
+              <foreignObject x={cx - 11} y="13" width="22" height="15">
+                <StatDisplay
                   label="Center"
                   entries={analysis.center.entries}
                   success={analysis.center.success}
                   efficiency={analysis.center.efficiency}
                 />
-              </div>
-
-              {/* Right Channel */}
-              <div className="absolute top-[55%] right-[15%] flex flex-col items-center gap-1 text-foreground">
-                <ArrowUp className="w-16 h-16 sm:w-20 sm:h-20 text-accent opacity-80 transform rotate-[50deg]" strokeWidth={3} />
+              </foreignObject>
+              
+              <foreignObject x={fieldW - 23} y="4" width="22" height="15">
                 <StatDisplay
                   label="Right"
                   entries={analysis.right.entries}
                   success={analysis.right.success}
                   efficiency={analysis.right.efficiency}
                 />
-              </div>
-            </div>
-          </div>
+              </foreignObject>
+            </g>
+          </svg>
         </div>
       </CardContent>
     </Card>
