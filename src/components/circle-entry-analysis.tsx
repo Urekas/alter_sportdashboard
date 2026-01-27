@@ -136,7 +136,7 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
               <line x1="2.75" y1={toSvgY(13)} x2="11.0" y2={toSvgY(4)} />
               
               {/* Center Arrow */}
-              <line x1="27.5" y1={toSvgY(10)} x2="27.5" y2={toSvgY(1)} />
+              <line x1="27.5" y1={toSvgY(9)} x2="27.5" y2={toSvgY(1)} />
               
               {/* Right Arrow */}
               <line x1="52.25" y1={toSvgY(13)} x2="44.0" y2={toSvgY(4)} />
@@ -153,7 +153,7 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
               </text>
 
               {/* Center Text */}
-              <text x="27.5" y={toSvgY(13)}>
+              <text x="27.5" y={toSvgY(11)}>
                 <tspan x="27.5" dy="0" fontWeight="bold">Center</tspan>
                 <tspan x="27.5" dy="1.6" fontWeight="normal">진입: {analysis.Center.entries}회</tspan>
                 <tspan x="27.5" dy="1.6" fontWeight="normal">Success(슈팅/pc/득점): {analysis.Center.success}회</tspan>
