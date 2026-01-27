@@ -150,27 +150,29 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
             </g>
 
             {/* --- 3. Stats Text Overlay --- */}
-            {/* 텍스트 위치도 toSvgY로 변환하여 화살표 꼬리 근처에 배치 */}
-            <g className="fill-black font-bold" style={{ fontSize: '1.2px', textAnchor: 'middle' }}>
+            <g className="fill-black" style={{ fontSize: '1.1px', textAnchor: 'middle' }}>
               {/* Left Text */}
               <text x="6.5" y={toSvgY(11)}>
-                <tspan x="6.5" dy="0">Left</tspan>
-                <tspan x="6.5" dy="1.5" fontWeight="normal">{analysis.Left.entries}회</tspan>
-                <tspan x="6.5" dy="1.5" fill="#d62728">{analysis.Left.eff}%</tspan>
+                <tspan x="6.5" dy="0" fontWeight="bold">Left</tspan>
+                <tspan x="6.5" dy="1.6" fontWeight="normal">진입: {analysis.Left.entries}회</tspan>
+                <tspan x="6.5" dy="1.6" fontWeight="normal">Success(슈팅/pc/득점): {analysis.Left.success}회</tspan>
+                <tspan x="6.5" dy="1.6" fontWeight="bold" fill="#d62728">효율: {analysis.Left.eff}%</tspan>
               </text>
 
               {/* Center Text */}
-              <text x="27.5" y={toSvgY(7)}>
-                <tspan x="27.5" dy="0">Center</tspan>
-                <tspan x="27.5" dy="1.5" fontWeight="normal">{analysis.Center.entries}회</tspan>
-                <tspan x="27.5" dy="1.5" fill="#d62728">{analysis.Center.eff}%</tspan>
+              <text x="27.5" y={toSvgY(1)}>
+                <tspan x="27.5" dy="0" fontWeight="bold">Center</tspan>
+                <tspan x="27.5" dy="1.6" fontWeight="normal">진입: {analysis.Center.entries}회</tspan>
+                <tspan x="27.5" dy="1.6" fontWeight="normal">Success(슈팅/pc/득점): {analysis.Center.success}회</tspan>
+                <tspan x="27.5" dy="1.6" fontWeight="bold" fill="#d62728">효율: {analysis.Center.eff}%</tspan>
               </text>
 
               {/* Right Text */}
               <text x="48" y={toSvgY(11)}>
-                <tspan x="48" dy="0">Right</tspan>
-                <tspan x="48" dy="1.5" fontWeight="normal">{analysis.Right.entries}회</tspan>
-                <tspan x="48" dy="1.5" fill="#d62728">{analysis.Right.eff}%</tspan>
+                <tspan x="48" dy="0" fontWeight="bold">Right</tspan>
+                <tspan x="48" dy="1.6" fontWeight="normal">진입: {analysis.Right.entries}회</tspan>
+                <tspan x="48" dy="1.6" fontWeight="normal">Success(슈팅/pc/득점): {analysis.Right.success}회</tspan>
+                <tspan x="48" dy="1.6" fontWeight="bold" fill="#d62728">효율: {analysis.Right.eff}%</tspan>
               </text>
             </g>
 
