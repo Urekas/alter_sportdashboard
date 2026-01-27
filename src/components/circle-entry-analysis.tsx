@@ -1,74 +1,23 @@
 "use client"
 
-import type { FC } from "react"
-import { useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import type { CircleEntry } from "@/lib/types"
-
-const StatDisplay: FC<{
-  label: string;
-  entries: number;
-  success: number;
-  efficiency: string;
-}> = ({ label, entries, success, efficiency }) => (
-  <div className="text-center bg-card/75 backdrop-blur-sm p-1 rounded-md">
-    <h4 className="font-semibold text-base md:text-lg text-foreground">{label}</h4>
-    <p className="text-xs md:text-sm text-muted-foreground">진입: {entries}회</p>
-    <p className="text-xs md:text-sm text-muted-foreground">Success: {success}회</p>
-    <p className="text-sm md:text-base font-bold text-foreground">효율: {efficiency}</p>
-  </div>
-);
 
 interface CircleEntryAnalysisProps {
   entries: CircleEntry[]
 }
 
 export function CircleEntryAnalysis({ entries }: CircleEntryAnalysisProps) {
-  const analysis = useMemo(() => {
-    const channels = {
-      Left: { entries: 0, success: 0 },
-      Center: { entries: 0, success: 0 },
-      Right: { entries: 0, success: 0 },
-    }
-
-    for (const entry of entries) {
-      if (channels[entry.channel]) {
-        channels[entry.channel].entries++
-        if (entry.outcome !== "No Shot") {
-          channels[entry.channel].success++
-        }
-      }
-    }
-
-    const calculateEfficiency = (success: number, entries: number) =>
-      entries > 0 ? `${Math.round((success / entries) * 100)}%` : "0%"
-
-    return {
-      left: { ...channels.Left, efficiency: calculateEfficiency(channels.Left.success, channels.Left.entries) },
-      center: { ...channels.Center, efficiency: calculateEfficiency(channels.Center.success, channels.Center.entries) },
-      right: { ...channels.Right, efficiency: calculateEfficiency(channels.Right.success, channels.Right.entries) },
-    }
-  }, [entries])
   
-  // Dimensions based on meters from the provided Python code
+  // Dimensions based on meters.
   const fieldW = 55.0;
-  const fieldH = 25.0;
-  const cx = fieldW / 2;
-
-  const goalW = 3.66;
-  const goalDepth = 1.2;
-  const goalPostLeft = cx - goalW / 2;
-  const goalPostRight = cx + goalW / 2;
+  const fieldH = 25.0; // Height of the half-pitch
+  const cx = fieldW / 2; // Center X
 
   const circleRadius = 14.63;
-  const dashedRadius = circleRadius + 5.0;
-
-  const penaltySpotY = 6.475;
-
-  // Path for a semi-circle centered at the goal line
+  
+  // SVG path for a semi-circle pointing downwards from the top line (y=0)
   const dZonePath = `M ${cx - circleRadius},0 A ${circleRadius},${circleRadius} 0 0 1 ${cx + circleRadius},0`;
-  const dashedZonePath = `M ${cx - dashedRadius},0 A ${dashedRadius},${dashedRadius} 0 0 1 ${cx + dashedRadius},0`;
-
 
   return (
     <Card className="col-span-1 lg:col-span-2">
@@ -79,80 +28,18 @@ export function CircleEntryAnalysis({ entries }: CircleEntryAnalysisProps) {
       <CardContent className="flex justify-center items-center p-2 sm:p-4 md:p-6">
         <div className="w-full max-w-3xl">
            <svg viewBox={`-5 -5 ${fieldW + 10} ${fieldH + 15}`} preserveAspectRatio="xMidYMin">
-            <defs>
-                <marker id="arrowhead" markerWidth="5" markerHeight="3.5" refX="5" refY="1.75" orient="auto">
-                    <polygon points="0 0, 5 1.75, 0 3.5" fill="hsl(var(--accent))" />
-                </marker>
-            </defs>
             
-            {/* 1. Background Geometry Layer */}
-            <g stroke="hsl(var(--foreground))" strokeWidth="0.5" fill="none">
-              {/* Pitch half boundary */}
+            <g stroke="hsl(var(--foreground))" strokeWidth="1" fill="none">
+              {/* Outer rectangle representing the half-pitch */}
               <rect x="0" y="0" width={fieldW} height={fieldH} />
               
-              {/* Goal */}
-              <rect x={goalPostLeft} y={-goalDepth} width={goalW} height={goalDepth} />
-              
-              {/* Shooting Circle (Semi-circle) */}
+              {/* Shooting Circle (D-Zone) as a semi-circle pointing downwards */}
               <path d={dZonePath} />
-              
-              {/* 5m Dashed Line (Semi-circle) */}
-              <path d={dashedZonePath} strokeDasharray="0.8, 0.8" />
-              
-              {/* Penalty Spot */}
-              <circle cx={cx} cy={penaltySpotY} r="0.4" fill="hsl(var(--foreground))" stroke="none"/>
-
-              {/* Penalty Corner Markings */}
-              <line x1={cx - 6} y1={0} x2={cx-6} y2={-0.5} />
-              <line x1={cx - 3} y1={0} x2={cx-3} y2={-0.5} />
-              <line x1={cx + 3} y1={0} x2={cx+3} y2={-0.5} />
-              <line x1={cx + 6} y1={0} x2={cx+6} y2={-0.5} />
             </g>
-
-            {/* 2. Data Visualization Layer */}
-            <g>
-              {/* Arrows (coordinates from Python, Y-inverted for SVG) */}
-              <line x1="2.75" y1={fieldH-13.0} x2="11.0" y2={fieldH-21.0} stroke="hsl(var(--accent))" strokeWidth="1.2" markerEnd="url(#arrowhead)" />
-              <line x1="27.5" y1={fieldH-0.0} x2="27.5" y2={fieldH-11.0} stroke="hsl(var(--accent))" strokeWidth="1.2" markerEnd="url(#arrowhead)" />
-              <line x1="52.25" y1={fieldH-13.0} x2="44.0" y2={fieldH-21.0} stroke="hsl(var(--accent))" strokeWidth="1.2" markerEnd="url(#arrowhead)" />
-
-              {/* Data Text using foreignObject (coordinates from Python, Y-inverted for SVG) */}
-              <foreignObject x={text_positions.Left.x - 11} y={fieldH - text_positions.Left.y - 7} width="22" height="15">
-                <StatDisplay
-                  label="Left"
-                  entries={analysis.left.entries}
-                  success={analysis.left.success}
-                  efficiency={analysis.left.efficiency}
-                />
-              </foreignObject>
-              
-              <foreignObject x={text_positions.Center.x - 11} y={fieldH - text_positions.Center.y - 7} width="22" height="15">
-                <StatDisplay
-                  label="Center"
-                  entries={analysis.center.entries}
-                  success={analysis.center.success}
-                  efficiency={analysis.center.efficiency}
-                />
-              </foreignObject>
-              
-              <foreignObject x={text_positions.Right.x - 11} y={fieldH - text_positions.Right.y - 7} width="22" height="15">
-                <StatDisplay
-                  label="Right"
-                  entries={analysis.right.entries}
-                  success={analysis.right.success}
-                  efficiency={analysis.right.efficiency}
-                />
-              </foreignObject>
-            </g>
+            
           </svg>
         </div>
       </CardContent>
     </Card>
   )
-}
-
-const text_positions = {
-    'Left':   {'x': 5,  'y': 7},
-    'Center': {'x': 30, 'y': 17},
-    'Right':  {'x': 50, 'y': 7}
 }
