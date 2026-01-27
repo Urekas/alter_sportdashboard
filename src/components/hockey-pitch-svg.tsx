@@ -7,8 +7,16 @@ interface HockeyPitchSVGProps {
 }
 
 export const HockeyPitchSVG: FC<HockeyPitchSVGProps> = ({ showHalf }) => {
-  const viewBox = showHalf === "top" ? "0 0 100 30" : showHalf === "bottom" ? "0 30 100 30" : "0 0 100 60";
-  
+  // 55m wide, 91.4m long. Ratio approx 1:1.66. Using 60:100.
+  const viewBox = showHalf === "top" ? "0 0 60 50" : showHalf === "bottom" ? "0 50 60 50" : "0 0 60 100";
+
+  // Radius of shooting circle: 14.63m -> 16 in our 100-unit length
+  const circleRadius = 16;
+  // Radius of broken line circle: 14.63m + 5m -> 16 + 5.5 = 21.5
+  const brokenCircleRadius = 21.5;
+  // Penalty spot distance from goal line: 6.4m -> 7
+  const penaltySpotY = 7;
+
   return (
     <svg
       viewBox={viewBox}
@@ -16,31 +24,33 @@ export const HockeyPitchSVG: FC<HockeyPitchSVGProps> = ({ showHalf }) => {
       className="w-full h-full"
       preserveAspectRatio="xMidYMid meet"
     >
-      <defs>
-        <pattern id="grass" patternUnits="userSpaceOnUse" width="20" height="20">
-           <rect width="20" height="20" fill="hsl(var(--primary))" fillOpacity="0.8" />
-           <path d="M0 10 H 20 M 10 0 V 20" stroke="hsl(var(--primary))" strokeWidth="6" strokeOpacity="0.2"/>
-        </pattern>
-      </defs>
-
-      <rect width="100" height="60" fill="url(#grass)" />
-      <g stroke="hsl(var(--primary-foreground))" strokeWidth="0.5" fill="none" opacity="0.8">
+      <rect width="60" height="100" fill="transparent" />
+      <g stroke="hsl(var(--primary-foreground))" strokeWidth="0.5" fill="none" opacity="0.6">
         {/* Outlines */}
-        <rect x="0" y="0" width="100" height="60" />
+        <rect x="0" y="0" width="60" height="100" />
         {/* Halfway line */}
-        {!showHalf && <line x1="50" y1="0" x2="50" y2="60" />}
-        {/* 23m lines */}
-        {!showHalf && <line x1="25" y1="0" x2="25" y2="60" />}
-        {!showHalf && <line x1="75" y1="0" x2="75" y2="60" />}
-        {/* Circles */}
-        {(showHalf !== "bottom") && <path d="M 0 20.5 A 16 16 0 0 1 0 39.5" />}
-        {(showHalf !== "top") && <path d="M 100 20.5 A 16 16 0 0 0 100 39.5" />}
-         {/* Dashed Circles */}
-        {(showHalf !== "bottom") && <path d="M 0 15.5 A 21 21 0 0 1 0 44.5" strokeDasharray="1,1" />}
-        {(showHalf !== "top") && <path d="M 100 15.5 A 21 21 0 0 0 100 44.5" strokeDasharray="1,1" />}
-        {/* Penalty Spots */}
-        {(showHalf !== "bottom") && <circle cx="7" cy="30" r="0.5" fill="hsl(var(--primary-foreground))" />}
-        {(showHalf !== "top") && <circle cx="93" cy="30" r="0.5" fill="hsl(var(--primary-foreground))" />}
+        {!showHalf && <line x1="0" y1="50" x2="60" y2="50" />}
+        {/* 23m lines (22.9m) -> 25 */}
+        {!showHalf && <line x1="0" y1="25" x2="60" y2="25" />}
+        {!showHalf && <line x1="0" y1="75" x2="60" y2="75" />}
+
+        {/* Top Circle */}
+        {(showHalf !== "bottom") && (
+          <>
+            <path d={`M ${30 - circleRadius},0 A ${circleRadius},${circleRadius} 0 0,0 ${30 + circleRadius},0`} />
+            <path d={`M ${30 - brokenCircleRadius},0 A ${brokenCircleRadius},${brokenCircleRadius} 0 0,0 ${30 + brokenCircleRadius},0`} strokeDasharray="2,2" />
+            <circle cx="30" cy={penaltySpotY} r="0.75" fill="hsl(var(--primary-foreground))" />
+          </>
+        )}
+        
+        {/* Bottom Circle */}
+        {(showHalf !== "top") && (
+          <>
+            <path d={`M ${30 - circleRadius},100 A ${circleRadius},${circleRadius} 0 0,1 ${30 + circleRadius},100`} />
+            <path d={`M ${30 - brokenCircleRadius},100 A ${brokenCircleRadius},${brokenCircleRadius} 0 0,1 ${30 + brokenCircleRadius},100`} strokeDasharray="2,2" />
+            <circle cx="30" cy={100 - penaltySpotY} r="0.75" fill="hsl(var(--primary-foreground))" />
+          </>
+        )}
       </g>
     </svg>
   );

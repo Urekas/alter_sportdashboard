@@ -72,7 +72,7 @@ export function CircleEntryAnalysis({ entries }: CircleEntryAnalysisProps) {
 
          {/* Text Overlays */}
           <div
-              className="absolute text-center text-card-foreground"
+              className="absolute text-center text-card-foreground whitespace-nowrap"
               style={{ top: '72%', left: '9%', transform: 'translate(-50%, -50%)', fontSize: 'clamp(8px, 2.2vw, 13px)' }}
           >
               <b>Left</b><br />
@@ -81,7 +81,7 @@ export function CircleEntryAnalysis({ entries }: CircleEntryAnalysisProps) {
               효율: {analysis.left.efficiency}%
           </div>
            <div
-              className="absolute text-center text-card-foreground"
+              className="absolute text-center text-card-foreground whitespace-nowrap"
               style={{ top: '32%', left: '54.5%', transform: 'translate(-50%, -50%)', fontSize: 'clamp(8px, 2.2vw, 13px)' }}
           >
               <b>Center</b><br />
@@ -90,7 +90,7 @@ export function CircleEntryAnalysis({ entries }: CircleEntryAnalysisProps) {
               효율: {analysis.center.efficiency}%
           </div>
            <div
-              className="absolute text-center text-card-foreground"
+              className="absolute text-center text-card-foreground whitespace-nowrap"
               style={{ top: '72%', left: '91%', transform: 'translate(-50%, -50%)', fontSize: 'clamp(8px, 2.2vw, 13px)' }}
           >
               <b>Right</b><br />

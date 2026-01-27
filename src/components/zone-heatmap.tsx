@@ -11,8 +11,9 @@ interface ZoneHeatmapProps {
   homeTeamName: string
 }
 
-const ZONES_X = 10
-const ZONES_Y = 6
+// Corresponds to vertical pitch layout
+const ZONES_X = 6; // Zones across the width
+const ZONES_Y = 10; // Zones along the length
 
 export function ZoneHeatmap({ turnovers, homeTeamName }: ZoneHeatmapProps) {
   const heatmapData = useMemo(() => {
@@ -20,15 +21,18 @@ export function ZoneHeatmap({ turnovers, homeTeamName }: ZoneHeatmapProps) {
       .fill(0)
       .map(() => ({ total: 0, home: 0, away: 0 }))
 
+    // Let's assume `turnover.y` is along the pitch width (55m) and `turnover.x` is along the length (91.4m)
     turnovers.forEach((turnover) => {
-      const x = Math.min(Math.floor(turnover.x / (100 / ZONES_X)), ZONES_X - 1)
-      const y = Math.min(Math.floor(turnover.y / (100 / ZONES_Y)), ZONES_Y - 1)
-      const index = y * ZONES_X + x
-      grid[index].total++
-      if (turnover.team === homeTeamName) {
-        grid[index].home++
-      } else {
-        grid[index].away++
+      const x = Math.min(Math.floor(turnover.y / (100 / ZONES_X)), ZONES_X - 1)
+      const y = Math.min(Math.floor(turnover.x / (100 / ZONES_Y)), ZONES_Y - 1)
+      const index = y * ZONES_X + x;
+      if(index >= 0 && index < grid.length) {
+        grid[index].total++;
+        if (turnover.team === homeTeamName) {
+          grid[index].home++;
+        } else {
+          grid[index].away++;
+        }
       }
     })
 
@@ -48,9 +52,9 @@ export function ZoneHeatmap({ turnovers, homeTeamName }: ZoneHeatmapProps) {
       </CardHeader>
       <CardContent>
         <TooltipProvider>
-          <div className="relative w-full aspect-[1.8/1]">
+          <div className="relative w-full aspect-[3/5] max-w-sm mx-auto">
             <HockeyPitchSVG />
-            <div className="absolute inset-0 grid grid-cols-10 grid-rows-6">
+            <div className="absolute inset-0 grid grid-cols-6 grid-rows-10">
               {heatmapData.map((cell, index) => (
                 <Tooltip key={index} delayDuration={100}>
                   <TooltipTrigger asChild>
