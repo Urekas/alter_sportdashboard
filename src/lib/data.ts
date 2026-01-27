@@ -1,7 +1,10 @@
-import type { MatchData, TeamMatchStats, AttackThreatDataPoint } from './types';
+import type { MatchData, TeamMatchStats, AttackThreatDataPoint, TurnoverEvent } from './types';
 
 const HOME_TEAM = { name: 'Blues', color: 'hsl(var(--chart-1))' };
 const AWAY_TEAM = { name: 'Reds', color: 'hsl(var(--chart-2))' };
+
+const PITCH_LENGTH = 91.4;
+const PITCH_WIDTH = 55;
 
 function generatePressureData(): MatchData['pressureData'] {
   const data = [];
@@ -23,13 +26,18 @@ function generatePressureData(): MatchData['pressureData'] {
   return data;
 }
 
-function generateTurnovers(): MatchData['turnovers'] {
-  const turnovers = [];
+function generateTurnovers(): TurnoverEvent[] {
+  const turnovers: TurnoverEvent[] = [];
   for (let i = 0; i < 150; i++) {
+    const team = Math.random() > 0.55 ? HOME_TEAM.name : AWAY_TEAM.name;
     turnovers.push({
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      team: Math.random() > 0.55 ? HOME_TEAM.name : AWAY_TEAM.name,
+      id: `evt-${i}`,
+      team,
+      quarter: `Q${Math.floor(i / 38) + 1}`,
+      time: (i % 38) * 40,
+      x: Math.random() * PITCH_LENGTH,
+      y: Math.random() * PITCH_WIDTH,
+      locationLabel: 'Mock Location',
     });
   }
   return turnovers;

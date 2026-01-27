@@ -4,9 +4,13 @@ export interface Team {
 }
 
 export interface TurnoverEvent {
-  x: number; // 0-100 on pitch width
-  y: number; // 0-100 on pitch height
+  id: string;
   team: string;
+  quarter: string;
+  time: number;
+  x: number; // 0 to 91.4 (Meters)
+  y: number; // 0 to 55 (Meters)
+  locationLabel: string;
 }
 
 export interface PressureDataPoint {

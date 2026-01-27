@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { StatsCard } from "./stats-card"
 import { PressureBattleChart } from "./pressure-battle-chart"
-import { ZoneHeatmap } from "./zone-heatmap"
+import { TurnoverMap } from "./turnover-map"
 import { CircleEntryAnalysis } from "./circle-entry-analysis"
 import { BasicMatchStats } from "./basic-match-stats"
 import { AttackThreatChart } from "./attack-threat-chart"
@@ -116,17 +116,11 @@ export function Dashboard() {
             <BasicMatchStats data={matchData} />
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
+              <div className="lg:col-span-3">
                  <PressureBattleChart
                     data={matchData.pressureData}
                     homeTeam={matchData.homeTeam}
                     awayTeam={matchData.awayTeam}
-                  />
-              </div>
-              <div className="lg:col-span-1">
-                 <ZoneHeatmap
-                    turnovers={matchData.turnovers}
-                    homeTeamName={matchData.homeTeam.name}
                   />
               </div>
               <CircleEntryAnalysis entries={matchData.circleEntries} />
@@ -135,6 +129,11 @@ export function Dashboard() {
                 homeTeam={matchData.homeTeam}
                 awayTeam={matchData.awayTeam}
               />
+               <TurnoverMap
+                    turnovers={matchData.turnovers}
+                    homeTeam={matchData.homeTeam}
+                    awayTeam={matchData.awayTeam}
+                  />
             </div>
           </div>
         )}
