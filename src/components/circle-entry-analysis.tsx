@@ -1,5 +1,7 @@
 "use client"
 
+import { useMemo } from "react"
+import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import type { CircleEntry } from "@/lib/types"
 
@@ -8,7 +10,34 @@ interface CircleEntryAnalysisProps {
 }
 
 export function CircleEntryAnalysis({ entries }: CircleEntryAnalysisProps) {
-  // Data processing logic and overlays will be added back once the base diagram is approved.
+  const analysis = useMemo(() => {
+    const stats: Record<'Left' | 'Center' | 'Right', { entries: number; success: number }> = {
+      Left: { entries: 0, success: 0 },
+      Center: { entries: 0, success: 0 },
+      Right: { entries: 0, success: 0 },
+    };
+
+    for (const entry of entries) {
+      if (stats[entry.channel]) {
+        stats[entry.channel].entries++;
+        // A success is a Goal, Shot, or PC
+        if (entry.outcome === 'Goal' || entry.outcome === 'Shot On Target' || entry.outcome === 'Shot Missed') {
+          stats[entry.channel].success++;
+        }
+      }
+    }
+
+    const calcEfficiency = (success: number, entries: number) => {
+        return entries > 0 ? Math.round((success / entries) * 100) : 0;
+    }
+
+    return {
+      left: { ...stats.Left, efficiency: calcEfficiency(stats.Left.success, stats.Left.entries) },
+      center: { ...stats.Center, efficiency: calcEfficiency(stats.Center.success, stats.Center.entries) },
+      right: { ...stats.Right, efficiency: calcEfficiency(stats.Right.success, stats.Right.entries) },
+    };
+  }, [entries]);
+
   return (
     <Card className="col-span-1 lg:col-span-2">
       <CardHeader>
@@ -16,37 +45,66 @@ export function CircleEntryAnalysis({ entries }: CircleEntryAnalysisProps) {
         <CardDescription>공격 채널별 진입 및 성공 효율 (공격 방향: 아래 → 위)</CardDescription>
       </CardHeader>
       <CardContent className="flex justify-center items-center p-2 sm:p-4 md:p-6">
-        <div className="w-full max-w-lg text-foreground">
-          <svg viewBox="0 0 100 60" preserveAspectRatio="xMidYMin" className="w-full h-auto">
-            <g stroke="currentColor" strokeWidth="2" fill="none">
-              {/* Frame */}
-              <rect x="5" y="10" width="90" height="45" />
+        <div className="relative w-full max-w-lg mx-auto aspect-[55/30]">
+          <div className="absolute inset-0 bg-accent/10 rounded-md">
+              <p className="flex items-center justify-center h-full text-sm text-center text-muted-foreground p-4">
+                  TODO: 1. Add your diagram image to the /public folder (e.g., /public/circle-diagram.png). 2. Uncomment the Image component below to display it.
+              </p>
+          </div>
+          {/*
+          <Image
+              src="/circle-diagram.png"
+              alt="Hockey pitch circle diagram"
+              layout="fill"
+              objectFit="contain"
+          />
+          */}
 
-              {/* Goal */}
-              <rect x="45" y="8" width="10" height="2" stroke="currentColor" />
+          {/* Arrow Overlays */}
+          <div className="absolute inset-0">
+              <svg width="100%" height="100%" viewBox="0 0 55 30" preserveAspectRatio="xMidYMin">
+                   <defs>
+                      <marker id="arrowhead" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                          <path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(var(--accent))" />
+                      </marker>
+                  </defs>
+                  {/* Left Arrow */}
+                  <line x1="2.75" y1="17" x2="11" y2="9" stroke="hsl(var(--accent))" strokeWidth="1.5" opacity="0.8" markerEnd="url(#arrowhead)" />
+                  {/* Center Arrow */}
+                  <line x1="27.5" y1="25" x2="27.5" y2="15" stroke="hsl(var(--accent))" strokeWidth="1.5" opacity="0.8" markerEnd="url(#arrowhead)" />
+                  {/* Right Arrow */}
+                  <line x1="52.25" y1="17" x2="44" y2="9" stroke="hsl(var(--accent))" strokeWidth="1.5" opacity="0.8" markerEnd="url(#arrowhead)" />
+              </svg>
+          </div>
 
-              {/* Solid Arc (Semi-circle) */}
-              <path d="M25 10 A 25 25 0 0 1 75 10" />
-              
-              {/* Dashed Arc (Semi-circle) */}
-              <path d="M15 10 A 35 35 0 0 1 85 10" strokeDasharray="5 3" />
-
-              {/* Penalty Spot */}
-              <circle cx="50" cy="25" r="1.5" fill="currentColor" stroke="none" />
-
-              {/* Top Tick Marks */}
-              <line x1="30" y1="10" x2="30" y2="13" />
-              <line x1="40" y1="10" x2="40" y2="13" />
-              <line x1="60" y1="10" x2="60" y2="13" />
-              <line x1="70" y1="10" x2="70" y2="13" />
-
-              {/* Side Tick Marks */}
-              <line x1="5" y1="25" x2="8" y2="25" />
-              <line x1="5" y1="40" x2="8" y2="40" />
-              <line x1="95" y1="25" x2="92" y2="25" />
-              <line x1="95" y1="40" x2="92" y2="40" />
-            </g>
-          </svg>
+         {/* Text Overlays */}
+          <div
+              className="absolute text-center text-card-foreground"
+              style={{ top: '72%', left: '9%', transform: 'translate(-50%, -50%)', fontSize: 'clamp(8px, 2.2vw, 13px)' }}
+          >
+              <b>Left</b><br />
+              진입: {analysis.left.entries}회<br />
+              Success: {analysis.left.success}회<br />
+              효율: {analysis.left.efficiency}%
+          </div>
+           <div
+              className="absolute text-center text-card-foreground"
+              style={{ top: '32%', left: '54.5%', transform: 'translate(-50%, -50%)', fontSize: 'clamp(8px, 2.2vw, 13px)' }}
+          >
+              <b>Center</b><br />
+              진입: {analysis.center.entries}회<br />
+              Success: {analysis.center.success}회<br />
+              효율: {analysis.center.efficiency}%
+          </div>
+           <div
+              className="absolute text-center text-card-foreground"
+              style={{ top: '72%', left: '91%', transform: 'translate(-50%, -50%)', fontSize: 'clamp(8px, 2.2vw, 13px)' }}
+          >
+              <b>Right</b><br />
+              진입: {analysis.right.entries}회<br />
+              Success: {analysis.right.success}회<br />
+              효율: {analysis.right.efficiency}%
+          </div>
         </div>
       </CardContent>
     </Card>
