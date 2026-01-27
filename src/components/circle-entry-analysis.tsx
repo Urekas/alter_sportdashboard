@@ -53,10 +53,11 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
       <CardContent className="flex justify-center items-center p-2 sm:p-4 md:p-6">
         <div className="relative w-full max-w-lg mx-auto aspect-[55/30]">
           <Image
-              src="/.png/pitch-diagram.png"
+              src="https://picsum.photos/seed/hockeypitch/550/300"
               alt="Hockey pitch circle diagram"
               fill
               className="object-contain"
+              data-ai-hint="hockey field"
           />
 
           {/* Arrow Overlays */}
