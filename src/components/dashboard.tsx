@@ -131,7 +131,13 @@ export function Dashboard() {
             <p className="text-muted-foreground mb-6 max-w-sm">
               Upload a SportsCode XML or CSV file to begin your analysis, or use our demo data to explore the features.
             </p>
-            <Button onClick={handleLoadMockData}>Load Demo Data</Button>
+            <div className="flex items-center gap-4">
+              <Button onClick={() => fileInputRef.current?.click()}>
+                <Upload className="mr-2" />
+                Upload Data
+              </Button>
+              <Button variant="secondary" onClick={handleLoadMockData}>Load Demo Data</Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-6">
