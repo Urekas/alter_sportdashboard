@@ -59,14 +59,14 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
                 <div className="text-center p-4">
                     <p className="font-bold">이미지 로드 오류</p>
                     <p className="text-sm mt-1">
-                        <code>public/photos/pitch-diagram.png</code><br/>
-                        경로에 파일이 있는지 확인해주세요.
+                        <code>public/pitch-diagram.png</code><br/>
+                        경로에 파일이 있는지 확인 후 서버를 재시작해주세요.
                     </p>
                 </div>
             </div>
           ) : (
             <Image
-                src="/photos/pitch-diagram.png"
+                src="/pitch-diagram.png"
                 alt="Hockey pitch circle diagram"
                 fill
                 className="object-contain"
