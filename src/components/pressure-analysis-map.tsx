@@ -93,28 +93,20 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
               {isHome ? (
                 <>
                   <line x1="45.7" y1="0" x2="45.7" y2="55" /> {/* Goal Line */}
-                  {/* Shooting Circle */}
                   <path d={`M 45.7,${CX - CIRCLE_RADIUS} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,0 31.07,${CX} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,0 45.7,${CX + CIRCLE_RADIUS}`} />
-                  {/* 5m Broken Circle */}
                   <path d={`M 45.7,${CX - BROKEN_CIRCLE_RADIUS} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,0 26.07,${CX} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,0 45.7,${CX + BROKEN_CIRCLE_RADIUS}`} strokeDasharray="1,1" />
-                  {/* Penalty Spot */}
                   <circle cx={45.7 - PENALTY_SPOT_DIST} cy={CX} r="0.3" fill="black" stroke="none" />
-                  {/* Goal Box */}
                   <rect x="45.7" y={CX - 1.83} width="1.2" height="3.66" />
-                  <line x1="22.85" y1="0" x2="22.85" y2="55" strokeDasharray="1,1" /> {/* 23m line */}
+                  <line x1="22.85" y1="0" x2="22.85" y2="55" strokeDasharray="1,1" />
                 </>
               ) : (
                 <>
                   <line x1="0" y1="0" x2="0" y2="55" /> {/* Goal Line */}
-                  {/* Shooting Circle */}
                   <path d={`M 0,${CX - CIRCLE_RADIUS} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,1 ${CIRCLE_RADIUS},${CX} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,1 0,${CX + CIRCLE_RADIUS}`} />
-                  {/* 5m Broken Circle */}
                   <path d={`M 0,${CX - BROKEN_CIRCLE_RADIUS} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,1 ${BROKEN_CIRCLE_RADIUS},${CX} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,1 0,${CX + BROKEN_CIRCLE_RADIUS}`} strokeDasharray="1,1" />
-                  {/* Penalty Spot */}
                   <circle cx={PENALTY_SPOT_DIST} cy={CX} r="0.3" fill="black" stroke="none" />
-                  {/* Goal Box */}
                   <rect x="-1.2" y={CX - 1.83} width="1.2" height="3.66" />
-                  <line x1="22.85" y1="0" x2="22.85" y2="55" strokeDasharray="1,1" /> {/* 23m line */}
+                  <line x1="22.85" y1="0" x2="22.85" y2="55" strokeDasharray="1,1" />
                 </>
               )}
               {/* Lane Lines */}
