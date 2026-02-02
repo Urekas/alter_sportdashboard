@@ -64,7 +64,7 @@ export function Dashboard() {
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 print-hidden">
         <div>
           <h1 className="text-4xl font-bold text-primary font-headline tracking-tight">Field Focus</h1>
-          <p className="text-muted-foreground mt-1">전문가용 필드 하키 퍼포먼스 분석 솔루션 (Japan vs India)</p>
+          <p className="text-muted-foreground mt-1">전문가용 필드 하키 퍼포먼스 분석 솔루션</p>
         </div>
         <div className="flex items-center gap-2 mt-4 md:mt-0">
           <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xml" className="hidden" />
@@ -104,19 +104,19 @@ export function Dashboard() {
               />
               <StatsCard
                 title={`${matchData.homeTeam.name} 빌드업 성공률`}
-                value={`${((matchData.matchStats.home.build25Ratio || 0) * 100).toFixed(1)}%`}
+                value={`${((matchData.matchStats.home.build25Ratio || 0) * 100).toFixed(2)}%`}
                 description="25m 진입 성공률"
                 icon={<ShieldCheck className="text-primary/60" />}
               />
               <StatsCard
                 title={`${matchData.homeTeam.name} 공격 유지 시간`}
-                value={`${(matchData.matchStats.home.avgAttackDuration || 0).toFixed(1)}s`}
+                value={`${(matchData.matchStats.home.avgAttackDuration || 0).toFixed(2)}s`}
                 description="공격 1회당 평균 유지 시간"
                 icon={<Target className="text-primary/60" />}
               />
               <StatsCard
                 title={`${matchData.homeTeam.name} CE 소요 시간`}
-                value={`${(matchData.matchStats.home.timePerCE || 0).toFixed(1)}s`}
+                value={`${(matchData.matchStats.home.timePerCE || 0).toFixed(2)}s`}
                 description="서클 진입당 소요 시간"
                 icon={<Activity className="text-primary/60" />}
               />
@@ -176,7 +176,7 @@ export function Dashboard() {
                               <TableCell className="text-sm">{e.code}</TableCell>
                               <TableCell className="text-sm">{e.locationLabel}</TableCell>
                               <TableCell className="text-sm text-emerald-600 font-medium">{e.resultLabel}</TableCell>
-                              <TableCell className="font-mono text-xs">{e.time.toFixed(1)}s</TableCell>
+                              <TableCell className="font-mono text-xs">{e.time.toFixed(2)}s</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -190,5 +190,5 @@ export function Dashboard() {
         )}
       </main>
     </div>
-  )
+  );
 }

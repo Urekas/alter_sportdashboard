@@ -48,8 +48,8 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
     },
     {
       label: "빌드업 25m 성공률 (%)",
-      homeValue: `${(build25Ratio.home * 100).toFixed(1)}%`,
-      awayValue: `${(build25Ratio.away * 100).toFixed(1)}%`,
+      homeValue: `${(build25Ratio.home * 100).toFixed(2)}%`,
+      awayValue: `${(build25Ratio.away * 100).toFixed(2)}%`,
     },
     {
       label: "SPP / 허용 SPP",
@@ -58,23 +58,23 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
     },
     {
       label: "점유율 %",
-      homeValue: `${matchStats.home.possession.toFixed(1)}%`,
-      awayValue: `${matchStats.away.possession.toFixed(1)}%`,
+      homeValue: `${matchStats.home.possession.toFixed(2)}%`,
+      awayValue: `${matchStats.away.possession.toFixed(2)}%`,
     },
     {
       label: "공격 점유율 %",
-      homeValue: `${matchStats.home.attackPossession.toFixed(1)}%`,
-      awayValue: `${matchStats.away.attackPossession.toFixed(1)}%`,
+      homeValue: `${matchStats.home.attackPossession.toFixed(2)}%`,
+      awayValue: `${matchStats.away.attackPossession.toFixed(2)}%`,
     },
     {
       label: "공격 1회당 유지 시간 (초)",
-      homeValue: `${(matchStats.home.avgAttackDuration || 0).toFixed(1)}s`,
-      awayValue: `${(matchStats.away.avgAttackDuration || 0).toFixed(1)}s`,
+      homeValue: `${(matchStats.home.avgAttackDuration || 0).toFixed(2)}s`,
+      awayValue: `${(matchStats.away.avgAttackDuration || 0).toFixed(2)}s`,
     },
     {
       label: "CE 1회당 소요 시간 (초)",
-      homeValue: `${(matchStats.home.timePerCE || 0).toFixed(1)}s`,
-      awayValue: `${(matchStats.away.timePerCE || 0).toFixed(1)}s`,
+      homeValue: `${(matchStats.home.timePerCE || 0).toFixed(2)}s`,
+      awayValue: `${(matchStats.away.timePerCE || 0).toFixed(2)}s`,
     },
   ]
 
