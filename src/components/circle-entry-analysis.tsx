@@ -5,12 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 
 // --- Type Definition ---
 export interface CircleEntry {
-  id: string
   team: string
-  quarter: number
-  time: string
   channel: 'Left' | 'Center' | 'Right'
-  outcome: 'Goal' | 'Shot On Target' | 'Shot Missed' | 'Turnover' | 'Foul'
+  outcome: 'Goal' | 'Shot On Target' | 'Shot Missed' | 'No Shot'
 }
 
 interface CircleEntryAnalysisProps {
@@ -29,7 +26,7 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
     for (const entry of entries) {
       if (stats[entry.channel]) {
         stats[entry.channel].entries++;
-        if (['Goal', 'Shot On Target', 'Shot Missed', 'PC'].includes(entry.outcome)) {
+        if (['Goal', 'Shot On Target', 'Shot Missed'].includes(entry.outcome)) {
           stats[entry.channel].success++;
         }
       }
@@ -134,22 +131,22 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
               <circle cx={CX} cy={toSvgY(6.47)} r="0.15" fill="black" stroke="none" />
             </g>
 
-            {/* --- 2. Arrows --- */}
+            {/* --- 2. Arrows (Pointing Up, Moved -2 in Y) --- */}
             <g stroke="rgba(70, 130, 180, 0.7)" strokeWidth="0.8" markerEnd="url(#arrow-head-blue)">
               {/* Left Arrow */}
-              <line x1="2.75" y1={toSvgY(17) + 6} x2="11.0" y2={toSvgY(8) + 6} />
+              <line x1="2.75" y1={toSvgY(17) + 4} x2="11.0" y2={toSvgY(8) + 4} />
               
               {/* Center Arrow */}
-              <line x1="27.5" y1={toSvgY(15) + 10} x2="27.5" y2={toSvgY(5) + 10} />
+              <line x1="27.5" y1={toSvgY(15) + 8} x2="27.5" y2={toSvgY(5) + 8} />
               
               {/* Right Arrow */}
-              <line x1="52.25" y1={toSvgY(17) + 6} x2="44.0" y2={toSvgY(8) + 6} />
+              <line x1="52.25" y1={toSvgY(17) + 4} x2="44.0" y2={toSvgY(8) + 4} />
             </g>
 
-            {/* --- 3. Stats Text Overlay --- */}
+            {/* --- 3. Stats Text Overlay (Moved -2 in Y) --- */}
             <g className="fill-black" style={{ fontSize: '1.1px', textAnchor: 'middle' }}>
               {/* Left Text */}
-              <text x="6.5" y={toSvgY(19) + 6}>
+              <text x="6.5" y={toSvgY(19) + 4}>
                 <tspan x="6.5" dy="0" fontWeight="bold">Left</tspan>
                 <tspan x="6.5" dy="1.6" fontWeight="normal">진입: {analysis.Left.entries}회</tspan>
                 <tspan x="6.5" dy="1.6" fontWeight="normal">Success(슈팅/pc/득점): {analysis.Left.success}회</tspan>
@@ -157,7 +154,7 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
               </text>
 
               {/* Center Text */}
-              <text x="27.5" y={toSvgY(17) + 10}>
+              <text x="27.5" y={toSvgY(17) + 8}>
                 <tspan x="27.5" dy="0" fontWeight="bold">Center</tspan>
                 <tspan x="27.5" dy="1.6" fontWeight="normal">진입: {analysis.Center.entries}회</tspan>
                 <tspan x="27.5" dy="1.6" fontWeight="normal">Success(슈팅/pc/득점): {analysis.Center.success}회</tspan>
@@ -165,7 +162,7 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
               </text>
 
               {/* Right Text */}
-              <text x="48" y={toSvgY(19) + 6}>
+              <text x="48" y={toSvgY(19) + 4}>
                 <tspan x="48" dy="0" fontWeight="bold">Right</tspan>
                 <tspan x="48" dy="1.6" fontWeight="normal">진입: {analysis.Right.entries}회</tspan>
                 <tspan x="48" dy="1.6" fontWeight="normal">Success(슈팅/pc/득점): {analysis.Right.success}회</tspan>
