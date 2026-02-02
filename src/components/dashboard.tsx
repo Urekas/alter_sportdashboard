@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useRef } from "react"
-import { Upload, Printer, FileText, TrendingUp, TrendingDown, ListFilter } from "lucide-react"
+import { Upload, Printer, FileText, TrendingUp, TrendingDown, Target, Activity } from "lucide-react"
 import type { MatchData, MatchEvent } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
 import { Button } from "@/components/ui/button"
@@ -14,9 +14,8 @@ import { BasicMatchStats } from "./basic-match-stats"
 import { AttackThreatChart } from "./attack-threat-chart"
 import { QuarterlyStatsTable } from "./quarterly-stats-table"
 import { BuildUpEfficiencyChart } from "./build-up-efficiency-chart"
-import { parseXMLData, parseCSVData, createMatchDataFromUpload } from "@/lib/parser"
+import { parseXMLData, createMatchDataFromUpload } from "@/lib/parser"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Card, CardDescription } from "@/components/ui/card"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 
 export function Dashboard() {
@@ -28,12 +27,8 @@ export function Dashboard() {
     setMatchData(mockMatchData)
     toast({
       title: "데모 데이터 로드됨",
-      description: "분석 기능을 체험하기 위한 가상 데이터를 불러왔습니다.",
+      description: "Japan vs Netherlands 분석 데이터를 불러왔습니다.",
     })
-  }
-
-  const handlePrint = () => {
-    window.print()
   }
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,58 +39,21 @@ export function Dashboard() {
       reader.onload = (e) => {
         try {
           const content = e.target?.result as string;
-          let events: MatchEvent[] = [];
-          let homeName = "Home";
-          let awayName = "Away";
-          
           if (file.name.endsWith('.xml')) {
-            const result = parseXMLData(content);
-            events = result.events;
-            homeName = result.teams.home;
-            awayName = result.teams.away;
-          } else if (file.name.endsWith('.csv')) {
-            events = parseCSVData(content);
-            if (events.length > 0) {
-              homeName = events[0].team;
-              const otherTeam = events.find(ev => ev.team !== homeName);
-              if (otherTeam) awayName = otherTeam.team;
+            const { events, teams } = parseXMLData(content);
+            if (events.length === 0) {
+              throw new Error("분석 가능한 이벤트가 없습니다.");
             }
+            const newData = createMatchDataFromUpload(events, teams.home, teams.away);
+            setMatchData(newData);
+            toast({ title: "분석 완료", description: `${teams.home} vs ${teams.away} 경기 데이터가 업데이트되었습니다.` });
           } else {
-             toast({
-              title: "파일 형식 오류",
-              description: `SportsCode XML 또는 CSV 파일만 업로드 가능합니다.`,
-              variant: "destructive"
-            });
-            return;
+            throw new Error("XML 파일만 지원합니다.");
           }
-
-          if (events.length === 0) {
-              toast({
-                title: "이벤트 데이터 없음",
-                description: '파일을 읽었으나 분석할 수 있는 이벤트가 없습니다.',
-                variant: "destructive",
-              });
-              return;
-          }
-            
-          const newMatchData = createMatchDataFromUpload(events, homeName, awayName);
-          setMatchData(newMatchData);
-          
-          toast({
-            title: "데이터 분석 완료",
-            description: `${homeName} vs ${awayName} 경기의 분석을 성공적으로 완료했습니다.`,
-          });
-
         } catch (error: any) {
-          console.error("File processing error:", error);
-          toast({
-            title: "파일 처리 오류",
-            description: error.message || "파일을 분석하는 중 오류가 발생했습니다.",
-            variant: "destructive",
-          });
+          toast({ title: "오류 발생", description: error.message, variant: "destructive" });
         }
       };
-      
       reader.readAsText(file);
     }
   }
@@ -104,25 +62,17 @@ export function Dashboard() {
     <div className="p-4 md:p-6 lg:p-8">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 print-hidden">
         <div>
-          <h1 className="text-4xl font-bold text-primary font-headline">Field Focus</h1>
-          <p className="text-muted-foreground mt-1">하키 전술 및 퍼포먼스 분석 대시보드</p>
+          <h1 className="text-4xl font-bold text-primary font-headline tracking-tight">Field Focus</h1>
+          <p className="text-muted-foreground mt-1">전문가용 필드 하키 퍼포먼스 분석 솔루션</p>
         </div>
         <div className="flex items-center gap-2 mt-4 md:mt-0">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            accept=".xml,.csv"
-            className="hidden"
-          />
-          <Button onClick={() => fileInputRef.current?.click()}>
-            <Upload className="mr-2" />
-            데이터 업로드
+          <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xml" className="hidden" />
+          <Button onClick={() => fileInputRef.current?.click()} className="shadow-md">
+            <Upload className="mr-2 h-4 w-4" /> 데이터 업로드
           </Button>
           {matchData && (
-            <Button variant="outline" onClick={handlePrint}>
-              <Printer className="mr-2" />
-              리포트 인쇄
+            <Button variant="outline" onClick={() => window.print()} className="shadow-sm">
+              <Printer className="mr-2 h-4 w-4" /> 리포트 인쇄
             </Button>
           )}
         </div>
@@ -130,150 +80,111 @@ export function Dashboard() {
 
       <main className="printable-area">
         {!matchData ? (
-          <div className="flex flex-col items-center justify-center text-center py-20 bg-card rounded-lg border-2 border-dashed">
-            <FileText className="w-16 h-16 text-muted-foreground mb-4" />
-            <h2 className="text-2xl font-semibold mb-2 font-headline">분석할 데이터가 없습니다</h2>
+          <div className="flex flex-col items-center justify-center text-center py-20 bg-card rounded-xl border-2 border-dashed border-muted-foreground/25">
+            <Activity className="w-16 h-16 text-muted-foreground/40 mb-4" />
+            <h2 className="text-2xl font-semibold mb-2">분석을 시작하세요</h2>
             <p className="text-muted-foreground mb-6 max-w-sm">
-              SportsCode XML 또는 CSV 파일을 업로드하여 분석을 시작하거나, 데모 데이터를 불러와 기능을 확인해보세요.
+              SportsCode XML 파일을 업로드하여 일본 vs 인도 경기와 같은 실제 데이터를 분석하세요.
             </p>
-            <div className="flex items-center gap-4">
-              <Button onClick={() => fileInputRef.current?.click()}>
-                <Upload className="mr-2" />
-                데이터 업로드
-              </Button>
-              <Button variant="secondary" onClick={handleLoadMockData}>데모 데이터 불러오기</Button>
+            <div className="flex gap-3">
+              <Button onClick={() => fileInputRef.current?.click()}>파일 업로드</Button>
+              <Button variant="secondary" onClick={handleLoadMockData}>데모 데이터</Button>
             </div>
           </div>
         ) : (
-          <div className="space-y-8">
-            <section>
-              <h2 className="text-2xl font-semibold mb-4 font-headline">주요 분석 지표 (Key Metrics)</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <StatsCard
-                  title={`${matchData.homeTeam.name} SPP`}
-                  value={matchData.spp.home.toFixed(2)}
-                  description="Seconds Per Press (낮을수록 우수)"
-                  icon={<TrendingDown className="text-green-500" />}
-                />
-                <StatsCard
-                  title={`${matchData.awayTeam.name} SPP`}
-                  value={matchData.spp.away.toFixed(2)}
-                  description="Seconds Per Press (낮을수록 우수)"
-                  icon={<TrendingUp className="text-red-500" />}
-                />
-                <StatsCard
-                  title={`${matchData.homeTeam.name} 공격 유지 시간`}
-                  value={`${(matchData.matchStats.home.avgAttackDuration || 0).toFixed(1)}s`}
-                  description="공격 1회당 평균 유지 시간"
-                />
-                <StatsCard
-                  title={`${matchData.awayTeam.name} 공격 유지 시간`}
-                  value={`${(matchData.matchStats.away.avgAttackDuration || 0).toFixed(1)}s`}
-                  description="공격 1회당 평균 유지 시간"
-                />
-              </div>
+          <div className="space-y-8 animate-in fade-in duration-500">
+            <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <StatsCard
+                title={`${matchData.homeTeam.name} SPP`}
+                value={matchData.spp.home.toFixed(2)}
+                description="압박 효율 (낮을수록 우수)"
+                icon={<TrendingDown className="text-emerald-500" />}
+              />
+              <StatsCard
+                title={`${matchData.awayTeam.name} SPP`}
+                value={matchData.spp.away.toFixed(2)}
+                description="압박 효율 (낮을수록 우수)"
+                icon={<TrendingUp className="text-rose-500" />}
+              />
+              <StatsCard
+                title={`${matchData.homeTeam.name} 공격 속도`}
+                value={`${(matchData.matchStats.home.avgAttackDuration || 0).toFixed(1)}s`}
+                description="공격 1회당 평균 유지 시간"
+                icon={<Target className="text-primary/60" />}
+              />
+              <StatsCard
+                title={`${matchData.awayTeam.name} 공격 속도`}
+                value={`${(matchData.matchStats.away.avgAttackDuration || 0).toFixed(1)}s`}
+                description="공격 1회당 평균 유지 시간"
+                icon={<Target className="text-primary/60" />}
+              />
             </section>
 
-            <BasicMatchStats data={matchData} />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2">
+                <BasicMatchStats data={matchData} />
+              </div>
+              <div className="lg:col-span-1">
+                <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <CircleEntryAnalysis teamName={matchData.homeTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.homeTeam.name)} />
+              <CircleEntryAnalysis teamName={matchData.awayTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.awayTeam.name)} />
+            </div>
+
+            <BuildUpEfficiencyChart data={matchData} />
             
-            <div className="grid grid-cols-1 gap-8">
-              <div className="w-full">
-                 <PressureBattleChart
-                    data={matchData.pressureData}
-                    homeTeam={matchData.homeTeam}
-                    awayTeam={matchData.awayTeam}
-                  />
-              </div>
+            <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
+            
+            <AttackThreatChart data={matchData.attackThreatData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-                <CircleEntryAnalysis
-                  teamName={matchData.homeTeam.name}
-                  entries={matchData.circleEntries.filter(e => e.team === matchData.homeTeam.name)}
-                />
-                <CircleEntryAnalysis
-                  teamName={matchData.awayTeam.name}
-                  entries={matchData.circleEntries.filter(e => e.team === matchData.awayTeam.name)}
-                />
-              </div>
+            <div className="pt-8">
+              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                <Activity className="h-6 w-6 text-primary" /> 쿼터별 상세 분석 데이터
+              </h2>
+              <QuarterlyStatsTable data={matchData} />
+            </div>
 
-              <div className="w-full">
-                <BuildUpEfficiencyChart data={matchData} />
-              </div>
-
-              <div className="w-full">
-                <PressureAnalysisMap
-                    events={matchData.events}
-                    homeTeam={matchData.homeTeam}
-                    awayTeam={matchData.awayTeam}
-                  />
-              </div>
-
-              <div className="w-full">
-                <AttackThreatChart
-                  data={matchData.attackThreatData}
-                  homeTeam={matchData.homeTeam}
-                  awayTeam={matchData.awayTeam}
-                />
-              </div>
-
-              <div className="w-full pt-8">
-                <h2 className="text-2xl font-semibold mb-4 font-headline">쿼터별 상세 데이터 (Quarterly Analysis)</h2>
-                <QuarterlyStatsTable data={matchData} />
-              </div>
-
-              <div className="w-full pt-12 print-hidden">
-                <Accordion type="single" collapsible className="w-full border rounded-lg bg-muted/30">
-                  <AccordionItem value="event-log" className="border-none">
-                    <AccordionTrigger className="px-6 hover:no-underline">
-                      <div className="flex items-center gap-2 text-primary">
-                        <span className="font-semibold text-lg">파싱된 이벤트 데이터 검증 (총 {matchData.events.length}개)</span>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-6 pb-6">
-                      <div className="max-h-[500px] overflow-auto border rounded-md bg-background">
-                        <Table>
-                          <TableHeader className="sticky top-0 bg-secondary z-10">
-                            <TableRow>
-                              <TableHead className="w-[80px]">No.</TableHead>
-                              <TableHead>시간 (초)</TableHead>
-                              <TableHead>쿼터</TableHead>
-                              <TableHead>팀</TableHead>
-                              <TableHead>유형</TableHead>
-                              <TableHead>위치 레이블</TableHead>
-                              <TableHead className="text-right">좌표 (X, Y)</TableHead>
+            <div className="pt-12 print-hidden">
+              <Accordion type="single" collapsible className="w-full border rounded-xl bg-muted/20">
+                <AccordionItem value="log" className="border-none">
+                  <AccordionTrigger className="px-6 py-4 hover:no-underline font-semibold">
+                    데이터 파싱 로그 및 원본 데이터 검증 ({matchData.events.length}개 이벤트)
+                  </AccordionTrigger>
+                  <AccordionContent className="px-6 pb-6">
+                    <div className="max-h-96 overflow-y-auto rounded-lg border bg-background shadow-inner">
+                      <Table>
+                        <TableHeader className="bg-muted sticky top-0">
+                          <TableRow>
+                            <TableHead>No.</TableHead>
+                            <TableHead>시간</TableHead>
+                            <TableHead>팀</TableHead>
+                            <TableHead>유형</TableHead>
+                            <TableHead>위치</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {matchData.events.map((e, i) => (
+                            <TableRow key={e.id}>
+                              <TableCell className="text-xs text-muted-foreground">{i + 1}</TableCell>
+                              <TableCell className="font-mono">{e.time.toFixed(1)}s</TableCell>
+                              <TableCell className="font-semibold">{e.team}</TableCell>
+                              <TableCell>{e.type === 'foul' ? '파울' : '턴오버'}</TableCell>
+                              <TableCell className="text-xs">{e.locationLabel}</TableCell>
                             </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {matchData.events.map((event, index) => (
-                              <TableRow key={event.id}>
-                                <TableCell className="text-muted-foreground">{index + 1}</TableCell>
-                                <TableCell>{event.time.toFixed(1)}s</TableCell>
-                                <TableCell>{event.quarter}</TableCell>
-                                <TableCell className="font-medium">{event.team}</TableCell>
-                                <TableCell>
-                                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                                    event.type === 'foul' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
-                                  }`}>
-                                    {event.type === 'foul' ? '파울' : '턴오버'}
-                                  </span>
-                                </TableCell>
-                                <TableCell className="text-muted-foreground">{event.locationLabel}</TableCell>
-                                <TableCell className="text-right font-mono text-xs">
-                                  {event.x.toFixed(1)}m, {event.y.toFixed(1)}m
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              </div>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </div>
           </div>
         )}
       </main>
     </div>
-  );
+  )
 }
