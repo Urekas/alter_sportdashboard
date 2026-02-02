@@ -15,6 +15,9 @@ const PITCH_LENGTH = 91.4;
 const PITCH_WIDTH = 55;
 const MID_X = PITCH_LENGTH / 2;
 const LINE_23M = 22.9;
+const CIRCLE_RADIUS = 14.63;
+const BROKEN_CIRCLE_RADIUS = 19.63; // 14.63 + 5
+const PENALTY_SPOT_DIST = 6.47;
 
 type ZoneStat = {
   count: number;
@@ -29,12 +32,9 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
       const zones: ZoneStat[] = Array(6).fill(null).map(() => ({ count: 0, success: 0, rate: 0 }));
 
       events.forEach(e => {
-        // 해당 팀의 공격 진영 이벤트인지 확인
         const isAttackingHalf = isHome ? (e.x > MID_X) : (e.x < MID_X);
         if (!isAttackingHalf) return;
 
-        // 압박 성공/실패 여부 판단 (사용자 정의 공식 적용)
-        // 성공: 상대 실책(턴오버/파울), 실패: 나의 공격 파울
         let isSuccess = false;
         let isFailure = false;
 
@@ -43,15 +43,12 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
         } else if (e.team === teamName && e.type === 'foul') {
           isFailure = true;
         } else {
-          return; // 압박 지표에 포함되지 않는 이벤트(나의 턴오버 등)는 건너뜀
+          return;
         }
 
-        // 구역 계산 (상대 골대 라인 기준 거리)
         const distFromGoal = isHome ? (PITCH_LENGTH - e.x) : e.x;
-        const xIdx = distFromGoal <= LINE_23M ? 0 : 1; // 0: 25m zone, 1: 50m zone
+        const xIdx = distFromGoal <= LINE_23M ? 0 : 1; 
         
-        // 레인 계산 (공격 방향 기준 좌/중/우)
-        // Y=0이 좌측 레인이라고 가정
         const laneY = isHome ? e.y : (PITCH_WIDTH - e.y);
         let yIdx = 0;
         if (laneY > PITCH_WIDTH * 0.66) yIdx = 2; // Right
@@ -81,6 +78,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
 
   const renderHalfPitch = (stats: ZoneStat[], team: Team, isHome: boolean) => {
     const labels = ["25L", "25C", "25R", "50L", "50C", "50R"];
+    const CX = 27.5; // Center Y of pitch
     
     return (
       <div className="flex flex-col gap-4">
@@ -88,22 +86,35 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
           {team.name} Attacking Half
         </h3>
         <div className="relative aspect-[45.7/55] bg-green-50/50 rounded-b-lg overflow-hidden border-2 border-muted shadow-inner">
-          <svg viewBox="0 0 45.7 55" className="w-full h-full">
+          <svg viewBox="-2 0 49.7 55" className="w-full h-full overflow-visible">
             {/* Pitch Markings (Half Pitch) */}
-            <g stroke="#000" strokeWidth="0.2" fill="none" opacity="0.3">
+            <g stroke="#000" strokeWidth="0.25" fill="none" opacity="0.4">
               <rect x="0" y="0" width="45.7" height="55" />
-              {/* Goal Line & Circle */}
               {isHome ? (
                 <>
-                  <line x1="45.7" y1="0" x2="45.7" y2="55" /> {/* Goal Line (Right side) */}
-                  <path d="M 45.7,12.87 A 14.63,14.63 0 0,0 31.07,27.5 A 14.63,14.63 0 0,0 45.7,42.13" />
-                  <line x1="22.9" y1="0" x2="22.9" y2="55" strokeDasharray="1,1" /> {/* 23m line */}
+                  <line x1="45.7" y1="0" x2="45.7" y2="55" /> {/* Goal Line */}
+                  {/* Shooting Circle */}
+                  <path d={`M 45.7,${CX - CIRCLE_RADIUS} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,0 31.07,${CX} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,0 45.7,${CX + CIRCLE_RADIUS}`} />
+                  {/* 5m Broken Circle */}
+                  <path d={`M 45.7,${CX - BROKEN_CIRCLE_RADIUS} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,0 26.07,${CX} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,0 45.7,${CX + BROKEN_CIRCLE_RADIUS}`} strokeDasharray="1,1" />
+                  {/* Penalty Spot */}
+                  <circle cx={45.7 - PENALTY_SPOT_DIST} cy={CX} r="0.3" fill="black" stroke="none" />
+                  {/* Goal Box */}
+                  <rect x="45.7" y={CX - 1.83} width="1.2" height="3.66" />
+                  <line x1="22.85" y1="0" x2="22.85" y2="55" strokeDasharray="1,1" /> {/* 23m line */}
                 </>
               ) : (
                 <>
-                  <line x1="0" y1="0" x2="0" y2="55" /> {/* Goal Line (Left side) */}
-                  <path d="M 0,12.87 A 14.63,14.63 0 0,1 14.63,27.5 A 14.63,14.63 0 0,1 0,42.13" />
-                  <line x1="22.8" y1="0" x2="22.8" y2="55" strokeDasharray="1,1" /> {/* 23m line */}
+                  <line x1="0" y1="0" x2="0" y2="55" /> {/* Goal Line */}
+                  {/* Shooting Circle */}
+                  <path d={`M 0,${CX - CIRCLE_RADIUS} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,1 ${CIRCLE_RADIUS},${CX} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,1 0,${CX + CIRCLE_RADIUS}`} />
+                  {/* 5m Broken Circle */}
+                  <path d={`M 0,${CX - BROKEN_CIRCLE_RADIUS} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,1 ${BROKEN_CIRCLE_RADIUS},${CX} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,1 0,${CX + BROKEN_CIRCLE_RADIUS}`} strokeDasharray="1,1" />
+                  {/* Penalty Spot */}
+                  <circle cx={PENALTY_SPOT_DIST} cy={CX} r="0.3" fill="black" stroke="none" />
+                  {/* Goal Box */}
+                  <rect x="-1.2" y={CX - 1.83} width="1.2" height="3.66" />
+                  <line x1="22.85" y1="0" x2="22.85" y2="55" strokeDasharray="1,1" /> {/* 23m line */}
                 </>
               )}
               {/* Lane Lines */}
@@ -115,18 +126,13 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
             {stats.map((stat, i) => {
               const xIdx = Math.floor(i / 3);
               const yIdx = i % 3;
-              
               let rectX = 0;
               let rectW = 22.85;
-              
               if (isHome) {
-                // Team Home attacks Right. 25m zone is 22.85 to 45.7, 50m zone is 0 to 22.85 (relative to center)
                 rectX = xIdx === 0 ? 22.85 : 0;
               } else {
-                // Team Away attacks Left. 25m zone is 0 to 22.85, 50m zone is 22.85 to 45.7
                 rectX = xIdx === 0 ? 0 : 22.85;
               }
-              
               const rectY = yIdx * 18.33;
               const intensity = stat.count > 0 ? (stat.rate / 150) + 0.05 : 0;
 
@@ -167,7 +173,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
       <CardHeader>
         <CardTitle>Pressure Analysis Map</CardTitle>
         <CardDescription>
-          상대 진영을 6개 구역으로 나누어 분석한 압박 지표입니다. (공격 방향 기준)
+          상대 진영을 6개 구역으로 나누어 분석한 압박 지표입니다. (골대 방향 기준)
           <br />
           <span className="text-xs text-muted-foreground font-medium">압박 성공률 = (상대 실책 - 나의 공격 파울) / 총 압박 이벤트</span>
         </CardDescription>
@@ -180,7 +186,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
         
         <div className="mt-8 flex flex-wrap justify-center gap-x-8 gap-y-2 text-xs text-muted-foreground border-t pt-4 bg-muted/20 rounded-b-lg px-4">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-primary">25:</span> 공격 25m 구역
+            <span className="font-bold text-primary">25:</span> 공격 25m 구역 (골대 인접)
           </div>
           <div className="flex items-center gap-2">
             <span className="font-bold text-primary">50:</span> 하프라인 ~ 25m 구역
