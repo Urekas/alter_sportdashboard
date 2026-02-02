@@ -1,13 +1,15 @@
 
 import type { MatchEvent, MatchData, TeamMatchStats, CircleEntry, QuarterStats } from './types';
 
-// Python: extract_team 로직 100% 동일 구현
+/**
+ * 파이썬 extract_team 로직 100% 이식
+ * 1. 공백으로 분리 후 첫 단어를 팀명으로 인식
+ * 2. 특정 분석 제외 태그 필터링
+ */
 const extractTeamName = (code: string): string => {
   if (!code) return "Unknown";
-  // 공백으로 분리 후 첫 단어가 팀명 (데이터셋 패턴 기반)
   const first = code.trim().split(/\s+/)[0];
-  // 분석 대상에서 제외할 사용자 정의 태그
-  const ignoreTags = ["한국빌드업", "한국프레스", "코치님", "START", "Unknown", "??", "YOO"];
+  const ignoreTags = ["한국빌드업", "한국프레스", "코치님", "START", "Unknown", "??", "YOO", "givepc", "getpc"];
   if (ignoreTags.includes(first)) return "Unknown";
   return first;
 };
@@ -40,7 +42,6 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
 
   Array.from(instances).forEach((instance, index) => {
     const code = (instance.getElementsByTagName("code")[0]?.textContent || "").trim();
-    // Python 로직: 코드의 첫 단어를 팀명으로
     let team = extractTeamName(code);
     
     const labels = instance.getElementsByTagName("label");
@@ -57,6 +58,7 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
       else if (/팀|Team|Country/i.test(group)) detectedTeamLabel = text;
     }
 
+    // code에서 못 뽑았으면 label에서 시도
     if (team === "Unknown" && detectedTeamLabel) team = detectedTeamLabel;
     if (team === "Unknown") return;
 
@@ -88,7 +90,6 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
   });
 
   const sortedTeams = Object.keys(teamCounts).sort((a, b) => teamCounts[b] - teamCounts[a]);
-  // 일본/인도/한국/중국 순서 고려
   const preferred = ["한국", "Korea", "일본", "Japan", "인도", "India", "중국", "China"];
   let home = sortedTeams[0] || "Home Team";
   let away = sortedTeams[1] || "Away Team";
@@ -117,14 +118,13 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const oppTeamTime = opp.filter(e => e.code.includes('TEAM')).reduce((acc, e) => acc + e.duration, 0);
     const oppAttTime = opp.filter(e => e.code.includes('ATT')).reduce((acc, e) => acc + e.duration, 0);
 
-    // Python: compute_press_metrics 100% 동일 구현
     const countEventsByLoc = (evts: MatchEvent[], rowKeyword: string, zones: string[]) => 
       evts.filter(e => (e.code.includes(rowKeyword) || e.type === rowKeyword) && zones.some(z => e.locationLabel.includes(z) || e.code.includes(z))).length;
 
+    // 파이썬 compute_press_metrics 공식 100% 적용
     const us_to_75_100 = countEventsByLoc(us, '턴오버', ['75', '100']);
     const us_foul_75_100 = countEventsByLoc(us, '파울', ['75', '100']);
     const opp_foul_25_50 = countEventsByLoc(opp, '파울', ['25', '50']);
-
     const pressAttempts = us_to_75_100 + us_foul_75_100 + opp_foul_25_50;
     
     const opp_to_75_100 = countEventsByLoc(opp, '턴오버', ['75', '100']);
@@ -135,6 +135,7 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const spp = pressAttempts > 0 ? buildUpTime / pressAttempts : 0;
     const allowedSpp = allowedDenom > 0 ? buildUpTime / allowedDenom : 0;
 
+    // Build25 성공률: DM START | D25 START 중 25Y entry 결과 매칭
     const buildRows = us.filter(e => /DM START|D25 START/.test(e.code));
     const build25Success = buildRows.filter(e => e.resultLabel.includes('25Y entry')).length;
 

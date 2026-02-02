@@ -32,20 +32,20 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
           <TableCell className="pl-6 text-sm font-medium">득점 (필드/PC)</TableCell>
           {stats.map(q => {
             const s = isHome ? q.home : q.away;
-            return <TableCell key={q.quarter} className="text-center border-x">{s.goals?.field} / {s.goals?.pc}</TableCell>
+            return <TableCell key={q.quarter} className="text-center border-x">{s.goals?.field.toFixed(2)} / {s.goals?.pc.toFixed(2)}</TableCell>
           })}
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">슈팅</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).shots}</TableCell>)}
+          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).shots.toFixed(2)}</TableCell>)}
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">서클 진입 (CE)</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).circleEntries}</TableCell>)}
+          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).circleEntries.toFixed(2)}</TableCell>)}
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">25y 진입</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).twentyFiveEntries}</TableCell>)}
+          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).twentyFiveEntries.toFixed(2)}</TableCell>)}
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">점유율 (%)</TableCell>
