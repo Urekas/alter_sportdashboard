@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useRef } from "react"
@@ -131,7 +132,7 @@ export function Dashboard() {
             </div>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-8">
             <section>
               <h2 className="text-2xl font-semibold mb-4 font-headline">Key Metrics</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -162,15 +163,18 @@ export function Dashboard() {
 
             <BasicMatchStats data={matchData} />
             
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-3">
+            <div className="grid grid-cols-1 gap-8">
+              {/* Pressure Battle Chart - Full Width */}
+              <div className="w-full">
                  <PressureBattleChart
                     data={matchData.pressureData}
                     homeTeam={matchData.homeTeam}
                     awayTeam={matchData.awayTeam}
                   />
               </div>
-              <div className="col-span-1 lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+
+              {/* Circle Entry Analysis - Side by Side */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
                 <CircleEntryAnalysis
                   teamName={matchData.homeTeam.name}
                   entries={matchData.circleEntries.filter(e => e.team === matchData.homeTeam.name)}
@@ -180,16 +184,24 @@ export function Dashboard() {
                   entries={matchData.circleEntries.filter(e => e.team === matchData.awayTeam.name)}
                 />
               </div>
-              <AttackThreatChart
-                data={matchData.attackThreatData}
-                homeTeam={matchData.homeTeam}
-                awayTeam={matchData.awayTeam}
-              />
-               <PressureAnalysisMap
+
+              {/* Pressure Analysis Map - Full Width */}
+              <div className="w-full">
+                <PressureAnalysisMap
                     events={matchData.events}
                     homeTeam={matchData.homeTeam}
                     awayTeam={matchData.awayTeam}
                   />
+              </div>
+
+              {/* Attack Threat Chart - Full Width at Bottom */}
+              <div className="w-full">
+                <AttackThreatChart
+                  data={matchData.attackThreatData}
+                  homeTeam={matchData.homeTeam}
+                  awayTeam={matchData.awayTeam}
+                />
+              </div>
             </div>
           </div>
         )}
