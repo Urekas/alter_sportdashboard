@@ -1,3 +1,4 @@
+
 "use client"
 
 import {
@@ -47,8 +48,8 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
     },
     {
       label: "빌드업 25m 성공률 (%)",
-      homeValue: `${(build25Ratio.home * 100).toFixed(0)}%`,
-      awayValue: `${(build25Ratio.away * 100).toFixed(0)}%`,
+      homeValue: `${(build25Ratio.home * 100).toFixed(1)}%`,
+      awayValue: `${(build25Ratio.away * 100).toFixed(1)}%`,
     },
     {
       label: "SPP / 허용 SPP",
@@ -57,13 +58,13 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
     },
     {
       label: "점유율 %",
-      homeValue: `${matchStats.home.possession.toFixed(0)}%`,
-      awayValue: `${matchStats.away.possession.toFixed(0)}%`,
+      homeValue: `${matchStats.home.possession.toFixed(1)}%`,
+      awayValue: `${matchStats.away.possession.toFixed(1)}%`,
     },
     {
       label: "공격 점유율 %",
-      homeValue: `${matchStats.home.attackPossession.toFixed(0)}%`,
-      awayValue: `${matchStats.away.attackPossession.toFixed(0)}%`,
+      homeValue: `${matchStats.home.attackPossession.toFixed(1)}%`,
+      awayValue: `${matchStats.away.attackPossession.toFixed(1)}%`,
     },
     {
       label: "공격 1회당 유지 시간 (초)",
@@ -82,7 +83,7 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
       <CardHeader>
         <CardTitle>기본 경기 통계 (Basic Match Stats)</CardTitle>
         <CardDescription className="pt-2 text-xs">
-          (참고: 점유율 및 공격 효율 지표는 입력된 이벤트를 바탕으로 분석됩니다.)
+          (참고: 모든 수치는 업로드된 XML의 시퀀스 시간과 이벤트 발생 빈도를 기반으로 계산됩니다.)
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -90,8 +91,8 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[200px]">분석 항목</TableHead>
-              <TableHead className="text-center">{homeTeam.name}</TableHead>
-              <TableHead className="text-center">{awayTeam.name}</TableHead>
+              <TableHead className="text-center font-bold text-primary">{homeTeam.name}</TableHead>
+              <TableHead className="text-center font-bold text-chart-2">{awayTeam.name}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

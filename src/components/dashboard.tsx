@@ -2,8 +2,8 @@
 "use client"
 
 import React, { useState, useRef } from "react"
-import { Upload, Printer, FileText, TrendingUp, TrendingDown, Target, Activity } from "lucide-react"
-import type { MatchData, MatchEvent } from "@/lib/types"
+import { Upload, Printer, FileText, TrendingUp, TrendingDown, Target, Activity, ShieldCheck } from "lucide-react"
+import type { MatchData } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
@@ -28,7 +28,7 @@ export function Dashboard() {
     setMatchData(mockMatchData)
     toast({
       title: "데모 데이터 로드됨",
-      description: "일본 vs 인도 분석 데이터를 불러왔습니다.",
+      description: "한국 vs 네덜란드 분석 데이터를 불러왔습니다.",
     })
   }
 
@@ -99,26 +99,26 @@ export function Dashboard() {
               <StatsCard
                 title={`${matchData.homeTeam.name} SPP`}
                 value={(matchData.matchStats.home.spp || 0).toFixed(2)}
-                description="압박 효율 (낮을수록 우수)"
+                description="압박 지수 (낮을수록 우수)"
                 icon={<TrendingDown className="text-emerald-500" />}
               />
               <StatsCard
-                title={`${matchData.awayTeam.name} SPP`}
-                value={(matchData.matchStats.away.spp || 0).toFixed(2)}
-                description="압박 효율 (낮을수록 우수)"
-                icon={<TrendingUp className="text-rose-500" />}
+                title={`${matchData.homeTeam.name} 빌드업 성공률`}
+                value={`${((matchData.matchStats.home.build25Ratio || 0) * 100).toFixed(1)}%`}
+                description="25m 진입 성공률"
+                icon={<ShieldCheck className="text-primary/60" />}
               />
               <StatsCard
-                title={`${matchData.homeTeam.name} 공격 속도`}
+                title={`${matchData.homeTeam.name} 공격 유지 시간`}
                 value={`${(matchData.matchStats.home.avgAttackDuration || 0).toFixed(1)}s`}
                 description="공격 1회당 평균 유지 시간"
                 icon={<Target className="text-primary/60" />}
               />
               <StatsCard
-                title={`${matchData.awayTeam.name} 공격 속도`}
-                value={`${(matchData.matchStats.away.avgAttackDuration || 0).toFixed(1)}s`}
-                description="공격 1회당 평균 유지 시간"
-                icon={<Target className="text-primary/60" />}
+                title={`${matchData.homeTeam.name} CE 소요 시간`}
+                value={`${(matchData.matchStats.home.timePerCE || 0).toFixed(1)}s`}
+                description="서클 진입당 소요 시간"
+                icon={<Activity className="text-primary/60" />}
               />
             </section>
 
