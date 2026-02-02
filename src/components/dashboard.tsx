@@ -161,12 +161,12 @@ export function Dashboard() {
                 />
                 <StatsCard
                   title={`${matchData.homeTeam.name} 공격 유지 시간`}
-                  value={`${matchData.matchStats.home.avgAttackDuration.toFixed(1)}s`}
+                  value={`${(matchData.matchStats.home.avgAttackDuration || 0).toFixed(1)}s`}
                   description="공격 1회당 평균 유지 시간"
                 />
                 <StatsCard
                   title={`${matchData.awayTeam.name} 공격 유지 시간`}
-                  value={`${matchData.matchStats.away.avgAttackDuration.toFixed(1)}s`}
+                  value={`${(matchData.matchStats.away.avgAttackDuration || 0).toFixed(1)}s`}
                   description="공격 1회당 평균 유지 시간"
                 />
               </div>
