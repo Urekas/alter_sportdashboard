@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useState, useRef } from "react"
-import { Upload, Printer, FileText, TrendingUp, TrendingDown, Target, Activity, ShieldCheck } from "lucide-react"
+import { Upload, Printer, TrendingDown, Target, Activity, ShieldCheck } from "lucide-react"
 import type { MatchData } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
 import { Button } from "@/components/ui/button"
@@ -28,7 +28,7 @@ export function Dashboard() {
     setMatchData(mockMatchData)
     toast({
       title: "데모 데이터 로드됨",
-      description: "한국 vs 네덜란드 분석 데이터를 불러왔습니다.",
+      description: "Korea vs Netherlands 분석 데이터를 불러왔습니다.",
     })
   }
 
@@ -64,7 +64,7 @@ export function Dashboard() {
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 print-hidden">
         <div>
           <h1 className="text-4xl font-bold text-primary font-headline tracking-tight">Field Focus</h1>
-          <p className="text-muted-foreground mt-1">전문가용 필드 하키 퍼포먼스 분석 솔루션</p>
+          <p className="text-muted-foreground mt-1">전문가용 필드 하키 퍼포먼스 분석 솔루션 (Japan vs India)</p>
         </div>
         <div className="flex items-center gap-2 mt-4 md:mt-0">
           <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xml" className="hidden" />
@@ -149,7 +149,6 @@ export function Dashboard() {
               <QuarterlyStatsTable data={matchData} />
             </div>
 
-            {/* 원본 데이터 검증 섹션 */}
             <div className="pt-12 print-hidden">
               <Accordion type="single" collapsible className="w-full border rounded-xl bg-muted/20">
                 <AccordionItem value="log" className="border-none">

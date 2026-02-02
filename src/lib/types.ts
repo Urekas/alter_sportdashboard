@@ -7,10 +7,10 @@ export interface Team {
 export interface MatchEvent {
   id: string;
   team: string;
-  type: 'turnover' | 'foul';
+  type: 'turnover' | 'foul' | 'goal' | 'shot' | 'pc' | 'sequence';
   quarter: string;
   time: number;
-  duration?: number;
+  duration: number;
   x: number;
   y: number;
   locationLabel: string;
@@ -31,14 +31,16 @@ export interface TeamMatchStats {
   allowedSpp: number;
   avgAttackDuration: number;
   timePerCE: number;
-  spp?: number;
-  build25Ratio?: number;
+  spp: number;
+  build25Ratio: number;
+  pressAttempts: number;
+  pressSuccess: number;
 }
 
 export interface QuarterStats {
   quarter: string;
-  home: TeamMatchStats & { spp: number };
-  away: TeamMatchStats & { spp: number };
+  home: TeamMatchStats;
+  away: TeamMatchStats;
 }
 
 export interface PressureDataPoint {
