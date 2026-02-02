@@ -168,7 +168,6 @@ export function Dashboard() {
 
             <div className="grid grid-cols-1 gap-8">
               <BasicMatchStats data={matchData} />
-              {/* Pressure Battle 그래프 위치를 통계표 아래로 조정 */}
               <div className="w-full">
                 <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
               </div>
