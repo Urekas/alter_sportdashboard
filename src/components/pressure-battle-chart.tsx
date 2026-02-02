@@ -10,6 +10,8 @@ import {
   Legend,
   ResponsiveContainer,
   ReferenceArea,
+  ReferenceLine,
+  Label,
   TooltipProps,
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -73,7 +75,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
       <CardHeader>
         <CardTitle>Pressure Battle (3m Avg)</CardTitle>
         <CardDescription>
-          Seconds Per Press (SPP) averaged every 3 minutes. Lower is better.
+          Seconds Per Press (SPP) averaged every 3 minutes, divided by quarters. Lower is better.
           <span className="mt-1 block text-xs text-muted-foreground/90">
             (참고: 현재 이 데이터는 시뮬레이션으로 생성됩니다.)
           </span>
@@ -81,7 +83,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
-          <ComposedChart data={data}>
+          <ComposedChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
             <XAxis dataKey="interval" />
             <YAxis reversed label={{ value: 'SPP (s)', angle: -90, position: 'insideLeft' }} />
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
@@ -93,13 +95,25 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
                 x2={seg.x2}
                 y1={0}
                 y2="dataMax"
-                strokeOpacity={0.1}
+                strokeOpacity={0}
                 fill={seg.dominant === homeTeam.name ? homeTeam.color : awayTeam.color}
-                fillOpacity={0.1}
+                fillOpacity={0.05}
               />
             ))}
-            <Line type="monotone" dataKey={homeTeam.name} stroke={homeTeam.color} strokeWidth={2} dot={true} />
-            <Line type="monotone" dataKey={awayTeam.name} stroke={awayTeam.color} strokeWidth={2} dot={true} />
+
+            {/* Quarter Separators */}
+            <ReferenceLine x="15'" stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" strokeWidth={1}>
+              <Label value="Q1 | Q2" position="top" fill="hsl(var(--muted-foreground))" fontSize={12} offset={10} />
+            </ReferenceLine>
+            <ReferenceLine x="30'" stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" strokeWidth={1}>
+              <Label value="Q2 | Q3" position="top" fill="hsl(var(--muted-foreground))" fontSize={12} offset={10} />
+            </ReferenceLine>
+            <ReferenceLine x="45'" stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" strokeWidth={1}>
+              <Label value="Q3 | Q4" position="top" fill="hsl(var(--muted-foreground))" fontSize={12} offset={10} />
+            </ReferenceLine>
+
+            <Line type="monotone" dataKey={homeTeam.name} stroke={homeTeam.color} strokeWidth={2} dot={{ r: 3 }} />
+            <Line type="monotone" dataKey={awayTeam.name} stroke={awayTeam.color} strokeWidth={2} dot={{ r: 3 }} />
           </ComposedChart>
         </ResponsiveContainer>
       </CardContent>

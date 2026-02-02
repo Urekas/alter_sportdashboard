@@ -12,6 +12,7 @@ function generatePressureData(): PressureDataPoint[] {
   let awaySppBase = 8 + Math.random() * 4;
 
   // 3-minute intervals (60m / 3 = 20 points)
+  // Quarters end at 15, 30, 45, 60
   for (let i = 1; i <= 20; i++) {
     const minute = i * 3;
     const hSpp = homeSppBase + (Math.random() - 0.5) * 4;
@@ -77,6 +78,7 @@ function generateTeamMatchStats(): TeamMatchStats {
 function generateAttackThreatData(): AttackThreatDataPoint[] {
     const data: AttackThreatDataPoint[] = [];
     // 5-minute intervals (60m / 5 = 12 points)
+    // Quarters end at 15, 30, 45, 60
     for (let i = 1; i <= 12; i++) {
       const minute = i * 5;
       data.push({
