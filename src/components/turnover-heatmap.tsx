@@ -87,8 +87,8 @@ const HorizontalPitchWithHeatmap: React.FC<{ turnovers: TurnoverEvent[], homeTea
           })}
         </g>
 
-        {/* Zone Division Dashed Lines */}
-        <g stroke="hsl(var(--border))" strokeWidth={0.2} strokeDasharray="1,1" fill="none">
+        {/* Zone Division Dashed Lines - Made Bold and Black */}
+        <g stroke="black" strokeWidth={0.5} strokeDasharray="1,1" fill="none">
           {BANDS.slice(1, -1).map(b => (
             <line key={`band-${b}`} x1={b} y1={0} x2={b} y2={PITCH_WIDTH} />
           ))}
@@ -111,7 +111,7 @@ const HorizontalPitchWithHeatmap: React.FC<{ turnovers: TurnoverEvent[], homeTea
           <circle cx={PITCH_LENGTH - 6.4} cy={PITCH_WIDTH / 2} r={0.3} fill="hsl(var(--border))" stroke="none" />
         </g>
         
-        {/* Centered Text Counts */}
+        {/* Centered Text Counts - Added Black Outlines */}
         <g>
           {zoneStats.map(({ i, j, home, away }) => {
               return (
@@ -121,12 +121,14 @@ const HorizontalPitchWithHeatmap: React.FC<{ turnovers: TurnoverEvent[], homeTea
                   y={(LANES[j] + LANES[j+1]) / 2}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fill="hsl(var(--card-foreground))"
-                  fontSize="2.5"
+                  fontSize="3"
                   fontWeight="bold"
+                  stroke="black"
+                  strokeWidth="0.4"
+                  paintOrder="stroke"
                 >
                   <tspan fill="rgb(59, 130, 246)">{home}</tspan>
-                  <tspan fill="hsl(var(--muted-foreground))" opacity="0.6"> | </tspan>
+                  <tspan fill="white" strokeWidth="0.3"> | </tspan>
                   <tspan fill="rgb(239, 68, 68)">{away}</tspan>
                 </text>
               );
