@@ -32,32 +32,32 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
           <TableCell className="pl-6 text-sm font-medium">득점 (필드/PC)</TableCell>
           {stats.map(q => {
             const s = isHome ? q.home : q.away;
-            return <TableCell key={q.quarter} className="text-center border-x">{s.goals?.field.toFixed(2)} / {s.goals?.pc.toFixed(2)}</TableCell>
+            return <TableCell key={q.quarter} className="text-center border-x">{s.goals?.field.toFixed(1)} / {s.goals?.pc.toFixed(1)}</TableCell>
           })}
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">슈팅</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).shots.toFixed(2)}</TableCell>)}
+          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).shots.toFixed(1)}</TableCell>)}
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">서클 진입 (CE)</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).circleEntries.toFixed(2)}</TableCell>)}
+          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).circleEntries.toFixed(1)}</TableCell>)}
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">25y 진입</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).twentyFiveEntries.toFixed(2)}</TableCell>)}
+          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).twentyFiveEntries.toFixed(1)}</TableCell>)}
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">점유율 (%)</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).possession.toFixed(2)}%</TableCell>)}
+          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).possession.toFixed(1)}%</TableCell>)}
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">평균 SPP (s)</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).spp.toFixed(2)}s</TableCell>)}
+          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).spp.toFixed(1)}s</TableCell>)}
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">공격 유지 시간 (s)</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).avgAttackDuration?.toFixed(2)}s</TableCell>)}
+          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).avgAttackDuration?.toFixed(1)}s</TableCell>)}
         </TableRow>
       </>
     )

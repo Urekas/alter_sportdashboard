@@ -26,13 +26,13 @@ const extractTeamName = (code: string, detectedTeams: { home: string, away: stri
   if (!code) return "Unknown";
   const upperCode = code.toUpperCase();
 
-  // 1. HOME/AWAY 명시적 코드 매핑
+  // 1. HOME/AWAY 명시적 코드 매핑 (사용자 요청 반영)
   if (detectedTeams) {
     if (upperCode.includes("HOME")) return detectedTeams.home;
     if (upperCode.includes("AWAY")) return detectedTeams.away;
   }
 
-  // 2. 파이썬 로직: 첫 단어 추출
+  // 2. 파이썬 로직: 첫 단어 추출 (fallback)
   const first = code.trim().split(/\s+/)[0];
   const ignoreTags = ["한국빌드업", "한국프레스", "코치님", "START", "Unknown", "??", "YOO", "givepc", "getpc"];
   if (ignoreTags.includes(first)) return "Unknown";
@@ -63,7 +63,6 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(xmlText, "text/xml");
   
-  // 실제 팀명 감지 (패턴: TeamA(HOME side) 0 - TeamB(AWAY side) 0)
   const detectedTeams = detectRealTeamNames(xmlDoc);
   
   const instances = xmlDoc.getElementsByTagName("instance");
@@ -116,7 +115,6 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
   let home = detectedTeams?.home || "Home Team";
   let away = detectedTeams?.away || "Away Team";
 
-  // 감지된 팀명이 없을 경우 빈도순으로 결정
   if (!detectedTeams) {
     const sortedTeams = Object.keys(teamCounts).sort((a, b) => teamCounts[b] - teamCounts[a]);
     home = sortedTeams[0] || "Home Team";
@@ -202,8 +200,8 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     events,
     pressureData: Array(20).fill(0).map((_, i) => ({
       interval: `${(i+1)*3}'`,
-      [homeName]: parseFloat((homeStats.spp + (Math.random() - 0.5) * 2).toFixed(2)),
-      [awayName]: parseFloat((awayStats.spp + (Math.random() - 0.5) * 2).toFixed(2)),
+      [homeName]: parseFloat((homeStats.spp + (Math.random() - 0.5) * 2).toFixed(1)),
+      [awayName]: parseFloat((awayStats.spp + (Math.random() - 0.5) * 2).toFixed(1)),
     })),
     circleEntries: events.filter(e => /서클\s*진입|슈팅\s*서클/i.test(e.code)).map(e => ({
       team: e.team,
@@ -212,8 +210,8 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     })),
     attackThreatData: Array(12).fill(0).map((_, i) => ({
       interval: `${(i+1)*5}'`,
-      [homeName]: parseFloat((Math.floor(Math.random() * 5) + (homeStats.shots / 12)).toFixed(2)),
-      [awayName]: parseFloat((Math.floor(Math.random() * 5) + (awayStats.shots / 12)).toFixed(2)),
+      [homeName]: parseFloat((Math.floor(Math.random() * 5) + (homeStats.shots / 12)).toFixed(1)),
+      [awayName]: parseFloat((Math.floor(Math.random() * 5) + (awayStats.shots / 12)).toFixed(1)),
     })),
     build25Ratio: { home: homeStats.build25Ratio, away: awayStats.build25Ratio },
     spp: { home: homeStats.spp, away: awayStats.spp },

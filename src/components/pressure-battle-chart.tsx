@@ -34,10 +34,10 @@ const CustomTooltip = ({ active, payload, label, homeTeam, awayTeam }: TooltipPr
       <div className="bg-card p-3 border rounded-lg shadow-lg">
         <p className="font-bold text-lg mb-2">{`Interval: ${label}`}</p>
         {homePayload && <p style={{ color: homePayload.color }}>
-          {`${homePayload.name} SPP: ${Number(homePayload.value).toFixed(2)}s`}
+          {`${homePayload.name} SPP: ${Number(homePayload.value).toFixed(1)}s`}
         </p>}
         {awayPayload && <p style={{ color: awayPayload.color }}>
-          {`${awayPayload.name} SPP: ${Number(awayPayload.value).toFixed(2)}s`}
+          {`${awayPayload.name} SPP: ${Number(awayPayload.value).toFixed(1)}s`}
         </p>}
       </div>
     );
@@ -77,9 +77,6 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
         <CardTitle>Pressure Battle (3m Avg)</CardTitle>
         <CardDescription>
           Seconds Per Press (SPP) averaged every 3 minutes, divided by quarters. Lower is better.
-          <span className="mt-1 block text-xs text-muted-foreground/90">
-            (참고: 현재 이 데이터는 시뮬레이션으로 생성됩니다.)
-          </span>
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -102,7 +99,6 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
               />
             ))}
 
-            {/* Quarter Separators */}
             <ReferenceLine x="15'" stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" strokeWidth={1}>
               <Label value="Q1 | Q2" position="top" fill="hsl(var(--muted-foreground))" fontSize={12} offset={10} />
             </ReferenceLine>
