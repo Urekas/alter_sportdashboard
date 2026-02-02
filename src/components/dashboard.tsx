@@ -16,7 +16,7 @@ import { QuarterlyStatsTable } from "./quarterly-stats-table"
 import { BuildUpEfficiencyChart } from "./build-up-efficiency-chart"
 import { parseXMLData, parseCSVData, createMatchDataFromUpload } from "@/lib/parser"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardDescription } from "@/components/ui/card"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 
 export function Dashboard() {
@@ -226,59 +226,54 @@ export function Dashboard() {
                   <AccordionItem value="event-log" className="border-none">
                     <AccordionTrigger className="px-6 hover:no-underline">
                       <div className="flex items-center gap-2 text-primary">
-                        <ListFilter className="w-5 h-5" />
                         <span className="font-semibold text-lg">파싱된 이벤트 데이터 검증 (총 {matchData.events.length}개)</span>
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="px-6 pb-6">
-                      <Card className="border-none shadow-none bg-transparent">
-                        <CardDescription className="mb-4">
-                          XML에서 추출된 로우(Raw) 데이터 목록입니다. 각 이벤트의 팀(국가), 타입, 위치 정보가 제대로 분석되었는지 확인하세요.
-                        </CardDescription>
-                        <div className="max-h-[500px] overflow-auto border rounded-md bg-background">
-                          <Table>
-                            <TableHeader className="sticky top-0 bg-secondary z-10">
-                              <TableRow>
-                                <TableHead className="w-[80px]">No.</TableHead>
-                                <TableHead>시간 (초)</TableHead>
-                                <TableHead>쿼터</TableHead>
-                                <TableHead>팀</TableHead>
-                                <TableHead>유형</TableHead>
-                                <TableHead>위치 레이블</TableHead>
-                                <TableHead className="text-right">좌표 (X, Y)</TableHead>
+                      <div className="max-h-[500px] overflow-auto border rounded-md bg-background">
+                        <Table>
+                          <TableHeader className="sticky top-0 bg-secondary z-10">
+                            <TableRow>
+                              <TableHead className="w-[80px]">No.</TableHead>
+                              <TableHead>시간 (초)</TableHead>
+                              <TableHead>쿼터</TableHead>
+                              <TableHead>팀</TableHead>
+                              <TableHead>유형</TableHead>
+                              <TableHead>위치 레이블</TableHead>
+                              <TableHead className="text-right">좌표 (X, Y)</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {matchData.events.map((event, index) => (
+                              <TableRow key={event.id}>
+                                <TableCell className="text-muted-foreground">{index + 1}</TableCell>
+                                <TableCell>{event.time.toFixed(1)}s</TableCell>
+                                <TableCell>{event.quarter}</TableCell>
+                                <TableCell className="font-medium">{event.team}</TableCell>
+                                <TableCell>
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                                    event.type === 'foul' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
+                                  }`}>
+                                    {event.type === 'foul' ? '파울' : '턴오버'}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-muted-foreground">{event.locationLabel}</TableCell>
+                                <TableCell className="text-right font-mono text-xs">
+                                  {event.x.toFixed(1)}m, {event.y.toFixed(1)}m
+                                </TableCell>
                               </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {matchData.events.map((event, index) => (
-                                <TableRow key={event.id}>
-                                  <TableCell className="text-muted-foreground">{index + 1}</TableCell>
-                                  <TableCell>{event.time.toFixed(1)}s</TableCell>
-                                  <TableCell>{event.quarter}</TableCell>
-                                  <TableCell className="font-medium">{event.team}</TableCell>
-                                  <TableCell>
-                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                                      event.type === 'foul' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
-                                    }`}>
-                                      {event.type === 'foul' ? '파울' : '턴오버'}
-                                    </span>
-                                  </TableCell>
-                                  <TableCell className="text-muted-foreground">{event.locationLabel}</TableCell>
-                                  <TableCell className="text-right font-mono text-xs">
-                                    {event.x.toFixed(1)}m, {event.y.toFixed(1)}m
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      </Card>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
               </div>
             </div>
-          )}
-        </main>
-      </div>
+          </div>
+        )}
+      </main>
+    </div>
   );
 }

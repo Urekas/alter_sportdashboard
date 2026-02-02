@@ -16,7 +16,7 @@ const extractTeamsFromXML = (xmlDoc: Document): { home: string, away: string } =
       const text = labels[i].getElementsByTagName("text")[0]?.textContent?.trim() || "";
       const lowerGroup = group.toLowerCase();
       
-      // 실제 국가명/팀명이 들어있을 가능성이 높은 그룹들 확인
+      // 실제 국가명/팀명이 들어있을 가능성이 높은 그룹들 확인 (레이블 그룹 우선)
       if (
         lowerGroup.includes("team") || 
         lowerGroup.includes("팀") || 
@@ -27,13 +27,18 @@ const extractTeamsFromXML = (xmlDoc: Document): { home: string, away: string } =
       ) {
         const lowerText = text.toLowerCase();
         // "home team", "away team", "opponent" 등 제너릭한 이름은 제외하고 수집
-        if (text && !lowerText.includes("home") && !lowerText.includes("away") && !lowerText.includes("opponent") && !lowerText.includes("팀")) {
+        if (text && 
+            !lowerText.includes("home") && 
+            !lowerText.includes("away") && 
+            !lowerText.includes("opponent") && 
+            !lowerText.includes("팀") &&
+            !lowerText.includes("team")) {
           teamCounts[text] = (teamCounts[text] || 0) + 1;
         }
       }
     }
 
-    // Code 태그에서도 추출 시도 (제너릭하지 않은 경우만)
+    // Code 태그에서도 추출 시도 (레이블에서 못 찾았을 경우 대비)
     const code = instance.getElementsByTagName("code")[0]?.textContent || "";
     const cleanedCode = code
       .replace(/turnover/gi, "")
@@ -44,7 +49,12 @@ const extractTeamsFromXML = (xmlDoc: Document): { home: string, away: string } =
       .trim();
     
     const lowerCode = cleanedCode.toLowerCase();
-    if (cleanedCode && cleanedCode.length > 1 && !lowerCode.includes("home") && !lowerCode.includes("away") && !lowerCode.includes("opponent")) {
+    if (cleanedCode && 
+        cleanedCode.length > 1 && 
+        !lowerCode.includes("home") && 
+        !lowerCode.includes("away") && 
+        !lowerCode.includes("opponent") &&
+        !lowerCode.includes("team")) {
       teamCounts[cleanedCode] = (teamCounts[cleanedCode] || 0) + 1;
     }
   });
@@ -89,8 +99,9 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
       return; 
     }
 
-    // 팀 판별: 코드에 팀명이 포함되어 있는지 확인, 없으면 로직상 홈 팀으로 우선 할당 (검증용)
-    const team = code.includes(detectedTeams.away) ? detectedTeams.away : detectedTeams.home;
+    // 팀 판별: 코드나 레이블 텍스트에 감지된 팀명이 있는지 확인
+    const instanceText = instance.textContent || "";
+    const team = instanceText.includes(detectedTeams.away) ? detectedTeams.away : detectedTeams.home;
 
     const labels = instance.getElementsByTagName("label");
     let locLabel = "";
@@ -114,13 +125,14 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     let x = PITCH_LENGTH / 2;
     let y = PITCH_WIDTH / 2;
 
-    if (locLabel.includes("Def 25") || locLabel.includes("수비 25")) x = PITCH_LENGTH * 0.125;
-    else if (locLabel.includes("Mid") || locLabel.includes("하프")) x = PITCH_LENGTH * 0.5;
-    else if (locLabel.includes("Att 25") || locLabel.includes("공격 25")) x = PITCH_LENGTH * 0.875;
-    else if (locLabel.includes("Circle") || locLabel.includes("서클")) x = PITCH_LENGTH * 0.95;
+    const lowerLoc = locLabel.toLowerCase();
+    if (lowerLoc.includes("def 25") || lowerLoc.includes("수비 25")) x = PITCH_LENGTH * 0.125;
+    else if (lowerLoc.includes("mid") || lowerLoc.includes("하프")) x = PITCH_LENGTH * 0.5;
+    else if (lowerLoc.includes("att 25") || lowerLoc.includes("공격 25")) x = PITCH_LENGTH * 0.875;
+    else if (lowerLoc.includes("circle") || lowerLoc.includes("서클")) x = PITCH_LENGTH * 0.95;
 
-    if (locLabel.includes("Left") || locLabel.includes("좌")) y = LANE_WIDTH / 2;
-    else if (locLabel.includes("Right") || locLabel.includes("우")) y = PITCH_WIDTH - (LANE_WIDTH / 2);
+    if (lowerLoc.includes("left") || lowerLoc.includes("좌")) y = LANE_WIDTH / 2;
+    else if (lowerLoc.includes("right") || lowerLoc.includes("우")) y = PITCH_WIDTH - (LANE_WIDTH / 2);
     else y = PITCH_WIDTH / 2;
 
     x += (Math.random() - 0.5) * 4;
