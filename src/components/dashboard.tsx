@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useRef } from "react"
@@ -42,11 +41,22 @@ export function Dashboard() {
         try {
           const content = e.target?.result as string;
           let events: MatchEvent[] = [];
+          let homeName = "Home";
+          let awayName = "Away";
           
           if (file.name.endsWith('.xml')) {
-            events = parseXMLData(content, mockMatchData.homeTeam.name, mockMatchData.awayTeam.name);
+            const result = parseXMLData(content);
+            events = result.events;
+            homeName = result.teams.home;
+            awayName = result.teams.away;
           } else if (file.name.endsWith('.csv')) {
             events = parseCSVData(content);
+            // For CSV, we'll try to get names from the first few events
+            if (events.length > 0) {
+              homeName = events[0].team;
+              const otherTeam = events.find(ev => ev.team !== homeName);
+              if (otherTeam) awayName = otherTeam.team;
+            }
           } else {
              toast({
               title: "File Type Not Supported",
@@ -65,12 +75,12 @@ export function Dashboard() {
               return;
           }
             
-          const newMatchData = createMatchDataFromUpload(events, mockMatchData.homeTeam.name, mockMatchData.awayTeam.name);
+          const newMatchData = createMatchDataFromUpload(events, homeName, awayName);
             
           setMatchData(newMatchData);
           toast({
             title: "Analysis Complete",
-            description: `Found and processed ${events.length} events from ${file.name}.`,
+            description: `Teams: ${homeName} vs ${awayName}. Processed ${events.length} events.`,
           });
 
         } catch (error: any) {

@@ -6,11 +6,47 @@ const PITCH_WIDTH = 55;
 const LANE_WIDTH = PITCH_WIDTH / 3;
 
 /**
+ * Extracts team names from SportsCode XML instances.
+ * Usually, the code follows a pattern like "TeamName EventType" or "TeamName - Event"
+ */
+const extractTeamsFromXML = (xmlDoc: Document): { home: string, away: string } => {
+  const instances = xmlDoc.getElementsByTagName("instance");
+  const teamCounts: Record<string, number> = {};
+
+  Array.from(instances).forEach(instance => {
+    const code = instance.getElementsByTagName("code")[0]?.textContent || "";
+    // Common patterns: "Korea Turnover", "Germany - Foul", etc.
+    // We'll try to isolate the team part by removing known keywords
+    let teamName = code
+      .replace(/turnover/gi, "")
+      .replace(/foul/gi, "")
+      .replace(/턴오버/g, "")
+      .replace(/파울/g, "")
+      .replace(/[-]/g, "")
+      .trim();
+    
+    if (teamName) {
+      teamCounts[teamName] = (teamCounts[teamName] || 0) + 1;
+    }
+  });
+
+  // Sort by frequency and pick the top two
+  const sortedTeams = Object.entries(teamCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(entry => entry[0]);
+
+  return {
+    home: sortedTeams[0] || "Home Team",
+    away: sortedTeams[1] || "Away Team"
+  };
+};
+
+/**
  * Parses SportsCode XML data to extract match events.
  */
-export const parseXMLData = (xmlText: string, homeTeamName: string, awayTeamName: string): MatchEvent[] => {
+export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { home: string, away: string } } => {
   if (typeof window === 'undefined') {
-    return [];
+    return { events: [], teams: { home: "Home", away: "Away" } };
   }
 
   const parser = new DOMParser();
@@ -22,21 +58,22 @@ export const parseXMLData = (xmlText: string, homeTeamName: string, awayTeamName
     throw new Error("Failed to parse XML. Please check the file format.");
   }
   
+  const detectedTeams = extractTeamsFromXML(xmlDoc);
   const instances = xmlDoc.getElementsByTagName("instance");
   const events: MatchEvent[] = [];
 
   Array.from(instances).forEach((instance, index) => {
     const code = instance.getElementsByTagName("code")[0]?.textContent || "";
     
-    // Identify event type
     let type: 'turnover' | 'foul' = 'turnover';
     if (code.toLowerCase().includes("foul") || code.includes("파울")) {
       type = 'foul';
     } else if (!code.toLowerCase().includes("turnover") && !code.includes("턴오버")) {
-      return; // Skip other codes
+      return; 
     }
 
-    const team = code.toLowerCase().includes(homeTeamName.toLowerCase()) ? homeTeamName : awayTeamName;
+    // Assign to whichever detected team it matches best
+    const team = code.includes(detectedTeams.home) ? detectedTeams.home : detectedTeams.away;
 
     const labels = instance.getElementsByTagName("label");
     let locLabel = "";
@@ -80,7 +117,7 @@ export const parseXMLData = (xmlText: string, homeTeamName: string, awayTeamName
     });
   });
 
-  return events;
+  return { events, teams: detectedTeams };
 };
 
 
