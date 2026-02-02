@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useMemo } from 'react';
@@ -30,7 +31,6 @@ const HorizontalPitchWithHeatmap: React.FC<{ turnovers: TurnoverEvent[], homeTea
       const laneIndex = LANES.findIndex(lane => y <= lane) - 1;
       
       if (bandIndex >= 0 && laneIndex >= 0 && bandIndex < homeCounts.length && laneIndex < homeCounts[0].length) {
-        // Here we count whose turnover it was in that standardized zone
         if (isHomeTeamEvent) {
             homeCounts[bandIndex][laneIndex]++;
         } else {
@@ -70,7 +70,6 @@ const HorizontalPitchWithHeatmap: React.FC<{ turnovers: TurnoverEvent[], homeTea
         <g>
           {zoneStats.map(({ i, j, diff }) => {
               const intensity = Math.abs(diff) / maxAbsDiff;
-              // Home team (blue) is positive diff, Away team (red) is negative diff
               const color = diff > 0 
                   ? `rgba(59, 130, 246, ${0.1 + 0.85 * intensity})` // Blue for Home
                   : `rgba(239, 68, 68, ${0.1 + 0.85 * intensity})`;  // Red for Away
@@ -87,6 +86,16 @@ const HorizontalPitchWithHeatmap: React.FC<{ turnovers: TurnoverEvent[], homeTea
               );
           })}
         </g>
+
+        {/* Zone Division Dashed Lines */}
+        <g stroke="hsl(var(--border))" strokeWidth={0.2} strokeDasharray="1,1" fill="none">
+          {BANDS.slice(1, -1).map(b => (
+            <line key={`band-${b}`} x1={b} y1={0} x2={b} y2={PITCH_WIDTH} />
+          ))}
+          {LANES.slice(1, -1).map(l => (
+            <line key={`lane-${l}`} x1={0} y1={l} x2={PITCH_LENGTH} y2={l} />
+          ))}
+        </g>
         
         {/* Pitch Markings */}
         <g stroke="hsl(var(--border))" strokeWidth={0.3} fill="none">
@@ -95,7 +104,6 @@ const HorizontalPitchWithHeatmap: React.FC<{ turnovers: TurnoverEvent[], homeTea
           <line x1={LINE_23M} y1="0" x2={LINE_23M} y2={PITCH_WIDTH} />
           <line x1={PITCH_LENGTH - LINE_23M} y1="0" x2={PITCH_LENGTH - LINE_23M} y2={PITCH_WIDTH} />
           
-          {/* Circles using path 'A' command for arc */}
           <path d={`M 0,${(PITCH_WIDTH/2) - 14.63} A 14.63,14.63 0 0,1 14.63,${PITCH_WIDTH/2} A 14.63,14.63 0 0,1 0,${(PITCH_WIDTH/2) + 14.63}`} />
           <path d={`M ${PITCH_LENGTH},${(PITCH_WIDTH/2) - 14.63} A 14.63,14.63 0 0,0 ${PITCH_LENGTH - 14.63},${PITCH_WIDTH/2} A 14.63,14.63 0 0,0 ${PITCH_LENGTH},${(PITCH_WIDTH/2) + 14.63}`} />
 
@@ -103,7 +111,7 @@ const HorizontalPitchWithHeatmap: React.FC<{ turnovers: TurnoverEvent[], homeTea
           <circle cx={PITCH_LENGTH - 6.4} cy={PITCH_WIDTH / 2} r={0.3} fill="hsl(var(--border))" stroke="none" />
         </g>
         
-        {/* Text Counts */}
+        {/* Centered Text Counts */}
         <g>
           {zoneStats.map(({ i, j, home, away }) => {
               return (
@@ -114,15 +122,12 @@ const HorizontalPitchWithHeatmap: React.FC<{ turnovers: TurnoverEvent[], homeTea
                   textAnchor="middle"
                   dominantBaseline="central"
                   fill="hsl(var(--card-foreground))"
-                  fontSize="2"
+                  fontSize="2.5"
                   fontWeight="bold"
-                  stroke="hsl(var(--card))"
-                  strokeWidth="0.2"
-                  paintOrder="stroke"
                 >
-                  <tspan fill="rgb(59, 130, 246)" dx="-2.5">{home}</tspan>
-                  <tspan fill="hsl(var(--muted-foreground))"> | </tspan>
-                  <tspan fill="rgb(239, 68, 68)" dx="0.5">{away}</tspan>
+                  <tspan fill="rgb(59, 130, 246)">{home}</tspan>
+                  <tspan fill="hsl(var(--muted-foreground))" opacity="0.6"> | </tspan>
+                  <tspan fill="rgb(239, 68, 68)">{away}</tspan>
                 </text>
               );
           })}
