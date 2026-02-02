@@ -2,30 +2,27 @@
 import type { MatchEvent, MatchData, TeamMatchStats, QuarterStats } from './types';
 
 /**
- * XML 레이블에서 "국가이름(HOME side) 0 - 국가이름(AWAY side) 0" 패턴을 찾아
+ * 텍스트 데이터(XML 또는 CSV 행)에서 "팀명 0 - 팀명 0" 또는 "팀명(HOME side) - 팀명(AWAY side)" 패턴을 찾아
  * 홈팀과 어웨이팀의 실제 이름을 확정합니다.
  */
-const detectRealTeamNames = (xmlDoc: Document): { home: string, away: string } | null => {
-  const labels = xmlDoc.getElementsByTagName("label");
-  // "국가명(HOME side) 0 - 국가명(AWAY side) 0" 패턴 매칭
-  const pattern = /(.*?)\(HOME side\)\s*\d*\s*-\s*(.*?)\(AWAY side\)\s*\d*/i;
-
-  for (let i = 0; i < labels.length; i++) {
-    const text = labels[i].getElementsByTagName("text")[0]?.textContent || "";
-    const match = text.match(pattern);
-    if (match) {
-      return {
-        home: match[1].trim(),
-        away: match[2].trim()
-      };
-    }
+const detectRealTeamNames = (text: string): { home: string, away: string } | null => {
+  // 패턴 1: 일본 0 - 인도 0
+  // 패턴 2: 일본(HOME side) 0 - 인도(AWAY side) 0
+  const pattern = /([^(]+?)(?:\(HOME side\))?\s*\d*\s*-\s*([^(]+?)(?:\(AWAY side\))?\s*\d*/i;
+  const match = text.match(pattern);
+  
+  if (match) {
+    return {
+      home: match[1].trim(),
+      away: match[2].trim()
+    };
   }
   return null;
 };
 
 /**
  * 코드에 HOME/AWAY가 포함되어 있으면 감지된 실제 팀명으로 치환하고,
- * 그 외에는 첫 단어를 추출합니다.
+ * 그 외에는 첫 단어를 추출합니다. (형님의 Python 로직 반영)
  */
 const extractTeamName = (code: string, detectedTeams: { home: string, away: string } | null): string => {
   if (!code) return "Unknown";
@@ -37,7 +34,7 @@ const extractTeamName = (code: string, detectedTeams: { home: string, away: stri
     if (upperCode.includes("AWAY")) return detectedTeams.away;
   }
 
-  // 2. 일반적인 첫 단어 추출 (Python 로직)
+  // 2. 파이썬 로직: 첫 단어 추출 및 제외 태그 처리
   const first = code.trim().split(/\s+/)[0];
   const ignoreTags = ["한국빌드업", "한국프레스", "코치님", "START", "Unknown", "??", "YOO", "givepc", "getpc"];
   if (ignoreTags.includes(first)) return "Unknown";
@@ -68,7 +65,8 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(xmlText, "text/xml");
   
-  const detectedTeams = detectRealTeamNames(xmlDoc);
+  // 전체 XML 텍스트에서 팀명 패턴 찾기
+  let detectedTeams = detectRealTeamNames(xmlText);
   
   const instances = xmlDoc.getElementsByTagName("instance");
   const events: MatchEvent[] = [];
@@ -76,8 +74,20 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
 
   Array.from(instances).forEach((instance, index) => {
     const code = (instance.getElementsByTagName("code")[0]?.textContent || "").trim();
-    let team = extractTeamName(code, detectedTeams);
     
+    // 만약 전체에서 못찾았다면 개별 레이블에서 다시 시도
+    if (!detectedTeams) {
+      const labels = instance.getElementsByTagName("label");
+      for (let i = 0; i < labels.length; i++) {
+        const text = labels[i].getElementsByTagName("text")[0]?.textContent || "";
+        detectedTeams = detectRealTeamNames(text);
+        if (detectedTeams) break;
+      }
+    }
+
+    const team = extractTeamName(code, detectedTeams);
+    if (team === "Unknown" || !team) return;
+
     const labels = instance.getElementsByTagName("label");
     let locLabel = "";
     let resultLabel = "";
@@ -89,7 +99,6 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
       else if (/결과|Result|Outcome/i.test(group)) resultLabel += text + " ";
     }
 
-    if (team === "Unknown" || !team) return;
     teamCounts[team] = (teamCounts[team] || 0) + 1;
 
     const startTime = parseFloat(instance.getElementsByTagName("start")[0]?.textContent || "0");
@@ -105,7 +114,7 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     events.push({
       id: instance.getElementsByTagName("ID")[0]?.textContent || `evt-${index}`,
       team,
-      type: /foul|파울/i.test(code) ? 'foul' : /턴오버|turnover/i.test(code) ? 'turnover' : 'sequence',
+      type: /foul|파울/i.test(code) ? 'foul' : /턴오버|turnover|TO/i.test(code) ? 'turnover' : 'sequence',
       quarter,
       time: startTime,
       duration: Math.max(0, endTime - startTime),
@@ -117,7 +126,80 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     });
   });
 
-  // 레이블에서 감지된 팀이 있으면 무조건 그 순서(홈/어웨이)를 따름
+  let home = detectedTeams?.home || "";
+  let away = detectedTeams?.away || "";
+
+  if (!home || !away) {
+    const sortedTeams = Object.keys(teamCounts).sort((a, b) => teamCounts[b] - teamCounts[a]);
+    home = sortedTeams[0] || "Home Team";
+    away = (sortedTeams[1] === home ? sortedTeams[2] : sortedTeams[1]) || "Away Team";
+  }
+
+  return { events, teams: { home, away } };
+};
+
+export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { home: string, away: string } } => {
+  const lines = csvText.split(/\r?\n/);
+  if (lines.length < 2) return { events: [], teams: { home: "", away: "" } };
+
+  const headers = lines[0].split(',').map(h => h.trim());
+  const getCol = (row: string[], colName: string) => {
+    const idx = headers.indexOf(colName);
+    return idx > -1 ? row[idx]?.trim() : "";
+  };
+
+  let detectedTeams: { home: string, away: string } | null = null;
+  const events: MatchEvent[] = [];
+  const teamCounts: Record<string, number> = {};
+
+  // 팀명 감지를 위해 먼저 전체 순회
+  for (let i = 1; i < lines.length; i++) {
+    const row = lines[i].split(',');
+    const ungrouped = getCol(row, "Ungrouped");
+    if (ungrouped) {
+      detectedTeams = detectRealTeamNames(ungrouped);
+      if (detectedTeams) break;
+    }
+  }
+
+  for (let i = 1; i < lines.length; i++) {
+    const row = lines[i].split(',');
+    if (row.length < headers.length) continue;
+
+    const code = getCol(row, "Row");
+    const team = extractTeamName(code, detectedTeams);
+    if (team === "Unknown" || !team) continue;
+
+    teamCounts[team] = (teamCounts[team] || 0) + 1;
+
+    const startTime = parseFloat(getCol(row, "Start time") || "0");
+    const duration = parseFloat(getCol(row, "Duration") || "0");
+    const locLabel = getCol(row, "지역");
+    const resultLabel = getCol(row, "결과");
+    const instanceId = getCol(row, "Instance r") || `csv-${i}`;
+
+    let quarter = "Q1";
+    if (startTime > 2700) quarter = "Q4";
+    else if (startTime > 1800) quarter = "Q3";
+    else if (startTime > 900) quarter = "Q2";
+
+    const { x, y } = mapZone(locLabel || code);
+
+    events.push({
+      id: instanceId,
+      team,
+      type: /foul|파울/i.test(code) ? 'foul' : /턴오버|turnover|TO/i.test(code) ? 'turnover' : 'sequence',
+      quarter,
+      time: startTime,
+      duration,
+      x,
+      y,
+      locationLabel: locLabel,
+      resultLabel: resultLabel,
+      code
+    });
+  }
+
   let home = detectedTeams?.home || "";
   let away = detectedTeams?.away || "";
 
@@ -131,8 +213,8 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
 };
 
 export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string, awayName: string): MatchData => {
-  const homeTeam = { name: homeName, color: '#d62728' }; 
-  const awayTeam = { name: awayName, color: '#1f77b4' }; 
+  const homeTeam = { name: homeName, color: 'hsl(var(--chart-1))' }; 
+  const awayTeam = { name: awayName, color: 'hsl(var(--chart-2))' }; 
 
   const calculateTeamStats = (team: string, opponent: string, targetEvents: MatchEvent[]): TeamMatchStats => {
     const us = targetEvents.filter(e => e.team === team);

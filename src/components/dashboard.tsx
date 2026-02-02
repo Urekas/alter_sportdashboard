@@ -15,7 +15,7 @@ import { BasicMatchStats } from "./basic-match-stats"
 import { AttackThreatChart } from "./attack-threat-chart"
 import { QuarterlyStatsTable } from "./quarterly-stats-table"
 import { BuildUpEfficiencyChart } from "./build-up-efficiency-chart"
-import { parseXMLData, createMatchDataFromUpload } from "@/lib/parser"
+import { parseXMLData, parseCSVData, createMatchDataFromUpload } from "@/lib/parser"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 
@@ -40,17 +40,25 @@ export function Dashboard() {
       reader.onload = (e) => {
         try {
           const content = e.target?.result as string;
+          let parsed;
           if (file.name.endsWith('.xml')) {
-            const { events, teams } = parseXMLData(content);
-            if (events.length === 0) {
-              throw new Error("분석 가능한 이벤트가 없습니다. XML 형식을 확인하세요.");
-            }
-            const newData = createMatchDataFromUpload(events, teams.home, teams.away);
-            setMatchData(newData);
-            toast({ title: "분석 완료", description: `${teams.home} vs ${teams.away} 경기 데이터가 업데이트되었습니다.` });
+            parsed = parseXMLData(content);
+          } else if (file.name.endsWith('.csv')) {
+            parsed = parseCSVData(content);
           } else {
-            throw new Error("XML 파일만 지원합니다.");
+            throw new Error("지원하지 않는 파일 형식입니다. (XML, CSV 지원)");
           }
+
+          if (parsed.events.length === 0) {
+            throw new Error("분석 가능한 이벤트가 없습니다. 파일 형식을 확인하세요.");
+          }
+          
+          const newData = createMatchDataFromUpload(parsed.events, parsed.teams.home, parsed.teams.away);
+          setMatchData(newData);
+          toast({ 
+            title: "분석 완료", 
+            description: `${parsed.teams.home} vs ${parsed.teams.away} 경기 데이터가 업데이트되었습니다.` 
+          });
         } catch (error: any) {
           toast({ title: "오류 발생", description: error.message, variant: "destructive" });
         }
@@ -67,9 +75,9 @@ export function Dashboard() {
           <p className="text-muted-foreground mt-1">전문가용 필드 하키 퍼포먼스 분석 솔루션</p>
         </div>
         <div className="flex items-center gap-2 mt-4 md:mt-0">
-          <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xml" className="hidden" />
+          <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xml,.csv" className="hidden" />
           <Button onClick={() => fileInputRef.current?.click()} className="shadow-md">
-            <Upload className="mr-2 h-4 w-4" /> 데이터 업로드 (XML)
+            <Upload className="mr-2 h-4 w-4" /> 데이터 업로드 (XML/CSV)
           </Button>
           {matchData && (
             <Button variant="outline" onClick={() => window.print()} className="shadow-sm">
@@ -85,7 +93,7 @@ export function Dashboard() {
             <Activity className="w-16 h-16 text-muted-foreground/40 mb-4" />
             <h2 className="text-2xl font-semibold mb-2">분석을 시작하세요</h2>
             <p className="text-muted-foreground mb-6 max-w-sm">
-              SportsCode XML 파일을 업로드하여 실제 데이터를 분석하세요.
+              SportsCode XML 또는 CSV 파일을 업로드하여 실제 데이터를 분석하세요.
             </p>
             <div className="flex gap-3">
               <Button onClick={() => fileInputRef.current?.click()}>파일 업로드</Button>
