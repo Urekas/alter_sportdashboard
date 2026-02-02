@@ -22,58 +22,58 @@ type StatRow = {
 }
 
 export function BasicMatchStats({ data }: BasicMatchStatsProps) {
-  const { homeTeam, awayTeam, matchStats, build25Ratio, spp } = data
+  const { homeTeam, awayTeam, matchStats } = data
 
   const stats: StatRow[] = [
     {
       label: "득점 (필드 / PC)",
-      homeValue: `${matchStats.home.goals.field.toFixed(1)} / ${matchStats.home.goals.pc.toFixed(1)}`,
-      awayValue: `${matchStats.away.goals.field.toFixed(1)} / ${matchStats.away.goals.pc.toFixed(1)}`,
+      homeValue: `${Math.round(matchStats.home.goals.field)} / ${Math.round(matchStats.home.goals.pc)}`,
+      awayValue: `${Math.round(matchStats.away.goals.field)} / ${Math.round(matchStats.away.goals.pc)}`,
     },
     {
       label: "슈팅",
-      homeValue: matchStats.home.shots.toFixed(1),
-      awayValue: matchStats.away.shots.toFixed(1),
+      homeValue: Math.round(matchStats.home.shots),
+      awayValue: Math.round(matchStats.away.shots),
     },
     {
       label: "서클 진입 (CE)",
-      homeValue: matchStats.home.circleEntries.toFixed(1),
-      awayValue: matchStats.away.circleEntries.toFixed(1),
+      homeValue: Math.round(matchStats.home.circleEntries),
+      awayValue: Math.round(matchStats.away.circleEntries),
     },
     {
       label: "25y 진입",
-      homeValue: matchStats.home.twentyFiveEntries.toFixed(1),
-      awayValue: matchStats.away.twentyFiveEntries.toFixed(1),
+      homeValue: Math.round(matchStats.home.twentyFiveEntries),
+      awayValue: Math.round(matchStats.away.twentyFiveEntries),
     },
     {
-      label: "빌드업 25m 성공률 (%)",
-      homeValue: `${(build25Ratio.home * 100).toFixed(1)}%`,
-      awayValue: `${(build25Ratio.away * 100).toFixed(1)}%`,
+      label: "빌드업 25m 성공률",
+      homeValue: `${Number(matchStats.home.build25Ratio).toFixed(1)}%`,
+      awayValue: `${Number(matchStats.away.build25Ratio).toFixed(1)}%`,
     },
     {
       label: "SPP (압박 지수)",
-      homeValue: spp.home.toFixed(1),
-      awayValue: spp.away.toFixed(1),
+      homeValue: `${Number(matchStats.home.spp).toFixed(1)}s`,
+      awayValue: `${Number(matchStats.away.spp).toFixed(1)}s`,
     },
     {
-      label: "점유율 %",
-      homeValue: `${matchStats.home.possession.toFixed(1)}%`,
-      awayValue: `${matchStats.away.possession.toFixed(1)}%`,
+      label: "점유율",
+      homeValue: `${Number(matchStats.home.possession).toFixed(1)}%`,
+      awayValue: `${Number(matchStats.away.possession).toFixed(1)}%`,
     },
     {
-      label: "공격 점유율 %",
-      homeValue: `${matchStats.home.attackPossession.toFixed(1)}%`,
-      awayValue: `${matchStats.away.attackPossession.toFixed(1)}%`,
+      label: "공격 점유율",
+      homeValue: `${Number(matchStats.home.attackPossession).toFixed(1)}%`,
+      awayValue: `${Number(matchStats.away.attackPossession).toFixed(1)}%`,
     },
     {
-      label: "공격 1회당 유지 시간 (초)",
-      homeValue: `${(matchStats.home.avgAttackDuration || 0).toFixed(1)}s`,
-      awayValue: `${(matchStats.away.avgAttackDuration || 0).toFixed(1)}s`,
+      label: "공격 1회당 유지 시간",
+      homeValue: `${Number(matchStats.home.avgAttackDuration || 0).toFixed(1)}s`,
+      awayValue: `${Number(matchStats.away.avgAttackDuration || 0).toFixed(1)}s`,
     },
     {
-      label: "CE 1회당 소요 시간 (초)",
-      homeValue: `${(matchStats.home.timePerCE || 0).toFixed(1)}s`,
-      awayValue: `${(matchStats.away.timePerCE || 0).toFixed(1)}s`,
+      label: "CE 1회당 소요 시간",
+      homeValue: `${Number(matchStats.home.timePerCE || 0).toFixed(1)}s`,
+      awayValue: `${Number(matchStats.away.timePerCE || 0).toFixed(1)}s`,
     },
   ]
 
@@ -82,7 +82,7 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
       <CardHeader>
         <CardTitle>기본 경기 통계 (Basic Match Stats)</CardTitle>
         <CardDescription className="pt-2 text-xs">
-          모든 수치는 업로드된 XML의 시퀀스 시간과 이벤트 발생 빈도를 기반으로 소수점 1자리까지 계산됩니다.
+          모든 수치는 XML 시퀀스 시간과 이벤트 발생 빈도를 기반으로 계산됩니다. (%, 초: 소수점 1자리 / 횟수: 정수)
         </CardDescription>
       </CardHeader>
       <CardContent>

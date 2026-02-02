@@ -6,7 +6,6 @@ import type { MatchEvent, MatchData, TeamMatchStats, CircleEntry, QuarterStats }
  */
 const detectRealTeamNames = (xmlDoc: Document): { home: string, away: string } | null => {
   const labels = xmlDoc.getElementsByTagName("label");
-  // 더 유연한 정규식: 국가명(HOME side) 숫자 - 국가명(AWAY side) 숫자
   const pattern = /(.*?)\(HOME side\)\s*\d*\s*-\s*(.*?)\(AWAY side\)\s*\d*/i;
 
   for (let i = 0; i < labels.length; i++) {
@@ -30,7 +29,7 @@ const extractTeamName = (code: string, detectedTeams: { home: string, away: stri
   if (!code) return "Unknown";
   const upperCode = code.toUpperCase();
 
-  // 1. HOME/AWAY 키워드 매핑 (검출된 실제 국가명이 있을 경우)
+  // 1. HOME/AWAY 키워드 매핑 (검출된 실제 국가명이 있을 경우 최우선)
   if (detectedTeams) {
     if (upperCode.includes("HOME")) return detectedTeams.home;
     if (upperCode.includes("AWAY")) return detectedTeams.away;
@@ -116,18 +115,14 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     });
   });
 
-  // 홈/어웨이 결정 로직 (매우 중요)
+  // 홈/어웨이 결정 (레이블 패턴 우선)
   let home = detectedTeams?.home || "";
   let away = detectedTeams?.away || "";
 
   if (!home || !away) {
     const sortedTeams = Object.keys(teamCounts).sort((a, b) => teamCounts[b] - teamCounts[a]);
-    // 코드에 HOME/AWAY 단어가 있다면 무조건 강제 매핑
-    const homeCandidate = Object.keys(teamCounts).find(k => k.toUpperCase().includes("HOME"));
-    const awayCandidate = Object.keys(teamCounts).find(k => k.toUpperCase().includes("AWAY"));
-
-    home = homeCandidate || sortedTeams[0] || "Home Team";
-    away = awayCandidate || (sortedTeams[1] === home ? sortedTeams[0] : sortedTeams[1]) || "Away Team";
+    home = sortedTeams[0] || "Home Team";
+    away = (sortedTeams[1] === home ? sortedTeams[2] : sortedTeams[1]) || "Away Team";
   }
 
   return { events, teams: { home, away } };
@@ -183,7 +178,7 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
       attackPossession: (attTime / (attTime + oppAttTime)) * 100 || 0,
       spp,
       allowedSpp,
-      build25Ratio: buildRows.length > 0 ? build25Success / buildRows.length : 0,
+      build25Ratio: buildRows.length > 0 ? (build25Success / buildRows.length) * 100 : 0,
       avgAttackDuration: us.filter(e => e.code.includes('ATT')).length > 0 ? attTime / us.filter(e => e.code.includes('ATT')).length : 0,
       timePerCE: ceCount > 0 ? attTime / ceCount : 0,
       pressAttempts,

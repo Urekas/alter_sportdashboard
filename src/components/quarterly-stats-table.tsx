@@ -31,20 +31,16 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
           <TableCell className="pl-6 text-sm font-medium">득점 (필드/PC)</TableCell>
           {stats.map(q => {
             const s = isHome ? q.home : q.away;
-            return <TableCell key={q.quarter} className="text-center border-x">{s.goals?.field.toFixed(1)} / {s.goals?.pc.toFixed(1)}</TableCell>
+            return <TableCell key={q.quarter} className="text-center border-x">{Math.round(s.goals?.field)} / {Math.round(s.goals?.pc)}</TableCell>
           })}
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">슈팅</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).shots.toFixed(1)}</TableCell>)}
+          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{Math.round((isHome ? q.home : q.away).shots)}</TableCell>)}
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">서클 진입 (CE)</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).circleEntries.toFixed(1)}</TableCell>)}
-        </TableRow>
-        <TableRow>
-          <TableCell className="pl-6 text-sm font-medium">25y 진입</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).twentyFiveEntries.toFixed(1)}</TableCell>)}
+          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{Math.round((isHome ? q.home : q.away).circleEntries)}</TableCell>)}
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">점유율 (%)</TableCell>
@@ -67,7 +63,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
       <CardHeader>
         <CardTitle>쿼터별 경기 통계 (Quarterly Match Stats)</CardTitle>
         <CardDescription>
-          각 쿼터별 세부 지표 분석 데이터입니다.
+          각 쿼터별 세부 지표 분석 데이터입니다. (%, 초: 소수점 1자리 / 횟수: 정수)
         </CardDescription>
       </CardHeader>
       <CardContent>

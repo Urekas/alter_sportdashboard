@@ -111,7 +111,7 @@ export function Dashboard() {
                     />
                     <StatsCard
                       title="빌드업 성공률"
-                      value={`${(Number(matchData.matchStats.home.build25Ratio) * 100).toFixed(1)}%`}
+                      value={`${Number(matchData.matchStats.home.build25Ratio).toFixed(1)}%`}
                       description="25m 진입 성공률"
                       icon={<ShieldCheck className="text-primary/60 h-4 w-4" />}
                     />
@@ -145,7 +145,7 @@ export function Dashboard() {
                     />
                     <StatsCard
                       title="빌드업 성공률"
-                      value={`${(Number(matchData.matchStats.away.build25Ratio) * 100).toFixed(1)}%`}
+                      value={`${Number(matchData.matchStats.away.build25Ratio).toFixed(1)}%`}
                       description="25m 진입 성공률"
                       icon={<ShieldCheck className="text-primary/60 h-4 w-4" />}
                     />
