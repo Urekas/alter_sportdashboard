@@ -172,8 +172,9 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
       </CardHeader>
       <CardContent className="p-4 md:p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-          {renderHalfPitch(zoneStats.away, awayTeam, false)}
+          {/* Always Home (Left/First) then Away (Right/Second) */}
           {renderHalfPitch(zoneStats.home, homeTeam, true)}
+          {renderHalfPitch(zoneStats.away, awayTeam, false)}
         </div>
         
         <div className="mt-8 flex flex-wrap justify-center gap-x-8 gap-y-2 text-xs text-muted-foreground border-t pt-4 bg-muted/20 rounded-b-lg px-4">
