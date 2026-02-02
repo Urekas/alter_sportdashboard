@@ -4,16 +4,17 @@ import type { MatchEvent, MatchData, TeamMatchStats, CircleEntry, QuarterStats }
 const PITCH_LENGTH = 91.4;
 const PITCH_WIDTH = 55;
 
-// Python: extract_team 로직
+// Python: extract_team 로직 100% 동일 구현
 const extractTeamName = (code: string): string => {
   if (!code) return "Unknown";
+  // 공백으로 분리 후 첫 단어가 팀명 (데이터셋 패턴 기반)
   const first = code.trim().split(/\s+/)[0];
+  // 분석 대상에서 제외할 사용자 정의 태그
   const ignoreTags = ["한국빌드업", "한국프레스", "코치님", "START", "Unknown", "??", "YOO"];
   if (ignoreTags.includes(first)) return "Unknown";
   return first;
 };
 
-// Python: check_location 기반 구역 매핑 (75, 100 등 숫자 포함 여부 확인)
 const mapZone = (locStr: string): { x: number, y: number, lane: 'Left' | 'Center' | 'Right' } => {
   const text = locStr.toUpperCase();
   let lane: 'Left' | 'Center' | 'Right' = 'Center';
@@ -42,6 +43,7 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
 
   Array.from(instances).forEach((instance, index) => {
     const code = (instance.getElementsByTagName("code")[0]?.textContent || "").trim();
+    // Python 로직 적용: 코드의 첫 단어를 팀명으로
     let team = extractTeamName(code);
     
     const labels = instance.getElementsByTagName("label");
@@ -58,6 +60,7 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
       else if (/팀|Team|Country/i.test(group)) detectedTeamLabel = text;
     }
 
+    // 코드로 팀명을 못찾으면 레이블에서 보완
     if (team === "Unknown" && detectedTeamLabel) team = detectedTeamLabel;
     if (team === "Unknown") return;
 
@@ -89,10 +92,12 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
   });
 
   const sortedTeams = Object.keys(teamCounts).sort((a, b) => teamCounts[b] - teamCounts[a]);
+  
+  // 일본/인도 순서 고정 (Python order_teams 로직)
+  const preferred = ["일본", "Japan", "인도", "India"];
   let home = sortedTeams[0] || "Japan";
   let away = sortedTeams[1] || "India";
 
-  const preferred = ["일본", "Japan", "인도", "India"];
   const detectedPreferred = preferred.filter(p => sortedTeams.includes(p));
   if (detectedPreferred.length >= 2) {
     home = detectedPreferred[0];
@@ -121,10 +126,12 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const countEventsByLoc = (evts: MatchEvent[], rowKeyword: string, zones: string[]) => 
       evts.filter(e => e.code.includes(rowKeyword) && zones.some(z => e.locationLabel.includes(z) || e.code.includes(z))).length;
 
+    // 우리팀 프레스 시도 및 성공
     const us_to_75_100 = countEventsByLoc(us, '턴오버', ['75', '100']);
     const us_foul_75_100 = countEventsByLoc(us, '파울', ['75', '100']);
     const opp_foul_25_50 = countEventsByLoc(opp, '파울', ['25', '50']);
 
+    // 상대팀 프레스 시도 (우리가 당한 압박)
     const opp_to_75_100 = countEventsByLoc(opp, '턴오버', ['75', '100']);
     const opp_foul_75_100 = countEventsByLoc(opp, '파울', ['75', '100']);
     const us_foul_25_50 = countEventsByLoc(us, '파울', ['25', '50']);
@@ -136,6 +143,7 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const spp = pressAttempts > 0 ? buildUpTime / pressAttempts : 0;
     const allowedSpp = allowedDenom > 0 ? buildUpTime / allowedDenom : 0;
 
+    // Build25 성공률: DM START | D25 START -> 결과에 '25Y entry'
     const buildRows = us.filter(e => /DM START|D25 START/.test(e.code));
     const build25Success = buildRows.filter(e => e.resultLabel.includes('25Y entry')).length;
 
@@ -143,7 +151,8 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const shotCount = us.filter(e => e.code.includes('슈팅') || e.code.toLowerCase().includes('shot')).length;
     
     const pcRows = us.filter(e => /페널티\s*코너|PC|penalty\s*corner/i.test(e.code));
-    const totalGoals = us.filter(e => e.code.includes('득점') || e.code.toLowerCase().includes('goal')).length;
+    const totalGoalEvents = us.filter(e => e.code.includes('득점') || e.code.toLowerCase().includes('goal'));
+    const totalGoals = totalGoalEvents.length;
     const pcGoals = pcRows.filter(e => e.resultLabel.toUpperCase().includes('GOAL') || e.resultLabel.includes('득점')).length;
 
     return {

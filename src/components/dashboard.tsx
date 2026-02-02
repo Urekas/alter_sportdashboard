@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useState, useRef } from "react"
-import { Upload, Printer, TrendingDown, Target, Activity, ShieldCheck } from "lucide-react"
+import { Upload, Printer, TrendingDown, Target, Activity, ShieldCheck, ChevronRight } from "lucide-react"
 import type { MatchData } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
 import { Button } from "@/components/ui/button"
@@ -63,13 +63,13 @@ export function Dashboard() {
     <div className="p-4 md:p-6 lg:p-8">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 print-hidden">
         <div>
-          <h1 className="text-4xl font-bold text-primary font-headline tracking-tight">Field Focus</h1>
+          <h1 className="text-4xl font-bold text-primary font-headline tracking-tight italic">Field Focus</h1>
           <p className="text-muted-foreground mt-1">전문가용 필드 하키 퍼포먼스 분석 솔루션</p>
         </div>
         <div className="flex items-center gap-2 mt-4 md:mt-0">
           <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xml" className="hidden" />
           <Button onClick={() => fileInputRef.current?.click()} className="shadow-md">
-            <Upload className="mr-2 h-4 w-4" /> 데이터 업로드
+            <Upload className="mr-2 h-4 w-4" /> 데이터 업로드 (XML)
           </Button>
           {matchData && (
             <Button variant="outline" onClick={() => window.print()} className="shadow-sm">
@@ -94,35 +94,82 @@ export function Dashboard() {
           </div>
         ) : (
           <div className="space-y-8 animate-in fade-in duration-500">
-            {/* 요약 카드 섹션 */}
-            <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <StatsCard
-                title={`${matchData.homeTeam.name} SPP`}
-                value={(matchData.matchStats.home.spp || 0).toFixed(2)}
-                description="압박 지수 (낮을수록 우수)"
-                icon={<TrendingDown className="text-emerald-500" />}
-              />
-              <StatsCard
-                title={`${matchData.homeTeam.name} 빌드업 성공률`}
-                value={`${((matchData.matchStats.home.build25Ratio || 0) * 100).toFixed(2)}%`}
-                description="25m 진입 성공률"
-                icon={<ShieldCheck className="text-primary/60" />}
-              />
-              <StatsCard
-                title={`${matchData.homeTeam.name} 공격 유지 시간`}
-                value={`${(matchData.matchStats.home.avgAttackDuration || 0).toFixed(2)}s`}
-                description="공격 1회당 평균 유지 시간"
-                icon={<Target className="text-primary/60" />}
-              />
-              <StatsCard
-                title={`${matchData.homeTeam.name} CE 소요 시간`}
-                value={`${(matchData.matchStats.home.timePerCE || 0).toFixed(2)}s`}
-                description="서클 진입당 소요 시간"
-                icon={<Activity className="text-primary/60" />}
-              />
-            </section>
+            {/* 요약 카드 섹션 - 홈/어웨이 병렬 배치 */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-bold border-l-4 border-primary pl-3">핵심 퍼포먼스 요약 (Key Metrics)</h2>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Home Team 요약 */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-primary font-bold">
+                    <div className="w-3 h-3 rounded-full bg-[#d62728]" />
+                    {matchData.homeTeam.name} (Home)
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <StatsCard
+                      title="SPP (압박 지수)"
+                      value={(matchData.matchStats.home.spp || 0).toFixed(2)}
+                      description="낮을수록 우수"
+                      icon={<TrendingDown className="text-emerald-500 h-4 w-4" />}
+                    />
+                    <StatsCard
+                      title="빌드업 성공률"
+                      value={`${((matchData.matchStats.home.build25Ratio || 0) * 100).toFixed(2)}%`}
+                      description="25m 진입 성공률"
+                      icon={<ShieldCheck className="text-primary/60 h-4 w-4" />}
+                    />
+                    <StatsCard
+                      title="공격 유지 시간"
+                      value={`${(matchData.matchStats.home.avgAttackDuration || 0).toFixed(2)}s`}
+                      description="공격 1회당 평균"
+                      icon={<Target className="text-primary/60 h-4 w-4" />}
+                    />
+                    <StatsCard
+                      title="CE 소요 시간"
+                      value={`${(matchData.matchStats.home.timePerCE || 0).toFixed(2)}s`}
+                      description="서클 진입당 시간"
+                      icon={<Activity className="text-primary/60 h-4 w-4" />}
+                    />
+                  </div>
+                </div>
 
-            <div className="flex flex-col gap-8">
+                {/* Away Team 요약 */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-chart-2 font-bold">
+                    <div className="w-3 h-3 rounded-full bg-[#1f77b4]" />
+                    {matchData.awayTeam.name} (Away)
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <StatsCard
+                      title="SPP (압박 지수)"
+                      value={(matchData.matchStats.away.spp || 0).toFixed(2)}
+                      description="낮을수록 우수"
+                      icon={<TrendingDown className="text-emerald-500 h-4 w-4" />}
+                    />
+                    <StatsCard
+                      title="빌드업 성공률"
+                      value={`${((matchData.matchStats.away.build25Ratio || 0) * 100).toFixed(2)}%`}
+                      description="25m 진입 성공률"
+                      icon={<ShieldCheck className="text-primary/60 h-4 w-4" />}
+                    />
+                    <StatsCard
+                      title="공격 유지 시간"
+                      value={`${(matchData.matchStats.away.avgAttackDuration || 0).toFixed(2)}s`}
+                      description="공격 1회당 평균"
+                      icon={<Target className="text-primary/60 h-4 w-4" />}
+                    />
+                    <StatsCard
+                      title="CE 소요 시간"
+                      value={`${(matchData.matchStats.away.timePerCE || 0).toFixed(2)}s`}
+                      description="서클 진입당 시간"
+                      icon={<Activity className="text-primary/60 h-4 w-4" />}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 통계표 및 압박 배틀 그래프 순서 변경 */}
+            <div className="grid grid-cols-1 gap-8">
               <BasicMatchStats data={matchData} />
               <div className="w-full">
                 <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
@@ -147,6 +194,7 @@ export function Dashboard() {
               <QuarterlyStatsTable data={matchData} />
             </div>
 
+            {/* 데이터 검증 로그 섹션 */}
             <div className="pt-12 print-hidden">
               <Accordion type="single" collapsible className="w-full border rounded-xl bg-muted/20">
                 <AccordionItem value="log" className="border-none">
@@ -159,11 +207,10 @@ export function Dashboard() {
                         <TableHeader className="bg-muted sticky top-0 z-10">
                           <TableRow>
                             <TableHead>No.</TableHead>
-                            <TableHead>팀</TableHead>
-                            <TableHead>코드(Row)</TableHead>
-                            <TableHead>위치(지역)</TableHead>
-                            <TableHead>결과</TableHead>
-                            <TableHead>시간</TableHead>
+                            <TableHead>팀 (추출됨)</TableHead>
+                            <TableHead>코드 (Code/Row)</TableHead>
+                            <TableHead>레이블 (Labels/지역/결과)</TableHead>
+                            <TableHead>시간 (Start)</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -172,8 +219,9 @@ export function Dashboard() {
                               <TableCell className="text-xs text-muted-foreground">{i + 1}</TableCell>
                               <TableCell className="font-bold">{e.team}</TableCell>
                               <TableCell className="text-sm">{e.code}</TableCell>
-                              <TableCell className="text-sm">{e.locationLabel}</TableCell>
-                              <TableCell className="text-sm text-emerald-600 font-medium">{e.resultLabel}</TableCell>
+                              <TableCell className="text-sm text-blue-600 font-medium">
+                                {e.locationLabel} / {e.resultLabel}
+                              </TableCell>
                               <TableCell className="font-mono text-xs">{e.time.toFixed(2)}s</TableCell>
                             </TableRow>
                           ))}

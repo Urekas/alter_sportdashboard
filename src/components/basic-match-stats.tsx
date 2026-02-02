@@ -52,9 +52,9 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
       awayValue: `${(build25Ratio.away * 100).toFixed(2)}%`,
     },
     {
-      label: "SPP / 허용 SPP",
-      homeValue: `${spp.home.toFixed(2)} / ${matchStats.home.allowedSpp.toFixed(2)}`,
-      awayValue: `${spp.away.toFixed(2)} / ${matchStats.away.allowedSpp.toFixed(2)}`,
+      label: "SPP (압박 지수)",
+      homeValue: spp.home.toFixed(2),
+      awayValue: spp.away.toFixed(2),
     },
     {
       label: "점유율 %",
@@ -83,7 +83,7 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
       <CardHeader>
         <CardTitle>기본 경기 통계 (Basic Match Stats)</CardTitle>
         <CardDescription className="pt-2 text-xs">
-          (참고: 모든 수치는 업로드된 XML의 시퀀스 시간과 이벤트 발생 빈도를 기반으로 계산됩니다.)
+          (참고: 모든 수치는 업로드된 XML의 시퀀스 시간과 이벤트 발생 빈도를 기반으로 소수점 2자리까지 계산됩니다.)
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -91,8 +91,8 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[200px]">분석 항목</TableHead>
-              <TableHead className="text-center font-bold text-primary">{homeTeam.name}</TableHead>
-              <TableHead className="text-center font-bold text-chart-2">{awayTeam.name}</TableHead>
+              <TableHead className="text-center font-bold text-primary">{homeTeam.name} (Home)</TableHead>
+              <TableHead className="text-center font-bold text-chart-2">{awayTeam.name} (Away)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
