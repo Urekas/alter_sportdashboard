@@ -11,6 +11,7 @@ const extractTeamsFromXML = (xmlDoc: Document): { home: string, away: string } =
 
   Array.from(instances).forEach(instance => {
     const code = instance.getElementsByTagName("code")[0]?.textContent || "";
+    // 더 넓은 범위의 팀 이름 추출 로직
     let teamName = code
       .replace(/turnover/gi, "")
       .replace(/foul/gi, "")
@@ -58,7 +59,11 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     let type: 'turnover' | 'foul' = 'turnover';
     if (code.toLowerCase().includes("foul") || code.includes("파울")) {
       type = 'foul';
-    } else if (!code.toLowerCase().includes("turnover") && !code.includes("턴오버")) {
+    } else if (code.toLowerCase().includes("turnover") || code.includes("턴오버")) {
+      type = 'turnover';
+    } else {
+      // 명시적인 키워드가 없으면 일단 턴오버로 간주하거나 스킵할 수 있음
+      // 여기서는 분석 질을 위해 명시적인 것만 포함
       return; 
     }
 
@@ -69,17 +74,26 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     for (let i = 0; i < labels.length; i++) {
       const group = labels[i].getElementsByTagName("group")[0]?.textContent;
       const text = labels[i].getElementsByTagName("text")[0]?.textContent;
-      if (group === "지역" || group === "Location") {
+      
+      // 다양한 레이블 그룹 이름 지원
+      if (group === "지역" || group === "Location" || group === "Zone") {
         locLabel = text || "";
         break;
       }
     }
     
+    // 만약 위치 레이블을 못 찾았는데 code 자체에 정보가 있을 경우를 대비한 2차 로직
+    if (!locLabel) {
+      const match = code.match(/(좌|우|중|Left|Right|Center)/);
+      if (match) locLabel = match[0];
+    }
+
     if (!locLabel) return;
 
     let x = PITCH_LENGTH / 2;
     let y = PITCH_WIDTH / 2;
 
+    // 위치 레이블 기반 좌표 매핑
     if (locLabel.includes("Def 25") || locLabel.includes("수비 25")) x = PITCH_LENGTH * 0.125;
     else if (locLabel.includes("Mid") || locLabel.includes("하프")) x = PITCH_LENGTH * 0.5;
     else if (locLabel.includes("Att 25") || locLabel.includes("공격 25")) x = PITCH_LENGTH * 0.875;
@@ -89,13 +103,15 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     else if (locLabel.includes("Right") || locLabel.includes("우")) y = PITCH_WIDTH - (LANE_WIDTH / 2);
     else y = PITCH_WIDTH / 2;
 
-    x += (Math.random() - 0.5) * 8;
-    y += (Math.random() - 0.5) * 8;
+    // 시각화 시 겹침 방지를 위해 약간의 랜덤 변동성 부여
+    x += (Math.random() - 0.5) * 4;
+    y += (Math.random() - 0.5) * 4;
     x = Math.max(0, Math.min(PITCH_LENGTH, x));
     y = Math.max(0, Math.min(PITCH_WIDTH, y));
     
     const startTime = parseFloat(instance.getElementsByTagName("start")[0]?.textContent || "0");
     let quarter = "Q1";
+    // 쿼터 시간 보정 (실제 경기 상황에 따라 조정 필요)
     if (startTime > 2700) quarter = "Q4";
     else if (startTime > 1800) quarter = "Q3";
     else if (startTime > 900) quarter = "Q2";
@@ -148,32 +164,19 @@ export const parseCSVData = (csvText: string): MatchEvent[] => {
   return events;
 };
 
-function generateQuarterlyStats(): QuarterStats[] {
-  return ['Q1', 'Q2', 'Q3', 'Q4'].map(q => ({
-    quarter: q,
-    home: {
-      goals: { field: Math.floor(Math.random() * 2), pc: Math.floor(Math.random() * 1) },
-      shots: 2 + Math.floor(Math.random() * 4),
-      circleEntries: 4 + Math.floor(Math.random() * 5),
-      twentyFiveEntries: 6 + Math.floor(Math.random() * 6),
-      possession: 45 + Math.floor(Math.random() * 10),
-      attackPossession: 20 + Math.floor(Math.random() * 10),
-      spp: 8 + Math.random() * 5,
-      avgAttackDuration: 25 + Math.random() * 15,
-      timePerCE: 40 + Math.random() * 20,
-    },
-    away: {
-      goals: { field: Math.floor(Math.random() * 2), pc: Math.floor(Math.random() * 1) },
-      shots: 2 + Math.floor(Math.random() * 4),
-      circleEntries: 4 + Math.floor(Math.random() * 5),
-      twentyFiveEntries: 6 + Math.floor(Math.random() * 6),
-      possession: 45 + Math.floor(Math.random() * 10),
-      attackPossession: 20 + Math.floor(Math.random() * 10),
-      spp: 8 + Math.random() * 5,
-      avgAttackDuration: 25 + Math.random() * 15,
-      timePerCE: 40 + Math.random() * 20,
-    }
-  }));
+function generateRandomStats(teamName: string) {
+  return {
+    goals: { field: Math.floor(Math.random() * 2), pc: Math.floor(Math.random() * 1) },
+    shots: 8 + Math.floor(Math.random() * 8),
+    circleEntries: 15 + Math.floor(Math.random() * 8),
+    twentyFiveEntries: 25 + Math.floor(Math.random() * 10),
+    possession: 45 + Math.floor(Math.random() * 10),
+    attackPossession: 22 + Math.floor(Math.random() * 8),
+    allowedSpp: 10 + Math.random() * 5,
+    avgAttackDuration: 25 + Math.random() * 10,
+    timePerCE: 40 + Math.random() * 20,
+    spp: 8 + Math.random() * 4
+  };
 }
 
 export const createMatchDataFromUpload = (
@@ -184,72 +187,42 @@ export const createMatchDataFromUpload = (
   const HOME_TEAM = { name: homeTeamName, color: 'hsl(var(--chart-1))' };
   const AWAY_TEAM = { name: awayTeamName, color: 'hsl(var(--chart-2))' };
   
-  const generatePressureData = () => {
-    const data: PressureDataPoint[] = [];
-    let homeSppBase = 8 + Math.random() * 4;
-    let awaySppBase = 8 + Math.random() * 4;
-    for (let i = 1; i <= 20; i++) {
-      const minute = i * 3;
-      data.push({
-        interval: `${minute}'`,
-        [homeTeamName]: parseFloat(Math.max(4, Math.min(20, homeSppBase + (Math.random() - 0.5) * 3)).toFixed(2)),
-        [awayTeamName]: parseFloat(Math.max(4, Math.min(20, awaySppBase + (Math.random() - 0.5) * 3)).toFixed(2)),
-      });
-    }
-    return data;
-  };
+  // 쿼터별 통계 초기화 및 계산
+  const quarterlyStats: QuarterStats[] = ['Q1', 'Q2', 'Q3', 'Q4'].map(q => {
+    const qEvents = events.filter(e => e.quarter === q);
+    // 실제 이벤트 데이터를 기반으로 한 통계 계산 (현재는 랜덤값 포함 예시)
+    return {
+      quarter: q,
+      home: generateRandomStats(homeTeamName),
+      away: generateRandomStats(awayTeamName)
+    };
+  });
 
-  const generateCircleEntries = () => {
-    const entries: CircleEntry[] = [];
-    const channels: ('Left' | 'Center' | 'Right')[] = ['Left', 'Center', 'Right'];
-    const outcomes: ('Goal' | 'Shot On Target' | 'Shot Missed' | 'No Shot')[] = ['Goal', 'Shot On Target', 'Shot Missed', 'No Shot'];
-    for (let i = 0; i < 40; i++) {
-        entries.push({
-            team: Math.random() > 0.5 ? homeTeamName : awayTeamName,
-            channel: channels[Math.floor(Math.random() * channels.length)],
-            outcome: outcomes[Math.floor(Math.random() * outcomes.length)],
-        });
-    }
-    return entries;
-  };
-
-  const homeStats: TeamMatchStats = {
-    goals: { field: Math.floor(Math.random() * 3), pc: Math.floor(Math.random() * 2) },
-    shots: 8 + Math.floor(Math.random() * 10),
-    circleEntries: 15 + Math.floor(Math.random() * 10),
-    twentyFiveEntries: 25 + Math.floor(Math.random() * 15),
-    possession: 40 + Math.floor(Math.random() * 20),
-    attackPossession: 20 + Math.floor(Math.random() * 20),
-    allowedSpp: 10 + Math.random() * 5,
-    avgAttackDuration: 28.5,
-    timePerCE: 45.2,
-  };
-  const awayStats: TeamMatchStats = {
-    goals: { field: Math.floor(Math.random() * 3), pc: Math.floor(Math.random() * 2) },
-    shots: 8 + Math.floor(Math.random() * 10),
-    circleEntries: 15 + Math.floor(Math.random() * 10),
-    twentyFiveEntries: 25 + Math.floor(Math.random() * 15),
-    possession: 40 + Math.floor(Math.random() * 20),
-    attackPossession: 20 + Math.floor(Math.random() * 20),
-    allowedSpp: 10 + Math.random() * 5,
-    avgAttackDuration: 31.2,
-    timePerCE: 48.7,
-  };
+  const homeStats = generateRandomStats(homeTeamName);
+  const awayStats = generateRandomStats(awayTeamName);
 
   return {
     homeTeam: HOME_TEAM,
     awayTeam: AWAY_TEAM,
     events: events,
-    pressureData: generatePressureData(),
-    circleEntries: generateCircleEntries(),
+    pressureData: Array(20).fill(0).map((_, i) => ({
+      interval: `${(i+1)*3}'`,
+      [homeTeamName]: parseFloat((8 + Math.random() * 4).toFixed(2)),
+      [awayTeamName]: parseFloat((8 + Math.random() * 4).toFixed(2)),
+    })),
+    circleEntries: Array(40).fill(0).map(() => ({
+      team: Math.random() > 0.5 ? homeTeamName : awayTeamName,
+      channel: (['Left', 'Center', 'Right'] as const)[Math.floor(Math.random() * 3)],
+      outcome: (['Goal', 'Shot On Target', 'Shot Missed', 'No Shot'] as const)[Math.floor(Math.random() * 4)],
+    })),
     attackThreatData: Array(12).fill(0).map((_, i) => ({
       interval: `${(i+1)*5}'`,
-      [homeTeamName]: Math.floor(Math.random() * 8) + 2,
-      [awayTeamName]: Math.floor(Math.random() * 8) + 2,
+      [homeTeamName]: Math.floor(Math.random() * 10) + 2,
+      [awayTeamName]: Math.floor(Math.random() * 10) + 2,
     })),
-    build25Ratio: { home: 0.4 + Math.random() * 0.3, away: 0.4 + Math.random() * 0.3 },
-    spp: { home: 8 + Math.random() * 6, away: 8 + Math.random() * 6 },
+    build25Ratio: { home: 0.5 + Math.random() * 0.2, away: 0.5 + Math.random() * 0.2 },
+    spp: { home: 9.5, away: 10.2 },
     matchStats: { home: homeStats, away: awayStats },
-    quarterlyStats: generateQuarterlyStats()
+    quarterlyStats: quarterlyStats
   };
 }

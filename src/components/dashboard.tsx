@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useRef } from "react"
-import { Upload, Printer, FileText, TrendingUp, TrendingDown } from "lucide-react"
+import { Upload, Printer, FileText, TrendingUp, TrendingDown, Search, ListFilter } from "lucide-react"
 import type { MatchData, MatchEvent } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
 import { Button } from "@/components/ui/button"
@@ -15,7 +15,9 @@ import { AttackThreatChart } from "./attack-threat-chart"
 import { QuarterlyStatsTable } from "./quarterly-stats-table"
 import { BuildUpEfficiencyChart } from "./build-up-efficiency-chart"
 import { parseXMLData, parseCSVData, createMatchDataFromUpload } from "@/lib/parser"
-
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 
 export function Dashboard() {
   const [matchData, setMatchData] = useState<MatchData | null>(null)
@@ -70,7 +72,7 @@ export function Dashboard() {
           if (events.length === 0) {
               toast({
                 title: "이벤트 데이터 없음",
-                description: '파일을 읽었으나 분석할 수 있는 이벤트가 없습니다.',
+                description: '파일을 읽었으나 분석할 수 있는 이벤트가 없습니다. XML 내 <instance>와 적절한 <label>이 있는지 확인해주세요.',
                 variant: "destructive",
               });
               return;
@@ -81,7 +83,7 @@ export function Dashboard() {
           setMatchData(newMatchData);
           toast({
             title: "데이터 분석 완료",
-            description: `${homeName} vs ${awayName} 경기의 ${events.length}개 이벤트를 처리했습니다.`,
+            description: `${homeName} vs ${awayName} 경기의 ${events.length}개 이벤트를 성공적으로 처리했습니다.`,
           });
 
         } catch (error: any) {
@@ -145,7 +147,7 @@ export function Dashboard() {
         ) : (
           <div className="space-y-8">
             <section>
-              <h2 className="text-2xl font-semibold mb-4 font-headline">Key Metrics</h2>
+              <h2 className="text-2xl font-semibold mb-4 font-headline">주요 분석 지표 (Key Metrics)</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 <StatsCard
                   title={`${matchData.homeTeam.name} SPP`}
@@ -214,10 +216,66 @@ export function Dashboard() {
                 />
               </div>
 
-              {/* Quarterly Stats Table at the bottom */}
               <div className="w-full pt-8">
-                <h2 className="text-2xl font-semibold mb-4 font-headline">Quarterly Detailed Analysis</h2>
+                <h2 className="text-2xl font-semibold mb-4 font-headline">쿼터별 상세 데이터 (Quarterly Analysis)</h2>
                 <QuarterlyStatsTable data={matchData} />
+              </div>
+
+              {/* 파싱 데이터 검증용 로그 섹션 */}
+              <div className="w-full pt-12 print-hidden">
+                <Accordion type="single" collapsible className="w-full border rounded-lg bg-muted/30">
+                  <AccordionItem value="event-log" className="border-none">
+                    <AccordionTrigger className="px-6 hover:no-underline">
+                      <div className="flex items-center gap-2 text-primary">
+                        <ListFilter className="w-5 h-5" />
+                        <span className="font-semibold text-lg">파싱된 이벤트 데이터 검증 (총 {matchData.events.length}개)</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-6 pb-6">
+                      <Card className="border-none shadow-none bg-transparent">
+                        <CardDescription className="mb-4">
+                          XML에서 추출된 로우(Raw) 데이터 목록입니다. 각 이벤트의 팀, 타입, 위치 정보가 제대로 분석되었는지 확인하세요.
+                        </CardDescription>
+                        <div className="max-h-[500px] overflow-auto border rounded-md bg-background">
+                          <Table>
+                            <TableHeader className="sticky top-0 bg-secondary z-10">
+                              <TableRow>
+                                <TableHead className="w-[80px]">No.</TableHead>
+                                <TableHead>시간 (초)</TableHead>
+                                <TableHead>쿼터</TableHead>
+                                <TableHead>팀</TableHead>
+                                <TableHead>유형</TableHead>
+                                <TableHead>위치 레이블</TableHead>
+                                <TableHead className="text-right">좌표 (X, Y)</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {matchData.events.map((event, index) => (
+                                <TableRow key={event.id}>
+                                  <TableCell className="text-muted-foreground">{index + 1}</TableCell>
+                                  <TableCell>{event.time.toFixed(1)}s</TableCell>
+                                  <TableCell>{event.quarter}</TableCell>
+                                  <TableCell className="font-medium">{event.team}</TableCell>
+                                  <TableCell>
+                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                                      event.type === 'foul' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
+                                    }`}>
+                                      {event.type === 'foul' ? '파울' : '턴오버'}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="text-muted-foreground">{event.locationLabel}</TableCell>
+                                  <TableCell className="text-right font-mono text-xs">
+                                    {event.x.toFixed(1)}m, {event.y.toFixed(1)}m
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </Card>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               </div>
             </div>
           </div>
