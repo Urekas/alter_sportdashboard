@@ -48,23 +48,23 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
     },
     {
       label: "빌드업 25m 성공률",
-      homeValue: `${Number(matchStats.home.build25Ratio).toFixed(1)}%`,
-      awayValue: `${Number(matchStats.away.build25Ratio).toFixed(1)}%`,
+      homeValue: `${Number(matchStats.home.build25Ratio || 0).toFixed(1)}%`,
+      awayValue: `${Number(matchStats.away.build25Ratio || 0).toFixed(1)}%`,
     },
     {
       label: "SPP (압박 지수)",
-      homeValue: `${Number(matchStats.home.spp).toFixed(1)}s`,
-      awayValue: `${Number(matchStats.away.spp).toFixed(1)}s`,
+      homeValue: `${Number(matchStats.home.spp || 0).toFixed(1)}s`,
+      awayValue: `${Number(matchStats.away.spp || 0).toFixed(1)}s`,
     },
     {
       label: "점유율",
-      homeValue: `${Number(matchStats.home.possession).toFixed(1)}%`,
-      awayValue: `${Number(matchStats.away.possession).toFixed(1)}%`,
+      homeValue: `${Number(matchStats.home.possession || 0).toFixed(1)}%`,
+      awayValue: `${Number(matchStats.away.possession || 0).toFixed(1)}%`,
     },
     {
       label: "공격 점유율",
-      homeValue: `${Number(matchStats.home.attackPossession).toFixed(1)}%`,
-      awayValue: `${Number(matchStats.away.attackPossession).toFixed(1)}%`,
+      homeValue: `${Number(matchStats.home.attackPossession || 0).toFixed(1)}%`,
+      awayValue: `${Number(matchStats.away.attackPossession || 0).toFixed(1)}%`,
     },
     {
       label: "공격 1회당 유지 시간",

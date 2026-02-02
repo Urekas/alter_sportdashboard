@@ -18,8 +18,8 @@ function generatePressureData(): PressureDataPoint[] {
 
     data.push({
       interval: `${minute}'`,
-      [HOME_TEAM.name]: parseFloat(Math.max(4, Math.min(20, hSpp)).toFixed(2)),
-      [AWAY_TEAM.name]: parseFloat(Math.max(4, Math.min(20, aSpp)).toFixed(2)),
+      [HOME_TEAM.name]: parseFloat(Math.max(4, Math.min(20, hSpp)).toFixed(1)),
+      [AWAY_TEAM.name]: parseFloat(Math.max(4, Math.min(20, aSpp)).toFixed(1)),
     });
   }
   return data;
@@ -36,9 +36,12 @@ function generateEvents(): MatchEvent[] {
       type,
       quarter: `Q${Math.floor(i / 50) + 1}`,
       time: (i % 50) * 30,
+      duration: 10 + Math.random() * 20,
       x: Math.random() * PITCH_LENGTH,
       y: Math.random() * PITCH_WIDTH,
       locationLabel: 'Mock Location',
+      resultLabel: 'Mock Result',
+      code: 'MOCK CODE'
     });
   }
   return events;
@@ -68,25 +71,23 @@ function generateTeamMatchStats(): TeamMatchStats {
         shots: 8 + Math.floor(Math.random() * 10),
         circleEntries: 15 + Math.floor(Math.random() * 10),
         twentyFiveEntries: 25 + Math.floor(Math.random() * 15),
-        possession: 50,
-        attackPossession: 50,
+        possession: 45 + Math.random() * 10,
+        attackPossession: 45 + Math.random() * 10,
+        spp: 8 + Math.random() * 4,
         allowedSpp: 10 + Math.random() * 5,
+        build25Ratio: 50 + Math.random() * 20,
         avgAttackDuration: 25 + Math.random() * 10,
         timePerCE: 40 + Math.random() * 20,
+        pressAttempts: 20 + Math.floor(Math.random() * 10),
+        pressSuccess: 10 + Math.floor(Math.random() * 5)
     }
 }
 
 function generateQuarterlyStats(): QuarterStats[] {
   return ['Q1', 'Q2', 'Q3', 'Q4'].map(q => ({
     quarter: q,
-    home: {
-      ...generateTeamMatchStats(),
-      spp: 8 + Math.random() * 4
-    },
-    away: {
-      ...generateTeamMatchStats(),
-      spp: 8 + Math.random() * 4
-    }
+    home: generateTeamMatchStats(),
+    away: generateTeamMatchStats()
   }));
 }
 
@@ -111,12 +112,12 @@ export const mockMatchData: MatchData = {
   circleEntries: generateCircleEntries(),
   attackThreatData: generateAttackThreatData(),
   build25Ratio: {
-    home: 0.62,
-    away: 0.51,
+    home: 62.5,
+    away: 51.2,
   },
   spp: {
-    home: 9.87,
-    away: 11.23,
+    home: 9.8,
+    away: 11.2,
   },
   matchStats: {
     home: generateTeamMatchStats(),

@@ -114,25 +114,25 @@ export function Dashboard() {
                   <div className="grid grid-cols-2 gap-3">
                     <StatsCard
                       title="SPP (압박 지수)"
-                      value={Number(matchData.matchStats.home.spp).toFixed(1)}
+                      value={Number(matchData.matchStats.home.spp || 0).toFixed(1)}
                       description="낮을수록 우수"
                       icon={<TrendingDown className="text-emerald-500 h-4 w-4" />}
                     />
                     <StatsCard
                       title="빌드업 성공률"
-                      value={`${Number(matchData.matchStats.home.build25Ratio).toFixed(1)}%`}
+                      value={`${Number(matchData.matchStats.home.build25Ratio || 0).toFixed(1)}%`}
                       description="25m 진입 성공률"
                       icon={<ShieldCheck className="text-primary/60 h-4 w-4" />}
                     />
                     <StatsCard
                       title="공격 유지 시간"
-                      value={`${Number(matchData.matchStats.home.avgAttackDuration).toFixed(1)}s`}
+                      value={`${Number(matchData.matchStats.home.avgAttackDuration || 0).toFixed(1)}s`}
                       description="평균"
                       icon={<Target className="text-primary/60 h-4 w-4" />}
                     />
                     <StatsCard
                       title="CE 소요 시간"
-                      value={`${Number(matchData.matchStats.home.timePerCE).toFixed(1)}s`}
+                      value={`${Number(matchData.matchStats.home.timePerCE || 0).toFixed(1)}s`}
                       description="진입당 시간"
                       icon={<Activity className="text-primary/60 h-4 w-4" />}
                     />
@@ -148,25 +148,25 @@ export function Dashboard() {
                   <div className="grid grid-cols-2 gap-3">
                     <StatsCard
                       title="SPP (압박 지수)"
-                      value={Number(matchData.matchStats.away.spp).toFixed(1)}
+                      value={Number(matchData.matchStats.away.spp || 0).toFixed(1)}
                       description="낮을수록 우수"
                       icon={<TrendingDown className="text-emerald-500 h-4 w-4" />}
                     />
                     <StatsCard
                       title="빌드업 성공률"
-                      value={`${Number(matchData.matchStats.away.build25Ratio).toFixed(1)}%`}
+                      value={`${Number(matchData.matchStats.away.build25Ratio || 0).toFixed(1)}%`}
                       description="25m 진입 성공률"
                       icon={<ShieldCheck className="text-primary/60 h-4 w-4" />}
                     />
                     <StatsCard
                       title="공격 유지 시간"
-                      value={`${Number(matchData.matchStats.away.avgAttackDuration).toFixed(1)}s`}
+                      value={`${Number(matchData.matchStats.away.avgAttackDuration || 0).toFixed(1)}s`}
                       description="평균"
                       icon={<Target className="text-primary/60 h-4 w-4" />}
                     />
                     <StatsCard
                       title="CE 소요 시간"
-                      value={`${Number(matchData.matchStats.away.timePerCE).toFixed(1)}s`}
+                      value={`${Number(matchData.matchStats.away.timePerCE || 0).toFixed(1)}s`}
                       description="진입당 시간"
                       icon={<Activity className="text-primary/60 h-4 w-4" />}
                     />

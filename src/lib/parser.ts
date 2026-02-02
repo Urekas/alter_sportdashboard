@@ -1,8 +1,7 @@
-
 import type { MatchEvent, MatchData, TeamMatchStats, QuarterStats } from './types';
 
 /**
- * 텍스트 데이터(XML 또는 CSV 행)에서 "팀명 0 - 팀명 0" 또는 "팀명(HOME side) - 팀명(AWAY side)" 패턴을 찾아
+ * 텍스트 데이터에서 "팀명 0 - 팀명 0" 또는 "(HOME side) - (AWAY side)" 패턴을 찾아
  * 홈팀과 어웨이팀의 실제 이름을 확정합니다.
  */
 const detectRealTeamNames = (text: string): { home: string, away: string } | null => {
@@ -22,7 +21,7 @@ const detectRealTeamNames = (text: string): { home: string, away: string } | nul
 
 /**
  * 코드에 HOME/AWAY가 포함되어 있으면 감지된 실제 팀명으로 치환하고,
- * 그 외에는 첫 단어를 추출합니다. (형님의 Python 로직 반영)
+ * 그 외에는 첫 단어를 추출합니다. (Python 로직 반영)
  */
 const extractTeamName = (code: string, detectedTeams: { home: string, away: string } | null): string => {
   if (!code) return "Unknown";
@@ -65,7 +64,6 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(xmlText, "text/xml");
   
-  // 전체 XML 텍스트에서 팀명 패턴 찾기
   let detectedTeams = detectRealTeamNames(xmlText);
   
   const instances = xmlDoc.getElementsByTagName("instance");
@@ -75,7 +73,6 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
   Array.from(instances).forEach((instance, index) => {
     const code = (instance.getElementsByTagName("code")[0]?.textContent || "").trim();
     
-    // 만약 전체에서 못찾았다면 개별 레이블에서 다시 시도
     if (!detectedTeams) {
       const labels = instance.getElementsByTagName("label");
       for (let i = 0; i < labels.length; i++) {
@@ -152,7 +149,6 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
   const events: MatchEvent[] = [];
   const teamCounts: Record<string, number> = {};
 
-  // 팀명 감지를 위해 먼저 전체 순회
   for (let i = 1; i < lines.length; i++) {
     const row = lines[i].split(',');
     const ungrouped = getCol(row, "Ungrouped");
@@ -223,14 +219,13 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const teamTime = us.filter(e => e.code.includes('TEAM')).reduce((acc, e) => acc + e.duration, 0);
     const attTime = us.filter(e => e.code.includes('ATT')).reduce((acc, e) => acc + e.duration, 0);
     const buildUpTime = Math.max(0, teamTime - attTime);
-    
+
     const oppTeamTime = opp.filter(e => e.code.includes('TEAM')).reduce((acc, e) => acc + e.duration, 0);
     const oppAttTime = opp.filter(e => e.code.includes('ATT')).reduce((acc, e) => acc + e.duration, 0);
 
     const countEventsByLoc = (evts: MatchEvent[], rowKeyword: string, zones: string[]) => 
       evts.filter(e => (e.code.includes(rowKeyword) || e.type === rowKeyword) && zones.some(z => e.locationLabel.includes(z) || e.code.includes(z))).length;
 
-    // SPP 공식 적용 (Python 로직)
     const us_to_75_100 = countEventsByLoc(us, '턴오버', ['75', '100']);
     const us_foul_75_100 = countEventsByLoc(us, '파울', ['75', '100']);
     const opp_foul_25_50 = countEventsByLoc(opp, '파울', ['25', '50']);
@@ -274,15 +269,6 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
   const homeStats = calculateTeamStats(homeName, awayName, events);
   const awayStats = calculateTeamStats(awayName, homeName, events);
 
-  const quarterlyStats: QuarterStats[] = ['Q1', 'Q2', 'Q3', 'Q4'].map(q => {
-    const qEvents = events.filter(e => e.quarter === q);
-    return {
-      quarter: q,
-      home: calculateTeamStats(homeName, awayName, qEvents),
-      away: calculateTeamStats(awayName, homeName, qEvents)
-    };
-  });
-
   return {
     homeTeam,
     awayTeam,
@@ -305,6 +291,13 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     build25Ratio: { home: homeStats.build25Ratio, away: awayStats.build25Ratio },
     spp: { home: homeStats.spp, away: awayStats.spp },
     matchStats: { home: homeStats, away: awayStats },
-    quarterlyStats
+    quarterlyStats: ['Q1', 'Q2', 'Q3', 'Q4'].map(q => {
+      const qEvents = events.filter(e => e.quarter === q);
+      return {
+        quarter: q,
+        home: calculateTeamStats(homeName, awayName, qEvents),
+        away: calculateTeamStats(awayName, homeName, qEvents)
+      };
+    })
   };
 };
