@@ -72,6 +72,12 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
               ))}
             </TableRow>
             <TableRow>
+              <TableCell className="pl-6 text-sm font-medium">ATT Possession (%)</TableCell>
+              {quarterlyStats.map(q => (
+                <TableCell key={q.quarter} className="text-center border-x">{q.home.attackPossession}%</TableCell>
+              ))}
+            </TableRow>
+            <TableRow>
               <TableCell className="pl-6 text-sm font-medium">Avg SPP (s)</TableCell>
               {quarterlyStats.map(q => (
                 <TableCell key={q.quarter} className="text-center border-x">{q.home.spp.toFixed(1)}s</TableCell>
@@ -108,6 +114,12 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
               <TableCell className="pl-6 text-sm font-medium">Possession (%)</TableCell>
               {quarterlyStats.map(q => (
                 <TableCell key={q.quarter} className="text-center border-x">{q.away.possession}%</TableCell>
+              ))}
+            </TableRow>
+            <TableRow>
+              <TableCell className="pl-6 text-sm font-medium">ATT Possession (%)</TableCell>
+              {quarterlyStats.map(q => (
+                <TableCell key={q.quarter} className="text-center border-x">{q.away.attackPossession}%</TableCell>
               ))}
             </TableRow>
             <TableRow>

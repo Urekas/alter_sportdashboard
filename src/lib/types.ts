@@ -34,6 +34,7 @@ export interface TeamMatchStats {
     circleEntries: number;
     twentyFiveEntries: number;
     possession: number;
+    attackPossession: number;
     allowedSpp: number;
 }
 

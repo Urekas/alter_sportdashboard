@@ -13,6 +13,7 @@ import { CircleEntryAnalysis } from "./circle-entry-analysis"
 import { BasicMatchStats } from "./basic-match-stats"
 import { AttackThreatChart } from "./attack-threat-chart"
 import { QuarterlyStatsTable } from "./quarterly-stats-table"
+import { BuildUpEfficiencyChart } from "./build-up-efficiency-chart"
 import { parseXMLData, parseCSVData, createMatchDataFromUpload } from "@/lib/parser"
 
 
@@ -191,6 +192,10 @@ export function Dashboard() {
                   teamName={matchData.awayTeam.name}
                   entries={matchData.circleEntries.filter(e => e.team === matchData.awayTeam.name)}
                 />
+              </div>
+
+              <div className="w-full">
+                <BuildUpEfficiencyChart data={matchData} />
               </div>
 
               <div className="w-full">

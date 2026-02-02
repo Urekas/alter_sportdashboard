@@ -60,6 +60,11 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
       homeValue: `${matchStats.home.possession.toFixed(0)}%`,
       awayValue: `${matchStats.away.possession.toFixed(0)}%`,
     },
+    {
+      label: "ATT Possession %",
+      homeValue: `${matchStats.home.attackPossession.toFixed(0)}%`,
+      awayValue: `${matchStats.away.attackPossession.toFixed(0)}%`,
+    },
   ]
 
   return (

@@ -69,6 +69,7 @@ function generateTeamMatchStats(): TeamMatchStats {
         circleEntries: 15 + Math.floor(Math.random() * 10),
         twentyFiveEntries: 25 + Math.floor(Math.random() * 15),
         possession: 40 + Math.floor(Math.random() * 20),
+        attackPossession: 20 + Math.floor(Math.random() * 20),
         allowedSpp: 10 + Math.random() * 5,
     }
 }
@@ -82,6 +83,7 @@ function generateQuarterlyStats(): QuarterStats[] {
       circleEntries: 4 + Math.floor(Math.random() * 6),
       twentyFiveEntries: 6 + Math.floor(Math.random() * 8),
       possession: 45 + Math.floor(Math.random() * 10),
+      attackPossession: 20 + Math.floor(Math.random() * 10),
       spp: 8 + Math.random() * 4
     },
     away: {
@@ -90,6 +92,7 @@ function generateQuarterlyStats(): QuarterStats[] {
       circleEntries: 4 + Math.floor(Math.random() * 6),
       twentyFiveEntries: 6 + Math.floor(Math.random() * 8),
       possession: 45 + Math.floor(Math.random() * 10),
+      attackPossession: 20 + Math.floor(Math.random() * 10),
       spp: 8 + Math.random() * 4
     }
   }));
