@@ -130,13 +130,13 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
 
             {/* --- 2. Arrows (Adjusted positions) --- */}
             <g stroke="rgba(70, 130, 180, 0.7)" strokeWidth="0.8" markerEnd="url(#arrow-head-blue)">
-              {/* Left Arrow (Up 2) */}
+              {/* Left Arrow (Moved up 2) */}
               <line x1="2.75" y1={toSvgY(17)} x2="11.0" y2={toSvgY(8)} />
               
-              {/* Center Arrow (Up 1 from current) */}
-              <line x1="27.5" y1={toSvgY(15) + 4} x2="27.5" y2={toSvgY(5) + 4} />
+              {/* Center Arrow (Moved up 1 from previous +4, so +3) */}
+              <line x1="27.5" y1={toSvgY(15) + 3} x2="27.5" y2={toSvgY(5) + 3} />
               
-              {/* Right Arrow (Up 2) */}
+              {/* Right Arrow (Moved up 2) */}
               <line x1="52.25" y1={toSvgY(17)} x2="44.0" y2={toSvgY(8)} />
             </g>
 
@@ -150,8 +150,8 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
                 <tspan x="6.5" dy="1.6" fontWeight="bold" fill="#d62728">효율: {analysis.Left.eff}%</tspan>
               </text>
 
-              {/* Center Text */}
-              <text x="27.5" y={toSvgY(17) + 4}>
+              {/* Center Text (Moved up 1 from previous +4, so +3) */}
+              <text x="27.5" y={toSvgY(17) + 3}>
                 <tspan x="27.5" dy="0" fontWeight="bold">Center</tspan>
                 <tspan x="27.5" dy="1.6" fontWeight="normal">진입: {analysis.Center.entries}회</tspan>
                 <tspan x="27.5" dy="1.6" fontWeight="normal">Success(슈팅/pc/득점): {analysis.Center.success}회</tspan>
