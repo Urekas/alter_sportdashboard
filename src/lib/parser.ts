@@ -2,22 +2,41 @@
 import type { MatchEvent, MatchData, TeamMatchStats, CircleEntry, QuarterStats } from './types';
 
 /**
- * 파이썬 extract_team 로직 100% 이식
- * 1. 공백으로 분리 후 첫 단어를 팀명으로 인식
- * 2. 분석 제외 태그 및 일반 명칭(HOME/AWAY) 필터링하여 레이블에서 실제 팀명을 찾도록 유도
+ * XML의 모든 인스턴스를 훑어서 "TeamA(HOME side) 0 - TeamB(AWAY side) 0" 패턴을 찾고
+ * 홈팀과 어웨이팀 이름을 확정합니다.
  */
-const extractTeamName = (code: string): string => {
+const detectRealTeamNames = (xmlDoc: Document): { home: string, away: string } | null => {
+  const labels = xmlDoc.getElementsByTagName("label");
+  const pattern = /^(.*?)\(HOME side\)\s*\d+\s*-\s*(.*?)\(AWAY side\)\s*\d+/i;
+
+  for (let i = 0; i < labels.length; i++) {
+    const text = labels[i].getElementsByTagName("text")[0]?.textContent || "";
+    const match = text.match(pattern);
+    if (match) {
+      return {
+        home: match[1].trim(),
+        away: match[2].trim()
+      };
+    }
+  }
+  return null;
+};
+
+const extractTeamName = (code: string, detectedTeams: { home: string, away: string } | null): string => {
   if (!code) return "Unknown";
-  // 파이썬 로직: first = row_str.split(' ')[0]
+  const upperCode = code.toUpperCase();
+
+  // 1. HOME/AWAY 명시적 코드 매핑
+  if (detectedTeams) {
+    if (upperCode.includes("HOME")) return detectedTeams.home;
+    if (upperCode.includes("AWAY")) return detectedTeams.away;
+  }
+
+  // 2. 파이썬 로직: 첫 단어 추출
   const first = code.trim().split(/\s+/)[0];
-  
-  // 파이썬 코드의 ignore_tags + 분석 방해 요소 추가
-  const ignoreTags = [
-    "한국빌드업", "한국프레스", "코치님", "START", "Unknown", "??", "YOO", 
-    "givepc", "getpc", "HOME", "AWAY", "Home", "Away", "HOMETEAM", "AWAYTEAM"
-  ];
-  
+  const ignoreTags = ["한국빌드업", "한국프레스", "코치님", "START", "Unknown", "??", "YOO", "givepc", "getpc"];
   if (ignoreTags.includes(first)) return "Unknown";
+  
   return first;
 };
 
@@ -43,32 +62,30 @@ const mapZone = (locStr: string): { x: number, y: number, lane: 'Left' | 'Center
 export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { home: string, away: string } } => {
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+  
+  // 실제 팀명 감지 (패턴: TeamA(HOME side) 0 - TeamB(AWAY side) 0)
+  const detectedTeams = detectRealTeamNames(xmlDoc);
+  
   const instances = xmlDoc.getElementsByTagName("instance");
   const events: MatchEvent[] = [];
   const teamCounts: Record<string, number> = {};
 
   Array.from(instances).forEach((instance, index) => {
     const code = (instance.getElementsByTagName("code")[0]?.textContent || "").trim();
-    let team = extractTeamName(code);
+    let team = extractTeamName(code, detectedTeams);
     
     const labels = instance.getElementsByTagName("label");
     let locLabel = "";
     let resultLabel = "";
-    let detectedTeamLabel = "";
 
     for (let i = 0; i < labels.length; i++) {
       const group = (labels[i].getElementsByTagName("group")[0]?.textContent || "").trim();
       const text = (labels[i].getElementsByTagName("text")[0]?.textContent || "").trim();
-      
       if (/지역|Location|Zone/i.test(group)) locLabel += text + " ";
       else if (/결과|Result|Outcome/i.test(group)) resultLabel += text + " ";
-      else if (/팀|Team|Country|국가/i.test(group)) detectedTeamLabel = text;
     }
 
-    // code에서 못 뽑았거나(Unknown), 일반 명칭인 경우 레이블에서 추출한 실제 국가명 사용
-    if (team === "Unknown" && detectedTeamLabel) team = detectedTeamLabel;
-    if (team === "Unknown") return;
-
+    if (team === "Unknown" || !team) return;
     teamCounts[team] = (teamCounts[team] || 0) + 1;
 
     const startTime = parseFloat(instance.getElementsByTagName("start")[0]?.textContent || "0");
@@ -96,15 +113,14 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     });
   });
 
-  const sortedTeams = Object.keys(teamCounts).sort((a, b) => teamCounts[b] - teamCounts[a]);
-  const preferred = ["한국", "Korea", "일본", "Japan", "인도", "India", "중국", "China"];
-  let home = sortedTeams[0] || "Home Team";
-  let away = sortedTeams[1] || "Away Team";
+  let home = detectedTeams?.home || "Home Team";
+  let away = detectedTeams?.away || "Away Team";
 
-  const detectedPreferred = preferred.filter(p => sortedTeams.includes(p));
-  if (detectedPreferred.length >= 2) {
-    home = detectedPreferred[0];
-    away = detectedPreferred[1];
+  // 감지된 팀명이 없을 경우 빈도순으로 결정
+  if (!detectedTeams) {
+    const sortedTeams = Object.keys(teamCounts).sort((a, b) => teamCounts[b] - teamCounts[a]);
+    home = sortedTeams[0] || "Home Team";
+    away = sortedTeams[1] || "Away Team";
   }
 
   return { events, teams: { home, away } };
@@ -128,7 +144,6 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const countEventsByLoc = (evts: MatchEvent[], rowKeyword: string, zones: string[]) => 
       evts.filter(e => (e.code.includes(rowKeyword) || e.type === rowKeyword) && zones.some(z => e.locationLabel.includes(z) || e.code.includes(z))).length;
 
-    // 파이썬 compute_press_metrics 공식 100% 적용
     const us_to_75_100 = countEventsByLoc(us, '턴오버', ['75', '100']);
     const us_foul_75_100 = countEventsByLoc(us, '파울', ['75', '100']);
     const opp_foul_25_50 = countEventsByLoc(opp, '파울', ['25', '50']);
