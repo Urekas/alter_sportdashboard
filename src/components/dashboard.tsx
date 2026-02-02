@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useState, useRef } from "react"
-import { Upload, Printer, TrendingDown, Target, Activity, ShieldCheck, ChevronRight } from "lucide-react"
+import { Upload, Printer, TrendingDown, Target, Activity, ShieldCheck } from "lucide-react"
 import type { MatchData } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
 import { Button } from "@/components/ui/button"
@@ -94,15 +94,13 @@ export function Dashboard() {
           </div>
         ) : (
           <div className="space-y-8 animate-in fade-in duration-500">
-            {/* 요약 카드 섹션 - 홈/어웨이 병렬 배치 */}
             <div className="space-y-4">
               <h2 className="text-xl font-bold border-l-4 border-primary pl-3">핵심 퍼포먼스 요약 (Key Metrics)</h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Home Team 요약 */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-primary font-bold">
                     <div className="w-3 h-3 rounded-full bg-[#d62728]" />
-                    {matchData.homeTeam.name} (Home)
+                    {matchData.homeTeam.name} (홈)
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <StatsCard
@@ -132,11 +130,10 @@ export function Dashboard() {
                   </div>
                 </div>
 
-                {/* Away Team 요약 */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-chart-2 font-bold">
                     <div className="w-3 h-3 rounded-full bg-[#1f77b4]" />
-                    {matchData.awayTeam.name} (Away)
+                    {matchData.awayTeam.name} (어웨이)
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <StatsCard
@@ -168,7 +165,6 @@ export function Dashboard() {
               </div>
             </div>
 
-            {/* 통계표 및 압박 배틀 그래프 순서 변경 */}
             <div className="grid grid-cols-1 gap-8">
               <BasicMatchStats data={matchData} />
               <div className="w-full">
@@ -182,9 +178,7 @@ export function Dashboard() {
             </div>
 
             <BuildUpEfficiencyChart data={matchData} />
-            
             <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
-            
             <AttackThreatChart data={matchData.attackThreatData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
 
             <div className="pt-8">
@@ -194,7 +188,6 @@ export function Dashboard() {
               <QuarterlyStatsTable data={matchData} />
             </div>
 
-            {/* 데이터 검증 로그 섹션 */}
             <div className="pt-12 print-hidden">
               <Accordion type="single" collapsible className="w-full border rounded-xl bg-muted/20">
                 <AccordionItem value="log" className="border-none">
@@ -209,7 +202,7 @@ export function Dashboard() {
                             <TableHead>No.</TableHead>
                             <TableHead>팀 (추출됨)</TableHead>
                             <TableHead>코드 (Code/Row)</TableHead>
-                            <TableHead>레이블 (Labels/지역/결과)</TableHead>
+                            <TableHead>레이블 (지역/결과)</TableHead>
                             <TableHead>시간 (Start)</TableHead>
                           </TableRow>
                         </TableHeader>

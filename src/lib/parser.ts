@@ -1,9 +1,6 @@
 
 import type { MatchEvent, MatchData, TeamMatchStats, CircleEntry, QuarterStats } from './types';
 
-const PITCH_LENGTH = 91.4;
-const PITCH_WIDTH = 55;
-
 // Python: extract_team 로직 100% 동일 구현
 const extractTeamName = (code: string): string => {
   if (!code) return "Unknown";
@@ -21,15 +18,15 @@ const mapZone = (locStr: string): { x: number, y: number, lane: 'Left' | 'Center
   if (text.includes('좌') || text.includes('LEFT') || text.includes('L_')) lane = 'Left';
   else if (text.includes('우') || text.includes('RIGHT') || text.includes('R_')) lane = 'Right';
 
-  let x = PITCH_LENGTH * 0.5;
-  if (text.includes('100')) x = PITCH_LENGTH * 0.9;
-  else if (text.includes('75')) x = PITCH_LENGTH * 0.7;
-  else if (text.includes('50')) x = PITCH_LENGTH * 0.5;
-  else if (text.includes('25')) x = PITCH_LENGTH * 0.25;
+  let x = 45.7; // Default mid
+  if (text.includes('100')) x = 91.4 * 0.9;
+  else if (text.includes('75')) x = 91.4 * 0.7;
+  else if (text.includes('50')) x = 91.4 * 0.5;
+  else if (text.includes('25')) x = 91.4 * 0.25;
 
-  let y = PITCH_WIDTH * 0.5;
-  if (lane === 'Left') y = PITCH_WIDTH * 0.2;
-  else if (lane === 'Right') y = PITCH_WIDTH * 0.8;
+  let y = 27.5;
+  if (lane === 'Left') y = 55 * 0.2;
+  else if (lane === 'Right') y = 55 * 0.8;
 
   return { x, y, lane };
 };
@@ -43,7 +40,7 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
 
   Array.from(instances).forEach((instance, index) => {
     const code = (instance.getElementsByTagName("code")[0]?.textContent || "").trim();
-    // Python 로직 적용: 코드의 첫 단어를 팀명으로
+    // Python 로직: 코드의 첫 단어를 팀명으로
     let team = extractTeamName(code);
     
     const labels = instance.getElementsByTagName("label");
@@ -60,7 +57,6 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
       else if (/팀|Team|Country/i.test(group)) detectedTeamLabel = text;
     }
 
-    // 코드로 팀명을 못찾으면 레이블에서 보완
     if (team === "Unknown" && detectedTeamLabel) team = detectedTeamLabel;
     if (team === "Unknown") return;
 
@@ -92,11 +88,10 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
   });
 
   const sortedTeams = Object.keys(teamCounts).sort((a, b) => teamCounts[b] - teamCounts[a]);
-  
-  // 일본/인도 순서 고정 (Python order_teams 로직)
-  const preferred = ["일본", "Japan", "인도", "India"];
-  let home = sortedTeams[0] || "Japan";
-  let away = sortedTeams[1] || "India";
+  // 일본/인도/한국/중국 순서 고려
+  const preferred = ["한국", "Korea", "일본", "Japan", "인도", "India", "중국", "China"];
+  let home = sortedTeams[0] || "Home Team";
+  let away = sortedTeams[1] || "Away Team";
 
   const detectedPreferred = preferred.filter(p => sortedTeams.includes(p));
   if (detectedPreferred.length >= 2) {
@@ -124,39 +119,34 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
 
     // Python: compute_press_metrics 100% 동일 구현
     const countEventsByLoc = (evts: MatchEvent[], rowKeyword: string, zones: string[]) => 
-      evts.filter(e => e.code.includes(rowKeyword) && zones.some(z => e.locationLabel.includes(z) || e.code.includes(z))).length;
+      evts.filter(e => (e.code.includes(rowKeyword) || e.type === rowKeyword) && zones.some(z => e.locationLabel.includes(z) || e.code.includes(z))).length;
 
-    // 우리팀 프레스 시도 및 성공
     const us_to_75_100 = countEventsByLoc(us, '턴오버', ['75', '100']);
     const us_foul_75_100 = countEventsByLoc(us, '파울', ['75', '100']);
     const opp_foul_25_50 = countEventsByLoc(opp, '파울', ['25', '50']);
 
-    // 상대팀 프레스 시도 (우리가 당한 압박)
+    const pressAttempts = us_to_75_100 + us_foul_75_100 + opp_foul_25_50;
+    
     const opp_to_75_100 = countEventsByLoc(opp, '턴오버', ['75', '100']);
     const opp_foul_75_100 = countEventsByLoc(opp, '파울', ['75', '100']);
     const us_foul_25_50 = countEventsByLoc(us, '파울', ['25', '50']);
-
-    const pressAttempts = us_to_75_100 + us_foul_75_100 + opp_foul_25_50;
-    const pressSuccess = us_to_75_100 + us_foul_75_100;
     const allowedDenom = opp_to_75_100 + opp_foul_75_100 + us_foul_25_50;
 
     const spp = pressAttempts > 0 ? buildUpTime / pressAttempts : 0;
     const allowedSpp = allowedDenom > 0 ? buildUpTime / allowedDenom : 0;
 
-    // Build25 성공률: DM START | D25 START -> 결과에 '25Y entry'
     const buildRows = us.filter(e => /DM START|D25 START/.test(e.code));
     const build25Success = buildRows.filter(e => e.resultLabel.includes('25Y entry')).length;
 
-    const ceCount = us.filter(e => /서클\s*진입|슈팅\s*서클|circle\s*entry|attack\s*circle/i.test(e.code)).length;
+    const ceCount = us.filter(e => /서클\s*진입|슈팅\s*서클|circle\s*entry/i.test(e.code)).length;
     const shotCount = us.filter(e => e.code.includes('슈팅') || e.code.toLowerCase().includes('shot')).length;
     
     const pcRows = us.filter(e => /페널티\s*코너|PC|penalty\s*corner/i.test(e.code));
-    const totalGoalEvents = us.filter(e => e.code.includes('득점') || e.code.toLowerCase().includes('goal'));
-    const totalGoals = totalGoalEvents.length;
     const pcGoals = pcRows.filter(e => e.resultLabel.toUpperCase().includes('GOAL') || e.resultLabel.includes('득점')).length;
+    const totalGoalEvents = us.filter(e => e.code.includes('득점') || e.code.toLowerCase().includes('goal')).length;
 
     return {
-      goals: { field: Math.max(0, totalGoals - pcGoals), pc: pcGoals },
+      goals: { field: Math.max(0, totalGoalEvents - pcGoals), pc: pcGoals },
       shots: shotCount,
       circleEntries: ceCount,
       twentyFiveEntries: us.filter(e => e.code.includes('A25 START')).length,
@@ -168,7 +158,7 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
       avgAttackDuration: us.filter(e => e.code.includes('ATT')).length > 0 ? attTime / us.filter(e => e.code.includes('ATT')).length : 0,
       timePerCE: ceCount > 0 ? attTime / ceCount : 0,
       pressAttempts,
-      pressSuccess
+      pressSuccess: us_to_75_100 + us_foul_75_100
     };
   };
 
@@ -190,8 +180,8 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     events,
     pressureData: Array(20).fill(0).map((_, i) => ({
       interval: `${(i+1)*3}'`,
-      [homeName]: (homeStats.spp + (Math.random() - 0.5) * 2),
-      [awayName]: (awayStats.spp + (Math.random() - 0.5) * 2),
+      [homeName]: parseFloat((homeStats.spp + (Math.random() - 0.5) * 2).toFixed(2)),
+      [awayName]: parseFloat((awayStats.spp + (Math.random() - 0.5) * 2).toFixed(2)),
     })),
     circleEntries: events.filter(e => /서클\s*진입|슈팅\s*서클/i.test(e.code)).map(e => ({
       team: e.team,
@@ -200,8 +190,8 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     })),
     attackThreatData: Array(12).fill(0).map((_, i) => ({
       interval: `${(i+1)*5}'`,
-      [homeName]: (Math.floor(Math.random() * 5) + (homeStats.shots / 12)),
-      [awayName]: (Math.floor(Math.random() * 5) + (awayStats.shots / 12)),
+      [homeName]: parseFloat((Math.floor(Math.random() * 5) + (homeStats.shots / 12)).toFixed(2)),
+      [awayName]: parseFloat((Math.floor(Math.random() * 5) + (awayStats.shots / 12)).toFixed(2)),
     })),
     build25Ratio: { home: homeStats.build25Ratio, away: awayStats.build25Ratio },
     spp: { home: homeStats.spp, away: awayStats.spp },
