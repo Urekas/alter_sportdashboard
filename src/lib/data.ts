@@ -1,4 +1,4 @@
-import type { MatchData, TeamMatchStats, AttackThreatDataPoint, TurnoverEvent, CircleEntry } from './types';
+import type { MatchData, TeamMatchStats, AttackThreatDataPoint, MatchEvent, CircleEntry } from './types';
 
 const HOME_TEAM = { name: 'Blues', color: 'hsl(var(--chart-1))' };
 const AWAY_TEAM = { name: 'Reds', color: 'hsl(var(--chart-2))' };
@@ -26,21 +26,23 @@ function generatePressureData(): MatchData['pressureData'] {
   return data;
 }
 
-function generateTurnovers(): TurnoverEvent[] {
-  const turnovers: TurnoverEvent[] = [];
-  for (let i = 0; i < 150; i++) {
+function generateEvents(): MatchEvent[] {
+  const events: MatchEvent[] = [];
+  for (let i = 0; i < 200; i++) {
     const team = Math.random() > 0.5 ? HOME_TEAM.name : AWAY_TEAM.name;
-    turnovers.push({
+    const type = Math.random() > 0.7 ? 'foul' : 'turnover';
+    events.push({
       id: `evt-${i}`,
       team,
-      quarter: `Q${Math.floor(i / 38) + 1}`,
-      time: (i % 38) * 40,
+      type,
+      quarter: `Q${Math.floor(i / 50) + 1}`,
+      time: (i % 50) * 30,
       x: Math.random() * PITCH_LENGTH,
       y: Math.random() * PITCH_WIDTH,
       locationLabel: 'Mock Location',
     });
   }
-  return turnovers;
+  return events;
 }
 
 function generateCircleEntries(): MatchData['circleEntries'] {
@@ -76,7 +78,7 @@ function generateAttackThreatData(): AttackThreatDataPoint[] {
     const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
     return quarters.map(q => ({
         quarter: q,
-        [HOME_TEAM.name]: Math.floor(Math.random() * 8) + 2, // Random threat between 2 and 9
+        [HOME_TEAM.name]: Math.floor(Math.random() * 8) + 2,
         [AWAY_TEAM.name]: Math.floor(Math.random() * 8) + 2,
     }));
 }
@@ -85,7 +87,7 @@ export const mockMatchData: MatchData = {
   homeTeam: HOME_TEAM,
   awayTeam: AWAY_TEAM,
   pressureData: generatePressureData(),
-  turnovers: generateTurnovers(),
+  events: generateEvents(),
   circleEntries: generateCircleEntries(),
   attackThreatData: generateAttackThreatData(),
   build25Ratio: {
@@ -101,5 +103,3 @@ export const mockMatchData: MatchData = {
     away: generateTeamMatchStats(),
   }
 };
-
-    

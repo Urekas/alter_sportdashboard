@@ -2,13 +2,13 @@
 
 import React, { useState, useRef } from "react"
 import { Upload, Printer, FileText, TrendingUp, TrendingDown } from "lucide-react"
-import type { MatchData, TurnoverEvent } from "@/lib/types"
+import type { MatchData, MatchEvent } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { StatsCard } from "./stats-card"
 import { PressureBattleChart } from "./pressure-battle-chart"
-import { TurnoverHeatmap } from "./turnover-heatmap"
+import { PressureAnalysisMap } from "./pressure-analysis-map"
 import { CircleEntryAnalysis } from "./circle-entry-analysis"
 import { BasicMatchStats } from "./basic-match-stats"
 import { AttackThreatChart } from "./attack-threat-chart"
@@ -40,12 +40,12 @@ export function Dashboard() {
       reader.onload = (e) => {
         try {
           const content = e.target?.result as string;
-          let turnovers: TurnoverEvent[] = [];
+          let events: MatchEvent[] = [];
           
           if (file.name.endsWith('.xml')) {
-            turnovers = parseXMLData(content, mockMatchData.homeTeam.name, mockMatchData.awayTeam.name);
+            events = parseXMLData(content, mockMatchData.homeTeam.name, mockMatchData.awayTeam.name);
           } else if (file.name.endsWith('.csv')) {
-            turnovers = parseCSVData(content);
+            events = parseCSVData(content);
           } else {
              toast({
               title: "File Type Not Supported",
@@ -55,22 +55,21 @@ export function Dashboard() {
             return;
           }
 
-          if (turnovers.length === 0) {
+          if (events.length === 0) {
               toast({
-                title: "No Turnover Events Found",
-                description: 'The file was read, but no events containing "turnover" or "턴오버" were found. Please check the file content.',
+                title: "No Events Found",
+                description: 'The file was read, but no match events were found. Please check the file content.',
                 variant: "destructive",
               });
               return;
           }
             
-          // Create a full match data object from the parsed turnovers
-          const newMatchData = createMatchDataFromUpload(turnovers, mockMatchData.homeTeam.name, mockMatchData.awayTeam.name);
+          const newMatchData = createMatchDataFromUpload(events, mockMatchData.homeTeam.name, mockMatchData.awayTeam.name);
             
           setMatchData(newMatchData);
           toast({
             title: "Analysis Complete",
-            description: `Found and processed ${turnovers.length} turnover events from ${file.name}.`,
+            description: `Found and processed ${events.length} events from ${file.name}.`,
           });
 
         } catch (error: any) {
@@ -83,14 +82,6 @@ export function Dashboard() {
         }
       };
       
-      reader.onerror = () => {
-        toast({
-            title: "File Read Error",
-            description: "Could not read the selected file.",
-            variant: "destructive"
-        });
-      };
-
       reader.readAsText(file);
     }
   }
@@ -194,8 +185,8 @@ export function Dashboard() {
                 homeTeam={matchData.homeTeam}
                 awayTeam={matchData.awayTeam}
               />
-               <TurnoverHeatmap
-                    turnovers={matchData.turnovers}
+               <PressureAnalysisMap
+                    events={matchData.events}
                     homeTeam={matchData.homeTeam}
                     awayTeam={matchData.awayTeam}
                   />

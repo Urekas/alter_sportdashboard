@@ -3,9 +3,10 @@ export interface Team {
   color: string;
 }
 
-export interface TurnoverEvent {
+export interface MatchEvent {
   id: string;
   team: string;
+  type: 'turnover' | 'foul';
   quarter: string;
   time: number;
   x: number; // 0 to 91.4 (Meters)
@@ -44,7 +45,7 @@ export interface AttackThreatDataPoint {
 export interface MatchData {
   homeTeam: Team;
   awayTeam: Team;
-  turnovers: TurnoverEvent[];
+  events: MatchEvent[];
   pressureData: PressureDataPoint[];
   circleEntries: CircleEntry[];
   attackThreatData: AttackThreatDataPoint[];
