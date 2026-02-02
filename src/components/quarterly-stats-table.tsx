@@ -23,7 +23,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
       <CardHeader>
         <CardTitle>Quarterly Match Stats</CardTitle>
         <CardDescription>
-          Detailed breakdown of key metrics for each quarter.
+          Detailed breakdown of key metrics for each quarter, including comparative Attack Possession.
         </CardDescription>
       </CardHeader>
       <CardContent>
