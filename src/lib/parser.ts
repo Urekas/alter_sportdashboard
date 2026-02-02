@@ -8,9 +8,10 @@ import type { MatchEvent, MatchData, TeamMatchStats, CircleEntry, QuarterStats }
  */
 const extractTeamName = (code: string): string => {
   if (!code) return "Unknown";
+  // 파이썬 로직: first = row_str.split(' ')[0]
   const first = code.trim().split(/\s+/)[0];
   
-  // 파이썬 코드의 ignore_tags + 일반 명칭(HOME/AWAY) 추가
+  // 파이썬 코드의 ignore_tags + 분석 방해 요소 추가
   const ignoreTags = [
     "한국빌드업", "한국프레스", "코치님", "START", "Unknown", "??", "YOO", 
     "givepc", "getpc", "HOME", "AWAY", "Home", "Away", "HOMETEAM", "AWAYTEAM"
@@ -26,7 +27,7 @@ const mapZone = (locStr: string): { x: number, y: number, lane: 'Left' | 'Center
   if (text.includes('좌') || text.includes('LEFT') || text.includes('L_')) lane = 'Left';
   else if (text.includes('우') || text.includes('RIGHT') || text.includes('R_')) lane = 'Right';
 
-  let x = 45.7; // Default mid
+  let x = 45.7; 
   if (text.includes('100')) x = 91.4 * 0.9;
   else if (text.includes('75')) x = 91.4 * 0.7;
   else if (text.includes('50')) x = 91.4 * 0.5;
