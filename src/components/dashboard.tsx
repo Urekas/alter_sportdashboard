@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useRef } from "react"
@@ -27,7 +28,7 @@ export function Dashboard() {
     setMatchData(mockMatchData)
     toast({
       title: "데모 데이터 로드됨",
-      description: "Japan vs Netherlands 분석 데이터를 불러왔습니다.",
+      description: "일본 vs 인도 분석 데이터를 불러왔습니다.",
     })
   }
 
@@ -42,7 +43,7 @@ export function Dashboard() {
           if (file.name.endsWith('.xml')) {
             const { events, teams } = parseXMLData(content);
             if (events.length === 0) {
-              throw new Error("분석 가능한 이벤트가 없습니다.");
+              throw new Error("분석 가능한 이벤트가 없습니다. XML 형식을 확인하세요.");
             }
             const newData = createMatchDataFromUpload(events, teams.home, teams.away);
             setMatchData(newData);
@@ -84,7 +85,7 @@ export function Dashboard() {
             <Activity className="w-16 h-16 text-muted-foreground/40 mb-4" />
             <h2 className="text-2xl font-semibold mb-2">분석을 시작하세요</h2>
             <p className="text-muted-foreground mb-6 max-w-sm">
-              SportsCode XML 파일을 업로드하여 일본 vs 인도 경기와 같은 실제 데이터를 분석하세요.
+              SportsCode XML 파일을 업로드하여 실제 데이터를 분석하세요. (예: 아시안컵 일본 vs 인도)
             </p>
             <div className="flex gap-3">
               <Button onClick={() => fileInputRef.current?.click()}>파일 업로드</Button>
@@ -93,16 +94,17 @@ export function Dashboard() {
           </div>
         ) : (
           <div className="space-y-8 animate-in fade-in duration-500">
+            {/* 요약 카드 섹션 */}
             <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <StatsCard
                 title={`${matchData.homeTeam.name} SPP`}
-                value={matchData.spp.home.toFixed(2)}
+                value={(matchData.matchStats.home.spp || 0).toFixed(2)}
                 description="압박 효율 (낮을수록 우수)"
                 icon={<TrendingDown className="text-emerald-500" />}
               />
               <StatsCard
                 title={`${matchData.awayTeam.name} SPP`}
-                value={matchData.spp.away.toFixed(2)}
+                value={(matchData.matchStats.away.spp || 0).toFixed(2)}
                 description="압박 효율 (낮을수록 우수)"
                 icon={<TrendingUp className="text-rose-500" />}
               />
@@ -147,32 +149,35 @@ export function Dashboard() {
               <QuarterlyStatsTable data={matchData} />
             </div>
 
+            {/* 원본 데이터 검증 섹션 */}
             <div className="pt-12 print-hidden">
               <Accordion type="single" collapsible className="w-full border rounded-xl bg-muted/20">
                 <AccordionItem value="log" className="border-none">
-                  <AccordionTrigger className="px-6 py-4 hover:no-underline font-semibold">
+                  <AccordionTrigger className="px-6 py-4 hover:no-underline font-semibold text-primary">
                     데이터 파싱 로그 및 원본 데이터 검증 ({matchData.events.length}개 이벤트)
                   </AccordionTrigger>
                   <AccordionContent className="px-6 pb-6">
                     <div className="max-h-96 overflow-y-auto rounded-lg border bg-background shadow-inner">
                       <Table>
-                        <TableHeader className="bg-muted sticky top-0">
+                        <TableHeader className="bg-muted sticky top-0 z-10">
                           <TableRow>
                             <TableHead>No.</TableHead>
-                            <TableHead>시간</TableHead>
                             <TableHead>팀</TableHead>
-                            <TableHead>유형</TableHead>
-                            <TableHead>위치</TableHead>
+                            <TableHead>코드(Row)</TableHead>
+                            <TableHead>위치(지역)</TableHead>
+                            <TableHead>결과</TableHead>
+                            <TableHead>시간</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {matchData.events.map((e, i) => (
                             <TableRow key={e.id}>
                               <TableCell className="text-xs text-muted-foreground">{i + 1}</TableCell>
-                              <TableCell className="font-mono">{e.time.toFixed(1)}s</TableCell>
-                              <TableCell className="font-semibold">{e.team}</TableCell>
-                              <TableCell>{e.type === 'foul' ? '파울' : '턴오버'}</TableCell>
-                              <TableCell className="text-xs">{e.locationLabel}</TableCell>
+                              <TableCell className="font-bold">{e.team}</TableCell>
+                              <TableCell className="text-sm">{e.code}</TableCell>
+                              <TableCell className="text-sm">{e.locationLabel}</TableCell>
+                              <TableCell className="text-sm text-emerald-600 font-medium">{e.resultLabel}</TableCell>
+                              <TableCell className="font-mono text-xs">{e.time.toFixed(1)}s</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>

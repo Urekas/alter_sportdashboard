@@ -1,3 +1,4 @@
+
 export interface Team {
   name: string;
   color: string;
@@ -9,35 +10,29 @@ export interface MatchEvent {
   type: 'turnover' | 'foul';
   quarter: string;
   time: number;
-  x: number; // 0 to 91.4 (Meters)
-  y: number; // 0 to 55 (Meters)
+  duration?: number;
+  x: number;
+  y: number;
   locationLabel: string;
-}
-
-export interface PressureDataPoint {
-  interval: string; // e.g., "3'", "6'"
-  [teamName: string]: string | number; // SPP value for each team
-}
-
-export interface CircleEntry {
-  team: string;
-  channel: 'Left' | 'Center' | 'Right';
-  outcome: 'Goal' | 'Shot On Target' | 'Shot Missed' | 'No Shot';
+  resultLabel: string;
+  code: string;
 }
 
 export interface TeamMatchStats {
-    goals: {
-        field: number;
-        pc: number;
-    };
-    shots: number;
-    circleEntries: number;
-    twentyFiveEntries: number;
-    possession: number;
-    attackPossession: number;
-    allowedSpp: number;
-    avgAttackDuration: number; // 공격 1회당 유지 시간 (초)
-    timePerCE: number; // CE 1회당 소요 시간 (초)
+  goals: {
+    field: number;
+    pc: number;
+  };
+  shots: number;
+  circleEntries: number;
+  twentyFiveEntries: number;
+  possession: number;
+  attackPossession: number;
+  allowedSpp: number;
+  avgAttackDuration: number;
+  timePerCE: number;
+  spp?: number;
+  build25Ratio?: number;
 }
 
 export interface QuarterStats {
@@ -46,9 +41,20 @@ export interface QuarterStats {
   away: TeamMatchStats & { spp: number };
 }
 
+export interface PressureDataPoint {
+  interval: string;
+  [teamName: string]: string | number;
+}
+
+export interface CircleEntry {
+  team: string;
+  channel: 'Left' | 'Center' | 'Right';
+  outcome: 'Goal' | 'Shot On Target' | 'Shot Missed' | 'No Shot';
+}
+
 export interface AttackThreatDataPoint {
-  interval: string; // e.g., "5'", "10'"
-  [teamName: string]: string | number; // Attack Threat value
+  interval: string;
+  [teamName: string]: string | number;
 }
 
 export interface MatchData {
