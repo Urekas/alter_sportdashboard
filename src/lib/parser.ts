@@ -1,13 +1,13 @@
-
 import type { MatchEvent, MatchData, TeamMatchStats, CircleEntry, QuarterStats } from './types';
 
 /**
- * XML의 모든 인스턴스를 훑어서 "TeamA(HOME side) 0 - TeamB(AWAY side) 0" 패턴을 찾고
- * 홈팀과 어웨이팀 이름을 확정합니다.
+ * XML 레이블에서 "국가이름(HOME side) 0 - 국가이름(AWAY side) 0" 패턴을 찾아
+ * 홈팀과 어웨이팀의 실제 이름을 확정합니다.
  */
 const detectRealTeamNames = (xmlDoc: Document): { home: string, away: string } | null => {
   const labels = xmlDoc.getElementsByTagName("label");
-  const pattern = /^(.*?)\(HOME side\)\s*\d+\s*-\s*(.*?)\(AWAY side\)\s*\d+/i;
+  // 국가명(HOME side) 숫자 - 국가명(AWAY side) 숫자 패턴 정규식
+  const pattern = /^(.*?)\(HOME side\)\s*\d*\s*-\s*(.*?)\(AWAY side\)\s*\d*/i;
 
   for (let i = 0; i < labels.length; i++) {
     const text = labels[i].getElementsByTagName("text")[0]?.textContent || "";
@@ -22,17 +22,21 @@ const detectRealTeamNames = (xmlDoc: Document): { home: string, away: string } |
   return null;
 };
 
+/**
+ * 파이썬 로직 이식: 코드의 첫 단어를 팀명으로 추출하되, 
+ * detectRealTeamNames에서 찾은 실제 국가명이 있다면 HOME/AWAY 키워드를 해당 국가명으로 치환합니다.
+ */
 const extractTeamName = (code: string, detectedTeams: { home: string, away: string } | null): string => {
   if (!code) return "Unknown";
   const upperCode = code.toUpperCase();
 
-  // 1. HOME/AWAY 명시적 코드 매핑 (사용자 요청 반영)
+  // 1. HOME/AWAY 키워드 매핑 (검출된 실제 국가명이 있을 경우)
   if (detectedTeams) {
     if (upperCode.includes("HOME")) return detectedTeams.home;
     if (upperCode.includes("AWAY")) return detectedTeams.away;
   }
 
-  // 2. 파이썬 로직: 첫 단어 추출 (fallback)
+  // 2. 일반적인 첫 단어 추출 (Fallback)
   const first = code.trim().split(/\s+/)[0];
   const ignoreTags = ["한국빌드업", "한국프레스", "코치님", "START", "Unknown", "??", "YOO", "givepc", "getpc"];
   if (ignoreTags.includes(first)) return "Unknown";
@@ -63,6 +67,7 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(xmlText, "text/xml");
   
+  // 실제 팀명 패턴 선탐색
   const detectedTeams = detectRealTeamNames(xmlDoc);
   
   const instances = xmlDoc.getElementsByTagName("instance");
@@ -132,6 +137,7 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const us = targetEvents.filter(e => e.team === team);
     const opp = targetEvents.filter(e => e.team === opponent);
 
+    // TEAM 시퀀스와 ATT 시퀀스 시간 분리
     const teamTime = us.filter(e => e.code.includes('TEAM')).reduce((acc, e) => acc + e.duration, 0);
     const attTime = us.filter(e => e.code.includes('ATT')).reduce((acc, e) => acc + e.duration, 0);
     const buildUpTime = Math.max(0, teamTime - attTime);
@@ -139,6 +145,7 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const oppTeamTime = opp.filter(e => e.code.includes('TEAM')).reduce((acc, e) => acc + e.duration, 0);
     const oppAttTime = opp.filter(e => e.code.includes('ATT')).reduce((acc, e) => acc + e.duration, 0);
 
+    // 압박 시도 계산 (우리팀 공격지역 턴오버/파울 + 상대팀 수비지역 파울)
     const countEventsByLoc = (evts: MatchEvent[], rowKeyword: string, zones: string[]) => 
       evts.filter(e => (e.code.includes(rowKeyword) || e.type === rowKeyword) && zones.some(z => e.locationLabel.includes(z) || e.code.includes(z))).length;
 
@@ -155,12 +162,15 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const spp = pressAttempts > 0 ? buildUpTime / pressAttempts : 0;
     const allowedSpp = allowedDenom > 0 ? buildUpTime / allowedDenom : 0;
 
+    // Build25 성공률 (DM START/D25 START -> 25Y entry)
     const buildRows = us.filter(e => /DM START|D25 START/.test(e.code));
     const build25Success = buildRows.filter(e => e.resultLabel.includes('25Y entry')).length;
 
+    // CE 및 슈팅
     const ceCount = us.filter(e => /서클\s*진입|슈팅\s*서클|circle\s*entry/i.test(e.code)).length;
     const shotCount = us.filter(e => e.code.includes('슈팅') || e.code.toLowerCase().includes('shot')).length;
     
+    // 득점 (필드 / PC)
     const pcRows = us.filter(e => /페널티\s*코너|PC|penalty\s*corner/i.test(e.code));
     const pcGoals = pcRows.filter(e => e.resultLabel.toUpperCase().includes('GOAL') || e.resultLabel.includes('득점')).length;
     const totalGoalEvents = us.filter(e => e.code.includes('득점') || e.code.toLowerCase().includes('goal')).length;

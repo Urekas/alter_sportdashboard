@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useRef } from "react"
@@ -97,6 +96,7 @@ export function Dashboard() {
             <div className="space-y-4">
               <h2 className="text-xl font-bold border-l-4 border-primary pl-3">핵심 퍼포먼스 요약 (Key Metrics)</h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* 홈 팀 카드 */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-primary font-bold">
                     <div className="w-3 h-3 rounded-full bg-[#d62728]" />
@@ -130,6 +130,7 @@ export function Dashboard() {
                   </div>
                 </div>
 
+                {/* 어웨이 팀 카드 */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-chart-2 font-bold">
                     <div className="w-3 h-3 rounded-full bg-[#1f77b4]" />
@@ -167,6 +168,7 @@ export function Dashboard() {
 
             <div className="grid grid-cols-1 gap-8">
               <BasicMatchStats data={matchData} />
+              {/* Pressure Battle 그래프 위치를 통계표 아래로 조정 */}
               <div className="w-full">
                 <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
               </div>
