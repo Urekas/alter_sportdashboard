@@ -158,7 +158,9 @@ function generateQuarterlyStats(): QuarterStats[] {
       twentyFiveEntries: 6 + Math.floor(Math.random() * 6),
       possession: 45 + Math.floor(Math.random() * 10),
       attackPossession: 20 + Math.floor(Math.random() * 10),
-      spp: 8 + Math.random() * 5
+      spp: 8 + Math.random() * 5,
+      avgAttackDuration: 25 + Math.random() * 15,
+      timePerCE: 40 + Math.random() * 20,
     },
     away: {
       goals: { field: Math.floor(Math.random() * 2), pc: Math.floor(Math.random() * 1) },
@@ -167,7 +169,9 @@ function generateQuarterlyStats(): QuarterStats[] {
       twentyFiveEntries: 6 + Math.floor(Math.random() * 6),
       possession: 45 + Math.floor(Math.random() * 10),
       attackPossession: 20 + Math.floor(Math.random() * 10),
-      spp: 8 + Math.random() * 5
+      spp: 8 + Math.random() * 5,
+      avgAttackDuration: 25 + Math.random() * 15,
+      timePerCE: 40 + Math.random() * 20,
     }
   }));
 }
@@ -209,7 +213,7 @@ export const createMatchDataFromUpload = (
     return entries;
   };
 
-  const homeStats = {
+  const homeStats: TeamMatchStats = {
     goals: { field: Math.floor(Math.random() * 3), pc: Math.floor(Math.random() * 2) },
     shots: 8 + Math.floor(Math.random() * 10),
     circleEntries: 15 + Math.floor(Math.random() * 10),
@@ -217,8 +221,10 @@ export const createMatchDataFromUpload = (
     possession: 40 + Math.floor(Math.random() * 20),
     attackPossession: 20 + Math.floor(Math.random() * 20),
     allowedSpp: 10 + Math.random() * 5,
+    avgAttackDuration: 28.5,
+    timePerCE: 45.2,
   };
-  const awayStats = {
+  const awayStats: TeamMatchStats = {
     goals: { field: Math.floor(Math.random() * 3), pc: Math.floor(Math.random() * 2) },
     shots: 8 + Math.floor(Math.random() * 10),
     circleEntries: 15 + Math.floor(Math.random() * 10),
@@ -226,6 +232,8 @@ export const createMatchDataFromUpload = (
     possession: 40 + Math.floor(Math.random() * 20),
     attackPossession: 20 + Math.floor(Math.random() * 20),
     allowedSpp: 10 + Math.random() * 5,
+    avgAttackDuration: 31.2,
+    timePerCE: 48.7,
   };
 
   return {

@@ -43,15 +43,20 @@ export function BuildUpEfficiencyChart({ data }: BuildUpEfficiencyChartProps) {
 
   const renderChart = (chartData: any[], teamName: string, color: string) => (
     <div className="w-full">
-      <h3 className="text-sm font-bold mb-4 px-2" style={{ color }}>{teamName} Efficiency</h3>
+      <h3 className="text-sm font-bold mb-4 px-2" style={{ color }}>{teamName} 공격 효율</h3>
       <ResponsiveContainer width="100%" height={300}>
         <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
           <XAxis dataKey="quarter" />
-          <YAxis yAxisId="left" label={{ value: 'Count', angle: -90, position: 'insideLeft' }} />
-          <YAxis yAxisId="right" orientation="right" label={{ value: 'Eff (%)', angle: 90, position: 'insideRight' }} domain={[0, 100]} />
+          <YAxis yAxisId="left" label={{ value: '횟수', angle: -90, position: 'insideLeft' }} />
+          <YAxis yAxisId="right" orientation="right" label={{ value: '효율 (%)', angle: 90, position: 'insideRight' }} domain={[0, 100]} />
           <Tooltip />
-          <Legend />
+          <Legend formatter={(value) => {
+            if (value === "25y Entries") return "25y 진입";
+            if (value === "Circle Entries") return "서클 진입";
+            if (value === "Efficiency (%)") return "전환 효율 (%)";
+            return value;
+          }} />
           <Bar yAxisId="left" dataKey="25y Entries" fill={color} fillOpacity={0.3} radius={[4, 4, 0, 0]} barSize={40} />
           <Bar yAxisId="left" dataKey="Circle Entries" fill={color} radius={[4, 4, 0, 0]} barSize={25} />
           <Line yAxisId="right" type="monotone" dataKey="Efficiency (%)" stroke="hsl(var(--destructive))" strokeWidth={3} dot={{ r: 5, fill: "hsl(var(--destructive))" }} />
@@ -65,7 +70,7 @@ export function BuildUpEfficiencyChart({ data }: BuildUpEfficiencyChartProps) {
       <CardHeader>
         <CardTitle>25y 진입 대비 서클 진입 효율 (양팀 비교)</CardTitle>
         <CardDescription>
-          각 팀의 공격 효율성 분석 (25m 진입 횟수 대비 서클 진입 전환율)
+          각 팀의 쿼터별 공격 효율 분석 (25m 진입 대비 서클 진입 성공률)
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-12">

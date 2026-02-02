@@ -26,44 +26,54 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
 
   const stats: StatRow[] = [
     {
-      label: "Goals (Field / PC)",
+      label: "득점 (필드 / PC)",
       homeValue: `${matchStats.home.goals.field} / ${matchStats.home.goals.pc}`,
       awayValue: `${matchStats.away.goals.field} / ${matchStats.away.goals.pc}`,
     },
     {
-      label: "Shots",
+      label: "슈팅",
       homeValue: matchStats.home.shots,
       awayValue: matchStats.away.shots,
     },
     {
-      label: "Circle Entries",
+      label: "서클 진입 (CE)",
       homeValue: matchStats.home.circleEntries,
       awayValue: matchStats.away.circleEntries,
     },
     {
-      label: "25y Entries",
+      label: "25y 진입",
       homeValue: matchStats.home.twentyFiveEntries,
       awayValue: matchStats.away.twentyFiveEntries,
     },
     {
-      label: "Build25 Ratio (%)",
+      label: "빌드업 25m 성공률 (%)",
       homeValue: `${(build25Ratio.home * 100).toFixed(0)}%`,
       awayValue: `${(build25Ratio.away * 100).toFixed(0)}%`,
     },
     {
-      label: "SPP / Allowed SPP",
+      label: "SPP / 허용 SPP",
       homeValue: `${spp.home.toFixed(2)} / ${matchStats.home.allowedSpp.toFixed(2)}`,
       awayValue: `${spp.away.toFixed(2)} / ${matchStats.away.allowedSpp.toFixed(2)}`,
     },
     {
-      label: "Possession %",
+      label: "점유율 %",
       homeValue: `${matchStats.home.possession.toFixed(0)}%`,
       awayValue: `${matchStats.away.possession.toFixed(0)}%`,
     },
     {
-      label: "ATT Possession %",
+      label: "공격 점유율 %",
       homeValue: `${matchStats.home.attackPossession.toFixed(0)}%`,
       awayValue: `${matchStats.away.attackPossession.toFixed(0)}%`,
+    },
+    {
+      label: "공격 1회당 유지 시간 (초)",
+      homeValue: `${matchStats.home.avgAttackDuration.toFixed(1)}s`,
+      awayValue: `${matchStats.away.avgAttackDuration.toFixed(1)}s`,
+    },
+    {
+      label: "CE 1회당 소요 시간 (초)",
+      homeValue: `${matchStats.home.timePerCE.toFixed(1)}s`,
+      awayValue: `${matchStats.away.timePerCE.toFixed(1)}s`,
     },
   ]
 
@@ -72,14 +82,14 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
       <CardHeader>
         <CardTitle>Basic Match Stats</CardTitle>
         <CardDescription className="pt-2 text-xs">
-          (참고: Possession 통계는 턴오버 수치에 기반하며, 그 외 수치는 시뮬레이션으로 생성됩니다.)
+          (참고: 점유율 및 공격 효율 지표는 입력된 이벤트를 바탕으로 분석됩니다.)
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[200px]">Metric</TableHead>
+              <TableHead className="w-[200px]">분석 항목</TableHead>
               <TableHead className="text-center">{homeTeam.name}</TableHead>
               <TableHead className="text-center">{awayTeam.name}</TableHead>
             </TableRow>

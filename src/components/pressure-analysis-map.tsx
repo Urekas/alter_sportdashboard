@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useMemo } from 'react';
@@ -83,7 +82,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
     return (
       <div className="flex flex-col gap-4">
         <h3 className="text-sm font-bold text-center p-2 rounded-t-lg border-b-2" style={{ backgroundColor: `${team.color}15`, color: team.color, borderColor: team.color }}>
-          {team.name} Attacking Half
+          {team.name} 상대 진영 압박
         </h3>
         <div className="relative aspect-[45.7/55] bg-green-50/50 rounded-b-lg overflow-hidden border-2 border-muted shadow-inner">
           <svg viewBox="-2 0 49.7 55" className="w-full h-full overflow-visible">
@@ -92,7 +91,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
               <rect x="0" y="0" width="45.7" height="55" />
               {isHome ? (
                 <>
-                  <line x1="45.7" y1="0" x2="45.7" y2="55" /> {/* Goal Line */}
+                  <line x1="45.7" y1="0" x2="45.7" y2="55" /> 
                   <path d={`M 45.7,${CX - CIRCLE_RADIUS} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,0 31.07,${CX} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,0 45.7,${CX + CIRCLE_RADIUS}`} />
                   <path d={`M 45.7,${CX - BROKEN_CIRCLE_RADIUS} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,0 26.07,${CX} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,0 45.7,${CX + BROKEN_CIRCLE_RADIUS}`} strokeDasharray="1,1" />
                   <circle cx={45.7 - PENALTY_SPOT_DIST} cy={CX} r="0.3" fill="black" stroke="none" />
@@ -101,7 +100,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
                 </>
               ) : (
                 <>
-                  <line x1="0" y1="0" x2="0" y2="55" /> {/* Goal Line */}
+                  <line x1="0" y1="0" x2="0" y2="55" />
                   <path d={`M 0,${CX - CIRCLE_RADIUS} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,1 ${CIRCLE_RADIUS},${CX} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,1 0,${CX + CIRCLE_RADIUS}`} />
                   <path d={`M 0,${CX - BROKEN_CIRCLE_RADIUS} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,1 ${BROKEN_CIRCLE_RADIUS},${CX} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,1 0,${CX + BROKEN_CIRCLE_RADIUS}`} strokeDasharray="1,1" />
                   <circle cx={PENALTY_SPOT_DIST} cy={CX} r="0.3" fill="black" stroke="none" />
@@ -109,7 +108,6 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
                   <line x1="22.85" y1="0" x2="22.85" y2="55" strokeDasharray="1,1" />
                 </>
               )}
-              {/* Lane Lines */}
               <line x1="0" y1="18.33" x2="45.7" y2="18.33" strokeDasharray="1,1" />
               <line x1="0" y1="36.66" x2="45.7" y2="36.66" strokeDasharray="1,1" />
             </g>
@@ -165,21 +163,20 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
       <CardHeader>
         <CardTitle>Pressure Analysis Map</CardTitle>
         <CardDescription>
-          상대 진영을 6개 구역으로 나누어 분석한 압박 지표입니다. (골대 방향 기준)
+          상대 진영을 6개 구역으로 나누어 분석한 압박 지표입니다.
           <br />
           <span className="text-xs text-muted-foreground font-medium">압박 성공률 = (상대 실책 - 나의 공격 파울) / 총 압박 이벤트</span>
         </CardDescription>
       </CardHeader>
       <CardContent className="p-4 md:p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-          {/* Always Home (Left/First) then Away (Right/Second) */}
           {renderHalfPitch(zoneStats.home, homeTeam, true)}
           {renderHalfPitch(zoneStats.away, awayTeam, false)}
         </div>
         
         <div className="mt-8 flex flex-wrap justify-center gap-x-8 gap-y-2 text-xs text-muted-foreground border-t pt-4 bg-muted/20 rounded-b-lg px-4">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-primary">25:</span> 공격 25m 구역 (골대 인접)
+            <span className="font-bold text-primary">25:</span> 공격 25m 구역 (골대 인근)
           </div>
           <div className="flex items-center gap-2">
             <span className="font-bold text-primary">50:</span> 하프라인 ~ 25m 구역

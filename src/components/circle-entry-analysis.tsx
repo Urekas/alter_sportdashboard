@@ -1,10 +1,8 @@
-
 "use client"
 
 import { useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 
-// --- Type Definition ---
 export interface CircleEntry {
   team: string
   channel: 'Left' | 'Center' | 'Right'
@@ -42,24 +40,19 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
     };
   }, [entries]);
 
-  // SVG 좌표계 상수 (단위: m)
   const FIELD_W = 55.0;
   const FIELD_H = 25.0;
   const TOP_PADDING = 4.0;
-  
   const CX = FIELD_W / 2;
-  
-  // Y축 변환 (골대가 위(y=TOP_PADDING)에 위치)
   const toSvgY = (diagramY: number) => diagramY + TOP_PADDING;
 
   return (
     <Card className="h-full border-2">
       <CardHeader>
         <CardTitle>{teamName} 서클 진입 분석</CardTitle>
-        <CardDescription>Attacking Circle Entries (Goal at Top)</CardDescription>
+        <CardDescription>공격 서클 진입 방향 및 효율 (골대: 상단)</CardDescription>
       </CardHeader>
       <CardContent className="flex justify-center items-center p-4">
-        
         <div className="relative w-full max-w-2xl aspect-[55/29]">
           <svg
             width="100%"
@@ -73,36 +66,11 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
               </marker>
             </defs>
 
-            {/* --- 1. Field Lines --- */}
             <g fill="none" stroke="black" strokeLinecap="round">
-              
-              {/* Outer Box */}
               <rect x="0" y={toSvgY(0)} width={FIELD_W} height={FIELD_H} strokeWidth="0.5" />
-
-              {/* Goal */}
-              <rect 
-                x={CX - 1.83} 
-                y={toSvgY(0) - 1.2} 
-                width={3.66} 
-                height={1.2} 
-                strokeWidth="0.5" 
-              />
-
-              {/* Back Line (Goal Line) */}
+              <rect x={CX - 1.83} y={toSvgY(0) - 1.2} width={3.66} height={1.2} strokeWidth="0.5" />
               <line x1={0} y1={toSvgY(0)} x2={FIELD_W} y2={toSvgY(0)} strokeWidth="0.5" />
-
-              {/* Ticks on goal line */}
-              {[-6, -3, 3, 6].map((dx) => (
-                <line 
-                  key={dx} 
-                  x1={CX + dx} y1={toSvgY(0)} 
-                  x2={CX + dx} y2={toSvgY(0) + 0.8} 
-                  strokeWidth="0.3" 
-                />
-              ))}
-
-              {/* --- Shooting Circle (D-zone) --- */}
-               <path
+              <path
                 d={`
                   M ${CX - 1.83 - 14.63} ${toSvgY(0)}
                   A 14.63 14.63 0 0 0 ${CX - 1.83} ${toSvgY(14.63)}
@@ -111,8 +79,6 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
                 `}
                 strokeWidth="0.6"
               />
-
-              {/* --- 5m Dashed Line --- */}
               <path
                 d={`
                   M ${CX - 1.83 - 19.63} ${toSvgY(0)}
@@ -123,50 +89,37 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
                 strokeWidth="0.4"
                 strokeDasharray="1, 1"
               />
-
-              {/* Penalty Spot */}
               <circle cx={CX} cy={toSvgY(6.47)} r="0.15" fill="black" stroke="none" />
             </g>
 
-            {/* --- 2. Arrows (Adjusted: Left/Right up 2, Center up 1) --- */}
             <g stroke="rgba(70, 130, 180, 0.7)" strokeWidth="0.8" markerEnd="url(#arrow-head-blue)">
-              {/* Left Arrow (Moved up 2) */}
               <line x1="2.75" y1={toSvgY(17)} x2="11.0" y2={toSvgY(8)} />
-              
-              {/* Center Arrow (Moved up 1) */}
-              <line x1="27.5" y1={toSvgY(18)} x2="27.5" y2={toSvgY(7)} />
-              
-              {/* Right Arrow (Moved up 2) */}
+              <line x1="27.5" y1={toSvgY(17)} x2="27.5" y2={toSvgY(6)} />
               <line x1="52.25" y1={toSvgY(17)} x2="44.0" y2={toSvgY(8)} />
             </g>
 
-            {/* --- 3. Stats Text Overlay (Adjusted: Left/Right up 2, Center up 1) --- */}
             <g className="fill-black" style={{ fontSize: '1.1px', textAnchor: 'middle' }}>
-              {/* Left Text */}
               <text x="6.5" y={toSvgY(19)}>
-                <tspan x="6.5" dy="0" fontWeight="bold">Left</tspan>
+                <tspan x="6.5" dy="0" fontWeight="bold">좌측 (Left)</tspan>
                 <tspan x="6.5" dy="1.6" fontWeight="normal">진입: {analysis.Left.entries}회</tspan>
-                <tspan x="6.5" dy="1.6" fontWeight="normal">Success(슈팅/pc/득점): {analysis.Left.success}회</tspan>
+                <tspan x="6.5" dy="1.6" fontWeight="normal">성공: {analysis.Left.success}회</tspan>
                 <tspan x="6.5" dy="1.6" fontWeight="bold" fill="#d62728">효율: {analysis.Left.eff}%</tspan>
               </text>
 
-              {/* Center Text */}
-              <text x="27.5" y={toSvgY(20)}>
-                <tspan x="27.5" dy="0" fontWeight="bold">Center</tspan>
+              <text x="27.5" y={toSvgY(19)}>
+                <tspan x="27.5" dy="0" fontWeight="bold">중앙 (Center)</tspan>
                 <tspan x="27.5" dy="1.6" fontWeight="normal">진입: {analysis.Center.entries}회</tspan>
-                <tspan x="27.5" dy="1.6" fontWeight="normal">Success(슈팅/pc/득점): {analysis.Center.success}회</tspan>
+                <tspan x="27.5" dy="1.6" fontWeight="normal">성공: {analysis.Center.success}회</tspan>
                 <tspan x="27.5" dy="1.6" fontWeight="bold" fill="#d62728">효율: {analysis.Center.eff}%</tspan>
               </text>
 
-              {/* Right Text */}
               <text x="48" y={toSvgY(19)}>
-                <tspan x="48" dy="0" fontWeight="bold">Right</tspan>
+                <tspan x="48" dy="0" fontWeight="bold">우측 (Right)</tspan>
                 <tspan x="48" dy="1.6" fontWeight="normal">진입: {analysis.Right.entries}회</tspan>
-                <tspan x="48" dy="1.6" fontWeight="normal">Success(슈팅/pc/득점): {analysis.Right.success}회</tspan>
+                <tspan x="48" dy="1.6" fontWeight="normal">성공: {analysis.Right.success}회</tspan>
                 <tspan x="48" dy="1.6" fontWeight="bold" fill="#d62728">효율: {analysis.Right.eff}%</tspan>
               </text>
             </g>
-
           </svg>
         </div>
       </CardContent>

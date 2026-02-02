@@ -1,4 +1,3 @@
-
 "use client"
 
 import React from "react"
@@ -31,12 +30,12 @@ const CustomTooltip = ({ active, payload, label, homeTeam, awayTeam }: TooltipPr
 
     return (
       <div className="bg-card p-3 border rounded-lg shadow-lg">
-        <p className="font-bold text-lg mb-2">{`Interval: ${label}`}</p>
+        <p className="font-bold text-lg mb-2">{`시간대: ${label}`}</p>
         {homePayload && <p style={{ color: homePayload.color }}>
-          {`${homePayload.name} Threat: ${homePayload.value}`}
+          {`${homePayload.name} 위협도: ${homePayload.value}`}
         </p>}
         {awayPayload && <p style={{ color: awayPayload.color }}>
-          {`${awayPayload.name} Threat: ${awayPayload.value}`}
+          {`${awayPayload.name} 위협도: ${awayPayload.value}`}
         </p>}
       </div>
     );
@@ -52,21 +51,17 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
       <CardHeader>
         <CardTitle>Attack Threat Trend (5m Avg)</CardTitle>
         <CardDescription>
-          Total attack threat (shots, PCs, circle entries) averaged every 5 minutes, divided by quarters.
-          <span className="mt-1 block text-xs text-muted-foreground/90">
-            (참고: 현재 이 데이터는 시뮬레이션으로 생성됩니다.)
-          </span>
+          슈팅, PC, 서클 진입 등 주요 공격 이벤트를 5분 단위 평균 위협 지수로 시각화한 차트입니다.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
             <XAxis dataKey="interval" />
-            <YAxis label={{ value: 'Threat Index', angle: -90, position: 'insideLeft' }} />
+            <YAxis label={{ value: '위협 지수', angle: -90, position: 'insideLeft' }} />
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
             
-            {/* Quarter Separators */}
             <ReferenceLine x="15'" stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3">
               <Label value="Q1 | Q2" position="top" fill="hsl(var(--muted-foreground))" fontSize={12} offset={10} />
             </ReferenceLine>

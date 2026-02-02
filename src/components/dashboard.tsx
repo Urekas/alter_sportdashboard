@@ -25,8 +25,8 @@ export function Dashboard() {
   const handleLoadMockData = () => {
     setMatchData(mockMatchData)
     toast({
-      title: "Demo Data Loaded",
-      description: "Showing sample analysis for a mock match.",
+      title: "데모 데이터 로드됨",
+      description: "분석 기능을 체험하기 위한 가상 데이터를 불러왔습니다.",
     })
   }
 
@@ -60,8 +60,8 @@ export function Dashboard() {
             }
           } else {
              toast({
-              title: "File Type Not Supported",
-              description: `Please upload a SportsCode XML or a CSV file.`,
+              title: "파일 형식 오류",
+              description: `SportsCode XML 또는 CSV 파일만 업로드 가능합니다.`,
               variant: "destructive"
             });
             return;
@@ -69,8 +69,8 @@ export function Dashboard() {
 
           if (events.length === 0) {
               toast({
-                title: "No Events Found",
-                description: 'The file was read, but no match events were found. Please check the file content.',
+                title: "이벤트 데이터 없음",
+                description: '파일을 읽었으나 분석할 수 있는 이벤트가 없습니다.',
                 variant: "destructive",
               });
               return;
@@ -80,15 +80,15 @@ export function Dashboard() {
             
           setMatchData(newMatchData);
           toast({
-            title: "Analysis Complete",
-            description: `Teams: ${homeName} vs ${awayName}. Processed ${events.length} events.`,
+            title: "데이터 분석 완료",
+            description: `${homeName} vs ${awayName} 경기의 ${events.length}개 이벤트를 처리했습니다.`,
           });
 
         } catch (error: any) {
           console.error("File processing error:", error);
           toast({
-            title: "File Processing Error",
-            description: error.message || "Could not process the file. Please ensure it is a valid format.",
+            title: "파일 처리 오류",
+            description: error.message || "파일을 분석하는 중 오류가 발생했습니다.",
             variant: "destructive",
           });
         }
@@ -103,7 +103,7 @@ export function Dashboard() {
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 print-hidden">
         <div>
           <h1 className="text-4xl font-bold text-primary font-headline">Field Focus</h1>
-          <p className="text-muted-foreground mt-1">Advanced Field Hockey Analytics</p>
+          <p className="text-muted-foreground mt-1">하키 전술 및 퍼포먼스 분석 대시보드</p>
         </div>
         <div className="flex items-center gap-2 mt-4 md:mt-0">
           <input
@@ -115,12 +115,12 @@ export function Dashboard() {
           />
           <Button onClick={() => fileInputRef.current?.click()}>
             <Upload className="mr-2" />
-            Upload Data
+            데이터 업로드
           </Button>
           {matchData && (
             <Button variant="outline" onClick={handlePrint}>
               <Printer className="mr-2" />
-              Print Report
+              리포트 인쇄
             </Button>
           )}
         </div>
@@ -130,16 +130,16 @@ export function Dashboard() {
         {!matchData ? (
           <div className="flex flex-col items-center justify-center text-center py-20 bg-card rounded-lg border-2 border-dashed">
             <FileText className="w-16 h-16 text-muted-foreground mb-4" />
-            <h2 className="text-2xl font-semibold mb-2 font-headline">No Data Loaded</h2>
+            <h2 className="text-2xl font-semibold mb-2 font-headline">분석할 데이터가 없습니다</h2>
             <p className="text-muted-foreground mb-6 max-w-sm">
-              Upload a SportsCode XML or CSV file to begin your analysis, or use our demo data to explore the features.
+              SportsCode XML 또는 CSV 파일을 업로드하여 분석을 시작하거나, 데모 데이터를 불러와 기능을 확인해보세요.
             </p>
             <div className="flex items-center gap-4">
               <Button onClick={() => fileInputRef.current?.click()}>
                 <Upload className="mr-2" />
-                Upload Data
+                데이터 업로드
               </Button>
-              <Button variant="secondary" onClick={handleLoadMockData}>Load Demo Data</Button>
+              <Button variant="secondary" onClick={handleLoadMockData}>데모 데이터 불러오기</Button>
             </div>
           </div>
         ) : (
@@ -150,24 +150,24 @@ export function Dashboard() {
                 <StatsCard
                   title={`${matchData.homeTeam.name} SPP`}
                   value={matchData.spp.home.toFixed(2)}
-                  description="Seconds Per Press"
+                  description="Seconds Per Press (낮을수록 우수)"
                   icon={<TrendingDown className="text-green-500" />}
                 />
                 <StatsCard
                   title={`${matchData.awayTeam.name} SPP`}
                   value={matchData.spp.away.toFixed(2)}
-                  description="Seconds Per Press"
+                  description="Seconds Per Press (낮을수록 우수)"
                   icon={<TrendingUp className="text-red-500" />}
                 />
                 <StatsCard
-                  title={`${matchData.homeTeam.name} Build25`}
-                  value={`${(matchData.build25Ratio.home * 100).toFixed(0)}%`}
-                  description="Build-up to 25m Ratio"
+                  title={`${matchData.homeTeam.name} 공격 유지 시간`}
+                  value={`${matchData.matchStats.home.avgAttackDuration.toFixed(1)}s`}
+                  description="공격 1회당 평균 유지 시간"
                 />
                 <StatsCard
-                  title={`${matchData.awayTeam.name} Build25`}
-                  value={`${(matchData.build25Ratio.away * 100).toFixed(0)}%`}
-                  description="Build-up to 25m Ratio"
+                  title={`${matchData.awayTeam.name} 공격 유지 시간`}
+                  value={`${matchData.matchStats.away.avgAttackDuration.toFixed(1)}s`}
+                  description="공격 1회당 평균 유지 시간"
                 />
               </div>
             </section>

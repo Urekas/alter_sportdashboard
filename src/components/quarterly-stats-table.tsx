@@ -23,14 +23,14 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
       <CardHeader>
         <CardTitle>Quarterly Match Stats</CardTitle>
         <CardDescription>
-          Detailed breakdown of key metrics for each quarter, including comparative Attack Possession.
+          각 쿼터별 세부 지표 분석 데이터입니다.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Metric / Quarter</TableHead>
+              <TableHead>분석 항목 / 쿼터</TableHead>
               {quarterlyStats.map(q => (
                 <TableHead key={q.quarter} className="text-center font-bold border-x bg-muted/30">
                   {q.quarter}
@@ -46,7 +46,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
               </TableCell>
             </TableRow>
             <TableRow>
-              <TableCell className="pl-6 text-sm font-medium">Goals (Field/PC)</TableCell>
+              <TableCell className="pl-6 text-sm font-medium">득점 (필드/PC)</TableCell>
               {quarterlyStats.map(q => (
                 <TableCell key={q.quarter} className="text-center border-x">
                   {q.home.goals?.field} / {q.home.goals?.pc}
@@ -54,33 +54,51 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
               ))}
             </TableRow>
             <TableRow>
-              <TableCell className="pl-6 text-sm font-medium">Shots</TableCell>
+              <TableCell className="pl-6 text-sm font-medium">슈팅</TableCell>
               {quarterlyStats.map(q => (
                 <TableCell key={q.quarter} className="text-center border-x">{q.home.shots}</TableCell>
               ))}
             </TableRow>
             <TableRow>
-              <TableCell className="pl-6 text-sm font-medium">Circle Entries</TableCell>
+              <TableCell className="pl-6 text-sm font-medium">서클 진입 (CE)</TableCell>
               {quarterlyStats.map(q => (
                 <TableCell key={q.quarter} className="text-center border-x">{q.home.circleEntries}</TableCell>
               ))}
             </TableRow>
             <TableRow>
-              <TableCell className="pl-6 text-sm font-medium">Possession (%)</TableCell>
+              <TableCell className="pl-6 text-sm font-medium">25y 진입</TableCell>
+              {quarterlyStats.map(q => (
+                <TableCell key={q.quarter} className="text-center border-x">{q.home.twentyFiveEntries}</TableCell>
+              ))}
+            </TableRow>
+            <TableRow>
+              <TableCell className="pl-6 text-sm font-medium">점유율 (%)</TableCell>
               {quarterlyStats.map(q => (
                 <TableCell key={q.quarter} className="text-center border-x">{q.home.possession}%</TableCell>
               ))}
             </TableRow>
             <TableRow>
-              <TableCell className="pl-6 text-sm font-medium">ATT Possession (%)</TableCell>
+              <TableCell className="pl-6 text-sm font-medium">공격 점유율 (%)</TableCell>
               {quarterlyStats.map(q => (
                 <TableCell key={q.quarter} className="text-center border-x">{q.home.attackPossession}%</TableCell>
               ))}
             </TableRow>
             <TableRow>
-              <TableCell className="pl-6 text-sm font-medium">Avg SPP (s)</TableCell>
+              <TableCell className="pl-6 text-sm font-medium">평균 SPP (s)</TableCell>
               {quarterlyStats.map(q => (
                 <TableCell key={q.quarter} className="text-center border-x">{q.home.spp.toFixed(1)}s</TableCell>
+              ))}
+            </TableRow>
+            <TableRow>
+              <TableCell className="pl-6 text-sm font-medium">공격 유지 시간 (s)</TableCell>
+              {quarterlyStats.map(q => (
+                <TableCell key={q.quarter} className="text-center border-x">{q.home.avgAttackDuration?.toFixed(1)}s</TableCell>
+              ))}
+            </TableRow>
+            <TableRow>
+              <TableCell className="pl-6 text-sm font-medium">CE당 소요 시간 (s)</TableCell>
+              {quarterlyStats.map(q => (
+                <TableCell key={q.quarter} className="text-center border-x">{q.home.timePerCE?.toFixed(1)}s</TableCell>
               ))}
             </TableRow>
 
@@ -91,7 +109,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
               </TableCell>
             </TableRow>
             <TableRow>
-              <TableCell className="pl-6 text-sm font-medium">Goals (Field/PC)</TableCell>
+              <TableCell className="pl-6 text-sm font-medium">득점 (필드/PC)</TableCell>
               {quarterlyStats.map(q => (
                 <TableCell key={q.quarter} className="text-center border-x">
                   {q.away.goals?.field} / {q.away.goals?.pc}
@@ -99,33 +117,51 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
               ))}
             </TableRow>
             <TableRow>
-              <TableCell className="pl-6 text-sm font-medium">Shots</TableCell>
+              <TableCell className="pl-6 text-sm font-medium">슈팅</TableCell>
               {quarterlyStats.map(q => (
                 <TableCell key={q.quarter} className="text-center border-x">{q.away.shots}</TableCell>
               ))}
             </TableRow>
             <TableRow>
-              <TableCell className="pl-6 text-sm font-medium">Circle Entries</TableCell>
+              <TableCell className="pl-6 text-sm font-medium">서클 진입 (CE)</TableCell>
               {quarterlyStats.map(q => (
                 <TableCell key={q.quarter} className="text-center border-x">{q.away.circleEntries}</TableCell>
               ))}
             </TableRow>
             <TableRow>
-              <TableCell className="pl-6 text-sm font-medium">Possession (%)</TableCell>
+              <TableCell className="pl-6 text-sm font-medium">25y 진입</TableCell>
+              {quarterlyStats.map(q => (
+                <TableCell key={q.quarter} className="text-center border-x">{q.away.twentyFiveEntries}</TableCell>
+              ))}
+            </TableRow>
+            <TableRow>
+              <TableCell className="pl-6 text-sm font-medium">점유율 (%)</TableCell>
               {quarterlyStats.map(q => (
                 <TableCell key={q.quarter} className="text-center border-x">{q.away.possession}%</TableCell>
               ))}
             </TableRow>
             <TableRow>
-              <TableCell className="pl-6 text-sm font-medium">ATT Possession (%)</TableCell>
+              <TableCell className="pl-6 text-sm font-medium">공격 점유율 (%)</TableCell>
               {quarterlyStats.map(q => (
                 <TableCell key={q.quarter} className="text-center border-x">{q.away.attackPossession}%</TableCell>
               ))}
             </TableRow>
             <TableRow>
-              <TableCell className="pl-6 text-sm font-medium">Avg SPP (s)</TableCell>
+              <TableCell className="pl-6 text-sm font-medium">평균 SPP (s)</TableCell>
               {quarterlyStats.map(q => (
                 <TableCell key={q.quarter} className="text-center border-x">{q.away.spp.toFixed(1)}s</TableCell>
+              ))}
+            </TableRow>
+            <TableRow>
+              <TableCell className="pl-6 text-sm font-medium">공격 유지 시간 (s)</TableCell>
+              {quarterlyStats.map(q => (
+                <TableCell key={q.quarter} className="text-center border-x">{q.away.avgAttackDuration?.toFixed(1)}s</TableCell>
+              ))}
+            </TableRow>
+            <TableRow>
+              <TableCell className="pl-6 text-sm font-medium">CE당 소요 시간 (s)</TableCell>
+              {quarterlyStats.map(q => (
+                <TableCell key={q.quarter} className="text-center border-x">{q.away.timePerCE?.toFixed(1)}s</TableCell>
               ))}
             </TableRow>
           </TableBody>
