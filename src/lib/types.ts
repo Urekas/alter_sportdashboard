@@ -15,8 +15,8 @@ export interface MatchEvent {
 }
 
 export interface PressureDataPoint {
-  minute: number;
-  [teamName: string]: number; // SPP value for each team
+  interval: string; // e.g., "3'", "6'"
+  [teamName: string]: string | number; // SPP value for each team
 }
 
 export interface CircleEntry {
@@ -38,8 +38,8 @@ export interface TeamMatchStats {
 }
 
 export interface AttackThreatDataPoint {
-  quarter: string;
-  [teamName: string]: number; // Attack Threat value
+  interval: string; // e.g., "5'", "10'"
+  [teamName: string]: string | number; // Attack Threat value
 }
 
 export interface MatchData {

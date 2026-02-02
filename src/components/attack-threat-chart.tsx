@@ -28,7 +28,7 @@ const CustomTooltip = ({ active, payload, label, homeTeam, awayTeam }: TooltipPr
 
     return (
       <div className="bg-card p-3 border rounded-lg shadow-lg">
-        <p className="font-bold text-lg mb-2">{`Quarter: ${label}`}</p>
+        <p className="font-bold text-lg mb-2">{`Interval: ${label}`}</p>
         {homePayload && <p style={{ color: homePayload.color }}>
           {`${homePayload.name} Threat: ${homePayload.value}`}
         </p>}
@@ -47,9 +47,9 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Attack Threat Trend</CardTitle>
+        <CardTitle>Attack Threat Trend (5m Avg)</CardTitle>
         <CardDescription>
-          Total shots and penalty corners per quarter.
+          Total attack threat (shots, PCs, circle entries) averaged every 5 minutes.
           <span className="mt-1 block text-xs text-muted-foreground/90">
             (참고: 현재 이 데이터는 시뮬레이션으로 생성됩니다.)
           </span>
@@ -58,12 +58,12 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={data}>
-            <XAxis dataKey="quarter" />
-            <YAxis label={{ value: 'Threat Count', angle: -90, position: 'insideLeft' }} />
+            <XAxis dataKey="interval" />
+            <YAxis label={{ value: 'Threat Index', angle: -90, position: 'insideLeft' }} />
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
-            <Line type="monotone" dataKey={homeTeam.name} stroke={homeTeam.color} strokeWidth={2} />
-            <Line type="monotone" dataKey={awayTeam.name} stroke={awayTeam.color} strokeWidth={2} />
+            <Line type="monotone" dataKey={homeTeam.name} stroke={homeTeam.color} strokeWidth={2} dot={true} />
+            <Line type="monotone" dataKey={awayTeam.name} stroke={awayTeam.color} strokeWidth={2} dot={true} />
           </LineChart>
         </ResponsiveContainer>
       </CardContent>

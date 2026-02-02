@@ -128,16 +128,17 @@ export const parseCSVData = (csvText: string): MatchEvent[] => {
 };
 
 function generatePressureData(homeTeamName: string, awayTeamName: string): PressureDataPoint[] {
-  const data = [];
-  let homeSpp = 8 + Math.random() * 4;
-  let awaySpp = 8 + Math.random() * 4;
-  for (let i = 1; i <= 60; i++) {
-    homeSpp += (Math.random() - 0.5) * 2;
-    awaySpp += (Math.random() - 0.5) * 2;
+  const data: PressureDataPoint[] = [];
+  let homeSppBase = 8 + Math.random() * 4;
+  let awaySppBase = 8 + Math.random() * 4;
+  for (let i = 1; i <= 20; i++) {
+    const minute = i * 3;
+    const hSpp = homeSppBase + (Math.random() - 0.5) * 3;
+    const aSpp = awaySppBase + (Math.random() - 0.5) * 3;
     data.push({
-      minute: i,
-      [homeTeamName]: parseFloat(homeSpp.toFixed(2)),
-      [awayTeamName]: parseFloat(awaySpp.toFixed(2)),
+      interval: `${minute}'`,
+      [homeTeamName]: parseFloat(Math.max(4, Math.min(20, hSpp)).toFixed(2)),
+      [awayTeamName]: parseFloat(Math.max(4, Math.min(20, aSpp)).toFixed(2)),
     });
   }
   return data;
@@ -169,12 +170,16 @@ function generateTeamMatchStats(): TeamMatchStats {
 }
 
 function generateAttackThreatData(homeTeamName: string, awayTeamName: string): AttackThreatDataPoint[] {
-    const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
-    return quarters.map(q => ({
-        quarter: q,
-        [homeTeamName]: Math.floor(Math.random() * 8) + 2,
-        [awayTeamName]: Math.floor(Math.random() * 8) + 2,
-    }));
+    const data: AttackThreatDataPoint[] = [];
+    for (let i = 1; i <= 12; i++) {
+        const minute = i * 5;
+        data.push({
+            interval: `${minute}'`,
+            [homeTeamName]: Math.floor(Math.random() * 8) + 2,
+            [awayTeamName]: Math.floor(Math.random() * 8) + 2,
+        });
+    }
+    return data;
 }
 
 export const createMatchDataFromUpload = (

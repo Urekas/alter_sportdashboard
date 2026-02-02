@@ -29,7 +29,7 @@ const CustomTooltip = ({ active, payload, label, homeTeam, awayTeam }: TooltipPr
 
     return (
       <div className="bg-card p-3 border rounded-lg shadow-lg">
-        <p className="font-bold text-lg mb-2">{`Minute: ${label}`}</p>
+        <p className="font-bold text-lg mb-2">{`Interval: ${label}`}</p>
         {homePayload && <p style={{ color: homePayload.color }}>
           {`${homePayload.name} SPP: ${Number(homePayload.value).toFixed(2)}s`}
         </p>}
@@ -50,7 +50,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
 
     const segments = []
     let currentSegment = {
-      x1: data[0].minute,
+      x1: data[0].interval,
       dominant: data[0][homeTeam.name] <= data[0][awayTeam.name] ? homeTeam.name : awayTeam.name,
     }
 
@@ -60,20 +60,20 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
       const currentDominant = homeValue <= awayValue ? homeTeam.name : awayTeam.name
 
       if (currentDominant !== currentSegment.dominant) {
-        segments.push({ ...currentSegment, x2: data[i].minute })
-        currentSegment = { x1: data[i].minute, dominant: currentDominant }
+        segments.push({ ...currentSegment, x2: data[i].interval })
+        currentSegment = { x1: data[i].interval, dominant: currentDominant }
       }
     }
-    segments.push({ ...currentSegment, x2: data[data.length - 1].minute })
+    segments.push({ ...currentSegment, x2: data[data.length - 1].interval })
     return segments
   }, [data, homeTeam, awayTeam])
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Pressure Battle</CardTitle>
+        <CardTitle>Pressure Battle (3m Avg)</CardTitle>
         <CardDescription>
-          Seconds Per Press (SPP) over time. Lower is better.
+          Seconds Per Press (SPP) averaged every 3 minutes. Lower is better.
           <span className="mt-1 block text-xs text-muted-foreground/90">
             (참고: 현재 이 데이터는 시뮬레이션으로 생성됩니다.)
           </span>
@@ -82,7 +82,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
           <ComposedChart data={data}>
-            <XAxis dataKey="minute" unit="&apos;" />
+            <XAxis dataKey="interval" />
             <YAxis reversed label={{ value: 'SPP (s)', angle: -90, position: 'insideLeft' }} />
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
@@ -98,8 +98,8 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
                 fillOpacity={0.1}
               />
             ))}
-            <Line type="monotone" dataKey={homeTeam.name} stroke={homeTeam.color} strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey={awayTeam.name} stroke={awayTeam.color} strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey={homeTeam.name} stroke={homeTeam.color} strokeWidth={2} dot={true} />
+            <Line type="monotone" dataKey={awayTeam.name} stroke={awayTeam.color} strokeWidth={2} dot={true} />
           </ComposedChart>
         </ResponsiveContainer>
       </CardContent>

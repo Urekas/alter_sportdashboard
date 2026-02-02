@@ -1,4 +1,4 @@
-import type { MatchData, TeamMatchStats, AttackThreatDataPoint, MatchEvent, CircleEntry } from './types';
+import type { MatchData, TeamMatchStats, AttackThreatDataPoint, MatchEvent, CircleEntry, PressureDataPoint } from './types';
 
 const HOME_TEAM = { name: 'Blues', color: 'hsl(var(--chart-1))' };
 const AWAY_TEAM = { name: 'Reds', color: 'hsl(var(--chart-2))' };
@@ -6,21 +6,21 @@ const AWAY_TEAM = { name: 'Reds', color: 'hsl(var(--chart-2))' };
 const PITCH_LENGTH = 91.4;
 const PITCH_WIDTH = 55;
 
-function generatePressureData(): MatchData['pressureData'] {
-  const data = [];
-  let homeSpp = 8 + Math.random() * 4;
-  let awaySpp = 8 + Math.random() * 4;
+function generatePressureData(): PressureDataPoint[] {
+  const data: PressureDataPoint[] = [];
+  let homeSppBase = 8 + Math.random() * 4;
+  let awaySppBase = 8 + Math.random() * 4;
 
-  for (let i = 1; i <= 60; i++) {
-    homeSpp += (Math.random() - 0.5) * 2;
-    awaySpp += (Math.random() - 0.5) * 2;
-    homeSpp = Math.max(4, Math.min(20, homeSpp));
-    awaySpp = Math.max(4, Math.min(20, awaySpp));
+  // 3-minute intervals (60m / 3 = 20 points)
+  for (let i = 1; i <= 20; i++) {
+    const minute = i * 3;
+    const hSpp = homeSppBase + (Math.random() - 0.5) * 4;
+    const aSpp = awaySppBase + (Math.random() - 0.5) * 4;
 
     data.push({
-      minute: i,
-      [HOME_TEAM.name]: parseFloat(homeSpp.toFixed(2)),
-      [AWAY_TEAM.name]: parseFloat(awaySpp.toFixed(2)),
+      interval: `${minute}'`,
+      [HOME_TEAM.name]: parseFloat(Math.max(4, Math.min(20, hSpp)).toFixed(2)),
+      [AWAY_TEAM.name]: parseFloat(Math.max(4, Math.min(20, aSpp)).toFixed(2)),
     });
   }
   return data;
@@ -75,12 +75,17 @@ function generateTeamMatchStats(): TeamMatchStats {
 }
 
 function generateAttackThreatData(): AttackThreatDataPoint[] {
-    const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
-    return quarters.map(q => ({
-        quarter: q,
-        [HOME_TEAM.name]: Math.floor(Math.random() * 8) + 2,
-        [AWAY_TEAM.name]: Math.floor(Math.random() * 8) + 2,
-    }));
+    const data: AttackThreatDataPoint[] = [];
+    // 5-minute intervals (60m / 5 = 12 points)
+    for (let i = 1; i <= 12; i++) {
+      const minute = i * 5;
+      data.push({
+        interval: `${minute}'`,
+        [HOME_TEAM.name]: Math.floor(Math.random() * 10) + 2,
+        [AWAY_TEAM.name]: Math.floor(Math.random() * 10) + 2,
+      });
+    }
+    return data;
 }
 
 export const mockMatchData: MatchData = {
