@@ -1,4 +1,4 @@
-import type { MatchData, TeamMatchStats, AttackThreatDataPoint, MatchEvent, CircleEntry, PressureDataPoint } from './types';
+import type { MatchData, TeamMatchStats, AttackThreatDataPoint, MatchEvent, CircleEntry, PressureDataPoint, QuarterStats } from './types';
 
 const HOME_TEAM = { name: 'Blues', color: 'hsl(var(--chart-1))' };
 const AWAY_TEAM = { name: 'Reds', color: 'hsl(var(--chart-2))' };
@@ -11,8 +11,6 @@ function generatePressureData(): PressureDataPoint[] {
   let homeSppBase = 8 + Math.random() * 4;
   let awaySppBase = 8 + Math.random() * 4;
 
-  // 3-minute intervals (60m / 3 = 20 points)
-  // Quarters end at 15, 30, 45, 60
   for (let i = 1; i <= 20; i++) {
     const minute = i * 3;
     const hSpp = homeSppBase + (Math.random() - 0.5) * 4;
@@ -75,10 +73,30 @@ function generateTeamMatchStats(): TeamMatchStats {
     }
 }
 
+function generateQuarterlyStats(): QuarterStats[] {
+  return ['Q1', 'Q2', 'Q3', 'Q4'].map(q => ({
+    quarter: q,
+    home: {
+      goals: { field: Math.floor(Math.random() * 2), pc: Math.floor(Math.random() * 1) },
+      shots: 2 + Math.floor(Math.random() * 5),
+      circleEntries: 4 + Math.floor(Math.random() * 6),
+      twentyFiveEntries: 6 + Math.floor(Math.random() * 8),
+      possession: 45 + Math.floor(Math.random() * 10),
+      spp: 8 + Math.random() * 4
+    },
+    away: {
+      goals: { field: Math.floor(Math.random() * 2), pc: Math.floor(Math.random() * 1) },
+      shots: 2 + Math.floor(Math.random() * 5),
+      circleEntries: 4 + Math.floor(Math.random() * 6),
+      twentyFiveEntries: 6 + Math.floor(Math.random() * 8),
+      possession: 45 + Math.floor(Math.random() * 10),
+      spp: 8 + Math.random() * 4
+    }
+  }));
+}
+
 function generateAttackThreatData(): AttackThreatDataPoint[] {
     const data: AttackThreatDataPoint[] = [];
-    // 5-minute intervals (60m / 5 = 12 points)
-    // Quarters end at 15, 30, 45, 60
     for (let i = 1; i <= 12; i++) {
       const minute = i * 5;
       data.push({
@@ -108,5 +126,6 @@ export const mockMatchData: MatchData = {
   matchStats: {
     home: generateTeamMatchStats(),
     away: generateTeamMatchStats(),
-  }
+  },
+  quarterlyStats: generateQuarterlyStats()
 };

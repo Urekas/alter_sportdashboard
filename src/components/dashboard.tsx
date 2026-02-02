@@ -12,6 +12,7 @@ import { PressureAnalysisMap } from "./pressure-analysis-map"
 import { CircleEntryAnalysis } from "./circle-entry-analysis"
 import { BasicMatchStats } from "./basic-match-stats"
 import { AttackThreatChart } from "./attack-threat-chart"
+import { QuarterlyStatsTable } from "./quarterly-stats-table"
 import { parseXMLData, parseCSVData, createMatchDataFromUpload } from "@/lib/parser"
 
 
@@ -51,7 +52,6 @@ export function Dashboard() {
             awayName = result.teams.away;
           } else if (file.name.endsWith('.csv')) {
             events = parseCSVData(content);
-            // For CSV, we'll try to get names from the first few events
             if (events.length > 0) {
               homeName = events[0].team;
               const otherTeam = events.find(ev => ev.team !== homeName);
@@ -174,7 +174,6 @@ export function Dashboard() {
             <BasicMatchStats data={matchData} />
             
             <div className="grid grid-cols-1 gap-8">
-              {/* Pressure Battle Chart - Full Width */}
               <div className="w-full">
                  <PressureBattleChart
                     data={matchData.pressureData}
@@ -183,7 +182,6 @@ export function Dashboard() {
                   />
               </div>
 
-              {/* Circle Entry Analysis - Side by Side */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
                 <CircleEntryAnalysis
                   teamName={matchData.homeTeam.name}
@@ -195,7 +193,6 @@ export function Dashboard() {
                 />
               </div>
 
-              {/* Pressure Analysis Map - Full Width */}
               <div className="w-full">
                 <PressureAnalysisMap
                     events={matchData.events}
@@ -204,13 +201,18 @@ export function Dashboard() {
                   />
               </div>
 
-              {/* Attack Threat Chart - Full Width at Bottom */}
               <div className="w-full">
                 <AttackThreatChart
                   data={matchData.attackThreatData}
                   homeTeam={matchData.homeTeam}
                   awayTeam={matchData.awayTeam}
                 />
+              </div>
+
+              {/* Quarterly Stats Table at the bottom */}
+              <div className="w-full pt-8">
+                <h2 className="text-2xl font-semibold mb-4 font-headline">Quarterly Detailed Analysis</h2>
+                <QuarterlyStatsTable data={matchData} />
               </div>
             </div>
           </div>

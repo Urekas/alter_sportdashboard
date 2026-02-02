@@ -1,22 +1,16 @@
-import type { MatchEvent, MatchData, TeamMatchStats, AttackThreatDataPoint, PressureDataPoint, CircleEntry } from './types';
+import type { MatchEvent, MatchData, TeamMatchStats, AttackThreatDataPoint, PressureDataPoint, CircleEntry, QuarterStats } from './types';
 
 // Based on FIH Field Specifications
 const PITCH_LENGTH = 91.4;
 const PITCH_WIDTH = 55;
 const LANE_WIDTH = PITCH_WIDTH / 3;
 
-/**
- * Extracts team names from SportsCode XML instances.
- * Usually, the code follows a pattern like "TeamName EventType" or "TeamName - Event"
- */
 const extractTeamsFromXML = (xmlDoc: Document): { home: string, away: string } => {
   const instances = xmlDoc.getElementsByTagName("instance");
   const teamCounts: Record<string, number> = {};
 
   Array.from(instances).forEach(instance => {
     const code = instance.getElementsByTagName("code")[0]?.textContent || "";
-    // Common patterns: "Korea Turnover", "Germany - Foul", etc.
-    // We'll try to isolate the team part by removing known keywords
     let teamName = code
       .replace(/turnover/gi, "")
       .replace(/foul/gi, "")
@@ -30,7 +24,6 @@ const extractTeamsFromXML = (xmlDoc: Document): { home: string, away: string } =
     }
   });
 
-  // Sort by frequency and pick the top two
   const sortedTeams = Object.entries(teamCounts)
     .sort((a, b) => b[1] - a[1])
     .map(entry => entry[0]);
@@ -41,9 +34,6 @@ const extractTeamsFromXML = (xmlDoc: Document): { home: string, away: string } =
   };
 };
 
-/**
- * Parses SportsCode XML data to extract match events.
- */
 export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { home: string, away: string } } => {
   if (typeof window === 'undefined') {
     return { events: [], teams: { home: "Home", away: "Away" } };
@@ -72,7 +62,6 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
       return; 
     }
 
-    // Assign to whichever detected team it matches best
     const team = code.includes(detectedTeams.home) ? detectedTeams.home : detectedTeams.away;
 
     const labels = instance.getElementsByTagName("label");
@@ -105,12 +94,18 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     x = Math.max(0, Math.min(PITCH_LENGTH, x));
     y = Math.max(0, Math.min(PITCH_WIDTH, y));
     
+    const startTime = parseFloat(instance.getElementsByTagName("start")[0]?.textContent || "0");
+    let quarter = "Q1";
+    if (startTime > 2700) quarter = "Q4";
+    else if (startTime > 1800) quarter = "Q3";
+    else if (startTime > 900) quarter = "Q2";
+
     events.push({
       id: `evt-${instance.getElementsByTagName("ID")[0]?.textContent || index}`,
       team,
       type,
-      quarter: "Q1",
-      time: parseFloat(instance.getElementsByTagName("start")[0]?.textContent || "0"),
+      quarter,
+      time: startTime,
       x,
       y,
       locationLabel: locLabel
@@ -120,16 +115,10 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
   return { events, teams: detectedTeams };
 };
 
-
-/**
- * Parses CSV data to extract match events.
- */
 export const parseCSVData = (csvText: string): MatchEvent[] => {
   const events: MatchEvent[] = [];
   const lines = csvText.trim().split('\n');
-  
   if (lines.length < 2) return [];
-  
   const headers = lines.shift()!.trim().split(',');
   const idx = {
     id: headers.indexOf('id'),
@@ -145,43 +134,66 @@ export const parseCSVData = (csvText: string): MatchEvent[] => {
   lines.forEach((line) => {
     if (!line.trim()) return;
     const values = line.trim().split(',');
-    const x = parseFloat(values[idx.x]);
-    const y = parseFloat(values[idx.y]);
-    const time = parseFloat(values[idx.time]);
-
     events.push({
       id: values[idx.id],
       team: values[idx.team],
       type: (values[idx.type] as 'turnover' | 'foul') || 'turnover',
       quarter: values[idx.quarter],
-      time,
-      x,
-      y,
+      time: parseFloat(values[idx.time]),
+      x: parseFloat(values[idx.x]),
+      y: parseFloat(values[idx.y]),
       locationLabel: values[idx.locationLabel],
     });
   });
-
   return events;
 };
 
-function generatePressureData(homeTeamName: string, awayTeamName: string): PressureDataPoint[] {
-  const data: PressureDataPoint[] = [];
-  let homeSppBase = 8 + Math.random() * 4;
-  let awaySppBase = 8 + Math.random() * 4;
-  for (let i = 1; i <= 20; i++) {
-    const minute = i * 3;
-    const hSpp = homeSppBase + (Math.random() - 0.5) * 3;
-    const aSpp = awaySppBase + (Math.random() - 0.5) * 3;
-    data.push({
-      interval: `${minute}'`,
-      [homeTeamName]: parseFloat(Math.max(4, Math.min(20, hSpp)).toFixed(2)),
-      [awayTeamName]: parseFloat(Math.max(4, Math.min(20, aSpp)).toFixed(2)),
-    });
-  }
-  return data;
+function generateQuarterlyStats(): QuarterStats[] {
+  return ['Q1', 'Q2', 'Q3', 'Q4'].map(q => ({
+    quarter: q,
+    home: {
+      goals: { field: Math.floor(Math.random() * 2), pc: Math.floor(Math.random() * 1) },
+      shots: 2 + Math.floor(Math.random() * 4),
+      circleEntries: 4 + Math.floor(Math.random() * 5),
+      twentyFiveEntries: 6 + Math.floor(Math.random() * 6),
+      possession: 45 + Math.floor(Math.random() * 10),
+      spp: 8 + Math.random() * 5
+    },
+    away: {
+      goals: { field: Math.floor(Math.random() * 2), pc: Math.floor(Math.random() * 1) },
+      shots: 2 + Math.floor(Math.random() * 4),
+      circleEntries: 4 + Math.floor(Math.random() * 5),
+      twentyFiveEntries: 6 + Math.floor(Math.random() * 6),
+      possession: 45 + Math.floor(Math.random() * 10),
+      spp: 8 + Math.random() * 5
+    }
+  }));
 }
 
-function generateCircleEntries(homeTeamName: string, awayTeamName: string): MatchData['circleEntries'] {
+export const createMatchDataFromUpload = (
+    events: MatchEvent[], 
+    homeTeamName: string, 
+    awayTeamName: string
+): MatchData => {
+  const HOME_TEAM = { name: homeTeamName, color: 'hsl(var(--chart-1))' };
+  const AWAY_TEAM = { name: awayTeamName, color: 'hsl(var(--chart-2))' };
+  
+  const generatePressureData = () => {
+    const data: PressureDataPoint[] = [];
+    let homeSppBase = 8 + Math.random() * 4;
+    let awaySppBase = 8 + Math.random() * 4;
+    for (let i = 1; i <= 20; i++) {
+      const minute = i * 3;
+      data.push({
+        interval: `${minute}'`,
+        [homeTeamName]: parseFloat(Math.max(4, Math.min(20, homeSppBase + (Math.random() - 0.5) * 3)).toFixed(2)),
+        [awayTeamName]: parseFloat(Math.max(4, Math.min(20, awaySppBase + (Math.random() - 0.5) * 3)).toFixed(2)),
+      });
+    }
+    return data;
+  };
+
+  const generateCircleEntries = () => {
     const entries: CircleEntry[] = [];
     const channels: ('Left' | 'Center' | 'Right')[] = ['Left', 'Center', 'Right'];
     const outcomes: ('Goal' | 'Shot On Target' | 'Shot Missed' | 'No Shot')[] = ['Goal', 'Shot On Target', 'Shot Missed', 'No Shot'];
@@ -193,51 +205,39 @@ function generateCircleEntries(homeTeamName: string, awayTeamName: string): Matc
         });
     }
     return entries;
-}
+  };
 
-function generateTeamMatchStats(): TeamMatchStats {
-    return {
-        goals: { field: Math.floor(Math.random() * 3), pc: Math.floor(Math.random() * 2) },
-        shots: 8 + Math.floor(Math.random() * 10),
-        circleEntries: 15 + Math.floor(Math.random() * 10),
-        twentyFiveEntries: 25 + Math.floor(Math.random() * 15),
-        possession: 40 + Math.floor(Math.random() * 20),
-        allowedSpp: 10 + Math.random() * 5,
-    }
-}
-
-function generateAttackThreatData(homeTeamName: string, awayTeamName: string): AttackThreatDataPoint[] {
-    const data: AttackThreatDataPoint[] = [];
-    for (let i = 1; i <= 12; i++) {
-        const minute = i * 5;
-        data.push({
-            interval: `${minute}'`,
-            [homeTeamName]: Math.floor(Math.random() * 8) + 2,
-            [awayTeamName]: Math.floor(Math.random() * 8) + 2,
-        });
-    }
-    return data;
-}
-
-export const createMatchDataFromUpload = (
-    events: MatchEvent[], 
-    homeTeamName: string, 
-    awayTeamName: string
-): MatchData => {
-  const HOME_TEAM = { name: homeTeamName, color: 'hsl(var(--chart-1))' };
-  const AWAY_TEAM = { name: awayTeamName, color: 'hsl(var(--chart-2))' };
-  const homeStats = generateTeamMatchStats();
-  const awayStats = generateTeamMatchStats();
+  const homeStats = {
+    goals: { field: Math.floor(Math.random() * 3), pc: Math.floor(Math.random() * 2) },
+    shots: 8 + Math.floor(Math.random() * 10),
+    circleEntries: 15 + Math.floor(Math.random() * 10),
+    twentyFiveEntries: 25 + Math.floor(Math.random() * 15),
+    possession: 40 + Math.floor(Math.random() * 20),
+    allowedSpp: 10 + Math.random() * 5,
+  };
+  const awayStats = {
+    goals: { field: Math.floor(Math.random() * 3), pc: Math.floor(Math.random() * 2) },
+    shots: 8 + Math.floor(Math.random() * 10),
+    circleEntries: 15 + Math.floor(Math.random() * 10),
+    twentyFiveEntries: 25 + Math.floor(Math.random() * 15),
+    possession: 40 + Math.floor(Math.random() * 20),
+    allowedSpp: 10 + Math.random() * 5,
+  };
 
   return {
     homeTeam: HOME_TEAM,
     awayTeam: AWAY_TEAM,
     events: events,
-    pressureData: generatePressureData(homeTeamName, awayTeamName),
-    circleEntries: generateCircleEntries(homeTeamName, awayTeamName),
-    attackThreatData: generateAttackThreatData(homeTeamName, awayTeamName),
+    pressureData: generatePressureData(),
+    circleEntries: generateCircleEntries(),
+    attackThreatData: Array(12).fill(0).map((_, i) => ({
+      interval: `${(i+1)*5}'`,
+      [homeTeamName]: Math.floor(Math.random() * 8) + 2,
+      [awayTeamName]: Math.floor(Math.random() * 8) + 2,
+    })),
     build25Ratio: { home: 0.4 + Math.random() * 0.3, away: 0.4 + Math.random() * 0.3 },
     spp: { home: 8 + Math.random() * 6, away: 8 + Math.random() * 6 },
-    matchStats: { home: homeStats, away: awayStats }
+    matchStats: { home: homeStats, away: awayStats },
+    quarterlyStats: generateQuarterlyStats()
   };
 }

@@ -37,6 +37,12 @@ export interface TeamMatchStats {
     allowedSpp: number;
 }
 
+export interface QuarterStats {
+  quarter: string;
+  home: Partial<TeamMatchStats> & { spp: number };
+  away: Partial<TeamMatchStats> & { spp: number };
+}
+
 export interface AttackThreatDataPoint {
   interval: string; // e.g., "5'", "10'"
   [teamName: string]: string | number; // Attack Threat value
@@ -55,4 +61,5 @@ export interface MatchData {
     home: TeamMatchStats;
     away: TeamMatchStats;
   };
+  quarterlyStats: QuarterStats[];
 }
