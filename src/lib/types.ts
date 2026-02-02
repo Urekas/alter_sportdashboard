@@ -36,14 +36,14 @@ export interface TeamMatchStats {
     possession: number;
     attackPossession: number;
     allowedSpp: number;
-    avgAttackDuration: number; // New: 공격 1회당 유지 시간 (초)
-    timePerCE: number; // New: CE 1회당 소요 시간 (초)
+    avgAttackDuration: number; // 공격 1회당 유지 시간 (초)
+    timePerCE: number; // CE 1회당 소요 시간 (초)
 }
 
 export interface QuarterStats {
   quarter: string;
-  home: Partial<TeamMatchStats> & { spp: number };
-  away: Partial<TeamMatchStats> & { spp: number };
+  home: TeamMatchStats & { spp: number };
+  away: TeamMatchStats & { spp: number };
 }
 
 export interface AttackThreatDataPoint {

@@ -15,7 +15,7 @@ const extractTeamsFromXML = (xmlDoc: Document): { home: string, away: string } =
     for (let i = 0; i < labels.length; i++) {
       const group = labels[i].getElementsByTagName("group")[0]?.textContent?.trim();
       const text = labels[i].getElementsByTagName("text")[0]?.textContent?.trim();
-      if (group?.toLowerCase() === "team" || group === "팀" || group === "Team Name") {
+      if (group?.toLowerCase() === "team" || group === "팀" || group === "Team Name" || group === "국가") {
         if (text) {
           teamCounts[text] = (teamCounts[text] || 0) + 1;
         }
@@ -76,7 +76,6 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
       return; 
     }
 
-    // Determine team for this instance
     const team = code.includes(detectedTeams.home) ? detectedTeams.home : detectedTeams.away;
 
     const labels = instance.getElementsByTagName("label");
@@ -169,7 +168,7 @@ export const parseCSVData = (csvText: string): MatchEvent[] => {
   return events;
 };
 
-function generateRandomStats() {
+function generateRandomStats(): TeamMatchStats {
   return {
     goals: { field: Math.floor(Math.random() * 2), pc: Math.floor(Math.random() * 1) },
     shots: 8 + Math.floor(Math.random() * 8),
@@ -179,8 +178,7 @@ function generateRandomStats() {
     attackPossession: 45 + Math.floor(Math.random() * 10),
     allowedSpp: 10 + Math.random() * 5,
     avgAttackDuration: 25 + Math.random() * 10,
-    timePerCE: 40 + Math.random() * 20,
-    spp: 8 + Math.random() * 4
+    timePerCE: 40 + Math.random() * 20
   };
 }
 
@@ -195,8 +193,8 @@ export const createMatchDataFromUpload = (
   const quarterlyStats: QuarterStats[] = ['Q1', 'Q2', 'Q3', 'Q4'].map(q => {
     return {
       quarter: q,
-      home: generateRandomStats(),
-      away: generateRandomStats()
+      home: { ...generateRandomStats(), spp: 8 + Math.random() * 4 },
+      away: { ...generateRandomStats(), spp: 8 + Math.random() * 4 }
     };
   });
 

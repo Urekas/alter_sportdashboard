@@ -80,7 +80,7 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Basic Match Stats</CardTitle>
+        <CardTitle>기본 경기 통계 (Basic Match Stats)</CardTitle>
         <CardDescription className="pt-2 text-xs">
           (참고: 점유율 및 공격 효율 지표는 입력된 이벤트를 바탕으로 분석됩니다.)
         </CardDescription>

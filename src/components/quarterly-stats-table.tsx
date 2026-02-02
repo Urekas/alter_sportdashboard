@@ -21,9 +21,9 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Quarterly Match Stats</CardTitle>
+        <CardTitle>쿼터별 경기 통계 (Quarterly Match Stats)</CardTitle>
         <CardDescription>
-          각 쿼터별 세부 지표 분석 데이터입니다.
+          각 쿼터별 세부 지표 분석 데이터입니다. 홈 팀이 상단에 배치됩니다.
         </CardDescription>
       </CardHeader>
       <CardContent>

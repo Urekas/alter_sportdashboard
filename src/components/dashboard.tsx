@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useRef } from "react"
-import { Upload, Printer, FileText, TrendingUp, TrendingDown, Search, ListFilter } from "lucide-react"
+import { Upload, Printer, FileText, TrendingUp, TrendingDown, ListFilter } from "lucide-react"
 import type { MatchData, MatchEvent } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
 import { Button } from "@/components/ui/button"

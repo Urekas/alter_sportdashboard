@@ -44,7 +44,7 @@ function generateEvents(): MatchEvent[] {
   return events;
 }
 
-function generateCircleEntries(): MatchData['circleEntries'] {
+function generateCircleEntries(): CircleEntry[] {
     const entries: CircleEntry[] = [];
     const channels: ('Left' | 'Center' | 'Right')[] = ['Left', 'Center', 'Right'];
     const outcomes: ('Goal' | 'Shot On Target' | 'Shot Missed' | 'No Shot')[] = ['Goal', 'Shot On Target', 'Shot Missed', 'No Shot'];
@@ -80,26 +80,12 @@ function generateQuarterlyStats(): QuarterStats[] {
   return ['Q1', 'Q2', 'Q3', 'Q4'].map(q => ({
     quarter: q,
     home: {
-      goals: { field: Math.floor(Math.random() * 2), pc: Math.floor(Math.random() * 1) },
-      shots: 2 + Math.floor(Math.random() * 5),
-      circleEntries: 4 + Math.floor(Math.random() * 6),
-      twentyFiveEntries: 6 + Math.floor(Math.random() * 8),
-      possession: 50,
-      attackPossession: 50,
-      spp: 8 + Math.random() * 4,
-      avgAttackDuration: 25 + Math.random() * 10,
-      timePerCE: 40 + Math.random() * 20
+      ...generateTeamMatchStats(),
+      spp: 8 + Math.random() * 4
     },
     away: {
-      goals: { field: Math.floor(Math.random() * 2), pc: Math.floor(Math.random() * 1) },
-      shots: 2 + Math.floor(Math.random() * 5),
-      circleEntries: 4 + Math.floor(Math.random() * 6),
-      twentyFiveEntries: 6 + Math.floor(Math.random() * 8),
-      possession: 50,
-      attackPossession: 50,
-      spp: 8 + Math.random() * 4,
-      avgAttackDuration: 25 + Math.random() * 10,
-      timePerCE: 40 + Math.random() * 20
+      ...generateTeamMatchStats(),
+      spp: 8 + Math.random() * 4
     }
   }));
 }
