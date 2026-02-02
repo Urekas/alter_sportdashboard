@@ -1,4 +1,5 @@
-import type { MatchEvent, MatchData, TeamMatchStats, CircleEntry, QuarterStats } from './types';
+
+import type { MatchEvent, MatchData, TeamMatchStats, QuarterStats } from './types';
 
 /**
  * XML 레이블에서 "국가이름(HOME side) 0 - 국가이름(AWAY side) 0" 패턴을 찾아
@@ -6,6 +7,7 @@ import type { MatchEvent, MatchData, TeamMatchStats, CircleEntry, QuarterStats }
  */
 const detectRealTeamNames = (xmlDoc: Document): { home: string, away: string } | null => {
   const labels = xmlDoc.getElementsByTagName("label");
+  // "국가명(HOME side) 0 - 국가명(AWAY side) 0" 패턴 매칭
   const pattern = /(.*?)\(HOME side\)\s*\d*\s*-\s*(.*?)\(AWAY side\)\s*\d*/i;
 
   for (let i = 0; i < labels.length; i++) {
@@ -22,20 +24,20 @@ const detectRealTeamNames = (xmlDoc: Document): { home: string, away: string } |
 };
 
 /**
- * 파이썬 로직 이식: 코드의 첫 단어를 팀명으로 추출하되, 
- * detectRealTeamNames에서 찾은 실제 국가명이 있다면 HOME/AWAY 키워드를 해당 국가명으로 치환합니다.
+ * 코드에 HOME/AWAY가 포함되어 있으면 감지된 실제 팀명으로 치환하고,
+ * 그 외에는 첫 단어를 추출합니다.
  */
 const extractTeamName = (code: string, detectedTeams: { home: string, away: string } | null): string => {
   if (!code) return "Unknown";
   const upperCode = code.toUpperCase();
 
-  // 1. HOME/AWAY 키워드 매핑 (검출된 실제 국가명이 있을 경우 최우선)
+  // 1. HOME/AWAY 키워드 매핑 (감지된 실제 국가명이 있을 경우 최우선)
   if (detectedTeams) {
     if (upperCode.includes("HOME")) return detectedTeams.home;
     if (upperCode.includes("AWAY")) return detectedTeams.away;
   }
 
-  // 2. 일반적인 첫 단어 추출 (Python: row_str.split(' ')[0])
+  // 2. 일반적인 첫 단어 추출 (Python 로직)
   const first = code.trim().split(/\s+/)[0];
   const ignoreTags = ["한국빌드업", "한국프레스", "코치님", "START", "Unknown", "??", "YOO", "givepc", "getpc"];
   if (ignoreTags.includes(first)) return "Unknown";
@@ -115,7 +117,7 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     });
   });
 
-  // 홈/어웨이 결정 (레이블 패턴 우선)
+  // 레이블에서 감지된 팀이 있으면 무조건 그 순서(홈/어웨이)를 따름
   let home = detectedTeams?.home || "";
   let away = detectedTeams?.away || "";
 
@@ -146,6 +148,7 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const countEventsByLoc = (evts: MatchEvent[], rowKeyword: string, zones: string[]) => 
       evts.filter(e => (e.code.includes(rowKeyword) || e.type === rowKeyword) && zones.some(z => e.locationLabel.includes(z) || e.code.includes(z))).length;
 
+    // SPP 공식 적용 (Python 로직)
     const us_to_75_100 = countEventsByLoc(us, '턴오버', ['75', '100']);
     const us_foul_75_100 = countEventsByLoc(us, '파울', ['75', '100']);
     const opp_foul_25_50 = countEventsByLoc(opp, '파울', ['25', '50']);

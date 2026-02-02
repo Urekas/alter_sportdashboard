@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useRef } from "react"
@@ -27,7 +28,7 @@ export function Dashboard() {
     setMatchData(mockMatchData)
     toast({
       title: "데모 데이터 로드됨",
-      description: "Korea vs Netherlands 분석 데이터를 불러왔습니다.",
+      description: "분석 데이터를 불러왔습니다.",
     })
   }
 
@@ -99,7 +100,7 @@ export function Dashboard() {
                 {/* 홈 팀 카드 */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-primary font-bold">
-                    <div className="w-3 h-3 rounded-full bg-[#d62728]" />
+                    <div className="w-3 h-3 rounded-full bg-primary" />
                     {matchData.homeTeam.name} (홈)
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -118,13 +119,13 @@ export function Dashboard() {
                     <StatsCard
                       title="공격 유지 시간"
                       value={`${Number(matchData.matchStats.home.avgAttackDuration).toFixed(1)}s`}
-                      description="공격 1회당 평균"
+                      description="평균"
                       icon={<Target className="text-primary/60 h-4 w-4" />}
                     />
                     <StatsCard
                       title="CE 소요 시간"
                       value={`${Number(matchData.matchStats.home.timePerCE).toFixed(1)}s`}
-                      description="서클 진입당 시간"
+                      description="진입당 시간"
                       icon={<Activity className="text-primary/60 h-4 w-4" />}
                     />
                   </div>
@@ -133,7 +134,7 @@ export function Dashboard() {
                 {/* 어웨이 팀 카드 */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-chart-2 font-bold">
-                    <div className="w-3 h-3 rounded-full bg-[#1f77b4]" />
+                    <div className="w-3 h-3 rounded-full bg-chart-2" />
                     {matchData.awayTeam.name} (어웨이)
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -152,13 +153,13 @@ export function Dashboard() {
                     <StatsCard
                       title="공격 유지 시간"
                       value={`${Number(matchData.matchStats.away.avgAttackDuration).toFixed(1)}s`}
-                      description="공격 1회당 평균"
+                      description="평균"
                       icon={<Target className="text-primary/60 h-4 w-4" />}
                     />
                     <StatsCard
                       title="CE 소요 시간"
                       value={`${Number(matchData.matchStats.away.timePerCE).toFixed(1)}s`}
-                      description="서클 진입당 시간"
+                      description="진입당 시간"
                       icon={<Activity className="text-primary/60 h-4 w-4" />}
                     />
                   </div>
@@ -193,7 +194,7 @@ export function Dashboard() {
               <Accordion type="single" collapsible className="w-full border rounded-xl bg-muted/20">
                 <AccordionItem value="log" className="border-none">
                   <AccordionTrigger className="px-6 py-4 hover:no-underline font-semibold text-primary">
-                    데이터 파싱 로그 및 원본 데이터 검증 ({matchData.events.length}개 이벤트)
+                    데이터 파싱 로그 ({matchData.events.length}개 이벤트)
                   </AccordionTrigger>
                   <AccordionContent className="px-6 pb-6">
                     <div className="max-h-96 overflow-y-auto rounded-lg border bg-background shadow-inner">
@@ -202,7 +203,7 @@ export function Dashboard() {
                           <TableRow>
                             <TableHead>No.</TableHead>
                             <TableHead>팀 (추출됨)</TableHead>
-                            <TableHead>코드 (Code/Row)</TableHead>
+                            <TableHead>코드 (Code)</TableHead>
                             <TableHead>레이블 (지역/결과)</TableHead>
                             <TableHead>시간 (Start)</TableHead>
                           </TableRow>

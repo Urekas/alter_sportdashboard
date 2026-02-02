@@ -1,3 +1,4 @@
+
 "use client"
 
 import {
@@ -82,7 +83,7 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
       <CardHeader>
         <CardTitle>기본 경기 통계 (Basic Match Stats)</CardTitle>
         <CardDescription className="pt-2 text-xs">
-          모든 수치는 XML 시퀀스 시간과 이벤트 발생 빈도를 기반으로 계산됩니다. (%, 초: 소수점 1자리 / 횟수: 정수)
+          %, 초: 소수점 1자리 / 횟수: 정수 단위로 표시됩니다.
         </CardDescription>
       </CardHeader>
       <CardContent>
