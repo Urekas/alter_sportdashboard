@@ -85,7 +85,7 @@ export function Dashboard() {
             <Activity className="w-16 h-16 text-muted-foreground/40 mb-4" />
             <h2 className="text-2xl font-semibold mb-2">분석을 시작하세요</h2>
             <p className="text-muted-foreground mb-6 max-w-sm">
-              SportsCode XML 파일을 업로드하여 실제 데이터를 분석하세요. (예: 아시안컵 일본 vs 인도)
+              SportsCode XML 파일을 업로드하여 실제 데이터를 분석하세요.
             </p>
             <div className="flex gap-3">
               <Button onClick={() => fileInputRef.current?.click()}>파일 업로드</Button>
@@ -122,11 +122,9 @@ export function Dashboard() {
               />
             </section>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2">
-                <BasicMatchStats data={matchData} />
-              </div>
-              <div className="lg:col-span-1">
+            <div className="flex flex-col gap-8">
+              <BasicMatchStats data={matchData} />
+              <div className="w-full">
                 <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
               </div>
             </div>

@@ -28,23 +28,23 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
   const stats: StatRow[] = [
     {
       label: "득점 (필드 / PC)",
-      homeValue: `${matchStats.home.goals.field} / ${matchStats.home.goals.pc}`,
-      awayValue: `${matchStats.away.goals.field} / ${matchStats.away.goals.pc}`,
+      homeValue: `${matchStats.home.goals.field.toFixed(0)} / ${matchStats.home.goals.pc.toFixed(0)}`,
+      awayValue: `${matchStats.away.goals.field.toFixed(0)} / ${matchStats.away.goals.pc.toFixed(0)}`,
     },
     {
       label: "슈팅",
-      homeValue: matchStats.home.shots,
-      awayValue: matchStats.away.shots,
+      homeValue: matchStats.home.shots.toFixed(0),
+      awayValue: matchStats.away.shots.toFixed(0),
     },
     {
       label: "서클 진입 (CE)",
-      homeValue: matchStats.home.circleEntries,
-      awayValue: matchStats.away.circleEntries,
+      homeValue: matchStats.home.circleEntries.toFixed(0),
+      awayValue: matchStats.away.circleEntries.toFixed(0),
     },
     {
       label: "25y 진입",
-      homeValue: matchStats.home.twentyFiveEntries,
-      awayValue: matchStats.away.twentyFiveEntries,
+      homeValue: matchStats.home.twentyFiveEntries.toFixed(0),
+      awayValue: matchStats.away.twentyFiveEntries.toFixed(0),
     },
     {
       label: "빌드업 25m 성공률 (%)",
