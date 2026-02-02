@@ -169,7 +169,6 @@ export function Dashboard() {
 
             <div className="grid grid-cols-1 gap-8">
               <BasicMatchStats data={matchData} />
-              {/* Pressure Battle Chart moved under BasicMatchStats */}
               <div className="w-full">
                 <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
               </div>

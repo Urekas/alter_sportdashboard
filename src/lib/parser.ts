@@ -4,12 +4,18 @@ import type { MatchEvent, MatchData, TeamMatchStats, CircleEntry, QuarterStats }
 /**
  * 파이썬 extract_team 로직 100% 이식
  * 1. 공백으로 분리 후 첫 단어를 팀명으로 인식
- * 2. 특정 분석 제외 태그 필터링
+ * 2. 분석 제외 태그 및 일반 명칭(HOME/AWAY) 필터링하여 레이블에서 실제 팀명을 찾도록 유도
  */
 const extractTeamName = (code: string): string => {
   if (!code) return "Unknown";
   const first = code.trim().split(/\s+/)[0];
-  const ignoreTags = ["한국빌드업", "한국프레스", "코치님", "START", "Unknown", "??", "YOO", "givepc", "getpc"];
+  
+  // 파이썬 코드의 ignore_tags + 일반 명칭(HOME/AWAY) 추가
+  const ignoreTags = [
+    "한국빌드업", "한국프레스", "코치님", "START", "Unknown", "??", "YOO", 
+    "givepc", "getpc", "HOME", "AWAY", "Home", "Away", "HOMETEAM", "AWAYTEAM"
+  ];
+  
   if (ignoreTags.includes(first)) return "Unknown";
   return first;
 };
@@ -55,10 +61,10 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
       
       if (/지역|Location|Zone/i.test(group)) locLabel += text + " ";
       else if (/결과|Result|Outcome/i.test(group)) resultLabel += text + " ";
-      else if (/팀|Team|Country/i.test(group)) detectedTeamLabel = text;
+      else if (/팀|Team|Country|국가/i.test(group)) detectedTeamLabel = text;
     }
 
-    // code에서 못 뽑았으면 label에서 시도
+    // code에서 못 뽑았거나(Unknown), 일반 명칭인 경우 레이블에서 추출한 실제 국가명 사용
     if (team === "Unknown" && detectedTeamLabel) team = detectedTeamLabel;
     if (team === "Unknown") return;
 
@@ -135,7 +141,6 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const spp = pressAttempts > 0 ? buildUpTime / pressAttempts : 0;
     const allowedSpp = allowedDenom > 0 ? buildUpTime / allowedDenom : 0;
 
-    // Build25 성공률: DM START | D25 START 중 25Y entry 결과 매칭
     const buildRows = us.filter(e => /DM START|D25 START/.test(e.code));
     const build25Success = buildRows.filter(e => e.resultLabel.includes('25Y entry')).length;
 
