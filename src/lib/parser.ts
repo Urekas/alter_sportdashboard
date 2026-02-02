@@ -1,6 +1,6 @@
 import type { MatchEvent, MatchData, TeamMatchStats, AttackThreatDataPoint, PressureDataPoint, CircleEntry, QuarterStats } from './types';
 
-// Based on FIH Field Specifications
+// FIH 경기장 규격 기준
 const PITCH_LENGTH = 91.4;
 const PITCH_WIDTH = 55;
 const LANE_WIDTH = PITCH_WIDTH / 3;
@@ -10,21 +10,32 @@ const extractTeamsFromXML = (xmlDoc: Document): { home: string, away: string } =
   const teamCounts: Record<string, number> = {};
 
   Array.from(instances).forEach(instance => {
-    // Strategy 1: Look for labels with group "Team" or "팀"
     const labels = instance.getElementsByTagName("label");
     for (let i = 0; i < labels.length; i++) {
-      const group = labels[i].getElementsByTagName("group")[0]?.textContent?.trim();
-      const text = labels[i].getElementsByTagName("text")[0]?.textContent?.trim();
-      if (group?.toLowerCase() === "team" || group === "팀" || group === "Team Name" || group === "국가") {
-        if (text) {
+      const group = labels[i].getElementsByTagName("group")[0]?.textContent?.trim() || "";
+      const text = labels[i].getElementsByTagName("text")[0]?.textContent?.trim() || "";
+      const lowerGroup = group.toLowerCase();
+      
+      // 실제 국가명/팀명이 들어있을 가능성이 높은 그룹들 확인
+      if (
+        lowerGroup.includes("team") || 
+        lowerGroup.includes("팀") || 
+        lowerGroup.includes("국가") || 
+        lowerGroup.includes("country") ||
+        lowerGroup.includes("nation") ||
+        lowerGroup.includes("name")
+      ) {
+        const lowerText = text.toLowerCase();
+        // "home team", "away team", "opponent" 등 제너릭한 이름은 제외하고 수집
+        if (text && !lowerText.includes("home") && !lowerText.includes("away") && !lowerText.includes("opponent") && !lowerText.includes("팀")) {
           teamCounts[text] = (teamCounts[text] || 0) + 1;
         }
       }
     }
 
-    // Strategy 2: Extract from code if labels don't provide enough info
+    // Code 태그에서도 추출 시도 (제너릭하지 않은 경우만)
     const code = instance.getElementsByTagName("code")[0]?.textContent || "";
-    let teamNameFromCode = code
+    const cleanedCode = code
       .replace(/turnover/gi, "")
       .replace(/foul/gi, "")
       .replace(/턴오버/g, "")
@@ -32,8 +43,9 @@ const extractTeamsFromXML = (xmlDoc: Document): { home: string, away: string } =
       .replace(/[-]/g, "")
       .trim();
     
-    if (teamNameFromCode && teamNameFromCode.length > 1) {
-      teamCounts[teamNameFromCode] = (teamCounts[teamNameFromCode] || 0) + 1;
+    const lowerCode = cleanedCode.toLowerCase();
+    if (cleanedCode && cleanedCode.length > 1 && !lowerCode.includes("home") && !lowerCode.includes("away") && !lowerCode.includes("opponent")) {
+      teamCounts[cleanedCode] = (teamCounts[cleanedCode] || 0) + 1;
     }
   });
 
@@ -41,15 +53,16 @@ const extractTeamsFromXML = (xmlDoc: Document): { home: string, away: string } =
     .sort((a, b) => b[1] - a[1])
     .map(entry => entry[0]);
 
+  // 실제 이름이 감지되지 않으면 기본값 사용
   return {
-    home: sortedTeams[0] || "Home",
-    away: sortedTeams[1] || (sortedTeams[0] ? "Opponent" : "Away")
+    home: sortedTeams[0] || "홈 팀",
+    away: sortedTeams[1] || (sortedTeams[0] ? "상대 팀" : "어웨이 팀")
   };
 };
 
 export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { home: string, away: string } } => {
   if (typeof window === 'undefined') {
-    return { events: [], teams: { home: "Home", away: "Away" } };
+    return { events: [], teams: { home: "홈 팀", away: "어웨이 팀" } };
   }
 
   const parser = new DOMParser();
@@ -76,16 +89,17 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
       return; 
     }
 
-    const team = code.includes(detectedTeams.home) ? detectedTeams.home : detectedTeams.away;
+    // 팀 판별: 코드에 팀명이 포함되어 있는지 확인, 없으면 로직상 홈 팀으로 우선 할당 (검증용)
+    const team = code.includes(detectedTeams.away) ? detectedTeams.away : detectedTeams.home;
 
     const labels = instance.getElementsByTagName("label");
     let locLabel = "";
     for (let i = 0; i < labels.length; i++) {
-      const group = labels[i].getElementsByTagName("group")[0]?.textContent;
-      const text = labels[i].getElementsByTagName("text")[0]?.textContent;
+      const group = labels[i].getElementsByTagName("group")[0]?.textContent || "";
+      const text = labels[i].getElementsByTagName("text")[0]?.textContent || "";
       
       if (group === "지역" || group === "Location" || group === "Zone" || group === "구역") {
-        locLabel = text || "";
+        locLabel = text;
         break;
       }
     }

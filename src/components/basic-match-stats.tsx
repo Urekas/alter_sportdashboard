@@ -67,13 +67,13 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
     },
     {
       label: "공격 1회당 유지 시간 (초)",
-      homeValue: `${matchStats.home.avgAttackDuration.toFixed(1)}s`,
-      awayValue: `${matchStats.away.avgAttackDuration.toFixed(1)}s`,
+      homeValue: `${(matchStats.home.avgAttackDuration || 0).toFixed(1)}s`,
+      awayValue: `${(matchStats.away.avgAttackDuration || 0).toFixed(1)}s`,
     },
     {
       label: "CE 1회당 소요 시간 (초)",
-      homeValue: `${matchStats.home.timePerCE.toFixed(1)}s`,
-      awayValue: `${matchStats.away.timePerCE.toFixed(1)}s`,
+      homeValue: `${(matchStats.home.timePerCE || 0).toFixed(1)}s`,
+      awayValue: `${(matchStats.away.timePerCE || 0).toFixed(1)}s`,
     },
   ]
 
