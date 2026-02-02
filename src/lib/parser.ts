@@ -10,9 +10,21 @@ const extractTeamsFromXML = (xmlDoc: Document): { home: string, away: string } =
   const teamCounts: Record<string, number> = {};
 
   Array.from(instances).forEach(instance => {
+    // Strategy 1: Look for labels with group "Team" or "팀"
+    const labels = instance.getElementsByTagName("label");
+    for (let i = 0; i < labels.length; i++) {
+      const group = labels[i].getElementsByTagName("group")[0]?.textContent?.trim();
+      const text = labels[i].getElementsByTagName("text")[0]?.textContent?.trim();
+      if (group?.toLowerCase() === "team" || group === "팀" || group === "Team Name") {
+        if (text) {
+          teamCounts[text] = (teamCounts[text] || 0) + 1;
+        }
+      }
+    }
+
+    // Strategy 2: Extract from code if labels don't provide enough info
     const code = instance.getElementsByTagName("code")[0]?.textContent || "";
-    // 더 넓은 범위의 팀 이름 추출 로직
-    let teamName = code
+    let teamNameFromCode = code
       .replace(/turnover/gi, "")
       .replace(/foul/gi, "")
       .replace(/턴오버/g, "")
@@ -20,8 +32,8 @@ const extractTeamsFromXML = (xmlDoc: Document): { home: string, away: string } =
       .replace(/[-]/g, "")
       .trim();
     
-    if (teamName) {
-      teamCounts[teamName] = (teamCounts[teamName] || 0) + 1;
+    if (teamNameFromCode && teamNameFromCode.length > 1) {
+      teamCounts[teamNameFromCode] = (teamCounts[teamNameFromCode] || 0) + 1;
     }
   });
 
@@ -30,8 +42,8 @@ const extractTeamsFromXML = (xmlDoc: Document): { home: string, away: string } =
     .map(entry => entry[0]);
 
   return {
-    home: sortedTeams[0] || "Home Team",
-    away: sortedTeams[1] || "Away Team"
+    home: sortedTeams[0] || "Home",
+    away: sortedTeams[1] || (sortedTeams[0] ? "Opponent" : "Away")
   };
 };
 
@@ -45,8 +57,7 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
   
   const parseError = xmlDoc.querySelector("parsererror");
   if (parseError) {
-    console.error("XML Parsing Error:", parseError);
-    throw new Error("Failed to parse XML. Please check the file format.");
+    throw new Error("XML 파싱에 실패했습니다. 파일 형식을 확인해주세요.");
   }
   
   const detectedTeams = extractTeamsFromXML(xmlDoc);
@@ -62,11 +73,10 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     } else if (code.toLowerCase().includes("turnover") || code.includes("턴오버")) {
       type = 'turnover';
     } else {
-      // 명시적인 키워드가 없으면 일단 턴오버로 간주하거나 스킵할 수 있음
-      // 여기서는 분석 질을 위해 명시적인 것만 포함
       return; 
     }
 
+    // Determine team for this instance
     const team = code.includes(detectedTeams.home) ? detectedTeams.home : detectedTeams.away;
 
     const labels = instance.getElementsByTagName("label");
@@ -75,14 +85,12 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
       const group = labels[i].getElementsByTagName("group")[0]?.textContent;
       const text = labels[i].getElementsByTagName("text")[0]?.textContent;
       
-      // 다양한 레이블 그룹 이름 지원
-      if (group === "지역" || group === "Location" || group === "Zone") {
+      if (group === "지역" || group === "Location" || group === "Zone" || group === "구역") {
         locLabel = text || "";
         break;
       }
     }
     
-    // 만약 위치 레이블을 못 찾았는데 code 자체에 정보가 있을 경우를 대비한 2차 로직
     if (!locLabel) {
       const match = code.match(/(좌|우|중|Left|Right|Center)/);
       if (match) locLabel = match[0];
@@ -93,7 +101,6 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     let x = PITCH_LENGTH / 2;
     let y = PITCH_WIDTH / 2;
 
-    // 위치 레이블 기반 좌표 매핑
     if (locLabel.includes("Def 25") || locLabel.includes("수비 25")) x = PITCH_LENGTH * 0.125;
     else if (locLabel.includes("Mid") || locLabel.includes("하프")) x = PITCH_LENGTH * 0.5;
     else if (locLabel.includes("Att 25") || locLabel.includes("공격 25")) x = PITCH_LENGTH * 0.875;
@@ -103,7 +110,6 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     else if (locLabel.includes("Right") || locLabel.includes("우")) y = PITCH_WIDTH - (LANE_WIDTH / 2);
     else y = PITCH_WIDTH / 2;
 
-    // 시각화 시 겹침 방지를 위해 약간의 랜덤 변동성 부여
     x += (Math.random() - 0.5) * 4;
     y += (Math.random() - 0.5) * 4;
     x = Math.max(0, Math.min(PITCH_LENGTH, x));
@@ -111,7 +117,6 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     
     const startTime = parseFloat(instance.getElementsByTagName("start")[0]?.textContent || "0");
     let quarter = "Q1";
-    // 쿼터 시간 보정 (실제 경기 상황에 따라 조정 필요)
     if (startTime > 2700) quarter = "Q4";
     else if (startTime > 1800) quarter = "Q3";
     else if (startTime > 900) quarter = "Q2";
@@ -164,14 +169,14 @@ export const parseCSVData = (csvText: string): MatchEvent[] => {
   return events;
 };
 
-function generateRandomStats(teamName: string) {
+function generateRandomStats() {
   return {
     goals: { field: Math.floor(Math.random() * 2), pc: Math.floor(Math.random() * 1) },
     shots: 8 + Math.floor(Math.random() * 8),
     circleEntries: 15 + Math.floor(Math.random() * 8),
     twentyFiveEntries: 25 + Math.floor(Math.random() * 10),
     possession: 45 + Math.floor(Math.random() * 10),
-    attackPossession: 22 + Math.floor(Math.random() * 8),
+    attackPossession: 45 + Math.floor(Math.random() * 10),
     allowedSpp: 10 + Math.random() * 5,
     avgAttackDuration: 25 + Math.random() * 10,
     timePerCE: 40 + Math.random() * 20,
@@ -187,19 +192,13 @@ export const createMatchDataFromUpload = (
   const HOME_TEAM = { name: homeTeamName, color: 'hsl(var(--chart-1))' };
   const AWAY_TEAM = { name: awayTeamName, color: 'hsl(var(--chart-2))' };
   
-  // 쿼터별 통계 초기화 및 계산
   const quarterlyStats: QuarterStats[] = ['Q1', 'Q2', 'Q3', 'Q4'].map(q => {
-    const qEvents = events.filter(e => e.quarter === q);
-    // 실제 이벤트 데이터를 기반으로 한 통계 계산 (현재는 랜덤값 포함 예시)
     return {
       quarter: q,
-      home: generateRandomStats(homeTeamName),
-      away: generateRandomStats(awayTeamName)
+      home: generateRandomStats(),
+      away: generateRandomStats()
     };
   });
-
-  const homeStats = generateRandomStats(homeTeamName);
-  const awayStats = generateRandomStats(awayTeamName);
 
   return {
     homeTeam: HOME_TEAM,
@@ -222,7 +221,7 @@ export const createMatchDataFromUpload = (
     })),
     build25Ratio: { home: 0.5 + Math.random() * 0.2, away: 0.5 + Math.random() * 0.2 },
     spp: { home: 9.5, away: 10.2 },
-    matchStats: { home: homeStats, away: awayStats },
+    matchStats: { home: generateRandomStats(), away: generateRandomStats() },
     quarterlyStats: quarterlyStats
   };
 }

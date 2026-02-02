@@ -1,7 +1,7 @@
 import type { MatchData, TeamMatchStats, AttackThreatDataPoint, MatchEvent, CircleEntry, PressureDataPoint, QuarterStats } from './types';
 
-const HOME_TEAM = { name: 'Blues', color: 'hsl(var(--chart-1))' };
-const AWAY_TEAM = { name: 'Reds', color: 'hsl(var(--chart-2))' };
+const HOME_TEAM = { name: 'Korea', color: 'hsl(var(--chart-1))' };
+const AWAY_TEAM = { name: 'Netherlands', color: 'hsl(var(--chart-2))' };
 
 const PITCH_LENGTH = 91.4;
 const PITCH_WIDTH = 55;
@@ -68,8 +68,8 @@ function generateTeamMatchStats(): TeamMatchStats {
         shots: 8 + Math.floor(Math.random() * 10),
         circleEntries: 15 + Math.floor(Math.random() * 10),
         twentyFiveEntries: 25 + Math.floor(Math.random() * 15),
-        possession: 40 + Math.floor(Math.random() * 20),
-        attackPossession: 20 + Math.floor(Math.random() * 20),
+        possession: 50,
+        attackPossession: 50,
         allowedSpp: 10 + Math.random() * 5,
         avgAttackDuration: 25 + Math.random() * 10,
         timePerCE: 40 + Math.random() * 20,
@@ -84,8 +84,8 @@ function generateQuarterlyStats(): QuarterStats[] {
       shots: 2 + Math.floor(Math.random() * 5),
       circleEntries: 4 + Math.floor(Math.random() * 6),
       twentyFiveEntries: 6 + Math.floor(Math.random() * 8),
-      possession: 45 + Math.floor(Math.random() * 10),
-      attackPossession: 20 + Math.floor(Math.random() * 10),
+      possession: 50,
+      attackPossession: 50,
       spp: 8 + Math.random() * 4,
       avgAttackDuration: 25 + Math.random() * 10,
       timePerCE: 40 + Math.random() * 20
@@ -95,8 +95,8 @@ function generateQuarterlyStats(): QuarterStats[] {
       shots: 2 + Math.floor(Math.random() * 5),
       circleEntries: 4 + Math.floor(Math.random() * 6),
       twentyFiveEntries: 6 + Math.floor(Math.random() * 8),
-      possession: 45 + Math.floor(Math.random() * 10),
-      attackPossession: 20 + Math.floor(Math.random() * 10),
+      possession: 50,
+      attackPossession: 50,
       spp: 8 + Math.random() * 4,
       avgAttackDuration: 25 + Math.random() * 10,
       timePerCE: 40 + Math.random() * 20

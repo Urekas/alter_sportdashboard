@@ -72,18 +72,18 @@ export function Dashboard() {
           if (events.length === 0) {
               toast({
                 title: "이벤트 데이터 없음",
-                description: '파일을 읽었으나 분석할 수 있는 이벤트가 없습니다. XML 내 <instance>와 적절한 <label>이 있는지 확인해주세요.',
+                description: '파일을 읽었으나 분석할 수 있는 이벤트가 없습니다.',
                 variant: "destructive",
               });
               return;
           }
             
           const newMatchData = createMatchDataFromUpload(events, homeName, awayName);
-            
           setMatchData(newMatchData);
+          
           toast({
             title: "데이터 분석 완료",
-            description: `${homeName} vs ${awayName} 경기의 ${events.length}개 이벤트를 성공적으로 처리했습니다.`,
+            description: `${homeName} vs ${awayName} 경기의 분석을 성공적으로 완료했습니다.`,
           });
 
         } catch (error: any) {
@@ -221,7 +221,6 @@ export function Dashboard() {
                 <QuarterlyStatsTable data={matchData} />
               </div>
 
-              {/* 파싱 데이터 검증용 로그 섹션 */}
               <div className="w-full pt-12 print-hidden">
                 <Accordion type="single" collapsible className="w-full border rounded-lg bg-muted/30">
                   <AccordionItem value="event-log" className="border-none">
@@ -234,7 +233,7 @@ export function Dashboard() {
                     <AccordionContent className="px-6 pb-6">
                       <Card className="border-none shadow-none bg-transparent">
                         <CardDescription className="mb-4">
-                          XML에서 추출된 로우(Raw) 데이터 목록입니다. 각 이벤트의 팀, 타입, 위치 정보가 제대로 분석되었는지 확인하세요.
+                          XML에서 추출된 로우(Raw) 데이터 목록입니다. 각 이벤트의 팀(국가), 타입, 위치 정보가 제대로 분석되었는지 확인하세요.
                         </CardDescription>
                         <div className="max-h-[500px] overflow-auto border rounded-md bg-background">
                           <Table>
@@ -278,9 +277,8 @@ export function Dashboard() {
                 </Accordion>
               </div>
             </div>
-          </div>
-        )}
-      </main>
-    </div>
-  )
+          )}
+        </main>
+      </div>
+  );
 }
