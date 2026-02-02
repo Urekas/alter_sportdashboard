@@ -24,34 +24,45 @@ type ZoneStat = {
 
 export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnalysisMapProps) {
   const zoneStats = useMemo(() => {
-    const calculateStats = (attackingEvents: MatchEvent[], teamName: string, opponentName: string, isHome: boolean) => {
-      // 6구역 초기화: [25m-Left, 25m-Center, 25m-Right, 50m-Left, 50m-Center, 50m-Right]
+    const calculateStats = (teamName: string, opponentName: string, isHome: boolean) => {
+      // 6구역: [25L, 25C, 25R, 50L, 50C, 50R]
       const zones: ZoneStat[] = Array(6).fill(null).map(() => ({ count: 0, success: 0, rate: 0 }));
 
-      attackingEvents.forEach(e => {
-        // 상대 골대 기준 거리 계산
+      events.forEach(e => {
+        // 해당 팀의 공격 진영 이벤트인지 확인
+        const isAttackingHalf = isHome ? (e.x > MID_X) : (e.x < MID_X);
+        if (!isAttackingHalf) return;
+
+        // 압박 성공/실패 여부 판단 (사용자 정의 공식 적용)
+        // 성공: 상대 실책(턴오버/파울), 실패: 나의 공격 파울
+        let isSuccess = false;
+        let isFailure = false;
+
+        if (e.team === opponentName) {
+          isSuccess = true;
+        } else if (e.team === teamName && e.type === 'foul') {
+          isFailure = true;
+        } else {
+          return; // 압박 지표에 포함되지 않는 이벤트(나의 턴오버 등)는 건너뜀
+        }
+
+        // 구역 계산 (상대 골대 라인 기준 거리)
         const distFromGoal = isHome ? (PITCH_LENGTH - e.x) : e.x;
         const xIdx = distFromGoal <= LINE_23M ? 0 : 1; // 0: 25m zone, 1: 50m zone
         
         // 레인 계산 (공격 방향 기준 좌/중/우)
-        const y = isHome ? e.y : (PITCH_WIDTH - e.y);
+        // Y=0이 좌측 레인이라고 가정
+        const laneY = isHome ? e.y : (PITCH_WIDTH - e.y);
         let yIdx = 0;
-        if (y > PITCH_WIDTH * 0.66) yIdx = 2;
-        else if (y > PITCH_WIDTH * 0.33) yIdx = 1;
+        if (laneY > PITCH_WIDTH * 0.66) yIdx = 2; // Right
+        else if (laneY > PITCH_WIDTH * 0.33) yIdx = 1; // Center
         
         const zoneIdx = (xIdx * 3) + yIdx;
 
         if (zoneIdx >= 0 && zoneIdx < 6) {
           zones[zoneIdx].count++;
-          
-          const isOpponentMistake = e.team === opponentName;
-          const isMyFoul = e.team === teamName && e.type === 'foul';
-          
-          if (isOpponentMistake) {
-            zones[zoneIdx].success++;
-          } else if (isMyFoul) {
-            zones[zoneIdx].success--;
-          }
+          if (isSuccess) zones[zoneIdx].success++;
+          if (isFailure) zones[zoneIdx].success--;
         }
       });
 
@@ -63,52 +74,88 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
     };
 
     return {
-      home: calculateStats(events.filter(e => e.x > MID_X), homeTeam.name, awayTeam.name, true),
-      away: calculateStats(events.filter(e => e.x < MID_X), awayTeam.name, homeTeam.name, false)
+      home: calculateStats(homeTeam.name, awayTeam.name, true),
+      away: calculateStats(awayTeam.name, homeTeam.name, false)
     };
   }, [events, homeTeam, awayTeam]);
 
-  const renderZoneGrid = (stats: ZoneStat[], team: Team, isRightSide: boolean) => {
-    const zoneLabels = ["25L", "25C", "25R", "50L", "50C", "50R"];
+  const renderHalfPitch = (stats: ZoneStat[], team: Team, isHome: boolean) => {
+    const labels = ["25L", "25C", "25R", "50L", "50C", "50R"];
     
     return (
-      <div className="space-y-3">
-        <h3 className="text-sm font-bold text-center px-2 py-1 rounded bg-muted" style={{ color: team.color }}>
-          {team.name} Attacking Half Pressure
+      <div className="flex flex-col gap-4">
+        <h3 className="text-sm font-bold text-center p-2 rounded-t-lg border-b-2" style={{ backgroundColor: `${team.color}15`, color: team.color, borderColor: team.color }}>
+          {team.name} Attacking Half
         </h3>
-        <div className="grid grid-cols-3 gap-1 relative aspect-[45.7/55] border-2 border-border rounded-lg overflow-hidden bg-muted/20">
-          {/* 25m Zones (Upper in visual if Goal is top, but here x is horizontal) */}
-          {/* We'll display them as a 2x3 grid: Top row is 25m, Bottom row is 50m */}
-          {stats.map((stat, i) => (
-            <div 
-              key={i} 
-              className="flex flex-col items-center justify-center p-1 border border-border/50 bg-background/50 relative group"
-            >
-              <span className="absolute top-1 left-1 text-[8px] font-bold text-muted-foreground opacity-50">
-                {zoneLabels[i]}
-              </span>
-              <div className="text-center">
-                <p className="text-lg font-black leading-none">{stat.rate}%</p>
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  {stat.success}/{stat.count}
-                </p>
-              </div>
-              {/* Heatmap overlay based on success rate */}
-              <div 
-                className="absolute inset-0 pointer-events-none transition-opacity group-hover:opacity-40" 
-                style={{ 
-                  backgroundColor: team.color, 
-                  opacity: stat.count > 0 ? (stat.rate / 200) : 0 
-                }} 
-              />
-            </div>
-          ))}
-          
-          {/* Pitch Lines Hint */}
-          <svg className="absolute inset-0 pointer-events-none opacity-20" viewBox="0 0 100 100" preserveAspectRatio="none">
-             <line x1="0" y1="50" x2="100" y2="50" stroke="currentColor" strokeWidth="0.5" strokeDasharray="2,2" />
-             <line x1="33.3" y1="0" x2="33.3" y2="100" stroke="currentColor" strokeWidth="0.5" strokeDasharray="2,2" />
-             <line x1="66.6" y1="0" x2="66.6" y2="100" stroke="currentColor" strokeWidth="0.5" strokeDasharray="2,2" />
+        <div className="relative aspect-[45.7/55] bg-green-50/50 rounded-b-lg overflow-hidden border-2 border-muted shadow-inner">
+          <svg viewBox="0 0 45.7 55" className="w-full h-full">
+            {/* Pitch Markings (Half Pitch) */}
+            <g stroke="#000" strokeWidth="0.2" fill="none" opacity="0.3">
+              <rect x="0" y="0" width="45.7" height="55" />
+              {/* Goal Line & Circle */}
+              {isHome ? (
+                <>
+                  <line x1="45.7" y1="0" x2="45.7" y2="55" /> {/* Goal Line (Right side) */}
+                  <path d="M 45.7,12.87 A 14.63,14.63 0 0,0 31.07,27.5 A 14.63,14.63 0 0,0 45.7,42.13" />
+                  <line x1="22.9" y1="0" x2="22.9" y2="55" strokeDasharray="1,1" /> {/* 23m line */}
+                </>
+              ) : (
+                <>
+                  <line x1="0" y1="0" x2="0" y2="55" /> {/* Goal Line (Left side) */}
+                  <path d="M 0,12.87 A 14.63,14.63 0 0,1 14.63,27.5 A 14.63,14.63 0 0,1 0,42.13" />
+                  <line x1="22.8" y1="0" x2="22.8" y2="55" strokeDasharray="1,1" /> {/* 23m line */}
+                </>
+              )}
+              {/* Lane Lines */}
+              <line x1="0" y1="18.33" x2="45.7" y2="18.33" strokeDasharray="1,1" />
+              <line x1="0" y1="36.66" x2="45.7" y2="36.66" strokeDasharray="1,1" />
+            </g>
+
+            {/* Zones Heatmap Overlay */}
+            {stats.map((stat, i) => {
+              const xIdx = Math.floor(i / 3);
+              const yIdx = i % 3;
+              
+              let rectX = 0;
+              let rectW = 22.85;
+              
+              if (isHome) {
+                // Team Home attacks Right. 25m zone is 22.85 to 45.7, 50m zone is 0 to 22.85 (relative to center)
+                rectX = xIdx === 0 ? 22.85 : 0;
+              } else {
+                // Team Away attacks Left. 25m zone is 0 to 22.85, 50m zone is 22.85 to 45.7
+                rectX = xIdx === 0 ? 0 : 22.85;
+              }
+              
+              const rectY = yIdx * 18.33;
+              const intensity = stat.count > 0 ? (stat.rate / 150) + 0.05 : 0;
+
+              return (
+                <g key={i}>
+                  <rect
+                    x={rectX}
+                    y={rectY}
+                    width={rectW}
+                    height="18.33"
+                    fill={team.color}
+                    fillOpacity={intensity}
+                    className="transition-all hover:fill-opacity-40"
+                  />
+                  <text
+                    x={rectX + rectW/2}
+                    y={rectY + 18.33/2}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize="3"
+                    className="font-bold fill-foreground select-none pointer-events-none"
+                  >
+                    <tspan x={rectX + rectW/2} dy="-1.5" fontSize="2.5" opacity="0.6">{labels[i]}</tspan>
+                    <tspan x={rectX + rectW/2} dy="3" fontSize="4">{stat.rate}%</tspan>
+                    <tspan x={rectX + rectW/2} dy="3" fontSize="2" opacity="0.6">{stat.success}/{stat.count}</tspan>
+                  </text>
+                </g>
+              );
+            })}
           </svg>
         </div>
       </div>
@@ -118,31 +165,28 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
   return (
     <Card className="lg:col-span-3">
       <CardHeader>
-        <CardTitle>Detailed Pressure Map</CardTitle>
+        <CardTitle>Pressure Analysis Map</CardTitle>
         <CardDescription>
-          상대 진영을 6개 구역(25m/50m x 좌/중/우)으로 나누어 분석한 압박 지표입니다.
+          상대 진영을 6개 구역으로 나누어 분석한 압박 지표입니다. (공격 방향 기준)
           <br />
-          <span className="text-xs text-muted-foreground">성공률 = (상대 실책 - 나의 공격 파울) / 총 압박 이벤트</span>
+          <span className="text-xs text-muted-foreground font-medium">압박 성공률 = (상대 실책 - 나의 공격 파울) / 총 압박 이벤트</span>
         </CardDescription>
       </CardHeader>
       <CardContent className="p-4 md:p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {renderZoneGrid(zoneStats.away, awayTeam, false)}
-          {renderZoneGrid(zoneStats.home, homeTeam, true)}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+          {renderHalfPitch(zoneStats.away, awayTeam, false)}
+          {renderHalfPitch(zoneStats.home, homeTeam, true)}
         </div>
         
-        <div className="mt-6 flex flex-wrap justify-center gap-6 text-xs text-muted-foreground border-t pt-4">
+        <div className="mt-8 flex flex-wrap justify-center gap-x-8 gap-y-2 text-xs text-muted-foreground border-t pt-4 bg-muted/20 rounded-b-lg px-4">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 border border-dashed"></div>
-            <span>25: 공격 25m 구역</span>
+            <span className="font-bold text-primary">25:</span> 공격 25m 구역
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 border border-dashed"></div>
-            <span>50: 센터라인~25m 사이 구역</span>
+            <span className="font-bold text-primary">50:</span> 하프라인 ~ 25m 구역
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 border border-dashed"></div>
-            <span>L/C/R: 좌측, 중앙, 우측 레인</span>
+            <span className="font-bold text-primary">L/C/R:</span> 공격 방향 기준 좌/중/우 레인
           </div>
         </div>
       </CardContent>
