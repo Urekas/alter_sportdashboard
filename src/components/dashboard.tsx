@@ -39,11 +39,12 @@ export function Dashboard() {
       reader.onload = (e) => {
         try {
           const arrayBuffer = e.target?.result as ArrayBuffer;
-          // 한국어 인코딩(EUC-KR) 우선 시도 후 UTF-8 폴백
+          // 한국어 엑셀(EUC-KR) 우선 시도
           const decoder = new TextDecoder('euc-kr');
           let content = decoder.decode(arrayBuffer);
           
-          if (content.includes('')) {
+          // 한글 깨짐 체크 (REPLACEMENT CHARACTER '' 가 너무 많으면 UTF-8 시도)
+          if (content.split('').length > 5) {
              content = new TextDecoder('utf-8').decode(arrayBuffer);
           }
 

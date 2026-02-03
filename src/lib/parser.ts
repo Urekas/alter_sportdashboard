@@ -1,25 +1,35 @@
 import type { MatchEvent, MatchData, TeamMatchStats, QuarterStats } from './types';
 
 /**
- * 텍스트 데이터에서 "팀명 0 - 팀명 0" 또는 "(HOME side) - (AWAY side)" 패턴을 찾아
- * 홈팀과 어웨이팀의 실제 이름을 확정합니다.
+ * 레이블 텍스트에서 "팀명(HOME side) - 팀명(AWAY side)" 패턴을 찾아 홈/어웨이 실제 이름을 확정합니다.
  */
 const detectRealTeamNames = (text: string): { home: string, away: string } | null => {
-  const pattern = /([^(]+?)(?:\(HOME side\))?\s*\d*\s*-\s*([^(]+?)(?:\(AWAY side\))?\s*\d*/i;
-  const match = text.match(pattern);
+  // "일본(HOME side) 0 - 인도(AWAY side) 0" 또는 "일본 - 인도" 패턴
+  const pattern = /([^(]+?)\s*\(\s*HOME\s*side\s*\)\s*\d*\s*-\s*([^(]+?)\s*\(\s*AWAY\s*side\s*\)\s*\d*/i;
+  const simplePattern = /([^-]+)\s*-\s*([^-]+)/i;
   
+  let match = text.match(pattern);
   if (match) {
     return {
       home: match[1].trim(),
       away: match[2].trim()
     };
   }
+
+  match = text.match(simplePattern);
+  if (match && text.includes('side')) {
+    return {
+      home: match[1].trim(),
+      away: match[2].trim()
+    };
+  }
+  
   return null;
 };
 
 /**
- * 코드에 HOME/AWAY가 포함되어 있으면 감지된 실제 팀명으로 치환하고,
- * 그 외에는 첫 단어를 추출합니다. (Python 로직 반영)
+ * 파이썬 로직: 코드 첫 단어 추출 및 제외 태그 처리.
+ * 코드에 HOME/AWAY가 포함되어 있으면 감지된 실제 팀명으로 치환.
  */
 const extractTeamName = (code: string, detectedTeams: { home: string, away: string } | null): string => {
   if (!code) return "Unknown";
@@ -31,31 +41,31 @@ const extractTeamName = (code: string, detectedTeams: { home: string, away: stri
     if (upperCode.includes("AWAY")) return detectedTeams.away;
   }
 
-  // 2. 파이썬 로직: 첫 단어 추출 및 제외 태그 처리
+  // 2. 파이썬 로직: split(' ')[0]
   const first = code.trim().split(/\s+/)[0];
-  const ignoreTags = ["한국빌드업", "한국프레스", "코치님", "START", "Unknown", "??", "YOO", "givepc", "getpc"];
+  const ignoreTags = ["한국빌드업", "한국프레스", "코치님"];
   if (ignoreTags.includes(first)) return "Unknown";
   
   return first;
 };
 
-const mapZone = (locStr: string): { x: number, y: number, lane: 'Left' | 'Center' | 'Right' } => {
+const mapZone = (locStr: string): { x: number, y: number } => {
   const text = locStr.toUpperCase();
   let lane: 'Left' | 'Center' | 'Right' = 'Center';
   if (text.includes('좌') || text.includes('LEFT') || text.includes('L_')) lane = 'Left';
   else if (text.includes('우') || text.includes('RIGHT') || text.includes('R_')) lane = 'Right';
 
   let x = 45.7; 
-  if (text.includes('100')) x = 91.4 * 0.9;
-  else if (text.includes('75')) x = 91.4 * 0.7;
-  else if (text.includes('50')) x = 91.4 * 0.5;
-  else if (text.includes('25')) x = 91.4 * 0.25;
+  if (text.includes('100')) x = 85;
+  else if (text.includes('75')) x = 65;
+  else if (text.includes('50')) x = 45;
+  else if (text.includes('25')) x = 20;
 
   let y = 27.5;
-  if (lane === 'Left') y = 55 * 0.2;
-  else if (lane === 'Right') y = 55 * 0.8;
+  if (lane === 'Left') y = 10;
+  else if (lane === 'Right') y = 45;
 
-  return { x, y, lane };
+  return { x, y };
 };
 
 export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { home: string, away: string } } => {
@@ -134,15 +144,16 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
 };
 
 export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { home: string, away: string } } => {
-  const lines = csvText.split(/\r?\n/);
+  const lines = csvText.split(/\r?\n/).filter(line => line.trim());
   if (lines.length < 2) return { events: [], teams: { home: "", away: "" } };
 
-  // CSV 헤더 추출 및 쉼표 처리 (따옴표 내 쉼표 무시)
-  const splitCSVLine = (line: string) => line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(item => item.replace(/^"|"$/g, '').trim());
+  const splitCSVLine = (line: string) => {
+    return line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(item => item.replace(/^"|"$/g, '').trim());
+  };
+
   const headers = splitCSVLine(lines[0]);
-  
   const getCol = (row: string[], colName: string) => {
-    const idx = headers.findIndex(h => h.includes(colName));
+    const idx = headers.findIndex(h => h.trim().includes(colName));
     return idx > -1 ? row[idx] : "";
   };
 
@@ -150,14 +161,8 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
   const events: MatchEvent[] = [];
   const teamCounts: Record<string, number> = {};
 
-  // 1단계: 팀명 패턴 감지 (Ungrouped 컬럼 등 전수 조사)
-  for (let i = 1; i < lines.length; i++) {
-    const row = splitCSVLine(lines[i]);
-    if (row.length < headers.length) continue;
-    const ungrouped = getCol(row, "Ungrouped") || row.join(" ");
-    detectedTeams = detectRealTeamNames(ungrouped);
-    if (detectedTeams) break;
-  }
+  // 1단계: 전체 텍스트에서 팀명 패턴 감지
+  detectedTeams = detectRealTeamNames(csvText);
 
   // 2단계: 이벤트 파싱
   for (let i = 1; i < lines.length; i++) {
