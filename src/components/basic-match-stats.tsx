@@ -1,3 +1,4 @@
+
 "use client"
 
 import {
@@ -46,34 +47,34 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
       awayValue: Math.round(matchStats.away.twentyFiveEntries),
     },
     {
-      label: "빌드업 25m 성공률",
-      homeValue: `${matchStats.home.build25Ratio.toFixed(1)}%`,
-      awayValue: `${matchStats.away.build25Ratio.toFixed(1)}%`,
+      label: "빌드업 25m 성공률 (%)",
+      homeValue: matchStats.home.build25Ratio.toFixed(1),
+      awayValue: matchStats.away.build25Ratio.toFixed(1),
     },
     {
-      label: "SPP (압박 지수)",
-      homeValue: `${matchStats.home.spp.toFixed(1)}s`,
-      awayValue: `${matchStats.away.spp.toFixed(1)}s`,
+      label: "SPP (압박 지수, s)",
+      homeValue: matchStats.home.spp.toFixed(1),
+      awayValue: matchStats.away.spp.toFixed(1),
     },
     {
-      label: "점유율",
-      homeValue: `${matchStats.home.possession.toFixed(1)}%`,
-      awayValue: `${matchStats.away.possession.toFixed(1)}%`,
+      label: "전체 점유율 (%)",
+      homeValue: matchStats.home.possession.toFixed(1),
+      awayValue: matchStats.away.possession.toFixed(1),
     },
     {
-      label: "공격 점유율",
-      homeValue: `${matchStats.home.attackPossession.toFixed(1)}%`,
-      awayValue: `${matchStats.away.attackPossession.toFixed(1)}%`,
+      label: "공격 점유율 (%)",
+      homeValue: matchStats.home.attackPossession.toFixed(1),
+      awayValue: matchStats.away.attackPossession.toFixed(1),
     },
     {
-      label: "공격 1회당 유지 시간",
-      homeValue: `${matchStats.home.avgAttackDuration.toFixed(1)}s`,
-      awayValue: `${matchStats.away.avgAttackDuration.toFixed(1)}s`,
+      label: "평균 공격 유지 시간 (s)",
+      homeValue: matchStats.home.avgAttackDuration.toFixed(1),
+      awayValue: matchStats.away.avgAttackDuration.toFixed(1),
     },
     {
-      label: "CE 1회당 소요 시간",
-      homeValue: `${matchStats.home.timePerCE.toFixed(1)}s`,
-      awayValue: `${matchStats.away.timePerCE.toFixed(1)}s`,
+      label: "CE 1회당 소요 시간 (s)",
+      homeValue: matchStats.home.timePerCE.toFixed(1),
+      awayValue: matchStats.away.timePerCE.toFixed(1),
     },
   ]
 

@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useRef } from "react"
@@ -39,12 +40,12 @@ export function Dashboard() {
       reader.onload = (e) => {
         try {
           const arrayBuffer = e.target?.result as ArrayBuffer;
-          // 한국어 엑셀(EUC-KR) 우선 시도
+          // EUC-KR(한글 엑셀) 우선 시도
           const decoder = new TextDecoder('euc-kr');
           let content = decoder.decode(arrayBuffer);
           
-          // 한글 깨짐 체크 (REPLACEMENT CHARACTER '' 가 너무 많으면 UTF-8 시도)
-          if (content.split('').length > 5) {
+          // 한글 깨짐 체크 (REPLACEMENT CHARACTER 가 너무 많으면 UTF-8 시도)
+          if (content.split('').filter(char => char === '').length > 10) {
              content = new TextDecoder('utf-8').decode(arrayBuffer);
           }
 
@@ -65,7 +66,7 @@ export function Dashboard() {
           setMatchData(newData);
           toast({ 
             title: "분석 완료", 
-            description: `${parsed.teams.home} vs ${parsed.teams.away} 경기 데이터가 업데이트되었습니다.` 
+            description: `${parsed.teams.home} (홈) vs ${parsed.teams.away} (어웨이) 경기 데이터가 업데이트되었습니다.` 
           });
         } catch (error: any) {
           toast({ title: "오류 발생", description: error.message, variant: "destructive" });
@@ -132,9 +133,9 @@ export function Dashboard() {
                       icon={<ShieldCheck className="text-primary/60 h-4 w-4" />}
                     />
                     <StatsCard
-                      title="공격 유지 시간"
-                      value={`${matchData.matchStats.home.avgAttackDuration.toFixed(1)}s`}
-                      description="평균"
+                      title="공격 점유율"
+                      value={`${matchData.matchStats.home.attackPossession.toFixed(1)}%`}
+                      description="상대 진영 점유 비중"
                       icon={<Target className="text-primary/60 h-4 w-4" />}
                     />
                     <StatsCard
@@ -165,9 +166,9 @@ export function Dashboard() {
                       icon={<ShieldCheck className="text-primary/60 h-4 w-4" />}
                     />
                     <StatsCard
-                      title="공격 유지 시간"
-                      value={`${matchData.matchStats.away.avgAttackDuration.toFixed(1)}s`}
-                      description="평균"
+                      title="공격 점유율"
+                      value={`${matchData.matchStats.away.attackPossession.toFixed(1)}%`}
+                      description="상대 진영 점유 비중"
                       icon={<Target className="text-primary/60 h-4 w-4" />}
                     />
                     <StatsCard
@@ -217,9 +218,10 @@ export function Dashboard() {
                           <TableRow>
                             <TableHead>No.</TableHead>
                             <TableHead>팀</TableHead>
-                            <TableHead>코드 (Code)</TableHead>
+                            <TableHead>쿼터</TableHead>
+                            <TableHead>코드 (Row)</TableHead>
                             <TableHead>레이블 (지역/결과)</TableHead>
-                            <TableHead>시간 (Start)</TableHead>
+                            <TableHead>시간</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -227,6 +229,7 @@ export function Dashboard() {
                             <TableRow key={e.id}>
                               <TableCell className="text-xs text-muted-foreground">{i + 1}</TableCell>
                               <TableCell className="font-bold">{e.team}</TableCell>
+                              <TableCell className="text-xs">{e.quarter}</TableCell>
                               <TableCell className="text-sm">{e.code}</TableCell>
                               <TableCell className="text-sm text-blue-600 font-medium">
                                 {e.locationLabel} / {e.resultLabel}

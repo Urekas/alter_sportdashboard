@@ -45,15 +45,15 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">점유율 (%)</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).possession?.toFixed(1)}%</TableCell>)}
+          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).possession?.toFixed(1)}</TableCell>)}
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">평균 SPP (s)</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).spp?.toFixed(1)}s</TableCell>)}
+          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).spp?.toFixed(1)}</TableCell>)}
         </TableRow>
         <TableRow>
-          <TableCell className="pl-6 text-sm font-medium">공격 유지 시간 (s)</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).avgAttackDuration?.toFixed(1)}s</TableCell>)}
+          <TableCell className="pl-6 text-sm font-medium">공격 점유율 (%)</TableCell>
+          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).attackPossession?.toFixed(1)}</TableCell>)}
         </TableRow>
       </>
     )
