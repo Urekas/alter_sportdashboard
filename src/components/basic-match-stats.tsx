@@ -1,4 +1,3 @@
-
 "use client"
 
 import {
@@ -48,33 +47,33 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
     },
     {
       label: "빌드업 25m 성공률",
-      homeValue: `${Number(matchStats.home.build25Ratio || 0).toFixed(1)}%`,
-      awayValue: `${Number(matchStats.away.build25Ratio || 0).toFixed(1)}%`,
+      homeValue: `${matchStats.home.build25Ratio.toFixed(1)}%`,
+      awayValue: `${matchStats.away.build25Ratio.toFixed(1)}%`,
     },
     {
       label: "SPP (압박 지수)",
-      homeValue: `${Number(matchStats.home.spp || 0).toFixed(1)}s`,
-      awayValue: `${Number(matchStats.away.spp || 0).toFixed(1)}s`,
+      homeValue: `${matchStats.home.spp.toFixed(1)}s`,
+      awayValue: `${matchStats.away.spp.toFixed(1)}s`,
     },
     {
       label: "점유율",
-      homeValue: `${Number(matchStats.home.possession || 0).toFixed(1)}%`,
-      awayValue: `${Number(matchStats.away.possession || 0).toFixed(1)}%`,
+      homeValue: `${matchStats.home.possession.toFixed(1)}%`,
+      awayValue: `${matchStats.away.possession.toFixed(1)}%`,
     },
     {
       label: "공격 점유율",
-      homeValue: `${Number(matchStats.home.attackPossession || 0).toFixed(1)}%`,
-      awayValue: `${Number(matchStats.away.attackPossession || 0).toFixed(1)}%`,
+      homeValue: `${matchStats.home.attackPossession.toFixed(1)}%`,
+      awayValue: `${matchStats.away.attackPossession.toFixed(1)}%`,
     },
     {
       label: "공격 1회당 유지 시간",
-      homeValue: `${Number(matchStats.home.avgAttackDuration || 0).toFixed(1)}s`,
-      awayValue: `${Number(matchStats.away.avgAttackDuration || 0).toFixed(1)}s`,
+      homeValue: `${matchStats.home.avgAttackDuration.toFixed(1)}s`,
+      awayValue: `${matchStats.away.avgAttackDuration.toFixed(1)}s`,
     },
     {
       label: "CE 1회당 소요 시간",
-      homeValue: `${Number(matchStats.home.timePerCE || 0).toFixed(1)}s`,
-      awayValue: `${Number(matchStats.away.timePerCE || 0).toFixed(1)}s`,
+      homeValue: `${matchStats.home.timePerCE.toFixed(1)}s`,
+      awayValue: `${matchStats.away.timePerCE.toFixed(1)}s`,
     },
   ]
 
@@ -83,7 +82,7 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
       <CardHeader>
         <CardTitle>기본 경기 통계 (Basic Match Stats)</CardTitle>
         <CardDescription className="pt-2 text-xs">
-          %, 초: 소수점 1자리 / 횟수: 정수 단위로 표시됩니다.
+          %, 초(s): 소수점 1자리 / 횟수: 정수 단위로 표시됩니다.
         </CardDescription>
       </CardHeader>
       <CardContent>

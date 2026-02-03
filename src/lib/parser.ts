@@ -5,8 +5,6 @@ import type { MatchEvent, MatchData, TeamMatchStats, QuarterStats } from './type
  * 홈팀과 어웨이팀의 실제 이름을 확정합니다.
  */
 const detectRealTeamNames = (text: string): { home: string, away: string } | null => {
-  // 패턴 1: 일본 0 - 인도 0
-  // 패턴 2: 일본(HOME side) 0 - 인도(AWAY side) 0
   const pattern = /([^(]+?)(?:\(HOME side\))?\s*\d*\s*-\s*([^(]+?)(?:\(AWAY side\))?\s*\d*/i;
   const match = text.match(pattern);
   
@@ -139,30 +137,34 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
   const lines = csvText.split(/\r?\n/);
   if (lines.length < 2) return { events: [], teams: { home: "", away: "" } };
 
-  const headers = lines[0].split(',').map(h => h.trim());
+  // CSV 헤더 추출 및 쉼표 처리 (따옴표 내 쉼표 무시)
+  const splitCSVLine = (line: string) => line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(item => item.replace(/^"|"$/g, '').trim());
+  const headers = splitCSVLine(lines[0]);
+  
   const getCol = (row: string[], colName: string) => {
-    const idx = headers.indexOf(colName);
-    return idx > -1 ? row[idx]?.trim() : "";
+    const idx = headers.findIndex(h => h.includes(colName));
+    return idx > -1 ? row[idx] : "";
   };
 
   let detectedTeams: { home: string, away: string } | null = null;
   const events: MatchEvent[] = [];
   const teamCounts: Record<string, number> = {};
 
+  // 1단계: 팀명 패턴 감지 (Ungrouped 컬럼 등 전수 조사)
   for (let i = 1; i < lines.length; i++) {
-    const row = lines[i].split(',');
-    const ungrouped = getCol(row, "Ungrouped");
-    if (ungrouped) {
-      detectedTeams = detectRealTeamNames(ungrouped);
-      if (detectedTeams) break;
-    }
+    const row = splitCSVLine(lines[i]);
+    if (row.length < headers.length) continue;
+    const ungrouped = getCol(row, "Ungrouped") || row.join(" ");
+    detectedTeams = detectRealTeamNames(ungrouped);
+    if (detectedTeams) break;
   }
 
+  // 2단계: 이벤트 파싱
   for (let i = 1; i < lines.length; i++) {
-    const row = lines[i].split(',');
+    const row = splitCSVLine(lines[i]);
     if (row.length < headers.length) continue;
 
-    const code = getCol(row, "Row");
+    const code = getCol(row, "Row") || getCol(row, "Code") || "";
     const team = extractTeamName(code, detectedTeams);
     if (team === "Unknown" || !team) continue;
 
@@ -170,9 +172,9 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
 
     const startTime = parseFloat(getCol(row, "Start time") || "0");
     const duration = parseFloat(getCol(row, "Duration") || "0");
-    const locLabel = getCol(row, "지역");
-    const resultLabel = getCol(row, "결과");
-    const instanceId = getCol(row, "Instance r") || `csv-${i}`;
+    const locLabel = getCol(row, "지역") || getCol(row, "Location") || "";
+    const resultLabel = getCol(row, "결과") || getCol(row, "Result") || "";
+    const instanceId = getCol(row, "Instance") || `csv-${i}`;
 
     let quarter = "Q1";
     if (startTime > 2700) quarter = "Q4";

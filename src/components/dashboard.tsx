@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useRef } from "react"
@@ -39,7 +38,15 @@ export function Dashboard() {
       
       reader.onload = (e) => {
         try {
-          const content = e.target?.result as string;
+          const arrayBuffer = e.target?.result as ArrayBuffer;
+          // 한국어 인코딩(EUC-KR) 우선 시도 후 UTF-8 폴백
+          const decoder = new TextDecoder('euc-kr');
+          let content = decoder.decode(arrayBuffer);
+          
+          if (content.includes('')) {
+             content = new TextDecoder('utf-8').decode(arrayBuffer);
+          }
+
           let parsed;
           if (file.name.endsWith('.xml')) {
             parsed = parseXMLData(content);
@@ -63,7 +70,7 @@ export function Dashboard() {
           toast({ title: "오류 발생", description: error.message, variant: "destructive" });
         }
       };
-      reader.readAsText(file);
+      reader.readAsArrayBuffer(file);
     }
   }
 
@@ -105,7 +112,6 @@ export function Dashboard() {
             <div className="space-y-4">
               <h2 className="text-xl font-bold border-l-4 border-primary pl-3">핵심 퍼포먼스 요약 (Key Metrics)</h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* 홈 팀 카드 */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-primary font-bold">
                     <div className="w-3 h-3 rounded-full bg-primary" />
@@ -114,32 +120,31 @@ export function Dashboard() {
                   <div className="grid grid-cols-2 gap-3">
                     <StatsCard
                       title="SPP (압박 지수)"
-                      value={Number(matchData.matchStats.home.spp || 0).toFixed(1)}
+                      value={matchData.matchStats.home.spp.toFixed(1)}
                       description="낮을수록 우수"
                       icon={<TrendingDown className="text-emerald-500 h-4 w-4" />}
                     />
                     <StatsCard
                       title="빌드업 성공률"
-                      value={`${Number(matchData.matchStats.home.build25Ratio || 0).toFixed(1)}%`}
+                      value={`${matchData.matchStats.home.build25Ratio.toFixed(1)}%`}
                       description="25m 진입 성공률"
                       icon={<ShieldCheck className="text-primary/60 h-4 w-4" />}
                     />
                     <StatsCard
                       title="공격 유지 시간"
-                      value={`${Number(matchData.matchStats.home.avgAttackDuration || 0).toFixed(1)}s`}
+                      value={`${matchData.matchStats.home.avgAttackDuration.toFixed(1)}s`}
                       description="평균"
                       icon={<Target className="text-primary/60 h-4 w-4" />}
                     />
                     <StatsCard
                       title="CE 소요 시간"
-                      value={`${Number(matchData.matchStats.home.timePerCE || 0).toFixed(1)}s`}
+                      value={`${matchData.matchStats.home.timePerCE.toFixed(1)}s`}
                       description="진입당 시간"
                       icon={<Activity className="text-primary/60 h-4 w-4" />}
                     />
                   </div>
                 </div>
 
-                {/* 어웨이 팀 카드 */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-chart-2 font-bold">
                     <div className="w-3 h-3 rounded-full bg-chart-2" />
@@ -148,25 +153,25 @@ export function Dashboard() {
                   <div className="grid grid-cols-2 gap-3">
                     <StatsCard
                       title="SPP (압박 지수)"
-                      value={Number(matchData.matchStats.away.spp || 0).toFixed(1)}
+                      value={matchData.matchStats.away.spp.toFixed(1)}
                       description="낮을수록 우수"
                       icon={<TrendingDown className="text-emerald-500 h-4 w-4" />}
                     />
                     <StatsCard
                       title="빌드업 성공률"
-                      value={`${Number(matchData.matchStats.away.build25Ratio || 0).toFixed(1)}%`}
+                      value={`${matchData.matchStats.away.build25Ratio.toFixed(1)}%`}
                       description="25m 진입 성공률"
                       icon={<ShieldCheck className="text-primary/60 h-4 w-4" />}
                     />
                     <StatsCard
                       title="공격 유지 시간"
-                      value={`${Number(matchData.matchStats.away.avgAttackDuration || 0).toFixed(1)}s`}
+                      value={`${matchData.matchStats.away.avgAttackDuration.toFixed(1)}s`}
                       description="평균"
                       icon={<Target className="text-primary/60 h-4 w-4" />}
                     />
                     <StatsCard
                       title="CE 소요 시간"
-                      value={`${Number(matchData.matchStats.away.timePerCE || 0).toFixed(1)}s`}
+                      value={`${matchData.matchStats.away.timePerCE.toFixed(1)}s`}
                       description="진입당 시간"
                       icon={<Activity className="text-primary/60 h-4 w-4" />}
                     />
@@ -210,7 +215,7 @@ export function Dashboard() {
                         <TableHeader className="bg-muted sticky top-0 z-10">
                           <TableRow>
                             <TableHead>No.</TableHead>
-                            <TableHead>팀 (추출됨)</TableHead>
+                            <TableHead>팀</TableHead>
                             <TableHead>코드 (Code)</TableHead>
                             <TableHead>레이블 (지역/결과)</TableHead>
                             <TableHead>시간 (Start)</TableHead>
