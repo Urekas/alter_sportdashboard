@@ -2,25 +2,24 @@
 import type { MatchEvent, MatchData, TeamMatchStats, QuarterStats } from './types';
 
 /**
- * 레이블 텍스트에서 "팀명(HOME side) - 팀명(AWAY side)" 패턴을 찾아 홈/어웨이 실제 이름을 확정합니다.
+ * 레이블에서 "국가명(HOME side) 0 - 국가명(AWAY side) 0" 패턴을 찾아 홈/어웨이 이름을 확정합니다.
+ * 앞에 있는 국가가 홈, 뒤에 있는 국가가 어웨이입니다.
  */
 const detectRealTeamNames = (text: string): { home: string, away: string } | null => {
   const pattern = /([^(]+?)\s*\(\s*HOME\s*side\s*\)\s*\d*\s*-\s*([^(]+?)\s*\(\s*AWAY\s*side\s*\)\s*\d*/i;
-  const simplePattern = /([^-]+)\s*-\s*([^-]+)/i;
-  
-  let match = text.match(pattern);
-  if (match) return { home: match[1].trim(), away: match[2].trim() };
-
-  match = text.match(simplePattern);
-  if (match && text.includes('side')) {
-    return { home: match[1].trim(), away: match[2].trim() };
+  const match = text.match(pattern);
+  if (match) {
+    return { 
+      home: match[1].trim(), 
+      away: match[2].trim() 
+    };
   }
-  
   return null;
 };
 
 /**
- * Row 필드의 첫 단어를 팀명으로 지정 (형님의 파이썬 로직)
+ * Row 필드의 첫 단어를 팀명으로 지정.
+ * 단, "HOME" 또는 "AWAY" 키워드가 포함된 경우 감지된 실제 팀명으로 매핑.
  */
 const extractTeamName = (code: string, detectedTeams: { home: string, away: string } | null): string => {
   if (!code) return "Unknown";
@@ -39,32 +38,32 @@ const extractTeamName = (code: string, detectedTeams: { home: string, away: stri
 };
 
 /**
+ * 지역 컬럼(예: '좌_75', '중_25') 분리
  * Lane: '좌'->Left, '중'->Center, '우'->Right
  * Zone_Band: 25, 50, 75, 100
  */
 const mapZone = (locStr: string): { x: number, y: number, lane: 'Left' | 'Center' | 'Right', zoneBand: number } => {
   const text = locStr.toUpperCase();
   let lane: 'Left' | 'Center' | 'Right' = 'Center';
-  if (text.includes('좌') || text.includes('LEFT') || text.includes('L_')) lane = 'Left';
-  else if (text.includes('우') || text.includes('RIGHT') || text.includes('R_')) lane = 'Right';
+  if (text.includes('좌') || text.includes('LEFT') || text.startsWith('L_')) lane = 'Left';
+  else if (text.includes('우') || text.includes('RIGHT') || text.startsWith('R_')) lane = 'Right';
 
   let zoneBand = 50;
-  if (text.includes('100')) zoneBand = 100;
-  else if (text.includes('75')) zoneBand = 75;
-  else if (text.includes('50')) zoneBand = 50;
-  else if (text.includes('25')) zoneBand = 25;
+  const zoneMatch = text.match(/(\d+)/);
+  if (zoneMatch) {
+    zoneBand = parseInt(zoneMatch[1]);
+  }
 
-  // 시각화 좌표 매핑 (0~91.4, 0~55)
-  // 공격 방향 기준 (좌측에서 우측으로 공격한다고 가정)
+  // 필드 크기 91.4 x 55 기준 좌표 매핑 (공격 방향: 좌->우)
   let x = 45.7;
   if (zoneBand === 25) x = 11.5;
   else if (zoneBand === 50) x = 34.5;
-  else if (zoneBand === 75) x = 57.5;
-  else if (zoneBand === 100) x = 80.5;
+  else if (zoneBand === 75) x = 56.9;
+  else if (zoneBand === 100) x = 79.9;
 
   let y = 27.5;
-  if (lane === 'Left') y = 9.1;
-  else if (lane === 'Right') y = 45.9;
+  if (lane === 'Left') y = 9.2;
+  else if (lane === 'Right') y = 45.8;
 
   return { x, y, lane, zoneBand };
 };
@@ -75,15 +74,18 @@ const detectQuarter = (text: string, startTime: number): string => {
   if (text.includes('3쿼터') || text.includes('3Q')) return 'Q3';
   if (text.includes('4쿼터') || text.includes('4Q')) return 'Q4';
   
-  if (startTime > 2700) return "Q4";
-  else if (startTime > 1800) return "Q3";
-  else if (startTime > 900) return "Q2";
+  // 시간 기반 백업 (15분씩)
+  if (startTime >= 2700) return "Q4";
+  if (startTime >= 1800) return "Q3";
+  if (startTime >= 900) return "Q2";
   return "Q1";
 };
 
 export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { home: string, away: string } } => {
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+  
+  // 전체 XML에서 팀명 패턴 선탐색
   let detectedTeams = detectRealTeamNames(xmlText);
   
   const instances = xmlDoc.getElementsByTagName("instance");
@@ -100,8 +102,8 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     for (let i = 0; i < labels.length; i++) {
       const group = (labels[i].getElementsByTagName("group")[0]?.textContent || "").trim();
       const text = (labels[i].getElementsByTagName("text")[0]?.textContent || "").trim();
-      if (/지역|Location|Zone/i.test(group)) locLabel += text + " ";
-      else if (/결과|Result|Outcome/i.test(group)) resultLabel += text + " ";
+      if (/지역|Location|Zone/i.test(group)) locLabel = text;
+      else if (/결과|Result|Outcome/i.test(group)) resultLabel = text;
       else ungroupedText += text + " ";
       
       if (!detectedTeams) detectedTeams = detectRealTeamNames(text);
@@ -125,19 +127,15 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
       duration: Math.max(0, endTime - startTime),
       x: zoneInfo.x,
       y: zoneInfo.y,
-      locationLabel: locLabel.trim(),
-      resultLabel: resultLabel.trim(),
+      locationLabel: locLabel,
+      resultLabel: resultLabel,
       code
     });
   });
 
-  let home = detectedTeams?.home || "";
-  let away = detectedTeams?.away || "";
-  if (!home || !away) {
-    const sortedTeams = Object.keys(teamCounts).sort((a, b) => teamCounts[b] - teamCounts[a]);
-    home = sortedTeams[0] || "Home Team";
-    away = sortedTeams[1] || "Away Team";
-  }
+  const sortedTeams = Object.keys(teamCounts).sort((a, b) => teamCounts[b] - teamCounts[a]);
+  const home = detectedTeams?.home || sortedTeams[0] || "Home";
+  const away = detectedTeams?.away || sortedTeams[1] || "Away";
 
   return { events, teams: { home, away } };
 };
@@ -151,9 +149,16 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
   };
 
   const headers = splitCSVLine(lines[0]);
-  const getCol = (row: string[], colNames: string[]) => {
-    const idx = headers.findIndex(h => colNames.some(name => h.trim().includes(name)));
-    return idx > -1 ? row[idx] : "";
+  const getColIdx = (colNames: string[]) => headers.findIndex(h => colNames.some(name => h.trim().includes(name)));
+  
+  const idxMap = {
+    code: getColIdx(["Row", "Code"]),
+    start: getColIdx(["Start time"]),
+    duration: getColIdx(["Duration"]),
+    location: getColIdx(["지역", "Location"]),
+    result: getColIdx(["결과", "Result"]),
+    ungrouped: getColIdx(["Ungrouped"]),
+    id: getColIdx(["Instance", "ID"])
   };
 
   let detectedTeams = detectRealTeamNames(csvText);
@@ -162,19 +167,20 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
 
   for (let i = 1; i < lines.length; i++) {
     const row = splitCSVLine(lines[i]);
-    if (row.length < headers.length) continue;
-
-    const code = getCol(row, ["Row", "Code", "Timeline"]) || "";
+    const code = idxMap.code > -1 ? row[idxMap.code] : "";
+    const ungrouped = idxMap.ungrouped > -1 ? row[idxMap.ungrouped] : "";
+    
+    if (!detectedTeams) detectedTeams = detectRealTeamNames(ungrouped + code);
+    
     const team = extractTeamName(code, detectedTeams);
     if (team === "Unknown" || !team) continue;
 
     teamCounts[team] = (teamCounts[team] || 0) + 1;
-    const startTime = parseFloat(getCol(row, ["Start time"]) || "0");
-    const duration = parseFloat(getCol(row, ["Duration"]) || "0");
-    const locLabel = getCol(row, ["지역", "Location"]) || "";
-    const resultLabel = getCol(row, ["결과", "Result"]) || "";
-    const ungrouped = getCol(row, ["Ungrouped"]) || "";
-    const instanceId = getCol(row, ["Instance"]) || `csv-${i}`;
+    const startTime = parseFloat(idxMap.start > -1 ? row[idxMap.start] : "0");
+    const duration = parseFloat(idxMap.duration > -1 ? row[idxMap.duration] : "0");
+    const locLabel = idxMap.location > -1 ? row[idxMap.location] : "";
+    const resultLabel = idxMap.result > -1 ? row[idxMap.result] : "";
+    const instanceId = idxMap.id > -1 ? row[idxMap.id] : `csv-${i}`;
 
     const quarter = detectQuarter(ungrouped + locLabel + code, startTime);
     const zoneInfo = mapZone(locLabel || code);
@@ -194,13 +200,9 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
     });
   }
 
-  let home = detectedTeams?.home || "";
-  let away = detectedTeams?.away || "";
-  if (!home || !away) {
-    const sortedTeams = Object.keys(teamCounts).sort((a, b) => teamCounts[b] - teamCounts[a]);
-    home = sortedTeams[0] || "Home Team";
-    away = sortedTeams[1] || "Away Team";
-  }
+  const sortedTeams = Object.keys(teamCounts).sort((a, b) => teamCounts[b] - teamCounts[a]);
+  const home = detectedTeams?.home || sortedTeams[0] || "Home";
+  const away = detectedTeams?.away || sortedTeams[1] || "Away";
 
   return { events, teams: { home, away } };
 };
@@ -210,69 +212,54 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
   const awayTeam = { name: awayName, color: 'hsl(var(--chart-2))' }; 
 
   const calculateTeamStats = (team: string, opponent: string, targetEvents: MatchEvent[]): TeamMatchStats => {
-    const us = targetEvents.filter(e => e.team === team);
-    const opp = targetEvents.filter(e => e.team === opponent);
+    const teamEvents = targetEvents.filter(e => e.team === team);
+    const opponentEvents = targetEvents.filter(e => e.team === opponent);
 
-    const teamTotalTime = us.reduce((acc, e) => acc + e.duration, 0);
-    const oppTotalTime = opp.reduce((acc, e) => acc + e.duration, 0);
+    const teamTotalTime = teamEvents.reduce((acc, e) => acc + e.duration, 0);
+    const opponentTotalTime = opponentEvents.reduce((acc, e) => acc + e.duration, 0);
 
     // 2. 공격 지역 점유율 (Attack Possession)
     // Row LIKE '%A25%' OR Row LIKE '%AM%'
-    const attTime = us.filter(e => e.code.includes('A25') || e.code.includes('AM')).reduce((acc, e) => acc + e.duration, 0);
-    const oppAttTime = opp.filter(e => e.code.includes('A25') || e.code.includes('AM')).reduce((acc, e) => acc + e.duration, 0);
-    const attackPossession = (attTime + oppAttTime) > 0 ? (attTime / (attTime + oppAttTime)) * 100 : 0;
+    const teamAttackEvents = teamEvents.filter(e => e.code.includes('A25') || e.code.includes('AM'));
+    const oppAttackEvents = opponentEvents.filter(e => e.code.includes('A25') || e.code.includes('AM'));
+    const teamAttackTime = teamAttackEvents.reduce((acc, e) => acc + e.duration, 0);
+    const oppAttackTime = oppAttackEvents.reduce((acc, e) => acc + e.duration, 0);
+    const attackPossession = (teamAttackTime + oppAttackTime) > 0 ? (teamAttackTime / (teamAttackTime + oppAttackTime)) * 100 : 0;
 
     // 4. SPP (압박 대응 효율)
-    // 빌드업 지역(DM, D25) 유지 시간 / 해당 지역 내 (턴오버 + 파울)
-    const buildUpTime = us.filter(e => e.code.includes('DM') || e.code.includes('D25')).reduce((acc, e) => acc + e.duration, 0);
-    const buildUpLosses = us.filter(e => (e.code.includes('DM') || e.code.includes('D25')) && (e.type === 'turnover' || e.type === 'foul')).length;
-    const spp = buildUpLosses > 0 ? buildUpTime / buildUpLosses : buildUpTime; // 손실이 없으면 전체 빌드업 시간이 곧 효율
+    // (D25_Time + DM_Time) / (해당 지역 내 턴오버 + 파울 횟수)
+    const buildUpEvents = teamEvents.filter(e => e.code.includes('D25') || e.code.includes('DM'));
+    const buildUpTime = buildUpEvents.reduce((acc, e) => acc + e.duration, 0);
+    const buildUpLosses = buildUpEvents.filter(e => e.type === 'turnover' || e.type === 'foul').length;
+    const spp = buildUpLosses > 0 ? buildUpTime / buildUpLosses : buildUpTime;
 
-    // 3. 압박 강도 분석 (Press Attempt)
-    // 75, 100 구역에서의 우리 팀 턴오버/파울 + 25, 50 구역에서의 상대 팀 파울
-    const getZoneBand = (loc: string, code: string) => {
-      if (loc.includes('100') || code.includes('100')) return 100;
-      if (loc.includes('75') || code.includes('75')) return 75;
-      if (loc.includes('50') || code.includes('50')) return 50;
-      if (loc.includes('25') || code.includes('25')) return 25;
-      return 0;
-    };
-
-    const pressAttempts = us.filter(e => {
-      const zb = getZoneBand(e.locationLabel, e.code);
-      return (zb >= 75 && (e.type === 'turnover' || e.type === 'foul'));
-    }).length + opp.filter(e => {
-      const zb = getZoneBand(e.locationLabel, e.code);
-      return (zb <= 50 && e.type === 'foul');
-    }).length;
-
-    // 빌드업 성공률 (DM/D25 -> 25Y entry)
-    const buildRows = us.filter(e => e.code.includes('DM START') || e.code.includes('D25 START'));
-    const buildSuccess = buildRows.filter(e => e.resultLabel.includes('25Y entry')).length;
+    // 빌드업 성공률 (25Y entry)
+    const buildStarts = teamEvents.filter(e => e.code.includes('START') && (e.code.includes('DM') || e.code.includes('D25')));
+    const buildSuccess = buildStarts.filter(e => e.resultLabel.includes('25Y entry')).length;
 
     // 서클 진입 및 슈팅
-    const ceCount = us.filter(e => e.code.toLowerCase().includes('circle entry') || e.code.includes('서클 진입')).length;
-    const shotCount = us.filter(e => e.code.toLowerCase().includes('shot') || e.code.includes('슈팅')).length;
+    const ceCount = teamEvents.filter(e => e.code.toLowerCase().includes('circle entry') || e.code.includes('서클 진입')).length;
+    const shotCount = teamEvents.filter(e => e.code.toLowerCase().includes('shot') || e.code.includes('슈팅')).length;
     
     // 득점 (필드/PC)
-    const pcRows = us.filter(e => e.code.includes('PC') || e.code.includes('페널티 코너'));
-    const pcGoals = pcRows.filter(e => e.resultLabel.toLowerCase().includes('goal') || e.resultLabel.includes('득점')).length;
-    const totalGoals = us.filter(e => e.code.toLowerCase().includes('goal') || e.code.includes('득점')).length;
+    const goals = teamEvents.filter(e => e.code.toLowerCase().includes('goal') || e.code.includes('득점'));
+    const pcGoals = goals.filter(e => e.code.includes('PC') || e.code.includes('페널티 코너')).length;
+    const fieldGoals = goals.length - pcGoals;
 
     return {
-      goals: { field: Math.max(0, totalGoals - pcGoals), pc: pcGoals },
+      goals: { field: fieldGoals, pc: pcGoals },
       shots: shotCount,
       circleEntries: ceCount,
-      twentyFiveEntries: us.filter(e => e.code.includes('A25 START')).length,
-      possession: (teamTotalTime + oppTotalTime) > 0 ? (teamTotalTime / (teamTotalTime + oppTotalTime)) * 100 : 0,
+      twentyFiveEntries: teamEvents.filter(e => e.code.includes('25Y entry') || e.resultLabel.includes('25Y entry')).length,
+      possession: (teamTotalTime + opponentTotalTime) > 0 ? (teamTotalTime / (teamTotalTime + opponentTotalTime)) * 100 : 0,
       attackPossession,
       spp,
-      allowedSpp: 0, // 상대 데이터 기반 계산 필요 시 추가
-      build25Ratio: buildRows.length > 0 ? (buildSuccess / buildRows.length) * 100 : 0,
-      avgAttackDuration: us.filter(e => e.code.includes('ATT')).length > 0 ? attTime / us.filter(e => e.code.includes('ATT')).length : 0,
-      timePerCE: ceCount > 0 ? attTime / ceCount : 0,
-      pressAttempts,
-      pressSuccess: us.filter(e => e.type === 'turnover' && getZoneBand(e.locationLabel, e.code) >= 75).length // 예시 성공 지표
+      allowedSpp: 0,
+      build25Ratio: buildStarts.length > 0 ? (buildSuccess / buildStarts.length) * 100 : 0,
+      avgAttackDuration: teamAttackEvents.length > 0 ? teamAttackTime / teamAttackEvents.length : 0,
+      timePerCE: ceCount > 0 ? teamAttackTime / ceCount : 0,
+      pressAttempts: 0, // Heatmap 로직에서 계산
+      pressSuccess: 0
     };
   };
 
@@ -283,11 +270,18 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     homeTeam,
     awayTeam,
     events,
-    pressureData: Array(20).fill(0).map((_, i) => ({
-      interval: `${(i+1)*3}'`,
-      [homeName]: parseFloat((homeStats.spp + (Math.random() - 0.5) * 2).toFixed(1)),
-      [awayName]: parseFloat((awayStats.spp + (Math.random() - 0.5) * 2).toFixed(1)),
-    })),
+    pressureData: Array(20).fill(0).map((_, i) => {
+      const minute = (i + 1) * 3;
+      const q = minute <= 15 ? 'Q1' : minute <= 30 ? 'Q2' : minute <= 45 ? 'Q3' : 'Q4';
+      const qEvents = events.filter(e => e.quarter === q);
+      const hS = calculateTeamStats(homeName, awayName, qEvents);
+      const aS = calculateTeamStats(awayName, homeName, qEvents);
+      return {
+        interval: `${minute}'`,
+        [homeName]: parseFloat(hS.spp.toFixed(1)),
+        [awayName]: parseFloat(aS.spp.toFixed(1)),
+      };
+    }),
     circleEntries: events.filter(e => e.code.toLowerCase().includes('circle entry') || e.code.includes('서클 진입')).map(e => ({
       team: e.team,
       channel: e.locationLabel.includes('좌') ? 'Left' : e.locationLabel.includes('우') ? 'Right' : 'Center',
@@ -295,8 +289,8 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     })),
     attackThreatData: Array(12).fill(0).map((_, i) => ({
       interval: `${(i+1)*5}'`,
-      [homeName]: parseFloat((Math.floor(Math.random() * 5) + (homeStats.shots / 12)).toFixed(1)),
-      [awayName]: parseFloat((Math.floor(Math.random() * 5) + (awayStats.shots / 12)).toFixed(1)),
+      [homeName]: events.filter(e => e.team === homeName && e.time <= (i+1)*300 && e.time > i*300 && (e.code.includes('Shot') || e.code.includes('슈팅'))).length,
+      [awayName]: events.filter(e => e.team === awayName && e.time <= (i+1)*300 && e.time > i*300 && (e.code.includes('Shot') || e.code.includes('슈팅'))).length,
     })),
     build25Ratio: { home: homeStats.build25Ratio, away: awayStats.build25Ratio },
     spp: { home: homeStats.spp, away: awayStats.spp },

@@ -47,7 +47,7 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
       awayValue: Math.round(matchStats.away.twentyFiveEntries),
     },
     {
-      label: "빌드업 25m 성공률 (%)",
+      label: "빌드업 성공률 (%)",
       homeValue: matchStats.home.build25Ratio.toFixed(1),
       awayValue: matchStats.away.build25Ratio.toFixed(1),
     },

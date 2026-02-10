@@ -40,13 +40,14 @@ export function Dashboard() {
       reader.onload = (e) => {
         try {
           const arrayBuffer = e.target?.result as ArrayBuffer;
-          // EUC-KR(한글 엑셀) 우선 시도
+          // EUC-KR 우선 시도 (한글 엑셀 대응)
           const decoder = new TextDecoder('euc-kr');
           let content = decoder.decode(arrayBuffer);
           
-          // 한글 깨짐 체크 (REPLACEMENT CHARACTER 가 너무 많으면 UTF-8 시도)
-          if (content.split('').filter(char => char === '').length > 10) {
-             content = new TextDecoder('utf-8').decode(arrayBuffer);
+          // 한글 깨짐 체크 (대체 문자  가 너무 많으면 UTF-8 재시도)
+          const replacementCount = (content.match(/\ufffd/g) || []).length;
+          if (replacementCount > 10) {
+            content = new TextDecoder('utf-8').decode(arrayBuffer);
           }
 
           let parsed;
@@ -122,25 +123,29 @@ export function Dashboard() {
                   <div className="grid grid-cols-2 gap-3">
                     <StatsCard
                       title="SPP (압박 지수)"
-                      value={matchData.matchStats.home.spp.toFixed(1)}
+                      value={matchData.matchStats.home.spp}
+                      isTime
                       description="낮을수록 우수"
                       icon={<TrendingDown className="text-emerald-500 h-4 w-4" />}
                     />
                     <StatsCard
                       title="빌드업 성공률"
-                      value={`${matchData.matchStats.home.build25Ratio.toFixed(1)}%`}
+                      value={matchData.matchStats.home.build25Ratio}
+                      isPercentage
                       description="25m 진입 성공률"
                       icon={<ShieldCheck className="text-primary/60 h-4 w-4" />}
                     />
                     <StatsCard
                       title="공격 점유율"
-                      value={`${matchData.matchStats.home.attackPossession.toFixed(1)}%`}
+                      value={matchData.matchStats.home.attackPossession}
+                      isPercentage
                       description="상대 진영 점유 비중"
                       icon={<Target className="text-primary/60 h-4 w-4" />}
                     />
                     <StatsCard
                       title="CE 소요 시간"
-                      value={`${matchData.matchStats.home.timePerCE.toFixed(1)}s`}
+                      value={matchData.matchStats.home.timePerCE}
+                      isTime
                       description="진입당 시간"
                       icon={<Activity className="text-primary/60 h-4 w-4" />}
                     />
@@ -155,25 +160,29 @@ export function Dashboard() {
                   <div className="grid grid-cols-2 gap-3">
                     <StatsCard
                       title="SPP (압박 지수)"
-                      value={matchData.matchStats.away.spp.toFixed(1)}
+                      value={matchData.matchStats.away.spp}
+                      isTime
                       description="낮을수록 우수"
                       icon={<TrendingDown className="text-emerald-500 h-4 w-4" />}
                     />
                     <StatsCard
                       title="빌드업 성공률"
-                      value={`${matchData.matchStats.away.build25Ratio.toFixed(1)}%`}
+                      value={matchData.matchStats.away.build25Ratio}
+                      isPercentage
                       description="25m 진입 성공률"
                       icon={<ShieldCheck className="text-primary/60 h-4 w-4" />}
                     />
                     <StatsCard
                       title="공격 점유율"
-                      value={`${matchData.matchStats.away.attackPossession.toFixed(1)}%`}
+                      value={matchData.matchStats.away.attackPossession}
+                      isPercentage
                       description="상대 진영 점유 비중"
                       icon={<Target className="text-primary/60 h-4 w-4" />}
                     />
                     <StatsCard
                       title="CE 소요 시간"
-                      value={`${matchData.matchStats.away.timePerCE.toFixed(1)}s`}
+                      value={matchData.matchStats.away.timePerCE}
+                      isTime
                       description="진입당 시간"
                       icon={<Activity className="text-primary/60 h-4 w-4" />}
                     />

@@ -64,7 +64,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
       <CardHeader>
         <CardTitle>쿼터별 경기 통계 (Quarterly Match Stats)</CardTitle>
         <CardDescription>
-          %, 초: 소수점 1자리 / 횟수: 정수 단위로 상세 지표를 표시합니다.
+          %, 초(s): 소수점 1자리 / 횟수: 정수 단위로 상세 지표를 표시합니다.
         </CardDescription>
       </CardHeader>
       <CardContent>
