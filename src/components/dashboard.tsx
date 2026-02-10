@@ -36,7 +36,6 @@ export function Dashboard() {
         try {
           const ab = e.target?.result as ArrayBuffer;
           
-          // 인코딩 감지 로직: 한국형 엑셀 CSV 대응
           let content = new TextDecoder('utf-8').decode(ab);
           const replacementCharCount = (content.match(/\ufffd/g) || []).length;
           if (replacementCharCount > 5) {
