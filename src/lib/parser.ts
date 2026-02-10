@@ -1,8 +1,8 @@
 
 import type { MatchEvent, MatchData, TeamMatchStats, QuarterStats, CircleEntry } from './types';
 
+// 레이블에서 "국가명(HOME side) 0 - 국가명(AWAY side) 0" 패턴 추출
 const detectRealTeamNames = (text: string): { home: string, away: string } | null => {
-  // "인도 0 - 일본 0" 또는 "인도(HOME side) 0 - 일본(AWAY side) 0" 패턴 대응
   const pattern = /([가-힣A-Za-z]+)(?:\s*\(HOME side\))?\s*\d+\s*-\s*([가-힣A-Za-z]+)(?:\s*\(AWAY side\))?\s*\d+/;
   const match = text.match(pattern);
   if (match) {
@@ -11,17 +11,16 @@ const detectRealTeamNames = (text: string): { home: string, away: string } | nul
   return null;
 };
 
+// 파이썬 로직: Row 필드 첫 단어 추출 및 HOME/AWAY 매핑
 const extractTeamName = (code: string, detectedTeams: { home: string, away: string } | null): string => {
   if (!code) return "Unknown";
   const upperCode = code.toUpperCase();
 
-  // HOME/AWAY 키워드가 코드에 있으면 감지된 팀명으로 매핑
   if (detectedTeams) {
     if (upperCode.includes("HOME")) return detectedTeams.home;
     if (upperCode.includes("AWAY")) return detectedTeams.away;
   }
 
-  // 파이썬 로직: split(' ')[0]
   const first = code.trim().split(/\s+/)[0];
   const ignoreTags = ["한국빌드업", "한국프레스", "코치님", "START", "Unknown"];
   if (ignoreTags.includes(first)) return "Unknown";
@@ -29,6 +28,7 @@ const extractTeamName = (code: string, detectedTeams: { home: string, away: stri
   return first;
 };
 
+// 지역 필드에서 Lane과 Zone 분리 (좌_75 -> Left, 75)
 const mapZone = (locStr: string): { x: number, y: number, lane: 'Left' | 'Center' | 'Right', zoneBand: number } => {
   const text = locStr.toUpperCase();
   let lane: 'Left' | 'Center' | 'Right' = 'Center';
@@ -41,7 +41,6 @@ const mapZone = (locStr: string): { x: number, y: number, lane: 'Left' | 'Center
     zoneBand = parseInt(zoneMatch[1]);
   }
 
-  // 필드 시각화용 X, Y 좌표 매핑 (91.4m x 55m)
   let x = 45.7;
   if (zoneBand === 25) x = 11.5;
   else if (zoneBand === 50) x = 34.5;
@@ -55,6 +54,7 @@ const mapZone = (locStr: string): { x: number, y: number, lane: 'Left' | 'Center
   return { x, y, lane, zoneBand };
 };
 
+// 쿼터 감지 (Ungrouped 필드 우선)
 const detectQuarter = (text: string, startTime: number): string => {
   if (text.includes('1쿼터') || text.includes('1Q')) return 'Q1';
   if (text.includes('2쿼터') || text.includes('2Q')) return 'Q2';
@@ -193,10 +193,14 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const teamEvents = targetEvents.filter(e => e.team === team);
     const opponentEvents = targetEvents.filter(e => e.team === opponent);
 
-    const teamTotalTime = teamEvents.filter(e => e.code.includes('TEAM')).reduce((acc, e) => acc + e.duration, 0);
-    const opponentTotalTime = opponentEvents.filter(e => e.code.includes('TEAM')).reduce((acc, e) => acc + e.duration, 0);
+    // 파이썬 로직: TEAM 시퀀스가 없으면 전체 이벤트의 duration 합산
+    let teamTotalTime = teamEvents.filter(e => e.code.includes('TEAM')).reduce((acc, e) => acc + e.duration, 0);
+    if (teamTotalTime === 0) teamTotalTime = teamEvents.reduce((acc, e) => acc + e.duration, 0);
 
-    // 파이썬 로직: Row LIKE '%A25%' OR Row LIKE '%AM%'
+    let opponentTotalTime = opponentEvents.filter(e => e.code.includes('TEAM')).reduce((acc, e) => acc + e.duration, 0);
+    if (opponentTotalTime === 0) opponentTotalTime = opponentEvents.reduce((acc, e) => acc + e.duration, 0);
+
+    // 공격 점유율 (Attack Possession)
     const teamAttackEvents = teamEvents.filter(e => e.code.includes('A25') || e.code.includes('AM'));
     const oppAttackEvents = opponentEvents.filter(e => e.code.includes('A25') || e.code.includes('AM'));
     const teamAttackTime = teamAttackEvents.reduce((acc, e) => acc + e.duration, 0);
@@ -204,19 +208,18 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const attackPossession = (teamAttackTime + oppAttackTime) > 0 ? (teamAttackTime / (teamAttackTime + oppAttackTime)) * 100 : 0;
 
     // SPP (Seconds Per Press) = BuildUpTime / PressAttempts
-    // BuildUpTime = TeamTotalTime - AttackTime
-    const buildUpTime = teamTotalTime - teamAttackTime;
+    const buildUpTime = Math.max(0, teamTotalTime - teamAttackTime);
     
-    // Press Attempts 정의 (파이썬 로직)
     const usTurnoverHigh = teamEvents.filter(e => e.type === 'turnover' && (e.locationLabel.includes('75') || e.locationLabel.includes('100'))).length;
     const usFoulHigh = teamEvents.filter(e => e.type === 'foul' && (e.locationLabel.includes('75') || e.locationLabel.includes('100'))).length;
     const oppFoulLow = opponentEvents.filter(e => e.type === 'foul' && (e.locationLabel.includes('25') || e.locationLabel.includes('50'))).length;
     const pressAttempts = usTurnoverHigh + usFoulHigh + oppFoulLow;
+    
+    // SPP가 NaN이 되지 않도록 pressAttempts가 0이면 0으로 처리
     const spp = pressAttempts > 0 ? buildUpTime / pressAttempts : 0;
 
-    // 빌드업 성공률 (Build25)
-    const buildStarts = teamEvents.filter(e => (e.code.includes('DM START') || e.code.includes('D25 START')));
-    const buildSuccess = buildStarts.filter(e => e.resultLabel.includes('25Y entry')).length;
+    const buildRows = teamEvents.filter(e => (e.code.includes('DM START') || e.code.includes('D25 START')));
+    const buildSuccess = buildRows.filter(e => e.resultLabel.includes('25Y entry')).length;
 
     const ceCount = teamEvents.filter(e => e.code.toLowerCase().includes('circle entry') || e.code.includes('서클 진입')).length;
     const shotCount = teamEvents.filter(e => /슈팅|shot/i.test(e.code) && !e.code.includes('서클')).length;
@@ -232,11 +235,11 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
       attackPossession,
       spp,
       allowedSpp: 0, 
-      build25Ratio: buildStarts.length > 0 ? (buildSuccess / buildStarts.length) * 100 : 0,
+      build25Ratio: buildRows.length > 0 ? (buildSuccess / buildRows.length) * 100 : 0,
       avgAttackDuration: teamAttackEvents.length > 0 ? teamAttackTime / teamAttackEvents.length : 0,
       timePerCE: ceCount > 0 ? teamAttackTime / ceCount : 0,
       pressAttempts,
-      pressSuccess: usTurnoverHigh + usFoulHigh // 우리 입장에서 뺏긴 경우(성공적인 압박을 당함)
+      pressSuccess: usTurnoverHigh + usFoulHigh
     };
   };
 
@@ -255,8 +258,8 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
       const aS = calculateTeamStats(awayName, homeName, qEvents);
       return {
         interval: `${minute}'`,
-        [homeName]: parseFloat(hS.spp.toFixed(1)),
-        [awayName]: parseFloat(aS.spp.toFixed(1)),
+        [homeName]: hS.spp,
+        [awayName]: aS.spp,
       };
     }),
     circleEntries: events.filter(e => e.code.toLowerCase().includes('circle entry') || e.code.includes('서클 진입')).map(e => ({
