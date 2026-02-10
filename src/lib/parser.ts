@@ -2,16 +2,11 @@
 import type { MatchEvent, MatchData, TeamMatchStats, QuarterStats, CircleEntry } from './types';
 
 const detectRealTeamNames = (text: string): { home: string, away: string } | null => {
-  const pattern = /([^(]+?)\s*\(\s*HOME\s*side\s*\)\s*\d*\s*-\s*([^(]+?)\s*\(\s*AWAY\s*side\s*\)\s*\d*/i;
+  // "인도 0 - 일본 0" 또는 "인도(HOME side) 0 - 일본(AWAY side) 0" 패턴 대응
+  const pattern = /([가-힣A-Za-z]+)(?:\s*\(HOME side\))?\s*\d+\s*-\s*([가-힣A-Za-z]+)(?:\s*\(AWAY side\))?\s*\d+/;
   const match = text.match(pattern);
   if (match) {
     return { home: match[1].trim(), away: match[2].trim() };
-  }
-  // "일본 0 - 인도 0" 패턴 대응
-  const simplePattern = /([가-힣A-Za-z]+)\s*\d+\s*-\s*([가-힣A-Za-z]+)\s*\d+/;
-  const simpleMatch = text.match(simplePattern);
-  if (simpleMatch) {
-    return { home: simpleMatch[1].trim(), away: simpleMatch[2].trim() };
   }
   return null;
 };
@@ -20,6 +15,7 @@ const extractTeamName = (code: string, detectedTeams: { home: string, away: stri
   if (!code) return "Unknown";
   const upperCode = code.toUpperCase();
 
+  // HOME/AWAY 키워드가 코드에 있으면 감지된 팀명으로 매핑
   if (detectedTeams) {
     if (upperCode.includes("HOME")) return detectedTeams.home;
     if (upperCode.includes("AWAY")) return detectedTeams.away;
@@ -45,6 +41,7 @@ const mapZone = (locStr: string): { x: number, y: number, lane: 'Left' | 'Center
     zoneBand = parseInt(zoneMatch[1]);
   }
 
+  // 필드 시각화용 X, Y 좌표 매핑 (91.4m x 55m)
   let x = 45.7;
   if (zoneBand === 25) x = 11.5;
   else if (zoneBand === 50) x = 34.5;
@@ -189,15 +186,15 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
 };
 
 export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string, awayName: string): MatchData => {
-  const homeTeam = { name: homeName, color: 'hsl(var(--chart-1))' }; 
+  const homeTeam = { name: homeName, color: 'hsl(var(--primary))' }; 
   const awayTeam = { name: awayName, color: 'hsl(var(--chart-2))' }; 
 
   const calculateTeamStats = (team: string, opponent: string, targetEvents: MatchEvent[]): TeamMatchStats => {
     const teamEvents = targetEvents.filter(e => e.team === team);
     const opponentEvents = targetEvents.filter(e => e.team === opponent);
 
-    const teamTotalTime = teamEvents.reduce((acc, e) => acc + e.duration, 0);
-    const opponentTotalTime = opponentEvents.reduce((acc, e) => acc + e.duration, 0);
+    const teamTotalTime = teamEvents.filter(e => e.code.includes('TEAM')).reduce((acc, e) => acc + e.duration, 0);
+    const opponentTotalTime = opponentEvents.filter(e => e.code.includes('TEAM')).reduce((acc, e) => acc + e.duration, 0);
 
     // 파이썬 로직: Row LIKE '%A25%' OR Row LIKE '%AM%'
     const teamAttackEvents = teamEvents.filter(e => e.code.includes('A25') || e.code.includes('AM'));
@@ -206,13 +203,18 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const oppAttackTime = oppAttackEvents.reduce((acc, e) => acc + e.duration, 0);
     const attackPossession = (teamAttackTime + oppAttackTime) > 0 ? (teamAttackTime / (teamAttackTime + oppAttackTime)) * 100 : 0;
 
-    // 파이썬 로직: SPP = BuildUpTime / (Losses in build-up area)
-    const buildUpEvents = teamEvents.filter(e => e.code.includes('D25') || e.code.includes('DM'));
-    const buildUpTime = buildUpEvents.reduce((acc, e) => acc + e.duration, 0);
-    const buildUpLosses = buildUpEvents.filter(e => e.type === 'turnover' || e.type === 'foul').length;
-    const spp = buildUpLosses > 0 ? buildUpTime / buildUpLosses : 0;
+    // SPP (Seconds Per Press) = BuildUpTime / PressAttempts
+    // BuildUpTime = TeamTotalTime - AttackTime
+    const buildUpTime = teamTotalTime - teamAttackTime;
+    
+    // Press Attempts 정의 (파이썬 로직)
+    const usTurnoverHigh = teamEvents.filter(e => e.type === 'turnover' && (e.locationLabel.includes('75') || e.locationLabel.includes('100'))).length;
+    const usFoulHigh = teamEvents.filter(e => e.type === 'foul' && (e.locationLabel.includes('75') || e.locationLabel.includes('100'))).length;
+    const oppFoulLow = opponentEvents.filter(e => e.type === 'foul' && (e.locationLabel.includes('25') || e.locationLabel.includes('50'))).length;
+    const pressAttempts = usTurnoverHigh + usFoulHigh + oppFoulLow;
+    const spp = pressAttempts > 0 ? buildUpTime / pressAttempts : 0;
 
-    // 빌드업 성공률 (DM/D25 -> 25Y entry)
+    // 빌드업 성공률 (Build25)
     const buildStarts = teamEvents.filter(e => (e.code.includes('DM START') || e.code.includes('D25 START')));
     const buildSuccess = buildStarts.filter(e => e.resultLabel.includes('25Y entry')).length;
 
@@ -233,8 +235,8 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
       build25Ratio: buildStarts.length > 0 ? (buildSuccess / buildStarts.length) * 100 : 0,
       avgAttackDuration: teamAttackEvents.length > 0 ? teamAttackTime / teamAttackEvents.length : 0,
       timePerCE: ceCount > 0 ? teamAttackTime / ceCount : 0,
-      pressAttempts: 0,
-      pressSuccess: 0
+      pressAttempts,
+      pressSuccess: usTurnoverHigh + usFoulHigh // 우리 입장에서 뺏긴 경우(성공적인 압박을 당함)
     };
   };
 

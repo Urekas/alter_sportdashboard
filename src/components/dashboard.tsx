@@ -31,11 +31,18 @@ export function Dashboard() {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
       const reader = new FileReader();
+      
       reader.onload = (e) => {
         try {
           const ab = e.target?.result as ArrayBuffer;
-          let content = new TextDecoder('euc-kr').decode(ab);
-          if (content.includes('')) content = new TextDecoder('utf-8').decode(ab);
+          
+          // 인코딩 감지 로직
+          let content = new TextDecoder('utf-8').decode(ab);
+          // 한글이 깨지는지 확인 ( 문자가 많으면 EUC-KR로 재시도)
+          const replacementCharCount = (content.match(/\ufffd/g) || []).length;
+          if (replacementCharCount > 5) {
+            content = new TextDecoder('euc-kr').decode(ab);
+          }
 
           const parsed = file.name.endsWith('.xml') ? parseXMLData(content) : parseCSVData(content);
           if (parsed.events.length === 0) throw new Error("분석 가능한 데이터가 없습니다.");
