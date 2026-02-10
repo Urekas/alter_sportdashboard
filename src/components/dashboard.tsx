@@ -36,9 +36,8 @@ export function Dashboard() {
         try {
           const ab = e.target?.result as ArrayBuffer;
           
-          // 인코딩 감지 로직
+          // 인코딩 감지 로직: 한국형 엑셀 CSV 대응
           let content = new TextDecoder('utf-8').decode(ab);
-          // 한글이 깨지는지 확인 ( 문자가 많으면 EUC-KR로 재시도)
           const replacementCharCount = (content.match(/\ufffd/g) || []).length;
           if (replacementCharCount > 5) {
             content = new TextDecoder('euc-kr').decode(ab);

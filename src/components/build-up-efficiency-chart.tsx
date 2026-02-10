@@ -34,7 +34,7 @@ export function BuildUpEfficiencyChart({ data }: BuildUpEfficiencyChartProps) {
         quarter: q.quarter,
         "25y Entries": twentyFive,
         "Circle Entries": circle,
-        "Efficiency (%)": Number(efficiency.toFixed(1))
+        "Efficiency (%)": parseFloat(efficiency.toFixed(1))
       }
     })
   }
@@ -42,13 +42,12 @@ export function BuildUpEfficiencyChart({ data }: BuildUpEfficiencyChartProps) {
   const homeData = getTeamChartData(true)
   const awayData = getTeamChartData(false)
 
-  // Y축 동기화를 위한 최대값 계산
+  // Y축 동기화: 양팀 모든 쿼터 중 최대값 계산
   const globalMaxEntries = useMemo(() => {
-    const allEntries = [...homeData, ...awayData].map(d => Math.max(d["25y Entries"], d["Circle Entries"]))
-    return Math.ceil(Math.max(...allEntries, 1) * 1.1)
+    const allVals = [...homeData, ...awayData].map(d => Math.max(d["25y Entries"], d["Circle Entries"]))
+    const max = Math.max(...allVals, 5)
+    return Math.ceil(max * 1.2)
   }, [homeData, awayData])
-
-  const globalMaxEfficiency = 100
 
   const renderChart = (chartData: any[], teamName: string, color: string) => (
     <div className="w-full">
@@ -66,7 +65,7 @@ export function BuildUpEfficiencyChart({ data }: BuildUpEfficiencyChartProps) {
             yAxisId="right" 
             orientation="right" 
             label={{ value: '효율 (%)', angle: 90, position: 'insideRight' }} 
-            domain={[0, globalMaxEfficiency]} 
+            domain={[0, 100]} 
           />
           <Tooltip />
           <Legend formatter={(value) => {
@@ -86,7 +85,7 @@ export function BuildUpEfficiencyChart({ data }: BuildUpEfficiencyChartProps) {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>25y 진입 대비 서클 진입 효율 (Y축 통계 동기화)</CardTitle>
+        <CardTitle>25y 진입 대비 서클 진입 효율 (Y축 동기화)</CardTitle>
         <CardDescription>
           양팀의 공격 효율을 동일한 기준(Y축)에서 비교합니다. (25m 진입 대비 서클 진입 성공률)
         </CardDescription>

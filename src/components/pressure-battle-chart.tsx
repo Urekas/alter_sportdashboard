@@ -85,8 +85,8 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
             <XAxis dataKey="interval" />
             <YAxis 
               reversed 
+              domain={[0, 'auto']}
               label={{ value: 'SPP (s)', angle: -90, position: 'insideLeft' }} 
-              domain={['auto', 'auto']}
             />
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />

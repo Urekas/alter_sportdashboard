@@ -19,23 +19,23 @@ interface BasicMatchStatsProps {
 export function BasicMatchStats({ data }: BasicMatchStatsProps) {
   const { homeTeam, awayTeam, matchStats } = data
 
-  const formatValue = (val: any, isPercentageOrTime: boolean) => {
+  const formatValue = (val: any, type: 'count' | 'float') => {
     const num = parseFloat(val);
     if (isNaN(num)) return "0";
-    return isPercentageOrTime ? num.toFixed(1) : Math.round(num).toString();
+    return type === 'float' ? num.toFixed(1) : Math.round(num).toString();
   };
 
   const stats = [
     { label: "득점 (필드 / PC)", h: `${Math.round(matchStats.home.goals.field)} / ${Math.round(matchStats.home.goals.pc)}`, a: `${Math.round(matchStats.away.goals.field)} / ${Math.round(matchStats.away.goals.pc)}` },
-    { label: "슈팅", h: formatValue(matchStats.home.shots, false), a: formatValue(matchStats.away.shots, false) },
-    { label: "서클 진입 (CE)", h: formatValue(matchStats.home.circleEntries, false), a: formatValue(matchStats.away.circleEntries, false) },
-    { label: "25y 진입 (A25)", h: formatValue(matchStats.home.twentyFiveEntries, false), a: formatValue(matchStats.away.twentyFiveEntries, false) },
-    { label: "빌드업 성공률 (%)", h: formatValue(matchStats.home.build25Ratio, true), a: formatValue(matchStats.away.build25Ratio, true) },
-    { label: "SPP (압박 지수, s)", h: formatValue(matchStats.home.spp, true), a: formatValue(matchStats.away.spp, true) },
-    { label: "전체 점유율 (%)", h: formatValue(matchStats.home.possession, true), a: formatValue(matchStats.away.possession, true) },
-    { label: "공격 점유율 (%)", h: formatValue(matchStats.home.attackPossession, true), a: formatValue(matchStats.away.attackPossession, true) },
-    { label: "평균 공격 유지 시간 (s)", h: formatValue(matchStats.home.avgAttackDuration, true), a: formatValue(matchStats.away.avgAttackDuration, true) },
-    { label: "CE 1회당 소요 시간 (s)", h: formatValue(matchStats.home.timePerCE, true), a: formatValue(matchStats.away.timePerCE, true) },
+    { label: "슈팅", h: formatValue(matchStats.home.shots, 'count'), a: formatValue(matchStats.away.shots, 'count') },
+    { label: "서클 진입 (CE)", h: formatValue(matchStats.home.circleEntries, 'count'), a: formatValue(matchStats.away.circleEntries, 'count') },
+    { label: "25y 진입 (A25)", h: formatValue(matchStats.home.twentyFiveEntries, 'count'), a: formatValue(matchStats.away.twentyFiveEntries, 'count') },
+    { label: "빌드업 성공률 (%)", h: formatValue(matchStats.home.build25Ratio, 'float'), a: formatValue(matchStats.away.build25Ratio, 'float') },
+    { label: "SPP (압박 지수, s)", h: formatValue(matchStats.home.spp, 'float'), a: formatValue(matchStats.away.spp, 'float') },
+    { label: "전체 점유율 (%)", h: formatValue(matchStats.home.possession, 'float'), a: formatValue(matchStats.away.possession, 'float') },
+    { label: "공격 점유율 (%)", h: formatValue(matchStats.home.attackPossession, 'float'), a: formatValue(matchStats.away.attackPossession, 'float') },
+    { label: "평균 공격 유지 시간 (s)", h: formatValue(matchStats.home.avgAttackDuration, 'float'), a: formatValue(matchStats.away.avgAttackDuration, 'float') },
+    { label: "CE 1회당 소요 시간 (s)", h: formatValue(matchStats.home.timePerCE, 'float'), a: formatValue(matchStats.away.timePerCE, 'float') },
   ]
 
   return (
