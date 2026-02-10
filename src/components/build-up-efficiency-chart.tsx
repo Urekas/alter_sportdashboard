@@ -1,6 +1,7 @@
+
 "use client"
 
-import React from "react"
+import React, { useMemo } from "react"
 import {
   Bar,
   Line,
@@ -22,24 +23,32 @@ interface BuildUpEfficiencyChartProps {
 export function BuildUpEfficiencyChart({ data }: BuildUpEfficiencyChartProps) {
   const { homeTeam, awayTeam, quarterlyStats } = data
 
-  const getChartData = (isHome: boolean) => {
+  const getTeamChartData = (isHome: boolean) => {
     return quarterlyStats.map((q: QuarterStats) => {
       const teamStats = isHome ? q.home : q.away
-      const twentyFive = teamStats.twentyFiveEntries || 1
+      const twentyFive = teamStats.twentyFiveEntries || 0
       const circle = teamStats.circleEntries || 0
-      const efficiency = Math.round((circle / twentyFive) * 100)
+      const efficiency = twentyFive > 0 ? (circle / twentyFive) * 100 : 0
       
       return {
         quarter: q.quarter,
         "25y Entries": twentyFive,
         "Circle Entries": circle,
-        "Efficiency (%)": efficiency
+        "Efficiency (%)": Number(efficiency.toFixed(1))
       }
     })
   }
 
-  const homeData = getChartData(true)
-  const awayData = getChartData(false)
+  const homeData = getTeamChartData(true)
+  const awayData = getTeamChartData(false)
+
+  // Y축 동기화를 위한 최대값 계산
+  const globalMaxEntries = useMemo(() => {
+    const allEntries = [...homeData, ...awayData].map(d => Math.max(d["25y Entries"], d["Circle Entries"]))
+    return Math.ceil(Math.max(...allEntries, 1) * 1.1)
+  }, [homeData, awayData])
+
+  const globalMaxEfficiency = 100
 
   const renderChart = (chartData: any[], teamName: string, color: string) => (
     <div className="w-full">
@@ -48,8 +57,17 @@ export function BuildUpEfficiencyChart({ data }: BuildUpEfficiencyChartProps) {
         <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
           <XAxis dataKey="quarter" />
-          <YAxis yAxisId="left" label={{ value: '횟수', angle: -90, position: 'insideLeft' }} />
-          <YAxis yAxisId="right" orientation="right" label={{ value: '효율 (%)', angle: 90, position: 'insideRight' }} domain={[0, 100]} />
+          <YAxis 
+            yAxisId="left" 
+            label={{ value: '횟수', angle: -90, position: 'insideLeft' }} 
+            domain={[0, globalMaxEntries]}
+          />
+          <YAxis 
+            yAxisId="right" 
+            orientation="right" 
+            label={{ value: '효율 (%)', angle: 90, position: 'insideRight' }} 
+            domain={[0, globalMaxEfficiency]} 
+          />
           <Tooltip />
           <Legend formatter={(value) => {
             if (value === "25y Entries") return "25y 진입";
@@ -68,9 +86,9 @@ export function BuildUpEfficiencyChart({ data }: BuildUpEfficiencyChartProps) {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>25y 진입 대비 서클 진입 효율 (양팀 비교)</CardTitle>
+        <CardTitle>25y 진입 대비 서클 진입 효율 (Y축 통계 동기화)</CardTitle>
         <CardDescription>
-          각 팀의 쿼터별 공격 효율 분석 (25m 진입 대비 서클 진입 성공률)
+          양팀의 공격 효율을 동일한 기준(Y축)에서 비교합니다. (25m 진입 대비 서클 진입 성공률)
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-12">

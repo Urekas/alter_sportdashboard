@@ -58,8 +58,8 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
     }
 
     for (let i = 1; i < data.length; i++) {
-      const homeValue = data[i][homeTeam.name]
-      const awayValue = data[i][awayTeam.name]
+      const homeValue = data[i][homeTeam.name] as number
+      const awayValue = data[i][awayTeam.name] as number
       const currentDominant = homeValue <= awayValue ? homeTeam.name : awayTeam.name
 
       if (currentDominant !== currentSegment.dominant) {
@@ -76,14 +76,18 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
       <CardHeader>
         <CardTitle>Pressure Battle (3m Avg)</CardTitle>
         <CardDescription>
-          Seconds Per Press (SPP) averaged every 3 minutes, divided by quarters. Lower is better.
+          Seconds Per Press (SPP) averaged every 3 minutes. 값이 낮을수록 상대 압박에 빠르게 대응(우수)함을 의미합니다.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
           <ComposedChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
             <XAxis dataKey="interval" />
-            <YAxis reversed label={{ value: 'SPP (s)', angle: -90, position: 'insideLeft' }} />
+            <YAxis 
+              reversed 
+              label={{ value: 'SPP (s)', angle: -90, position: 'insideLeft' }} 
+              domain={['auto', 'auto']}
+            />
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
             {dominanceSegments.map((seg, index) => (
