@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useMemo } from "react"
@@ -69,6 +68,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
 
       result.push(createPoint(current, h1, a1));
 
+      // Intersection 지점 계산 (더 정밀한 보간)
       if ((h1 - a1) * (h2 - a2) < 0) {
         const ratio = Math.abs(h1 - a1) / (Math.abs(h1 - a1) + Math.abs(h2 - a2));
         const intersectVal = h1 + ratio * (h2 - h1);

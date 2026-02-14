@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useMemo } from 'react';
@@ -11,14 +10,6 @@ interface PressureAnalysisMapProps {
   awayTeam: Team;
 }
 
-const PITCH_LENGTH = 91.4;
-const PITCH_WIDTH = 55;
-const MID_X = PITCH_LENGTH / 2;
-const LINE_23M = 22.9;
-const CIRCLE_RADIUS = 14.63;
-const BROKEN_CIRCLE_RADIUS = 19.63; 
-const PENALTY_SPOT_DIST = 6.47;
-
 type ZoneStat = {
   count: number;
   success: number;
@@ -27,34 +18,58 @@ type ZoneStat = {
 
 export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnalysisMapProps) {
   const zoneStats = useMemo(() => {
-    const calculateStats = (teamName: string, opponentName: string, isHome: boolean) => {
+    const calculateStats = (isHome: boolean) => {
       // 0: 25L, 1: 25C, 2: 25R, 3: 50L, 4: 50C, 5: 50R
       const zones: ZoneStat[] = Array(6).fill(null).map(() => ({ count: 0, success: 0, rate: 0 }));
 
-      const pressureEvents = events.filter(e => e.type === 'turnover' || e.type === 'foul');
+      const myTeam = isHome ? homeTeam.name : awayTeam.name;
+      const oppTeam = isHome ? awayTeam.name : homeTeam.name;
 
-      pressureEvents.forEach(e => {
-        const isAttackingHalf = isHome ? (e.x > MID_X) : (e.x < MID_X);
-        if (!isAttackingHalf) return;
+      // 구역 매핑 (사용자 지정 로직)
+      // Home 압박 분석 시:
+      // 25L: Japan(Away) Foul/Turnover in "우_100" OR Home Foul in "좌_25"
+      // 25C: Japan Foul/Turnover in "중_100" OR Home Foul in "중_25"
+      // 25R: Japan Foul/Turnover in "좌_100" OR Home Foul in "우_25"
+      // 50L: Japan Foul/Turnover in "우_75" OR Home Foul in "좌_50"
+      // ...
+      const mapping = isHome ? {
+        // [Zone Index]: { OpponentLoc: string, MyLoc: string }
+        0: { opp: "우_100", my: "좌_25" }, // 25L
+        1: { opp: "중_100", my: "중_25" }, // 25C
+        2: { opp: "좌_100", my: "우_25" }, // 25R
+        3: { opp: "우_75", my: "좌_50" },  // 50L
+        4: { opp: "중_75", my: "중_50" },  // 50C
+        5: { opp: "좌_75", my: "우_50" }   // 50R
+      } : {
+        // Away 압박 분석 시 (Symmetric logic assumed based on Home mapping)
+        0: { opp: "좌_0", my: "우_100" },   // 25L (Away perspective mirror)
+        1: { opp: "중_0", my: "중_100" },   // 25C
+        2: { opp: "우_0", my: "좌_100" },   // 25R
+        3: { opp: "좌_25", my: "우_75" },   // 50L
+        4: { opp: "중_25", my: "중_75" },   // 50C
+        5: { opp: "우_25", my: "좌_75" }    // 50R
+      };
 
-        const loc = e.locationLabel.toUpperCase();
-        let laneIdx = 1; // Center
-        if (loc.includes('좌') || loc.includes('LEFT') || loc.startsWith('L_')) laneIdx = 0;
-        else if (loc.includes('우') || loc.includes('RIGHT') || loc.startsWith('R_')) laneIdx = 2;
+      events.forEach(e => {
+        const isOpponentError = e.team === oppTeam && (e.type === 'turnover' || e.type === 'foul');
+        const isMyFoul = e.team === myTeam && e.type === 'foul';
 
-        let zoneIdx = -1;
-        if (loc.includes('25')) zoneIdx = 0 + laneIdx;
-        else if (loc.includes('50')) zoneIdx = 3 + laneIdx;
+        if (!isOpponentError && !isMyFoul) return;
 
-        if (zoneIdx < 0 || zoneIdx >= 6) return;
+        const loc = e.locationLabel.trim();
 
-        // 분모: 나의 파울 + 상대 턴오버 + 상대 파울
-        zones[zoneIdx].count++;
-
-        // 성공: 상대 실책 (상대의 턴오버 또는 파울)
-        if (e.team === opponentName) {
-          zones[zoneIdx].success++;
-        }
+        Object.entries(mapping).forEach(([idxStr, maps]) => {
+          const idx = parseInt(idxStr);
+          // 성공 및 시도: 상대방의 실책(턴오버/파울)이 지정된 구역에서 발생
+          if (isOpponentError && loc === maps.opp) {
+            zones[idx].count++;
+            zones[idx].success++;
+          }
+          // 시도 포함: 나의 파울이 지정된 구역에서 발생
+          if (isMyFoul && loc === maps.my) {
+            zones[idx].count++;
+          }
+        });
       });
 
       return zones.map(z => ({
@@ -64,8 +79,8 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
     };
 
     return {
-      home: calculateStats(homeTeam.name, awayTeam.name, true),
-      away: calculateStats(awayTeam.name, homeTeam.name, false)
+      home: calculateStats(true),
+      away: calculateStats(false)
     };
   }, [events, homeTeam, awayTeam]);
 
@@ -85,18 +100,18 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
               {isHome ? (
                 <>
                   <line x1="45.7" y1="0" x2="45.7" y2="55" /> 
-                  <path d={`M 45.7,${CX - CIRCLE_RADIUS} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,0 31.07,${CX} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,0 45.7,${CX + CIRCLE_RADIUS}`} />
-                  <path d={`M 45.7,${CX - BROKEN_CIRCLE_RADIUS} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,0 26.07,${CX} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,0 45.7,${CX + BROKEN_CIRCLE_RADIUS}`} strokeDasharray="1,1" />
-                  <circle cx={45.7 - PENALTY_SPOT_DIST} cy={CX} r="0.3" fill="black" stroke="none" />
+                  <path d={`M 45.7,${CX - 14.63} A 14.63,14.63 0 0,0 31.07,${CX} A 14.63,14.63 0 0,0 45.7,${CX + 14.63}`} />
+                  <path d={`M 45.7,${CX - 19.63} A 19.63,19.63 0 0,0 26.07,${CX} A 19.63,19.63 0 0,0 45.7,${CX + 19.63}`} strokeDasharray="1,1" />
+                  <circle cx={45.7 - 6.47} cy={CX} r="0.3" fill="black" stroke="none" />
                   <rect x="45.7" y={CX - 1.83} width="1.2" height="3.66" />
                   <line x1="22.85" y1="0" x2="22.85" y2="55" strokeDasharray="1,1" />
                 </>
               ) : (
                 <>
                   <line x1="0" y1="0" x2="0" y2="55" />
-                  <path d={`M 0,${CX - CIRCLE_RADIUS} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,1 ${CIRCLE_RADIUS},${CX} A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 0,1 0,${CX + CIRCLE_RADIUS}`} />
-                  <path d={`M 0,${CX - BROKEN_CIRCLE_RADIUS} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,1 ${BROKEN_CIRCLE_RADIUS},${CX} A ${BROKEN_CIRCLE_RADIUS},${BROKEN_CIRCLE_RADIUS} 0 0,1 0,${CX + BROKEN_CIRCLE_RADIUS}`} strokeDasharray="1,1" />
-                  <circle cx={PENALTY_SPOT_DIST} cy={CX} r="0.3" fill="black" stroke="none" />
+                  <path d={`M 0,${CX - 14.63} A 14.63,14.63 0 0,1 14.63,${CX} A 14.63,14.63 0 0,1 0,${CX + 14.63}`} />
+                  <path d={`M 0,${CX - 19.63} A 19.63,19.63 0 0,1 19.63,${CX} A 19.63,19.63 0 0,1 0,${CX + 19.63}`} strokeDasharray="1,1" />
+                  <circle cx={6.47} cy={CX} r="0.3" fill="black" stroke="none" />
                   <rect x="-1.2" y={CX - 1.83} width="1.2" height="3.66" />
                   <line x1="22.85" y1="0" x2="22.85" y2="55" strokeDasharray="1,1" />
                 </>
@@ -133,8 +148,8 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
                     y={rectY + 18.33/2}
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    className="font-bold fill-foreground"
-                    style={{ fontSize: '2.5px' }}
+                    className="fill-foreground"
+                    style={{ fontSize: '3px' }}
                   >
                     <tspan x={rectX + rectW/2} dy="-4" fontWeight="bold">{labels[i]}</tspan>
                     <tspan x={rectX + rectW/2} dy="4" fontWeight="bold">압박 횟수 : {Math.round(stat.count)}</tspan>

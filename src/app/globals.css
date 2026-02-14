@@ -14,21 +14,21 @@ body {
     --card-foreground: 209 25% 20%;
     --popover: 0 0% 100%;
     --popover-foreground: 209 25% 20%;
-    --primary: 209 63% 25%; /* Deep Blue */
+    --primary: 221 83% 53%; /* Vivid Blue - 홈팀 색상 강화 */
     --primary-foreground: 0 0% 100%; /* White text */
     --secondary: 210 20% 88%;
-    --secondary-foreground: 209 63% 25%;
+    --secondary-foreground: 221 83% 53%;
     --muted: 210 20% 88%;
     --muted-foreground: 215 25% 55%;
     --accent: 47 91% 44%; /* Mustard Yellow */
-    --accent-foreground: 209 63% 25%; /* Deep Blue on yellow */
+    --accent-foreground: 221 83% 53%; /* Vivid Blue on yellow */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 214 20% 85%; /* Slightly darker gray for borders */
     --input: 214 20% 85%;
-    --ring: 209 63% 25%; /* Deep Blue for focus rings */
-    --chart-1: 209 63% 25%; /* primary */
-    --chart-2: 10 80% 55%; /* a contrasting color */
+    --ring: 221 83% 53%; /* Vivid Blue for focus rings */
+    --chart-1: 221 83% 53%; /* primary - vivid blue */
+    --chart-2: 10 80% 55%; /* away team red/orange */
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
@@ -51,12 +51,12 @@ body {
     --popover: 209 25% 15%;
     --popover-foreground: 0 0% 98%;
     --primary: 47 91% 44%; /* Accent becomes primary in dark mode */
-    --primary-foreground: 209 63% 25%;
+    --primary-foreground: 221 83% 53%;
     --secondary: 210 10% 30%;
     --secondary-foreground: 0 0% 98%;
     --muted: 210 10% 30%;
     --muted-foreground: 0 0% 63.9%;
-    --accent: 209 63% 25%;
+    --accent: 221 83% 53%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
