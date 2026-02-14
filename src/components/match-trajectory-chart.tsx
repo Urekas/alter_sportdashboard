@@ -30,6 +30,7 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
     const trajectory = quarterlyStats.map(q => {
       const rawX = isHome ? q.home.attackPossession : q.away.attackPossession;
       const rawTime = isHome ? q.home.timePerCE : q.away.timePerCE;
+      // Y축 최대값 450초 적용
       const visualY = rawTime === 0 ? 450 : Math.min(450, rawTime);
 
       return {
@@ -52,7 +53,7 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
       x: totalRawX,
       y: totalVisualY,
       rawTime: totalRawTime,
-      z: 1000, 
+      z: 1200, 
       team: team.name,
       color: team.color
     }].filter(p => p.x > 0);
@@ -93,10 +94,11 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
             <ScatterChart margin={{ top: 60, right: 80, bottom: 80, left: 60 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
               
-              <ReferenceArea x1={0} x2={50} y1={0} y2={150} fill="#4bc0c0" fillOpacity={0.08} />
-              <ReferenceArea x1={50} x2={100} y1={0} y2={150} fill="#4bc0c0" fillOpacity={0.15} />
-              <ReferenceArea x1={50} x2={100} y1={150} y2={450} fill="#94a3b8" fillOpacity={0.08} />
-              <ReferenceArea x1={0} x2={50} y1={150} y2={450} fill="#6366f1" fillOpacity={0.06} />
+              {/* 전략적 구역 표시 */}
+              <ReferenceArea x1={0} x2={50} y1={0} y2={100} fill="#4bc0c0" fillOpacity={0.08} />
+              <ReferenceArea x1={50} x2={100} y1={0} y2={100} fill="#4bc0c0" fillOpacity={0.15} />
+              <ReferenceArea x1={50} x2={100} y1={100} y2={450} fill="#94a3b8" fillOpacity={0.08} />
+              <ReferenceArea x1={0} x2={50} y1={100} y2={450} fill="#6366f1" fillOpacity={0.06} />
 
               <XAxis 
                 type="number" 
@@ -125,20 +127,22 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
               <Tooltip content={<CustomTooltip />} />
 
               <ReferenceLine x={50} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={2} opacity={0.4} />
-              <ReferenceLine y={150} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={2} opacity={0.4} />
+              <ReferenceLine y={100} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={2} opacity={0.4} />
 
+              {/* 쿼터별 데이터 포인트 (선명하게) */}
               <Scatter name={homeTeam.name} data={homeData.trajectory} fill={homeTeam.color} line={{ stroke: homeTeam.color, strokeWidth: 5 }} shape="circle">
                 <LabelList dataKey="name" position="top" offset={20} style={{ fill: homeTeam.color, fontSize: 16, fontWeight: '900' }} />
               </Scatter>
-              <Scatter name={`${homeTeam.name} Total`} data={homeData.total} fill={homeTeam.color} shape="circle">
-                <LabelList dataKey="name" position="top" offset={40} style={{ fill: homeTeam.color, fontSize: 24, fontWeight: '950' }} />
-              </Scatter>
-
               <Scatter name={awayTeam.name} data={awayData.trajectory} fill={awayTeam.color} line={{ stroke: awayTeam.color, strokeWidth: 5, strokeDasharray: '10 6' }} shape="square">
                 <LabelList dataKey="name" position="bottom" offset={20} style={{ fill: awayTeam.color, fontSize: 16, fontWeight: '900' }} />
               </Scatter>
-              <Scatter name={`${awayTeam.name} Total`} data={awayData.total} fill={awayTeam.color} shape="square">
-                <LabelList dataKey="name" position="bottom" offset={40} style={{ fill: awayTeam.color, fontSize: 24, fontWeight: '950' }} />
+
+              {/* Total 데이터 포인트 (희미하게 배경처럼) */}
+              <Scatter name={`${homeTeam.name} Total`} data={homeData.total} fill={homeTeam.color} fillOpacity={0.25} stroke={homeTeam.color} strokeOpacity={0.3} shape="circle">
+                <LabelList dataKey="name" position="top" offset={45} style={{ fill: homeTeam.color, fontSize: 28, fontWeight: '950', opacity: 0.3 }} />
+              </Scatter>
+              <Scatter name={`${awayTeam.name} Total`} data={awayData.total} fill={awayTeam.color} fillOpacity={0.25} stroke={awayTeam.color} strokeOpacity={0.3} shape="square">
+                <LabelList dataKey="name" position="bottom" offset={45} style={{ fill: awayTeam.color, fontSize: 28, fontWeight: '950', opacity: 0.3 }} />
               </Scatter>
             </ScatterChart>
           </ResponsiveContainer>
