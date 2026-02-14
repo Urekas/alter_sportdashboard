@@ -17,7 +17,7 @@ interface QuarterlyStatsTableProps {
 }
 
 export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
-  const { homeTeam, awayTeam, quarterlyStats } = data
+  const { homeTeam, awayTeam, quarterlyStats, matchStats } = data
 
   const safeVal = (val: any, decimals: number = 0) => {
     const num = typeof val === 'number' ? val : parseFloat(val);
@@ -32,6 +32,10 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
   };
 
   const renderStatRows = (label: string, field: string, decimals: number = 0, lowerIsBetter: boolean = false) => {
+    const hTotal = (matchStats.home as any)[field];
+    const aTotal = (matchStats.away as any)[field];
+    const totalWinnerClass = getWinnerClass(hTotal, aTotal, lowerIsBetter);
+
     return (
       <>
         <TableRow className="bg-primary/5">
@@ -46,8 +50,12 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
               </TableCell>
             );
           })}
+          {/* 경기 전체 열 */}
+          <TableCell className={cn("text-center border-x bg-muted/30 font-bold", totalWinnerClass.includes("text-primary") && totalWinnerClass)}>
+            {safeVal(hTotal, decimals)}
+          </TableCell>
         </TableRow>
-        <TableRow className="bg-chart-2/5 border-b-2">
+        <TableRow className="bg-chart-2/5 border-b-[3px] border-b-foreground/20">
           <TableCell className="pl-6 text-sm font-medium">{label} ({awayTeam.name})</TableCell>
           {quarterlyStats.map(q => {
             const hVal = (q.home as any)[field];
@@ -59,6 +67,10 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
               </TableCell>
             );
           })}
+          {/* 경기 전체 열 */}
+          <TableCell className={cn("text-center border-x bg-muted/30 font-bold", totalWinnerClass.includes("text-chart-2") && totalWinnerClass)}>
+            {safeVal(aTotal, decimals)}
+          </TableCell>
         </TableRow>
       </>
     );
@@ -69,7 +81,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
       <CardHeader>
         <CardTitle>쿼터별 경기 통계 (Quarterly Match Stats)</CardTitle>
         <CardDescription>
-          각 지표별 상단: {homeTeam.name} / 하단: {awayTeam.name} (우세 지표 컬러 강조)
+          지표별 상단: {homeTeam.name} / 하단: {awayTeam.name} (진한 구분선으로 지표 구분)
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -82,10 +94,13 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
                   {q.quarter}
                 </TableHead>
               ))}
+              <TableHead className="text-center font-bold border-x bg-muted/50 text-foreground">
+                경기 전체
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {/* 득점 특수 행 */}
+            {/* 득점 섹션 */}
             <TableRow className="bg-primary/5">
               <TableCell className="pl-6 text-sm font-medium">득점 (필드/PC) ({homeTeam.name})</TableCell>
               {quarterlyStats.map(q => {
@@ -98,8 +113,11 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
                   </TableCell>
                 );
               })}
+              <TableCell className={cn("text-center border-x bg-muted/30 font-bold", getWinnerClass(matchStats.home.goals.field + matchStats.home.goals.pc, matchStats.away.goals.field + matchStats.away.goals.pc).includes("text-primary") && "text-primary")}>
+                {safeVal(matchStats.home.goals.field)}/{safeVal(matchStats.home.goals.pc)}
+              </TableCell>
             </TableRow>
-            <TableRow className="bg-chart-2/5 border-b-2">
+            <TableRow className="bg-chart-2/5 border-b-[3px] border-b-foreground/20">
               <TableCell className="pl-6 text-sm font-medium">득점 (필드/PC) ({awayTeam.name})</TableCell>
               {quarterlyStats.map(q => {
                 const hTot = (q.home.goals?.field || 0) + (q.home.goals?.pc || 0);
@@ -111,11 +129,16 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
                   </TableCell>
                 );
               })}
+              <TableCell className={cn("text-center border-x bg-muted/30 font-bold", getWinnerClass(matchStats.home.goals.field + matchStats.home.goals.pc, matchStats.away.goals.field + matchStats.away.goals.pc).includes("text-chart-2") && "text-chart-2")}>
+                {safeVal(matchStats.away.goals.field)}/{safeVal(matchStats.away.goals.pc)}
+              </TableCell>
             </TableRow>
 
+            {/* 나머지 지표 섹션들 */}
             {renderStatRows("슈팅", "shots")}
             {renderStatRows("페널티코너 (PC)", "pcs")}
             {renderStatRows("서클 진입 (CE)", "circleEntries")}
+            {renderStatRows("25y 진입 (A25)", "twentyFiveEntries")}
             {renderStatRows("전체 점유율 (%)", "possession", 1)}
             {renderStatRows("공격 점유율 (%)", "attackPossession", 1)}
             {renderStatRows("평균 SPP (s)", "spp", 1, true)}
