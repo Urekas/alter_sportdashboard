@@ -49,7 +49,7 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
     const totalVisualY = totalRawTime === 0 ? 450 : Math.min(450, totalRawTime);
 
     const total = [{
-      name: "Total",
+      name: team.name, // "Total" 대신 팀명 표시
       x: totalRawX,
       y: totalVisualY,
       rawTime: totalRawTime,
@@ -94,7 +94,6 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
             <ScatterChart margin={{ top: 60, right: 80, bottom: 80, left: 60 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
               
-              {/* 전략적 구역 표시 */}
               <ReferenceArea x1={0} x2={50} y1={0} y2={100} fill="#4bc0c0" fillOpacity={0.08} />
               <ReferenceArea x1={50} x2={100} y1={0} y2={100} fill="#4bc0c0" fillOpacity={0.15} />
               <ReferenceArea x1={50} x2={100} y1={100} y2={450} fill="#94a3b8" fillOpacity={0.08} />
@@ -137,7 +136,7 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
                 <LabelList dataKey="name" position="bottom" offset={20} style={{ fill: awayTeam.color, fontSize: 16, fontWeight: '900' }} />
               </Scatter>
 
-              {/* Total 데이터 포인트 (희미하게 배경처럼) */}
+              {/* Total 데이터 포인트 (팀명 표시, 아주 희미하게 배경처럼) */}
               <Scatter name={`${homeTeam.name} Total`} data={homeData.total} fill={homeTeam.color} fillOpacity={0.15} stroke={homeTeam.color} strokeOpacity={0.2} shape="circle">
                 <LabelList dataKey="name" position="top" offset={45} style={{ fill: homeTeam.color, fontSize: 28, fontWeight: '950', opacity: 0.2 }} />
               </Scatter>
