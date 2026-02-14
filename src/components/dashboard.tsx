@@ -167,6 +167,7 @@ export function Dashboard() {
           </div>
         ) : (
           <div className="space-y-12">
+            {/* 리포트 메인 헤더 (Page 1 Top) */}
             <div className="border-b-4 border-primary pb-4 mb-8">
               <div className="flex justify-between items-end">
                 <div>
@@ -180,6 +181,7 @@ export function Dashboard() {
               </div>
             </div>
 
+            {/* 페이지 1: 기본 통계 요약 */}
             <div className="page-break space-y-8">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {[matchData.homeTeam, matchData.awayTeam].map((team, i) => (
@@ -200,6 +202,7 @@ export function Dashboard() {
               <BasicMatchStats data={matchData} />
             </div>
 
+            {/* 페이지 2: 쿼터별 상세 데이터 (독립 페이지) */}
             <div className="page-break space-y-8">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Activity className="h-6 w-6" /> 쿼터별 상세 데이터 (Quarterly Analysis)
@@ -207,6 +210,7 @@ export function Dashboard() {
               <QuarterlyStatsTable data={matchData} />
             </div>
 
+            {/* 페이지 3: 공격 성능 분석 */}
             <div className="page-break space-y-8">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Sword className="h-6 w-6" /> 공격 성능 분석 (Attack Analysis)
@@ -215,6 +219,7 @@ export function Dashboard() {
               <BuildUpEfficiencyChart data={matchData} />
             </div>
 
+            {/* 페이지 4: 서클 진입 및 공격 궤적 분석 (한 장에 꽉 차게) */}
             <div className="page-break space-y-8 break-inside-avoid">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Target className="h-6 w-6" /> 서클 진입 및 공격 궤적 분석 (Circle Entry & Trajectory)
@@ -236,6 +241,7 @@ export function Dashboard() {
               </div>
             </div>
 
+            {/* 페이지 5: 압박 및 수비 분석 (한 장에 통합) */}
             <div className="page-break space-y-6 break-inside-avoid">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Shield className="h-6 w-6" /> 압박 및 수비 분석 (Pressure & Defense)
