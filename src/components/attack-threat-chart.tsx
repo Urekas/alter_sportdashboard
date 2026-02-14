@@ -151,8 +151,8 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               stroke={homeTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                if (props.payload.isIntersect) return <path d="" />;
                 const { key, ...rest } = props;
+                if (props.payload.isIntersect) return <path key={key} d="" />;
                 return <circle key={key} {...rest} r={4} fill={homeTeam.color} stroke="none" />;
               }} 
               activeDot={{ r: 6 }} 
@@ -163,8 +163,8 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               stroke={awayTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                if (props.payload.isIntersect) return <path d="" />;
                 const { key, ...rest } = props;
+                if (props.payload.isIntersect) return <path key={key} d="" />;
                 return <circle key={key} {...rest} r={4} fill={awayTeam.color} stroke="none" />;
               }} 
               activeDot={{ r: 6 }} 
