@@ -1,4 +1,3 @@
-
 import type { MatchEvent, MatchData, TeamMatchStats, QuarterStats, CircleEntry } from './types';
 
 const detectRealTeamNames = (text: string): { home: string, away: string } | null => {
@@ -185,10 +184,8 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
 
     // 공격 점유율: AM START, A25 START 지속 시간
     const attackTime = teamEvents.filter(e => e.code.includes('AM START') || e.code.includes('A25 START')).reduce((acc, e) => acc + e.duration, 0);
-    const oppAttackTime = oppEvents.filter(e => e.code.includes('AM START') || e.code.includes('A25 START')).reduce((acc, e) => acc + e.duration, 0);
-    const totalAttackTime = attackTime + oppAttackTime;
-
-    // 빌드업 시간 (SPP용)
+    
+    // 빌드업 시간 (SPP용): DM/D25 START 지속 시간 합계
     const buildUpTime = teamEvents.filter(e => e.code.includes('DM START') || e.code.includes('D25 START')).reduce((acc, e) => acc + e.duration, 0);
     const buildUpFailures = teamEvents.filter(e => 
       (e.type === 'turnover' || e.type === 'foul') && 
@@ -202,10 +199,10 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     // 서클 진입: "팀명 슈팅서클 진입"
     const ceCount = teamEvents.filter(e => e.code === `${team} 슈팅서클 진입`).length;
 
-    // 슈팅: "팀명 슈팅"
+    // 슈팅: "팀명 슈팅" (Row 열)
     const shotCount = teamEvents.filter(e => e.code === `${team} 슈팅`).length;
 
-    // 페널티코너: "팀명 페널티코너"
+    // 페널티코너: "팀명 페널티코너" (Row 열)
     const pcCount = teamEvents.filter(e => e.code === `${team} 페널티코너`).length;
 
     // 빌드업 성공률 (DM/D25 -> 25Y entry)
@@ -222,12 +219,12 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
       circleEntries: ceCount,
       twentyFiveEntries: twentyFiveCount,
       possession: totalPossessionTime > 0 ? (teamTime / totalPossessionTime) * 100 : 0,
-      attackPossession: totalAttackTime > 0 ? (attackTime / totalAttackTime) * 100 : 0,
+      attackPossession: 0, // Placeholder
       spp: parseFloat(spp.toFixed(1)),
       allowedSpp: 0, 
       build25Ratio: buildRows.length > 0 ? (buildSuccess / buildRows.length) * 100 : 0,
-      avgAttackDuration: attackTime / (ceCount || 1),
-      timePerCE: ceCount > 0 ? attackTime / ceCount : 0,
+      avgAttackDuration: 0, // Placeholder
+      timePerCE: 0, // Placeholder
       pressAttempts: 0, 
       pressSuccess: 0
     };
@@ -260,6 +257,7 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     })),
     attackThreatData: Array(12).fill(0).map((_, i) => ({
       interval: `${(i+1)*5}'`,
+      // 슈팅 + 페널티코너 합산 위협도
       [homeName]: events.filter(e => e.team === homeName && e.time <= (i+1)*300 && e.time > i*300 && (e.code === `${homeName} 슈팅` || e.code === `${homeName} 페널티코너`)).length,
       [awayName]: events.filter(e => e.team === awayName && e.time <= (i+1)*300 && e.time > i*300 && (e.code === `${awayName} 슈팅` || e.code === `${awayName} 페널티코너`)).length,
     })),
