@@ -32,8 +32,8 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
       const rawX = isHome ? q.home.attackPossession : q.away.attackPossession;
       const rawTime = isHome ? q.home.timePerCE : q.away.timePerCE;
       
-      // 0초(진입 실패)는 최하단(300), 그 외는 실제 시간(최대 300)
-      const visualY = rawTime === 0 ? 300 : Math.min(300, rawTime);
+      // 0초(진입 실패)는 최하단(450), 그 외는 실제 시간(최대 450)
+      const visualY = rawTime === 0 ? 450 : Math.min(450, rawTime);
 
       return {
         name: q.quarter,
@@ -46,10 +46,10 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
       };
     }).filter(p => p.x > 0);
 
-    // 2. Total point (독립적 포인트, 선 연결 제거)
+    // 2. Total point
     const totalRawX = isHome ? matchStats.home.attackPossession : matchStats.away.attackPossession;
     const totalRawTime = isHome ? matchStats.home.timePerCE : matchStats.away.timePerCE;
-    const totalVisualY = totalRawTime === 0 ? 300 : Math.min(300, totalRawTime);
+    const totalVisualY = totalRawTime === 0 ? 450 : Math.min(450, totalRawTime);
 
     const total = [{
       name: "Total",
@@ -88,7 +88,7 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
       <CardHeader className="pb-2 bg-muted/20 border-b">
         <CardTitle className="text-2xl font-black text-primary italic">Match Trajectory Analysis (공격 전술 궤적)</CardTitle>
         <CardDescription className="text-sm font-bold text-muted-foreground mt-1">
-          공격 점유율 vs CE 소요시간 (상단 0s일수록 효율적 / 하단 300s일수록 비효율적)
+          공격 점유율 vs CE 소요시간 (상단 0s일수록 효율적 / 하단 450s일수록 비효율적)
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -97,11 +97,10 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
             <ScatterChart margin={{ top: 60, right: 80, bottom: 80, left: 60 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
               
-              {/* Quadrants Backgrounds */}
-              <ReferenceArea x1={0} x2={50} y1={0} y2={100} fill="#4bc0c0" fillOpacity={0.08} />
-              <ReferenceArea x1={50} x2={100} y1={0} y2={100} fill="#4bc0c0" fillOpacity={0.15} />
-              <ReferenceArea x1={50} x2={100} y1={100} y2={300} fill="#94a3b8" fillOpacity={0.08} />
-              <ReferenceArea x1={0} x2={50} y1={100} y2={300} fill="#6366f1" fillOpacity={0.06} />
+              <ReferenceArea x1={0} x2={50} y1={0} y2={150} fill="#4bc0c0" fillOpacity={0.08} />
+              <ReferenceArea x1={50} x2={100} y1={0} y2={150} fill="#4bc0c0" fillOpacity={0.15} />
+              <ReferenceArea x1={50} x2={100} y1={150} y2={450} fill="#94a3b8" fillOpacity={0.08} />
+              <ReferenceArea x1={0} x2={50} y1={150} y2={450} fill="#6366f1" fillOpacity={0.06} />
 
               <XAxis 
                 type="number" 
@@ -119,7 +118,7 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
                 dataKey="y" 
                 name="CE Time" 
                 unit="s"
-                domain={[0, 300]}
+                domain={[0, 450]}
                 reversed
                 tick={{ fontSize: 13, fontWeight: 'bold' }}
                 label={{ value: 'CE Time (s) (↑ Fast / ↓ Slow)', angle: -90, position: 'insideLeft', offset: -10, className: "fill-foreground text-base font-black uppercase tracking-widest" }}
@@ -130,9 +129,8 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
               <Tooltip content={<CustomTooltip />} />
 
               <ReferenceLine x={50} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={2} opacity={0.4} />
-              <ReferenceLine y={100} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={2} opacity={0.4} />
+              <ReferenceLine y={150} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={2} opacity={0.4} />
 
-              {/* Quadrant Labels */}
               <ReferenceLine x={25} stroke="none">
                 <Label value="FAST & LOW POSS (Counter)" position="top" offset={-60} className="fill-rose-600 text-xs font-black uppercase tracking-tighter" />
               </ReferenceLine>
@@ -146,7 +144,6 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
                 <Label value="SLOW & LOW POSS (Inefficient)" position="insideBottom" offset={80} className="fill-indigo-700 text-xs font-black uppercase tracking-tighter" />
               </ReferenceLine>
 
-              {/* Home Team Trajectory */}
               <Scatter 
                 name={homeTeam.name} 
                 data={homeData.trajectory} 
@@ -165,7 +162,6 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
                 <LabelList dataKey="name" position="top" offset={40} style={{ fill: homeTeam.color, fontSize: 24, fontWeight: '950' }} />
               </Scatter>
 
-              {/* Away Team Trajectory */}
               <Scatter 
                 name={awayTeam.name} 
                 data={awayData.trajectory} 

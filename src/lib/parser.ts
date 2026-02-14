@@ -191,43 +191,34 @@ export const createMatchDataFromUpload = (
     const teamEvents = targetEvents.filter(e => e.team === team);
     const oppEvents = targetEvents.filter(e => e.team === opponent);
 
-    // 1. 점유율 데이터 (철칙: [팀명] TEAM 지속시간 합계)
     const myTEAMEvents = teamEvents.filter(e => e.code.trim() === `${team} TEAM`);
     const oppTEAMEvents = oppEvents.filter(e => e.code.trim() === `${opponent} TEAM`);
     
     const myTotalTime = myTEAMEvents.reduce((acc, e) => acc + e.duration, 0);
     const oppTotalTime = oppTEAMEvents.reduce((acc, e) => acc + e.duration, 0);
 
-    // ATT 시간: Zone >= 75 인 구역에서의 TEAM 지속시간 합계
     const myATTTime = myTEAMEvents.filter(e => mapZone(e.locationLabel || e.code).zoneBand >= 75).reduce((acc, e) => acc + e.duration, 0);
     const oppATTTime = oppTEAMEvents.filter(e => mapZone(e.locationLabel || e.code).zoneBand >= 75).reduce((acc, e) => acc + e.duration, 0);
 
-    // 빌드업 시간: 전체 TEAM 시간 - ATT 시간
     const myBuildUpTime = myTotalTime - myATTTime;
     const oppBuildUpTime = oppTotalTime - oppATTTime;
 
-    // 2. 카운팅 데이터 (철칙: Row/Code 정확한 매칭)
     const shotCount = teamEvents.filter(e => e.code.trim() === `${team} 슈팅`).length;
     const ceCount = teamEvents.filter(e => e.code.trim() === `${team} 슈팅서클 진입`).length;
     const pcCount = teamEvents.filter(e => e.code.trim() === `${team} 페널티코너`).length;
     const a25Count = teamEvents.filter(e => e.code.trim() === `${team} A25 START`).length;
 
-    // 3. SPP: (상대 빌드업 시간) / (우리 수비 성공 = 상대 턴오버 + 파울)
     const opponentErrors = oppEvents.filter(e => e.type === 'turnover' || e.type === 'foul').length;
     const spp = opponentErrors > 0 ? oppBuildUpTime / opponentErrors : 0;
 
-    // 4. CE 소요시간: 전체 TEAM 시간 / 슈팅서클 진입(횟수) - 철칙 반영
     const timePerCE = ceCount > 0 ? myTotalTime / ceCount : 0;
 
-    // 5. 점유율: Duration 기반
     const totalPossession = myTotalTime + oppTotalTime;
     const totalATT = myATTTime + oppATTTime;
 
-    // 6. 빌드업 성공률: TEAM 시퀀스 중 우리 진영(25, 50)에서 시작된 것 대비 A25 진입 비율
     const buildAttempts = myTEAMEvents.filter(e => mapZone(e.locationLabel || e.code).zoneBand < 75).length;
     const build25Ratio = buildAttempts > 0 ? (a25Count / buildAttempts) * 100 : 0;
 
-    // 7. 득점 데이터
     const goals = teamEvents.filter(e => e.code.includes(`${team} 득점`) || (e.code.includes(`${team} 슈팅`) && e.resultLabel.includes('득점')));
     const pcGoals = goals.filter(e => e.resultLabel.toUpperCase().includes('PC') || e.resultLabel.includes('페널티코너')).length;
 

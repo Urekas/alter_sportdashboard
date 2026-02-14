@@ -101,7 +101,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
       <CardHeader>
         <CardTitle>Attack Threat Trend (슈팅+PC)</CardTitle>
         <CardDescription>
-          슈팅 및 페널티코너 합산 위협도 추이입니다. 선 사이의 음영은 더 우세한 팀의 색으로 채워집니다.
+          5분 단위 슈팅 및 페널티코너 합산 위협도 추이입니다. (Y축 최대값: 7)
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -109,7 +109,11 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
           <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
             <XAxis dataKey="interval" interval="preserveStartEnd" />
-            <YAxis label={{ value: '공격 위협도', angle: -90, position: 'insideLeft' }} allowDecimals={false} />
+            <YAxis 
+              domain={[0, 7]} 
+              label={{ value: '공격 위협도', angle: -90, position: 'insideLeft' }} 
+              allowDecimals={false} 
+            />
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
             

@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useMemo } from 'react';
@@ -25,7 +26,6 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
       const myTeam = isHome ? homeTeam.name : awayTeam.name;
       const oppTeam = isHome ? awayTeam.name : homeTeam.name;
 
-      // 구역 매핑 로직 (홈/어웨이 방향성 및 데이터 라벨 보정)
       const mapping = isHome ? {
         0: { opp: ["우_100", "우_0"], my: "좌_25" }, 
         1: { opp: ["중_100", "중_0"], my: "중_25" }, 
@@ -48,7 +48,6 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
 
         if (!isOpponentError && !isMyFoul) return;
 
-        // '유' 오타 처리 및 공백 제거
         const loc = e.locationLabel.trim().replace('유', '우');
 
         Object.entries(mapping).forEach(([idxStr, maps]) => {
@@ -112,7 +111,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
                 <>
                   <line x1="0" y1="0" x2="0" y2="55" />
                   <path d={`M 0,${CX - 14.63} A 14.63,14.63 0 0,1 14.63,${CX} A 14.63,14.63 0 0,1 0,${CX + 14.63}`} />
-                  <path d={`M 0,${CX - 19.63} A 19.63,19.63 0 0,1 19.63,${CX} A 19.63,19.63 0 0,1 0,${CX + 19.63}`} strokeDasharray="1,1" />
+                  <path d={`M 0,${CX - 19.63} A 19.63,19.63 0 0,1 19.63,${CX} A 19.63,19.63 0 0,1 0,${CX + 14.63}`} strokeDasharray="1,1" />
                   <circle cx={6.47} cy={CX} r="0.3" fill="black" stroke="none" />
                   <rect x="-1.2" y={CX - 1.83} width="1.2" height="3.66" />
                   <line x1="22.85" y1="0" x2="22.85" y2="55" strokeDasharray="1,1" />
@@ -145,10 +144,11 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
                     textAnchor="middle"
                     dominantBaseline="middle"
                     className="fill-foreground"
-                    style={{ fontSize: '3px' }}
+                    style={{ fontSize: '2.8px' }}
                   >
-                    <tspan x={rectX + 11.42} dy="-4" fontWeight="bold">{labels[i]}</tspan>
-                    <tspan x={rectX + 11.42} dy="4.5" fontWeight="bold">압박 : {Math.round(stat.count)}</tspan>
+                    <tspan x={rectX + 11.42} dy="-5.5" fontWeight="bold">{labels[i]}</tspan>
+                    <tspan x={rectX + 11.42} dy="4" fontWeight="bold">압박 : {stat.count}</tspan>
+                    <tspan x={rectX + 11.42} dy="3.5" fontWeight="bold">성공 : {stat.success}</tspan>
                     <tspan x={rectX + 11.42} dy="3.5" fontSize="2.2px" fontWeight="normal" opacity="0.8">{stat.rate.toFixed(1)}%</tspan>
                   </text>
                 </g>
@@ -165,7 +165,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
       <CardHeader className={isCompact ? "py-2 px-4" : ""}>
         <CardTitle className={isCompact ? "text-lg" : ""}>Pressure Analysis Map</CardTitle>
         <CardDescription className={isCompact ? "text-[10px]" : ""}>
-          구역별 압박 횟수 및 성공률 (데이터 오타 및 방향성 보정 완료)
+          구역별 압박 전체 시도, 성공 횟수 및 성공률
         </CardDescription>
       </CardHeader>
       <CardContent className={isCompact ? "p-2 md:p-4" : "p-4 md:p-6"}>
