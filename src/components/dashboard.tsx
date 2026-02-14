@@ -25,7 +25,6 @@ export function Dashboard() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
-  // 색상 변경 시 실시간 반영
   useEffect(() => {
     if (matchData) {
       setMatchData(prev => prev ? {

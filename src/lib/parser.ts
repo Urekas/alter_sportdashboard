@@ -200,8 +200,8 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
 
     const twentyFiveCount = teamEvents.filter(e => e.code.toUpperCase().includes('A25 START')).length;
     const ceCount = teamEvents.filter(e => e.code.includes('슈팅서클 진입')).length;
-    const shotCount = teamEvents.filter(e => e.code.includes('슈팅')).length;
-    const pcCount = teamEvents.filter(e => e.code.includes('페널티코너')).length;
+    const shotCount = teamEvents.filter(e => e.code.endsWith('슈팅')).length;
+    const pcCount = teamEvents.filter(e => e.code.endsWith('페널티코너')).length;
 
     const buildRows = teamEvents.filter(e => e.code.toUpperCase().includes('DM START') || e.code.toUpperCase().includes('D25 START'));
     const buildSuccess = buildRows.filter(e => e.resultLabel.toUpperCase().includes('25Y ENTRY')).length;
@@ -257,8 +257,8 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     }),
     attackThreatData: Array(12).fill(0).map((_, i) => ({
       interval: `${(i+1)*5}'`,
-      [homeName]: events.filter(e => e.team === homeName && e.time <= (i+1)*300 && e.time > i*300 && (e.code.includes('슈팅') || e.code.includes('페널티코너'))).length,
-      [awayName]: events.filter(e => e.team === awayName && e.time <= (i+1)*300 && e.time > i*300 && (e.code.includes('슈팅') || e.code.includes('페널티코너'))).length,
+      [homeName]: events.filter(e => e.team === homeName && e.time <= (i+1)*300 && e.time > i*300 && (e.code.endsWith('슈팅') || e.code.endsWith('페널티코너'))).length,
+      [awayName]: events.filter(e => e.team === awayName && e.time <= (i+1)*300 && e.time > i*300 && (e.code.endsWith('슈팅') || e.code.endsWith('페널티코너'))).length,
     })),
     build25Ratio: { home: homeStats.build25Ratio, away: awayStats.build25Ratio },
     spp: { home: homeStats.spp, away: awayStats.spp },
