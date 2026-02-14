@@ -14,7 +14,7 @@ body {
     --card-foreground: 209 25% 20%;
     --popover: 0 0% 100%;
     --popover-foreground: 209 25% 20%;
-    --primary: 221 83% 53%; /* Vivid Blue - 홈팀 색상 강화 */
+    --primary: 221 100% 50%; /* 더욱 쨍한 Vivid Blue */
     --primary-foreground: 0 0% 100%; /* White text */
     --secondary: 210 20% 88%;
     --secondary-foreground: 221 83% 53%;
@@ -26,8 +26,8 @@ body {
     --destructive-foreground: 0 0% 98%;
     --border: 214 20% 85%; /* Slightly darker gray for borders */
     --input: 214 20% 85%;
-    --ring: 221 83% 53%; /* Vivid Blue for focus rings */
-    --chart-1: 221 83% 53%; /* primary - vivid blue */
+    --ring: 221 100% 50%; /* Vivid Blue for focus rings */
+    --chart-1: 221 100% 50%; /* primary - vivid blue */
     --chart-2: 10 80% 55%; /* away team red/orange */
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
@@ -80,34 +80,5 @@ body {
 @layer utilities {
   .print-hidden {
     display: none;
-  }
-}
-
-@media print {
-  body {
-    background-color: white;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  .print-hidden {
-    display: none;
-  }
-  .printable-area {
-    display: block;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-  }
-  .printable-area .grid {
-    display: block;
-  }
-  .printable-area .card {
-    border: 1px solid #ccc;
-    box-shadow: none;
-    page-break-inside: avoid;
-    margin-bottom: 1.5rem;
-  }
-  .printable-area .lg\:col-span-2 {
-     width: 100%;
   }
 }

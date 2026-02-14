@@ -68,7 +68,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
 
       result.push(createPoint(current, h1, a1));
 
-      // 교차점 계산 (SPP는 낮을수록 우세하므로 반전된 로직 적용)
+      // 교차점 정밀 계산 (SPP는 낮을수록 우세하므로 반전된 로직 적용)
       if ((h1 - a1) * (h2 - a2) < 0) {
         const ratio = Math.abs(h1 - a1) / (Math.abs(h1 - a1) + Math.abs(h2 - a2));
         const intersectVal = h1 + ratio * (h2 - h1);

@@ -62,13 +62,13 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
         ...d,
         [homeTeam.name]: h,
         [awayTeam.name]: a,
-        homeDominance: h >= a ? [a, h] : [h, h],
-        awayDominance: a > h ? [h, a] : [a, a]
+        homeDominance: h >= a ? [a, h] : [a, a],
+        awayDominance: a > h ? [h, a] : [h, h]
       });
 
       result.push(createPoint(current, h1, a1));
 
-      // Intersection 지점 계산 (더 정밀한 보간)
+      // Intersection 지점 정밀 계산 (교차점에서 음영이 엇갈리도록)
       if ((h1 - a1) * (h2 - a2) < 0) {
         const ratio = Math.abs(h1 - a1) / (Math.abs(h1 - a1) + Math.abs(h2 - a2));
         const intersectVal = h1 + ratio * (h2 - h1);
