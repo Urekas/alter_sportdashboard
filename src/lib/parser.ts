@@ -193,13 +193,16 @@ export const createMatchDataFromUpload = (
 
     const myTEAMEvents = teamEvents.filter(e => e.code.trim() === `${team} TEAM`);
     const oppTEAMEvents = oppEvents.filter(e => e.code.trim() === `${opponent} TEAM`);
+    const myATTEvents = teamEvents.filter(e => e.code.trim() === `${team} ATT`);
+    const oppATTEvents = oppEvents.filter(e => e.code.trim() === `${opponent} ATT`);
     
     const myTotalTime = myTEAMEvents.reduce((acc, e) => acc + e.duration, 0);
     const oppTotalTime = oppTEAMEvents.reduce((acc, e) => acc + e.duration, 0);
 
-    const myATTTime = myTEAMEvents.filter(e => mapZone(e.locationLabel || e.code).zoneBand >= 75).reduce((acc, e) => acc + e.duration, 0);
-    const oppATTTime = oppTEAMEvents.filter(e => mapZone(e.locationLabel || e.code).zoneBand >= 75).reduce((acc, e) => acc + e.duration, 0);
+    const myATTTime = myATTEvents.reduce((acc, e) => acc + e.duration, 0);
+    const oppATTTime = oppATTEvents.reduce((acc, e) => acc + e.duration, 0);
 
+    // 빌드업 시간 = TEAM 지속시간 - ATT 지속시간
     const myBuildUpTime = myTotalTime - myATTTime;
     const oppBuildUpTime = oppTotalTime - oppATTTime;
 
@@ -212,13 +215,13 @@ export const createMatchDataFromUpload = (
     // SPP = 상대 빌드업 시간 / 상대 실책
     const spp = opponentErrors > 0 ? oppBuildUpTime / opponentErrors : 0;
 
-    // CE per second = 전체 TEAM 시간 / 슈팅서클 진입 횟수
+    // CE per second = 우리팀 전체 TEAM 시간 / 슈팅서클 진입 횟수
     const timePerCE = ceCount > 0 ? myTotalTime / ceCount : 0;
 
     const totalPossession = myTotalTime + oppTotalTime;
     const totalATT = myATTTime + oppATTTime;
 
-    const buildAttempts = myTEAMEvents.filter(e => mapZone(e.locationLabel || e.code).zoneBand < 75).length;
+    const buildAttempts = teamEvents.filter(e => e.code.trim() === `${team} TEAM` && mapZone(e.locationLabel || e.code).zoneBand < 75).length;
     const build25Ratio = buildAttempts > 0 ? (a25Count / buildAttempts) * 100 : 0;
 
     const goals = teamEvents.filter(e => e.code.includes(`${team} 득점`) || (e.code.includes(`${team} 슈팅`) && e.resultLabel.includes('득점')));
