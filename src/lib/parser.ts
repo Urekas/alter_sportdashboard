@@ -21,6 +21,7 @@ const extractTeamName = (code: string, detectedTeams: { home: string, away: stri
     if (upperCode.includes(homeUpper)) return detectedTeams.home;
     if (upperCode.includes(awayUpper)) return detectedTeams.away;
     
+    // Fallback for generic tags
     if (upperCode.includes("HOME")) return detectedTeams.home;
     if (upperCode.includes("AWAY")) return detectedTeams.away;
   }
@@ -33,7 +34,6 @@ const extractTeamName = (code: string, detectedTeams: { home: string, away: stri
 };
 
 const mapZone = (locStr: string): { x: number, y: number, lane: 'Left' | 'Center' | 'Right', zoneBand: number } => {
-  // '유' 오타 보정 (전체 프로젝트 적용)
   const text = locStr.toUpperCase().replace('유', '우');
   let lane: 'Left' | 'Center' | 'Right' = 'Center';
   if (text.includes('좌') || text.includes('LEFT') || text.startsWith('L_') || text.startsWith('L ')) lane = 'Left';
@@ -85,7 +85,7 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     let ungroupedText = "";
 
     for (let i = 0; i < labels.length; i++) {
-      const group = (labels[i].getElementsByTagName("group")[0]?.textContent || "").trim();
+      const group = (labels[i].getElementsByTagName("group")[group.length - 1]?.textContent || "").trim();
       const text = (labels[i].getElementsByTagName("text")[0]?.textContent || "").trim();
       if (/지역|Location|Zone/i.test(group)) locLabel = text;
       else if (/결과|Result|Outcome/i.test(group)) resultLabel = text;
@@ -193,44 +193,42 @@ export const createMatchDataFromUpload = (
     const teamEvents = targetEvents.filter(e => e.team === team);
     const oppEvents = targetEvents.filter(e => e.team === opponent);
 
-    const teamTime = teamEvents.reduce((acc, e) => acc + e.duration, 0);
-    const oppTeamTime = oppEvents.reduce((acc, e) => acc + e.duration, 0);
+    // 철칙 1: 점유율은 "[팀명] TEAM" 코드의 Duration 합계
+    const teamPossessionEvents = teamEvents.filter(e => e.code.includes(`${team} TEAM`));
+    const oppPossessionEvents = oppEvents.filter(e => e.code.includes(`${opponent} TEAM`));
+    
+    const teamTime = teamPossessionEvents.reduce((acc, e) => acc + e.duration, 0);
+    const oppTeamTime = oppPossessionEvents.reduce((acc, e) => acc + e.duration, 0);
     const totalPossessionTime = teamTime + oppTeamTime;
 
-    const attackTime = teamEvents.filter(e => {
+    // 공격 점유 시간 (Zone >= 75에서의 TEAM 지속 시간)
+    const attackTime = teamPossessionEvents.filter(e => {
         const zone = mapZone(e.locationLabel || e.code).zoneBand;
         return zone >= 75;
     }).reduce((acc, e) => acc + e.duration, 0);
     
-    const oppAttackTime = oppEvents.filter(e => {
+    const oppAttackTime = oppPossessionEvents.filter(e => {
         const zone = mapZone(e.locationLabel || e.code).zoneBand;
         return zone >= 75;
     }).reduce((acc, e) => acc + e.duration, 0);
     const totalAttackTime = attackTime + oppAttackTime;
     
-    // 빌드업 시간: 우리 진영(25, 50 구역)에서 발생한 모든 시퀀스의 합산 시간
-    const buildUpTime = teamEvents.filter(e => {
-        const zone = mapZone(e.locationLabel || e.code).zoneBand;
-        return zone <= 50 && !['turnover', 'foul'].includes(e.type);
-    }).reduce((acc, e) => acc + e.duration, 0);
+    // SPP 철칙: 상대팀의 공격(ATT) 시간 / 우리팀의 압박 성공(상대 실책)
+    // 우리팀의 SPP = (상대팀의 공격 시간) / (상대팀의 턴오버 + 파울)
+    const opponentErrors = oppEvents.filter(e => e.type === 'turnover' || e.type === 'foul').length;
+    const spp = opponentErrors > 0 ? oppAttackTime / opponentErrors : 0;
 
-    // 빌드업 실패: 우리 진영에서의 턴오버나 파울
-    const buildUpFailures = teamEvents.filter(e => 
-      (e.type === 'turnover' || e.type === 'foul') && 
-      (e.locationLabel.includes('25') || e.locationLabel.includes('50') || e.code.toUpperCase().includes('DM') || e.code.toUpperCase().includes('D25'))
-    ).length;
-    
-    const spp = buildUpFailures > 0 ? buildUpTime / buildUpFailures : 0;
+    // 철칙 2: 슈팅, PC, 서클진입, 25y진입 패턴
+    const twentyFiveCount = teamEvents.filter(e => e.code.includes(`${team} A25 START`)).length;
+    const ceCount = teamEvents.filter(e => e.code.includes(`${team} 슈팅서클 진입`)).length;
+    const shotCount = teamEvents.filter(e => e.code.includes(`${team} 슈팅`)).length;
+    const pcCount = teamEvents.filter(e => e.code.includes(`${team} 페널티코너`)).length;
 
-    const twentyFiveCount = teamEvents.filter(e => e.code.toUpperCase().includes('A25 START') || e.locationLabel.includes('75') || e.locationLabel.includes('100')).length;
-    const ceCount = teamEvents.filter(e => e.code.includes('서클') || e.code.includes('CIRCLE')).length;
-    const shotCount = teamEvents.filter(e => e.code.includes('슈팅') || e.code.includes('SHOT')).length;
-    const pcCount = teamEvents.filter(e => e.code.includes('페널티코너') || e.code.includes('PC')).length;
-
+    // 빌드업 성공률 (DM/D25 등 우리 진영 시퀀스 중 성공 라벨이 있는 것)
     const buildRows = teamEvents.filter(e => e.locationLabel.includes('25') || e.locationLabel.includes('50'));
     const buildSuccess = teamEvents.filter(e => e.resultLabel.toUpperCase().includes('25Y ENTRY') || e.resultLabel.includes('진입 성공')).length;
 
-    const goals = teamEvents.filter(e => e.code.includes('득점') || e.code.includes('GOAL'));
+    const goals = teamEvents.filter(e => e.code.includes(`${team} 득점`) || (e.code.includes(`${team} 슈팅`) && e.resultLabel.includes('득점')));
     const pcGoals = goals.filter(e => e.resultLabel.toUpperCase().includes('PC') || e.resultLabel.includes('페널티코너')).length;
 
     return {
@@ -272,7 +270,7 @@ export const createMatchDataFromUpload = (
         [awayName]: aS.spp,
       };
     }),
-    circleEntries: events.filter(e => e.code.includes('서클') || e.code.includes('CIRCLE')).map(e => {
+    circleEntries: events.filter(e => e.code.includes(`${e.team} 슈팅서클 진입`)).map(e => {
       const res = e.resultLabel.toUpperCase();
       const isSuccess = res.includes('PC') || res.includes('SHOT') || res.includes('득점') || res.includes('슈팅') || res.includes('GOAL');
       return {
@@ -283,8 +281,8 @@ export const createMatchDataFromUpload = (
     }),
     attackThreatData: Array(12).fill(0).map((_, i) => ({
       interval: `${(i+1)*5}'`,
-      [homeName]: events.filter(e => e.team === homeName && e.time <= (i+1)*300 && e.time > i*300 && (e.code.includes('슈팅') || e.code.includes('페널티코너') || e.code.includes('SHOT') || e.code.includes('PC'))).length,
-      [awayName]: events.filter(e => e.team === awayName && e.time <= (i+1)*300 && e.time > i*300 && (e.code.includes('슈팅') || e.code.includes('페널티코너') || e.code.includes('SHOT') || e.code.includes('PC'))).length,
+      [homeName]: events.filter(e => e.team === homeName && e.time <= (i+1)*300 && e.time > i*300 && (e.code.includes('슈팅') || e.code.includes('페널티코너'))).length,
+      [awayName]: events.filter(e => e.team === awayName && e.time <= (i+1)*300 && e.time > i*300 && (e.code.includes('슈팅') || e.code.includes('페널티코너'))).length,
     })),
     build25Ratio: { home: homeStats.build25Ratio, away: awayStats.build25Ratio },
     spp: { home: homeStats.spp, away: awayStats.spp },
