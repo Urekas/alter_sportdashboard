@@ -32,7 +32,7 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
       const rawX = isHome ? q.home.attackPossession : q.away.attackPossession;
       const rawTime = isHome ? q.home.timePerCE : q.away.timePerCE;
       
-      // If time is 0 (no entry), place at bottom (300)
+      // 0초(진입 실패)는 최하단(300), 그 외는 실제 시간(최대 300)
       const visualY = rawTime === 0 ? 300 : Math.min(300, rawTime);
 
       return {
@@ -46,7 +46,7 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
       };
     }).filter(p => p.x > 0);
 
-    // 2. Total point (Isolated, no connection line)
+    // 2. Total point (독립적 포인트, 선 연결 제거)
     const totalRawX = isHome ? matchStats.home.attackPossession : matchStats.away.attackPossession;
     const totalRawTime = isHome ? matchStats.home.timePerCE : matchStats.away.timePerCE;
     const totalVisualY = totalRawTime === 0 ? 300 : Math.min(300, totalRawTime);
@@ -88,7 +88,7 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
       <CardHeader className="pb-2 bg-muted/20 border-b">
         <CardTitle className="text-2xl font-black text-primary italic">Match Trajectory Analysis (공격 전술 궤적)</CardTitle>
         <CardDescription className="text-sm font-bold text-muted-foreground mt-1">
-          공격 점유율 vs 서클 진입 효율 (상단일수록 빠름 / 0s가 최상단)
+          공격 점유율 vs CE 소요시간 (상단 0s일수록 효율적 / 하단 300s일수록 비효율적)
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -117,7 +117,8 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
               <YAxis 
                 type="number" 
                 dataKey="y" 
-                name="Efficiency" 
+                name="CE Time" 
+                unit="s"
                 domain={[0, 300]}
                 reversed
                 tick={{ fontSize: 13, fontWeight: 'bold' }}

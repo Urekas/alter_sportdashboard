@@ -191,22 +191,22 @@ export const createMatchDataFromUpload = (
     const teamEvents = targetEvents.filter(e => e.team === team);
     const oppEvents = targetEvents.filter(e => e.team === opponent);
 
-    // 1. 점유율 및 시간 데이터 (철칙: [팀명] TEAM 지속시간)
-    const myTEAMDocs = targetEvents.filter(e => e.team === team && e.code.trim() === `${team} TEAM`);
-    const oppTEAMDocs = targetEvents.filter(e => e.team === opponent && e.code.trim() === `${opponent} TEAM`);
+    // 1. 점유율 데이터 (철칙: [팀명] TEAM 지속시간 합계)
+    const myTEAMEvents = teamEvents.filter(e => e.code.trim() === `${team} TEAM`);
+    const oppTEAMEvents = oppEvents.filter(e => e.code.trim() === `${opponent} TEAM`);
     
-    const myTotalTime = myTEAMDocs.reduce((acc, e) => acc + e.duration, 0);
-    const oppTotalTime = oppTEAMDocs.reduce((acc, e) => acc + e.duration, 0);
+    const myTotalTime = myTEAMEvents.reduce((acc, e) => acc + e.duration, 0);
+    const oppTotalTime = oppTEAMEvents.reduce((acc, e) => acc + e.duration, 0);
 
-    // ATT 시간: Zone >= 75 인 구역에서의 TEAM 지속시간
-    const myATTTime = myTEAMDocs.filter(e => mapZone(e.locationLabel || e.code).zoneBand >= 75).reduce((acc, e) => acc + e.duration, 0);
-    const oppATTTime = oppTEAMDocs.filter(e => mapZone(e.locationLabel || e.code).zoneBand >= 75).reduce((acc, e) => acc + e.duration, 0);
+    // ATT 시간: Zone >= 75 인 구역에서의 TEAM 지속시간 합계
+    const myATTTime = myTEAMEvents.filter(e => mapZone(e.locationLabel || e.code).zoneBand >= 75).reduce((acc, e) => acc + e.duration, 0);
+    const oppATTTime = oppTEAMEvents.filter(e => mapZone(e.locationLabel || e.code).zoneBand >= 75).reduce((acc, e) => acc + e.duration, 0);
 
-    // Build-up 시간: Total - ATT
+    // 빌드업 시간: 전체 TEAM 시간 - ATT 시간
     const myBuildUpTime = myTotalTime - myATTTime;
     const oppBuildUpTime = oppTotalTime - oppATTTime;
 
-    // 2. 카운팅 데이터 (철칙: 정확한 Row/Code 명칭 매칭)
+    // 2. 카운팅 데이터 (철칙: Row/Code 정확한 매칭)
     const shotCount = teamEvents.filter(e => e.code.trim() === `${team} 슈팅`).length;
     const ceCount = teamEvents.filter(e => e.code.trim() === `${team} 슈팅서클 진입`).length;
     const pcCount = teamEvents.filter(e => e.code.trim() === `${team} 페널티코너`).length;
@@ -216,15 +216,15 @@ export const createMatchDataFromUpload = (
     const opponentErrors = oppEvents.filter(e => e.type === 'turnover' || e.type === 'foul').length;
     const spp = opponentErrors > 0 ? oppBuildUpTime / opponentErrors : 0;
 
-    // 4. CE 소요시간: ATT / 슈팅서클 진입 (초/회)
+    // 4. CE 소요시간: ATT(duration) / 슈팅서클 진입(횟수)
     const timePerCE = ceCount > 0 ? myATTTime / ceCount : 0;
 
     // 5. 점유율: Duration 기반
     const totalPossession = myTotalTime + oppTotalTime;
     const totalATT = myATTTime + oppATTTime;
 
-    // 6. 빌드업 성공률: A25 START / 우리 진영(25, 50) TEAM 시퀀스 개수
-    const buildAttempts = myTEAMDocs.filter(e => mapZone(e.locationLabel || e.code).zoneBand < 75).length;
+    // 6. 빌드업 성공률
+    const buildAttempts = myTEAMEvents.filter(e => mapZone(e.locationLabel || e.code).zoneBand < 75).length;
     const build25Ratio = buildAttempts > 0 ? (a25Count / buildAttempts) * 100 : 0;
 
     // 7. 득점 데이터
