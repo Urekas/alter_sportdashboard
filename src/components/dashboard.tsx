@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useRef } from "react"
@@ -109,8 +108,16 @@ export function Dashboard() {
             <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <CircleEntryAnalysis teamName={matchData.homeTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.homeTeam.name)} />
-              <CircleEntryAnalysis teamName={matchData.awayTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.awayTeam.name)} />
+              <CircleEntryAnalysis 
+                teamName={matchData.homeTeam.name} 
+                entries={matchData.circleEntries.filter(e => e.team === matchData.homeTeam.name)} 
+                teamColor={matchData.homeTeam.color}
+              />
+              <CircleEntryAnalysis 
+                teamName={matchData.awayTeam.name} 
+                entries={matchData.circleEntries.filter(e => e.team === matchData.awayTeam.name)} 
+                teamColor={matchData.awayTeam.color}
+              />
             </div>
 
             <BuildUpEfficiencyChart data={matchData} />

@@ -12,9 +12,10 @@ export interface CircleEntry {
 interface CircleEntryAnalysisProps {
   entries: CircleEntry[]
   teamName: string
+  teamColor: string
 }
 
-export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisProps) {
+export function CircleEntryAnalysis({ entries, teamName, teamColor }: CircleEntryAnalysisProps) {
   const analysis = useMemo(() => {
     const stats: Record<'Left' | 'Center' | 'Right', { entries: number; success: number }> = {
       Left: { entries: 0, success: 0 },
@@ -46,6 +47,9 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
   const CX = FIELD_W / 2;
   const toSvgY = (diagramY: number) => diagramY + TOP_PADDING;
 
+  // 팀별 고유 마커 ID 생성
+  const markerId = `arrow-head-${teamName.replace(/\s+/g, '-')}`;
+
   return (
     <Card className="h-full border-2">
       <CardHeader>
@@ -61,8 +65,8 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
             className="w-full h-full overflow-visible select-none bg-white"
           >
             <defs>
-              <marker id="arrow-head-blue" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
-                <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(70, 130, 180, 0.9)" />
+              <marker id={markerId} viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill={teamColor} />
               </marker>
             </defs>
 
@@ -92,7 +96,8 @@ export function CircleEntryAnalysis({ entries, teamName }: CircleEntryAnalysisPr
               <circle cx={CX} cy={toSvgY(6.47)} r="0.15" fill="black" stroke="none" />
             </g>
 
-            <g stroke="rgba(70, 130, 180, 0.7)" strokeWidth="0.8" markerEnd="url(#arrow-head-blue)">
+            {/* 화살표 색상을 팀 색상으로 연동 */}
+            <g stroke={teamColor} strokeWidth="0.8" markerEnd={`url(#${markerId})`} strokeOpacity={0.8}>
               <line x1="2.75" y1={toSvgY(17)} x2="11.0" y2={toSvgY(8)} />
               <line x1="27.5" y1={toSvgY(17)} x2="27.5" y2={toSvgY(6)} />
               <line x1="52.25" y1={toSvgY(17)} x2="44.0" y2={toSvgY(8)} />
