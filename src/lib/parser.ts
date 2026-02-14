@@ -183,7 +183,6 @@ export const createMatchDataFromUpload = (
   const homeTeam = { name: homeName, color: homeColor }; 
   const awayTeam = { name: awayName, color: awayColor }; 
 
-  // 0. 쿼터별 시간 보정을 위한 맵 생성
   const quartersList = ['Q1', 'Q2', 'Q3', 'Q4'];
   const qMap = quartersList.map((q, idx) => {
     const qEvents = events.filter(e => e.quarter === q);
@@ -202,40 +201,29 @@ export const createMatchDataFromUpload = (
     const attTime = myEvents.filter(e => e.code.trim() === `${team} ATT`).reduce((acc, e) => acc + e.duration, 0);
     const buildUpTime = teamTime - attTime; 
 
+    const oppTeamTime = oppEvents.filter(e => e.code.trim() === `${opponent} TEAM`).reduce((acc, e) => acc + e.duration, 0);
+    const oppAttTime = oppEvents.filter(e => e.code.trim() === `${opponent} ATT`).reduce((acc, e) => acc + e.duration, 0);
+    const oppBuildUpTime = oppTeamTime - oppAttTime;
+
     const shotCount = myEvents.filter(e => e.code.trim() === `${team} 슈팅`).length;
     const ceCount = myEvents.filter(e => e.code.trim() === `${team} 슈팅서클 진입`).length;
     const pcCount = myEvents.filter(e => e.code.trim() === `${team} 페널티코너`).length;
     const a25Count = myEvents.filter(e => e.code.trim() === `${team} A25 START`).length;
 
-    const getZoneCount = (evts: MatchEvent[], codes: string[], zones: number[]) => {
+    const getZoneCount = (evts: MatchEvent[], types: string[], zones: number[]) => {
       return evts.filter(e => {
         const zone = mapZone(e.locationLabel || e.code).zoneBand;
-        const isTargetCode = codes.some(c => e.code.toUpperCase().includes(c));
-        return isTargetCode && zones.includes(zone);
+        const isTargetType = types.some(t => e.type === t || e.code.toUpperCase().includes(t.toUpperCase()));
+        return isTargetType && zones.includes(zone);
       }).length;
     };
 
-    // 형님 공식 적용: Press Attempt = (상대 75/100 TO + 파울) + (우리 25/50 파울)
-    const press_attempts = getZoneCount(oppEvents, ["TURN", "TO", "턴오버"], [75, 100]) + 
-                          getZoneCount(oppEvents, ["FOUL", "파울"], [75, 100]) + 
-                          getZoneCount(myEvents, ["FOUL", "파울"], [25, 50]);
+    const press_attempts = getZoneCount(oppEvents, ["turnover", "foul"], [75, 100]) + 
+                          getZoneCount(myEvents, ["foul"], [25, 50]);
 
-    const press_success = getZoneCount(oppEvents, ["TURN", "TO", "턴오버"], [75, 100]) + 
-                         getZoneCount(oppEvents, ["FOUL", "파울"], [75, 100]);
+    const press_success = getZoneCount(oppEvents, ["turnover", "foul"], [75, 100]);
 
-    // 상대팀 기준 Press Attempt (우리팀 Allowed SPP 계산용)
-    const opp_press_attempts = getZoneCount(myEvents, ["TURN", "TO", "턴오버"], [75, 100]) + 
-                              getZoneCount(myEvents, ["FOUL", "파울"], [75, 100]) + 
-                              getZoneCount(oppEvents, ["FOUL", "파울"], [25, 50]);
-
-    const oppTeamTime = oppEvents.filter(e => e.code.trim() === `${opponent} TEAM`).reduce((acc, e) => acc + e.duration, 0);
-    const oppAttTime = oppEvents.filter(e => e.code.trim() === `${opponent} ATT`).reduce((acc, e) => acc + e.duration, 0);
-    const oppBuildUpTime = oppTeamTime - oppAttTime;
-
-    // SPP = 상대 빌드업 시간 / 우리 Press Attempt
     const spp = press_attempts > 0 ? oppBuildUpTime / press_attempts : 0;
-    const allowed_spp = opp_press_attempts > 0 ? buildUpTime / opp_press_attempts : 0;
-
     const timePerCE = ceCount > 0 ? teamTime / ceCount : 0;
     const totalPossession = teamTime + oppTeamTime;
     const totalATT = attTime + oppAttTime;
@@ -255,7 +243,7 @@ export const createMatchDataFromUpload = (
       possession: totalPossession > 0 ? (teamTime / totalPossession) * 100 : 0,
       attackPossession: totalATT > 0 ? (attTime / totalATT) * 100 : 0,
       spp: parseFloat(spp.toFixed(1)),
-      allowedSpp: parseFloat(allowed_spp.toFixed(1)), 
+      allowedSpp: 0, 
       build25Ratio: Math.min(100, build25Ratio),
       avgAttackDuration: 0,
       timePerCE: parseFloat(timePerCE.toFixed(1)),
