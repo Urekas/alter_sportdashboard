@@ -25,20 +25,21 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
       const myTeam = isHome ? homeTeam.name : awayTeam.name;
       const oppTeam = isHome ? awayTeam.name : homeTeam.name;
 
+      // 구역 매핑 로직 유연화 (데이터의 0/100 기준이 다를 수 있음을 고려)
       const mapping = isHome ? {
-        0: { opp: "우_100", my: "좌_25" }, 
-        1: { opp: "중_100", my: "중_25" }, 
-        2: { opp: "좌_100", my: "우_25" }, 
-        3: { opp: "우_75", my: "좌_50" },  
-        4: { opp: "중_75", my: "중_50" },  
-        5: { opp: "좌_75", my: "우_50" }   
+        0: { opp: ["우_100", "우_0"], my: "좌_25" }, 
+        1: { opp: ["중_100", "중_0"], my: "중_25" }, 
+        2: { opp: ["좌_100", "좌_0"], my: "우_25" }, 
+        3: { opp: ["우_75", "우_25"], my: "좌_50" },  
+        4: { opp: ["중_75", "중_25"], my: "중_50" },  
+        5: { opp: ["좌_75", "좌_25"], my: "우_50" }   
       } : {
-        0: { opp: "우_0", my: "좌_100" },   
-        1: { opp: "중_0", my: "중_100" },   
-        2: { opp: "좌_0", my: "우_100" },   
-        3: { opp: "우_25", my: "좌_75" },   
-        4: { opp: "중_25", my: "중_75" },   
-        5: { opp: "좌_25", my: "우_75" }    
+        0: { opp: ["우_0", "우_100"], my: "좌_100" },   
+        1: { opp: ["중_0", "중_100"], my: "중_100" },   
+        2: { opp: ["좌_0", "좌_100"], my: "우_100" },   
+        3: { opp: ["우_25", "우_75"], my: "좌_75" },   
+        4: { opp: ["중_25", "중_75"], my: "중_75" },   
+        5: { opp: ["좌_25", "좌_75"], my: "우_75" }    
       };
 
       events.forEach(e => {
@@ -47,11 +48,14 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
 
         if (!isOpponentError && !isMyFoul) return;
 
-        const loc = e.locationLabel.trim();
+        // '유' 오타 처리 및 공백 제거
+        const loc = e.locationLabel.trim().replace('유', '우');
 
         Object.entries(mapping).forEach(([idxStr, maps]) => {
           const idx = parseInt(idxStr);
-          if (isOpponentError && loc === maps.opp) {
+          const oppZones = Array.isArray(maps.opp) ? maps.opp : [maps.opp];
+          
+          if (isOpponentError && oppZones.includes(loc)) {
             zones[idx].count++;
             zones[idx].success++;
           }
@@ -161,7 +165,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
       <CardHeader className={isCompact ? "py-2 px-4" : ""}>
         <CardTitle className={isCompact ? "text-lg" : ""}>Pressure Analysis Map</CardTitle>
         <CardDescription className={isCompact ? "text-[10px]" : ""}>
-          구역별 압박 횟수 및 성공률 (인쇄 시에도 나란히 배치)
+          구역별 압박 횟수 및 성공률 (데이터 오타 및 방향성 보정 완료)
         </CardDescription>
       </CardHeader>
       <CardContent className={isCompact ? "p-2 md:p-4" : "p-4 md:p-6"}>
