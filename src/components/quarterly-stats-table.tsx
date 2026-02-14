@@ -1,4 +1,3 @@
-
 "use client"
 
 import {
@@ -55,7 +54,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
             {safeVal(hTotal, decimals)}
           </TableCell>
         </TableRow>
-        <TableRow className="bg-chart-2/5 border-b-[3px] border-b-foreground/20">
+        <TableRow className="bg-chart-2/5 border-b-[4px] border-b-foreground/30">
           <TableCell className="pl-6 text-sm font-medium">{label} ({awayTeam.name})</TableCell>
           {quarterlyStats.map(q => {
             const hVal = (q.home as any)[field];
@@ -116,7 +115,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
                 {safeVal(matchStats.home.goals.field)}/{safeVal(matchStats.home.goals.pc)}
               </TableCell>
             </TableRow>
-            <TableRow className="bg-chart-2/5 border-b-[3px] border-b-foreground/20">
+            <TableRow className="bg-chart-2/5 border-b-[4px] border-b-foreground/30">
               <TableCell className="pl-6 text-sm font-medium">득점 (필드/PC) ({awayTeam.name})</TableCell>
               {quarterlyStats.map(q => {
                 const hTot = (q.home.goals?.field || 0) + (q.home.goals?.pc || 0);

@@ -19,13 +19,11 @@ type ZoneStat = {
 export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnalysisMapProps) {
   const zoneStats = useMemo(() => {
     const calculateStats = (isHome: boolean) => {
-      // 0: 25(L or R), 1: 25C, 2: 25(R or L), 3: 50(L or R), 4: 50C, 5: 50(R or L)
       const zones: ZoneStat[] = Array(6).fill(null).map(() => ({ count: 0, success: 0, rate: 0 }));
 
       const myTeam = isHome ? homeTeam.name : awayTeam.name;
       const oppTeam = isHome ? awayTeam.name : homeTeam.name;
 
-      // 정밀 매핑 (형님 철칙)
       const mapping = isHome ? {
         0: { opp: "우_100", my: "좌_25" }, // 25L (Top)
         1: { opp: "중_100", my: "중_25" }, // 25C
@@ -34,9 +32,9 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
         4: { opp: "중_75", my: "중_50" },  // 50C
         5: { opp: "좌_75", my: "우_50" }   // 50R (Bottom)
       } : {
-        0: { opp: "우_0", my: "좌_100" },   // 25R (Top) - 어웨이팀 "위가 R"
+        0: { opp: "우_0", my: "좌_100" },   // 25R (Top)
         1: { opp: "중_0", my: "중_100" },   // 25C
-        2: { opp: "좌_0", my: "우_100" },   // 25L (Bottom) - 어웨이팀 "아래가 L"
+        2: { opp: "좌_0", my: "우_100" },   // 25L (Bottom)
         3: { opp: "우_25", my: "좌_75" },   // 50R (Top)
         4: { opp: "중_25", my: "중_75" },   // 50C
         5: { opp: "좌_25", my: "우_75" }    // 50L (Bottom)
@@ -44,7 +42,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
 
       events.forEach(e => {
         const isOpponentError = e.team === oppTeam && (e.type === 'turnover' || e.type === 'foul');
-        const isMyFoul = e.team === myTeam && e.type === 'foul';
+        const isMyFoul = e.team === myTeam && e.type === 'foul');
 
         if (!isOpponentError && !isMyFoul) return;
 
@@ -75,12 +73,12 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
   }, [events, homeTeam, awayTeam]);
 
   const renderHalfPitch = (stats: ZoneStat[], team: Team, isHome: boolean) => {
-    // 형님 요청: 홈팀(위 L, 아래 R), 어웨이팀(위 R, 아래 L)
     const labels = isHome 
       ? ["25L", "25C", "25R", "50L", "50C", "50R"]
       : ["25R", "25C", "25L", "50R", "50C", "50L"];
 
     const CX = 27.5; 
+    const maxCount = Math.max(...stats.map(s => s.count), 1);
     
     return (
       <div className="flex flex-col gap-4">
@@ -117,37 +115,32 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
             {stats.map((stat, i) => {
               const xIdx = Math.floor(i / 3); 
               const yIdx = i % 3; 
-              let rectX = 0;
-              let rectW = 22.85;
-              if (isHome) {
-                rectX = xIdx === 0 ? 22.85 : 0;
-              } else {
-                rectX = xIdx === 0 ? 0 : 22.85;
-              }
+              let rectX = isHome ? (xIdx === 0 ? 22.85 : 0) : (xIdx === 0 ? 0 : 22.85);
               const rectY = yIdx * 18.33;
-              const intensity = stat.count > 0 ? (Math.abs(stat.rate) / 100) * 0.4 + 0.1 : 0;
+              // 음영 기준: 성공률이 아닌 횟수 기준
+              const intensity = stat.count > 0 ? (stat.count / maxCount) * 0.45 + 0.1 : 0;
 
               return (
                 <g key={i}>
                   <rect
                     x={rectX}
                     y={rectY}
-                    width={rectW}
+                    width="22.85"
                     height="18.33"
                     fill={team.color}
                     fillOpacity={intensity}
                   />
                   <text
-                    x={rectX + rectW/2}
+                    x={rectX + 11.42}
                     y={rectY + 18.33/2}
                     textAnchor="middle"
                     dominantBaseline="middle"
                     className="fill-foreground"
                     style={{ fontSize: '3px' }}
                   >
-                    <tspan x={rectX + rectW/2} dy="-4" fontWeight="bold">{labels[i]}</tspan>
-                    <tspan x={rectX + rectW/2} dy="4.5" fontWeight="bold">압박 횟수 : {Math.round(stat.count)}</tspan>
-                    <tspan x={rectX + rectW/2} dy="3.5" fontSize="2.2px" fontWeight="normal" opacity="0.8">{stat.rate.toFixed(1)}%</tspan>
+                    <tspan x={rectX + 11.42} dy="-4" fontWeight="bold">{labels[i]}</tspan>
+                    <tspan x={rectX + 11.42} dy="4.5" fontWeight="bold">압박 횟수 : {Math.round(stat.count)}</tspan>
+                    <tspan x={rectX + 11.42} dy="3.5" fontSize="2.2px" fontWeight="normal" opacity="0.8">{stat.rate.toFixed(1)}%</tspan>
                   </text>
                 </g>
               );
@@ -163,7 +156,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
       <CardHeader>
         <CardTitle>Pressure Analysis Map</CardTitle>
         <CardDescription>
-          상대 진영 구역 내 압박 성공률입니다. (홈팀: 위L-아래R / 어웨이팀: 위R-아래L)
+          상대 진영 구역 내 압박 횟수 및 성공률입니다. (홈팀: 위L-아래R / 어웨이팀: 위R-아래L)
         </CardDescription>
       </CardHeader>
       <CardContent className="p-4 md:p-6">
