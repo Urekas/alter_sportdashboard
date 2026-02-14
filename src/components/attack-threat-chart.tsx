@@ -68,20 +68,18 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
 
       result.push(createPoint(current, h1, a1));
 
-      // Intersection 지점 정밀 계산 (교차점에서 음영이 엇갈리도록)
       if ((h1 - a1) * (h2 - a2) < 0) {
         const ratio = Math.abs(h1 - a1) / (Math.abs(h1 - a1) + Math.abs(h2 - a2));
         const intersectVal = h1 + ratio * (h2 - h1);
         
-        const intersectPoint = {
+        result.push({
           interval: `${current.interval}+`, 
           isIntersect: true,
           [homeTeam.name]: intersectVal,
           [awayTeam.name]: intersectVal,
           homeDominance: [intersectVal, intersectVal],
           awayDominance: [intersectVal, intersectVal]
-        };
-        result.push(intersectPoint);
+        });
       }
     }
     
@@ -147,8 +145,30 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               <Label value="Q3 | Q4" position="top" fill="hsl(var(--muted-foreground))" fontSize={11} offset={10} />
             </ReferenceLine>
 
-            <Line type="monotone" dataKey={homeTeam.name} stroke={homeTeam.color} strokeWidth={3} dot={(props) => props.payload.isIntersect ? null : <circle {...props} r={4} />} activeDot={{ r: 6 }} />
-            <Line type="monotone" dataKey={awayTeam.name} stroke={awayTeam.color} strokeWidth={3} dot={(props) => props.payload.isIntersect ? null : <circle {...props} r={4} />} activeDot={{ r: 6 }} />
+            <Line 
+              type="monotone" 
+              dataKey={homeTeam.name} 
+              stroke={homeTeam.color} 
+              strokeWidth={3} 
+              dot={(props: any) => {
+                if (props.payload.isIntersect) return <path d="" />;
+                const { key, ...rest } = props;
+                return <circle key={key} {...rest} r={4} fill={homeTeam.color} stroke="none" />;
+              }} 
+              activeDot={{ r: 6 }} 
+            />
+            <Line 
+              type="monotone" 
+              dataKey={awayTeam.name} 
+              stroke={awayTeam.color} 
+              strokeWidth={3} 
+              dot={(props: any) => {
+                if (props.payload.isIntersect) return <path d="" />;
+                const { key, ...rest } = props;
+                return <circle key={key} {...rest} r={4} fill={awayTeam.color} stroke="none" />;
+              }} 
+              activeDot={{ r: 6 }} 
+            />
           </ComposedChart>
         </ResponsiveContainer>
       </CardContent>

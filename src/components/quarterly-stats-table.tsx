@@ -26,8 +26,10 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
   };
 
   const getWinnerClass = (valH: number, valA: number, lowerIsBetter: boolean = false) => {
-    if (valH === valA) return "";
-    const hWins = lowerIsBetter ? valH < valA : valH > valA;
+    const nH = parseFloat(valH as any);
+    const nA = parseFloat(valA as any);
+    if (isNaN(nH) || isNaN(nA) || nH === nA) return "";
+    const hWins = lowerIsBetter ? nH < nA : nH > nA;
     return hWins ? "text-primary font-bold" : "text-chart-2 font-bold";
   };
 
