@@ -3,6 +3,7 @@
 
 import React, { useMemo } from "react"
 import {
+  Area,
   Line,
   ComposedChart,
   XAxis,
@@ -10,7 +11,6 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  ReferenceArea,
   ReferenceLine,
   Label,
   TooltipProps,
@@ -43,35 +43,24 @@ const CustomTooltip = ({ active, payload, label, homeTeam, awayTeam }: TooltipPr
       </div>
     );
   }
-
   return null;
 };
 
-
 export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattleChartProps) {
-  const dominanceSegments = useMemo(() => {
-    if (!data || data.length === 0) return []
-    const segments = []
-    
-    for (let i = 0; i < data.length - 1; i++) {
-      const h1 = Number(data[i][homeTeam.name])
-      const a1 = Number(data[i][awayTeam.name])
-      
-      // SPP는 낮을수록 우수함 (그래프상 위에 있음)
-      if (h1 === a1) continue;
-
-      const dominant = h1 < a1 ? homeTeam.name : awayTeam.name
-      
-      segments.push({
-        x1: data[i].interval,
-        x2: data[i+1].interval,
-        y1: h1,
-        y2: a1,
-        dominant: dominant
-      })
-    }
-    return segments
-  }, [data, homeTeam, awayTeam])
+  // 음영 처리를 위한 데이터 가공 (SPP는 낮을수록 우세하므로 반대로 채움)
+  const chartData = useMemo(() => {
+    return data.map(d => {
+      const h = Number(d[homeTeam.name]) || 0;
+      const a = Number(d[awayTeam.name]) || 0;
+      return {
+        ...d,
+        // SPP는 낮을수록(그래프상 위) 우수함. 
+        // Home이 우세할 때(h < a) 범위 [Home, Away] -> Y축 Reversed이므로 상단이 낮은값
+        homeDominance: h < a ? [h, a] : [a, a],
+        awayDominance: a < h ? [a, h] : [h, h]
+      }
+    });
+  }, [data, homeTeam, awayTeam]);
 
   return (
     <Card>
@@ -83,7 +72,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={350}>
-          <ComposedChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
             <XAxis dataKey="interval" />
             <YAxis 
@@ -94,18 +83,27 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
             
-            {dominanceSegments.map((seg, idx) => (
-              <ReferenceArea
-                key={idx}
-                x1={seg.x1}
-                x2={seg.x2}
-                y1={Math.min(seg.y1, seg.y2)}
-                y2={Math.max(seg.y1, seg.y2)}
-                fill={seg.dominant === homeTeam.name ? homeTeam.color : awayTeam.color}
-                fillOpacity={0.15}
-                strokeOpacity={0}
-              />
-            ))}
+            {/* 우세 구역 음영 채우기 (Reversed Y축 대응) */}
+            <Area
+              dataKey="homeDominance"
+              stroke="none"
+              fill={homeTeam.color}
+              fillOpacity={0.15}
+              connectNulls
+              activeDot={false}
+              legendType="none"
+              tooltipType="none"
+            />
+            <Area
+              dataKey="awayDominance"
+              stroke="none"
+              fill={awayTeam.color}
+              fillOpacity={0.15}
+              connectNulls
+              activeDot={false}
+              legendType="none"
+              tooltipType="none"
+            />
 
             <ReferenceLine x="15'" stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3">
               <Label value="Q1 | Q2" position="top" fill="hsl(var(--muted-foreground))" fontSize={11} offset={10} />

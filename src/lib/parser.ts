@@ -12,7 +12,6 @@ const detectRealTeamNames = (text: string): { home: string, away: string } | nul
 
 const extractTeamName = (code: string, detectedTeams: { home: string, away: string } | null): string => {
   if (!code) return "Unknown";
-  // 파이썬 로직 반영: 공백으로 분리 후 첫 단어
   const first = code.trim().split(/\s+/)[0];
   const ignoreTags = ["한국빌드업", "한국프레스", "코치님", "START", "Unknown", "YOO", "DM", "D25", "AM", "A25"];
   
@@ -199,9 +198,10 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const buildRows = teamEvents.filter(e => e.code.includes('DM START') || e.code.includes('D25 START'));
     const buildSuccess = buildRows.filter(e => e.resultLabel.includes('25Y entry')).length;
 
+    // 정확한 키워드 매칭
     const shotCount = teamEvents.filter(e => e.code === `${team} 슈팅`).length;
-    const ceCount = teamEvents.filter(e => e.code === `${team} 슈팅서클 진입`).length;
     const pcCount = teamEvents.filter(e => e.code === `${team} 페널티코너`).length;
+    const ceCount = teamEvents.filter(e => e.code === `${team} 슈팅서클 진입`).length;
     const twentyFiveCount = teamEvents.filter(e => e.code === `${team} A25 START`).length;
     
     const goals = teamEvents.filter(e => e.code === `${team} 득점`);
@@ -215,7 +215,7 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
       twentyFiveEntries: twentyFiveCount,
       possession: totalPossessionTime > 0 ? (teamTime / totalPossessionTime) * 100 : 0,
       attackPossession: totalAttackTime > 0 ? (attackTime / totalAttackTime) * 100 : 0,
-      spp: parseFloat(spp.toFixed(2)),
+      spp: parseFloat(spp.toFixed(1)),
       allowedSpp: 0, 
       build25Ratio: buildRows.length > 0 ? (buildSuccess / buildRows.length) * 100 : 0,
       avgAttackDuration: attackTime / (ceCount || 1),
@@ -250,7 +250,6 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
       outcome: e.resultLabel.includes('득점') || e.resultLabel.includes('goal') ? 'Goal' : 
                e.resultLabel.includes('슈팅') || e.resultLabel.includes('shot') ? 'Shot On Target' : 'No Shot'
     })),
-    // Attack Threat = 슈팅 + 페널티코너
     attackThreatData: Array(12).fill(0).map((_, i) => ({
       interval: `${(i+1)*5}'`,
       [homeName]: events.filter(e => e.team === homeName && e.time <= (i+1)*300 && e.time > i*300 && (e.code === `${homeName} 슈팅` || e.code === `${homeName} 페널티코너`)).length,

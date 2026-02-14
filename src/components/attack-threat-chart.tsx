@@ -3,8 +3,7 @@
 
 import React, { useMemo } from "react"
 import {
-  LineChart,
-  Line,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
@@ -12,9 +11,10 @@ import {
   ResponsiveContainer,
   TooltipProps,
   ReferenceLine,
-  ReferenceArea,
   Label,
-  CartesianGrid
+  CartesianGrid,
+  ComposedChart,
+  Line
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import type { AttackThreatDataPoint, Team } from "@/lib/types"
@@ -35,45 +35,32 @@ const CustomTooltip = ({ active, payload, label, homeTeam, awayTeam }: TooltipPr
       <div className="bg-card p-3 border rounded-lg shadow-lg text-sm">
         <p className="font-bold text-base mb-2">{`시간대: ${label}`}</p>
         {homePayload && <p style={{ color: homePayload.color }}>
-          {`${homePayload.name} 위협도: ${homePayload.value}`}
+          {`${homePayload.name} 위협도: ${Math.round(Number(homePayload.value))}`}
         </p>}
         {awayPayload && <p style={{ color: awayPayload.color }}>
-          {`${awayPayload.name} 위협도: ${awayPayload.value}`}
+          {`${awayPayload.name} 위협도: ${Math.round(Number(awayPayload.value))}`}
         </p>}
       </div>
     );
   }
-
   return null;
 };
 
-
 export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChartProps) {
-  const dominanceSegments = useMemo(() => {
-    if (!data || data.length === 0) return []
-    const segments = []
-    
-    for (let i = 0; i < data.length - 1; i++) {
-      const h1 = Number(data[i][homeTeam.name])
-      const a1 = Number(data[i][awayTeam.name])
-      const h2 = Number(data[i+1][homeTeam.name])
-      const a2 = Number(data[i+1][awayTeam.name])
-
-      // 현재 구간에서 더 높은 수치를 가진 팀 식별 (같으면 제외)
-      if (h1 === a1) continue;
-
-      const dominant = h1 > a1 ? homeTeam.name : awayTeam.name
-      
-      segments.push({
-        x1: data[i].interval,
-        x2: data[i+1].interval,
-        y1: h1,
-        y2: a1,
-        dominant: dominant
-      })
-    }
-    return segments
-  }, [data, homeTeam, awayTeam])
+  // 음영 처리를 위한 데이터 가공 (기울기 기반 영역 채우기)
+  const chartData = useMemo(() => {
+    return data.map(d => {
+      const h = Number(d[homeTeam.name]) || 0;
+      const a = Number(d[awayTeam.name]) || 0;
+      return {
+        ...d,
+        // Home이 우세할 때의 범위 [Away, Home]
+        homeDominance: h > a ? [a, h] : [h, h],
+        // Away가 우세할 때의 범위 [Home, Away]
+        awayDominance: a > h ? [h, a] : [a, a]
+      }
+    });
+  }, [data, homeTeam, awayTeam]);
 
   return (
     <Card>
@@ -85,25 +72,34 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={350}>
-          <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
             <XAxis dataKey="interval" />
-            <YAxis label={{ value: '공격 위협도', angle: -90, position: 'insideLeft' }} />
+            <YAxis label={{ value: '공격 위협도', angle: -90, position: 'insideLeft' }} allowDecimals={false} />
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
             
-            {dominanceSegments.map((seg, idx) => (
-              <ReferenceArea
-                key={idx}
-                x1={seg.x1}
-                x2={seg.x2}
-                y1={Math.min(seg.y1, seg.y2)}
-                y2={Math.max(seg.y1, seg.y2)}
-                fill={seg.dominant === homeTeam.name ? homeTeam.color : awayTeam.color}
-                fillOpacity={0.15}
-                strokeOpacity={0}
-              />
-            ))}
+            {/* 우세 구역 음영 채우기 (기울기 대응) */}
+            <Area
+              dataKey="homeDominance"
+              stroke="none"
+              fill={homeTeam.color}
+              fillOpacity={0.15}
+              connectNulls
+              activeDot={false}
+              legendType="none"
+              tooltipType="none"
+            />
+            <Area
+              dataKey="awayDominance"
+              stroke="none"
+              fill={awayTeam.color}
+              fillOpacity={0.15}
+              connectNulls
+              activeDot={false}
+              legendType="none"
+              tooltipType="none"
+            />
 
             <ReferenceLine x="15'" stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3">
               <Label value="Q1 | Q2" position="top" fill="hsl(var(--muted-foreground))" fontSize={11} offset={10} />
@@ -117,7 +113,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
 
             <Line type="monotone" dataKey={homeTeam.name} stroke={homeTeam.color} strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
             <Line type="monotone" dataKey={awayTeam.name} stroke={awayTeam.color} strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-          </LineChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </CardContent>
     </Card>
