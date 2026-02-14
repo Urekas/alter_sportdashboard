@@ -178,17 +178,14 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const teamEvents = targetEvents.filter(e => e.team === team);
     const oppEvents = targetEvents.filter(e => e.team === opponent);
 
-    // 점유율: "팀명 TEAM"의 지속 시간 합계
     const teamTime = teamEvents.filter(e => e.code === `${team} TEAM`).reduce((acc, e) => acc + e.duration, 0);
     const oppTeamTime = oppEvents.filter(e => e.code === `${opponent} TEAM`).reduce((acc, e) => acc + e.duration, 0);
     const totalPossessionTime = teamTime + oppTeamTime;
 
-    // 공격 점유: "AM START" 또는 "A25 START" 포함 시퀀스
     const attackTime = teamEvents.filter(e => e.code.includes('AM START') || e.code.includes('A25 START')).reduce((acc, e) => acc + e.duration, 0);
     const oppAttackTime = oppEvents.filter(e => e.code.includes('AM START') || e.code.includes('A25 START')).reduce((acc, e) => acc + e.duration, 0);
     const totalAttackTime = attackTime + oppAttackTime;
 
-    // SPP: (DM START + D25 START 시간) / (해당 지역 내 우리 팀의 실책(턴오버+파울) 횟수)
     const buildUpTime = teamEvents.filter(e => e.code.includes('DM START') || e.code.includes('D25 START')).reduce((acc, e) => acc + e.duration, 0);
     const buildUpFailures = teamEvents.filter(e => 
       (e.type === 'turnover' || e.type === 'foul') && 
@@ -196,11 +193,9 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     ).length;
     const spp = buildUpFailures > 0 ? buildUpTime / buildUpFailures : 0;
 
-    // 빌드업 성공률: Row "DM START/D25 START" 중 결과 "25Y entry"
     const buildRows = teamEvents.filter(e => e.code.includes('DM START') || e.code.includes('D25 START'));
     const buildSuccess = buildRows.filter(e => e.resultLabel.includes('25Y entry')).length;
 
-    // 정밀 키워드 매칭
     const shotCount = teamEvents.filter(e => e.code === `${team} 슈팅`).length;
     const pcCount = teamEvents.filter(e => e.code === `${team} 페널티코너`).length;
     const ceCount = teamEvents.filter(e => e.code === `${team} 슈팅서클 진입`).length;
