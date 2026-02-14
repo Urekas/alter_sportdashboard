@@ -22,13 +22,13 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
   const formatValue = (val: any, type: 'count' | 'float') => {
     const num = parseFloat(val);
     if (isNaN(num)) return "0";
-    // 횟수(count)는 정수로, 비율/시간(float)은 소수점 1자리로 표시
     return type === 'float' ? num.toFixed(1) : Math.round(num).toString();
   };
 
   const stats = [
     { label: "득점 (필드 / PC)", h: `${Math.round(matchStats.home.goals.field)} / ${Math.round(matchStats.home.goals.pc)}`, a: `${Math.round(matchStats.away.goals.field)} / ${Math.round(matchStats.away.goals.pc)}` },
     { label: "슈팅", h: formatValue(matchStats.home.shots, 'count'), a: formatValue(matchStats.away.shots, 'count') },
+    { label: "페널티코너 (PC)", h: formatValue(matchStats.home.pcs, 'count'), a: formatValue(matchStats.away.pcs, 'count') },
     { label: "서클 진입 (CE)", h: formatValue(matchStats.home.circleEntries, 'count'), a: formatValue(matchStats.away.circleEntries, 'count') },
     { label: "25y 진입 (A25)", h: formatValue(matchStats.home.twentyFiveEntries, 'count'), a: formatValue(matchStats.away.twentyFiveEntries, 'count') },
     { label: "빌드업 성공률 (%)", h: formatValue(matchStats.home.build25Ratio, 'float'), a: formatValue(matchStats.away.build25Ratio, 'float') },

@@ -40,6 +40,10 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
           {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{Math.round((isHome ? q.home : q.away).shots)}</TableCell>)}
         </TableRow>
         <TableRow>
+          <TableCell className="pl-6 text-sm font-medium">페널티코너 (PC)</TableCell>
+          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{Math.round((isHome ? q.home : q.away).pcs)}</TableCell>)}
+        </TableRow>
+        <TableRow>
           <TableCell className="pl-6 text-sm font-medium">서클 진입 (CE)</TableCell>
           {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{Math.round((isHome ? q.home : q.away).circleEntries)}</TableCell>)}
         </TableRow>

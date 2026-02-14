@@ -24,6 +24,7 @@ export interface TeamMatchStats {
     pc: number;
   };
   shots: number;
+  pcs: number;
   circleEntries: number;
   twentyFiveEntries: number;
   possession: number;
