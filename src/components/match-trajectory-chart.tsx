@@ -59,7 +59,7 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
       x: totalRawX,
       y: transformY(totalRawTime),
       rawTime: totalRawTime,
-      z: 800, // Significantly larger
+      z: 1000, // 가장 크게 강조
       team: team.name,
       color: team.color
     }].filter(p => p.x > 0);
@@ -95,9 +95,10 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-[650px] w-full mt-8">
+        {/* PDF 한 페이지를 꽉 채우기 위해 높이를 h-[750px]로 대폭 확대 */}
+        <div className="h-[750px] w-full mt-8">
           <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ top: 40, right: 60, bottom: 60, left: 40 }}>
+            <ScatterChart margin={{ top: 60, right: 80, bottom: 80, left: 60 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
               
               {/* Quadrant Backgrounds (Y axis threshold 350 = 100s) */}
@@ -112,9 +113,9 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
                 name="Possession" 
                 unit="%" 
                 domain={[0, 100]}
-                tick={{ fontSize: 12, fontWeight: 'bold' }}
+                tick={{ fontSize: 14, fontWeight: 'bold' }}
               >
-                <Label value="Attack Possession (%) ➝" position="bottom" offset={30} className="fill-foreground text-sm font-black uppercase tracking-widest" />
+                <Label value="Attack Possession (%) ➝" position="bottom" offset={40} className="fill-foreground text-base font-black uppercase tracking-widest" />
               </XAxis>
               
               <YAxis 
@@ -122,29 +123,29 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
                 dataKey="y" 
                 name="Speed" 
                 domain={[0, 450]}
-                tick={{ fontSize: 11, fontWeight: 'bold' }}
-                label={{ value: 'Attack Speed (↑ Faster / ↓ Slower)', angle: -90, position: 'insideLeft', offset: -10, className: "fill-foreground text-sm font-black uppercase tracking-widest" }}
+                tick={{ fontSize: 13, fontWeight: 'bold' }}
+                label={{ value: 'Attack Speed (↑ Faster / ↓ Slower)', angle: -90, position: 'insideLeft', offset: -10, className: "fill-foreground text-base font-black uppercase tracking-widest" }}
               />
               
-              <ZAxis type="number" dataKey="z" range={[100, 1000]} />
+              <ZAxis type="number" dataKey="z" range={[200, 1200]} />
               
               <Tooltip content={<CustomTooltip />} />
 
               <ReferenceLine x={50} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={2} opacity={0.4} />
               <ReferenceLine y={350} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={2} opacity={0.4} />
 
-              {/* Quadrant Labels */}
+              {/* Quadrant Labels - 위치 정밀 조정 */}
               <ReferenceLine x={25} stroke="none">
-                <Label value="FAST & LOW POSS (Counter)" position="top" offset={-50} className="fill-rose-600 text-[11px] font-black uppercase tracking-tighter" />
+                <Label value="FAST & LOW POSS (Counter)" position="top" offset={-60} className="fill-rose-600 text-xs font-black uppercase tracking-tighter" />
               </ReferenceLine>
               <ReferenceLine x={75} stroke="none">
-                <Label value="FAST & HIGH POSS (Dominance)" position="top" offset={-50} className="fill-teal-600 text-[11px] font-black uppercase tracking-tighter" />
+                <Label value="FAST & HIGH POSS (Dominance)" position="top" offset={-60} className="fill-teal-600 text-xs font-black uppercase tracking-tighter" />
               </ReferenceLine>
               <ReferenceLine x={75} stroke="none">
-                <Label value="SLOW & HIGH POSS (Sterile)" position="insideBottom" offset={60} className="fill-slate-600 text-[11px] font-black uppercase tracking-tighter" />
+                <Label value="SLOW & HIGH POSS (Sterile)" position="insideBottom" offset={80} className="fill-slate-600 text-xs font-black uppercase tracking-tighter" />
               </ReferenceLine>
               <ReferenceLine x={25} stroke="none">
-                <Label value="SLOW & LOW POSS (Inefficient)" position="insideBottom" offset={60} className="fill-indigo-700 text-[11px] font-black uppercase tracking-tighter" />
+                <Label value="SLOW & LOW POSS (Inefficient)" position="insideBottom" offset={80} className="fill-indigo-700 text-xs font-black uppercase tracking-tighter" />
               </ReferenceLine>
 
               {/* Home Team Trajectory */}
@@ -152,10 +153,10 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
                 name={homeTeam.name} 
                 data={homeData.trajectory} 
                 fill={homeTeam.color} 
-                line={{ stroke: homeTeam.color, strokeWidth: 4 }}
+                line={{ stroke: homeTeam.color, strokeWidth: 5 }}
                 shape="circle"
               >
-                <LabelList dataKey="name" position="top" offset={15} style={{ fill: homeTeam.color, fontSize: 12, fontWeight: '900' }} />
+                <LabelList dataKey="name" position="top" offset={20} style={{ fill: homeTeam.color, fontSize: 14, fontWeight: '900' }} />
               </Scatter>
               <Scatter 
                 name={`${homeTeam.name} Total`} 
@@ -163,7 +164,7 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
                 fill={homeTeam.color} 
                 shape="circle"
               >
-                <LabelList dataKey="name" position="top" offset={25} style={{ fill: homeTeam.color, fontSize: 18, fontWeight: '950' }} />
+                <LabelList dataKey="name" position="top" offset={35} style={{ fill: homeTeam.color, fontSize: 20, fontWeight: '950' }} />
               </Scatter>
 
               {/* Away Team Trajectory */}
@@ -171,10 +172,10 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
                 name={awayTeam.name} 
                 data={awayData.trajectory} 
                 fill={awayTeam.color} 
-                line={{ stroke: awayTeam.color, strokeWidth: 4, strokeDasharray: '8 5' }}
+                line={{ stroke: awayTeam.color, strokeWidth: 5, strokeDasharray: '10 6' }}
                 shape="square"
               >
-                <LabelList dataKey="name" position="bottom" offset={15} style={{ fill: awayTeam.color, fontSize: 12, fontWeight: '900' }} />
+                <LabelList dataKey="name" position="bottom" offset={20} style={{ fill: awayTeam.color, fontSize: 14, fontWeight: '900' }} />
               </Scatter>
               <Scatter 
                 name={`${awayTeam.name} Total`} 
@@ -182,7 +183,7 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
                 fill={awayTeam.color} 
                 shape="square"
               >
-                <LabelList dataKey="name" position="bottom" offset={25} style={{ fill: awayTeam.color, fontSize: 18, fontWeight: '950' }} />
+                <LabelList dataKey="name" position="bottom" offset={35} style={{ fill: awayTeam.color, fontSize: 20, fontWeight: '950' }} />
               </Scatter>
 
             </ScatterChart>

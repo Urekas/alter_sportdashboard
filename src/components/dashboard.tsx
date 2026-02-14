@@ -180,6 +180,7 @@ export function Dashboard() {
               </div>
             </div>
 
+            {/* Page 1: Basic Stats */}
             <div className="page-break space-y-8">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {[matchData.homeTeam, matchData.awayTeam].map((team, i) => (
@@ -200,6 +201,7 @@ export function Dashboard() {
               <BasicMatchStats data={matchData} />
             </div>
 
+            {/* Page 2: Quarterly Stats (Separated Page) */}
             <div className="page-break space-y-8">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Activity className="h-6 w-6" /> 쿼터별 상세 데이터 (Quarterly Analysis)
@@ -207,6 +209,7 @@ export function Dashboard() {
               <QuarterlyStatsTable data={matchData} />
             </div>
 
+            {/* Page 3: Attack Analysis */}
             <div className="page-break space-y-8">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Sword className="h-6 w-6" /> 공격 성능 분석 (Attack Analysis)
@@ -215,6 +218,7 @@ export function Dashboard() {
               <BuildUpEfficiencyChart data={matchData} />
             </div>
 
+            {/* Page 4: Circle Entry & Trajectory (Highly Enlarged) */}
             <div className="page-break space-y-8 break-inside-avoid">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Target className="h-6 w-6" /> 서클 진입 및 공격 궤적 분석 (Circle Entry & Trajectory)
@@ -236,6 +240,7 @@ export function Dashboard() {
               </div>
             </div>
 
+            {/* Page 5: Pressure Analysis (Combined in one page) */}
             <div className="page-break space-y-6 break-inside-avoid">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Shield className="h-6 w-6" /> 압박 및 수비 분석 (Pressure & Defense)
