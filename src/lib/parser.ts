@@ -54,10 +54,13 @@ export const mapZone = (locStr: string): { x: number, y: number, lane: 'Left' | 
 
 const detectQuarter = (ungroupedText: string, startTime: number): string => {
   const text = ungroupedText.toUpperCase();
+  // 형님 철칙: Ungrouped 라벨 텍스트를 최우선으로 인식
   if (text.includes('1쿼터') || text.includes('1Q')) return 'Q1';
   if (text.includes('2쿼터') || text.includes('2Q')) return 'Q2';
   if (text.includes('3쿼터') || text.includes('3Q')) return 'Q3';
   if (text.includes('4쿼터') || text.includes('4Q')) return 'Q4';
+  
+  // 라벨 없을 시 시간 기반 폴백
   if (startTime >= 2700) return "Q4";
   if (startTime >= 1800) return "Q3";
   if (startTime >= 900) return "Q2";
@@ -184,6 +187,8 @@ export const createMatchDataFromUpload = (
   const awayTeam = { name: awayName, color: awayColor }; 
 
   const quartersList = ['Q1', 'Q2', 'Q3', 'Q4'];
+  
+  // 각 쿼터의 실제 시간 범위를 계산하여 900초(15분)로 정규화하기 위한 맵 생성
   const qMap = quartersList.map((q, idx) => {
     const qEvents = events.filter(e => e.quarter === q);
     if (qEvents.length === 0) return { q, min: idx * 900, max: (idx + 1) * 900, duration: 900 };
@@ -204,6 +209,7 @@ export const createMatchDataFromUpload = (
     const myEvents = allEvents.filter(e => e.team === team);
     const oppEvents = allEvents.filter(e => e.team === opponent);
 
+    // 형님 철칙: 빌드업 시간 = TEAM 시간 - ATT 시간 (오직 라벨로만 판별)
     const teamTime = myEvents.filter(e => e.code.trim() === `${team} TEAM`).reduce((acc, e) => acc + e.duration, 0);
     const attTime = myEvents.filter(e => e.code.trim() === `${team} ATT`).reduce((acc, e) => acc + e.duration, 0);
     const buildUpTime = teamTime - attTime; 
@@ -225,15 +231,18 @@ export const createMatchDataFromUpload = (
       }).length;
     };
 
-    // 형님 공식: (상대 75/100 TO + Foul) + (우리 25/50 Foul)
+    // 형님 공식: 홈팀 Press Attempt (어웨이 75/100 TO/파울) + (홈 25/50 파울)
     const press_attempts = getZoneCount(oppEvents, ["turnover", "foul"], [75, 100]) + 
                           getZoneCount(myEvents, ["foul"], [25, 50]);
 
     const press_success = getZoneCount(oppEvents, ["turnover", "foul"], [75, 100]);
 
-    // 형님 공식: 상대 빌드업 시간 / 우리 Press Attempt
+    // 홈팀 SPP = 상대팀 빌드업 시간 / 홈팀 Press Attempt
     const spp = press_attempts > 0 ? oppBuildUpTime / press_attempts : 0;
+    
+    // CE당 소요시간 = 전체 TEAM 지속시간 / 슈팅서클 진입 횟수
     const timePerCE = ceCount > 0 ? teamTime / ceCount : 0;
+    
     const totalPossession = teamTime + oppTeamTime;
     const totalATT = attTime + oppAttTime;
 
@@ -271,9 +280,6 @@ export const createMatchDataFromUpload = (
     awayTeam,
     events,
     pressureData: Array(20).fill(0).map((_, i) => {
-      const qIdx = Math.floor(i / 5);
-      const subIdx = i % 5;
-      const q = quartersList[qIdx];
       const normStart = (i * 180);
       const normEnd = ((i + 1) * 180);
       
