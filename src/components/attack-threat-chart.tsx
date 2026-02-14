@@ -47,7 +47,6 @@ const CustomTooltip = ({ active, payload, label, homeTeam, awayTeam }: TooltipPr
 };
 
 export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChartProps) {
-  // 정밀 음영 처리를 위한 데이터 가공 (Intersection 보간 포함)
   const chartData = useMemo(() => {
     const result: any[] = [];
     if (data.length === 0) return result;
@@ -70,12 +69,10 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
 
       result.push(createPoint(current, h1, a1));
 
-      // 교차 지점 계산 (Intersection)
       if ((h1 - a1) * (h2 - a2) < 0) {
         const ratio = Math.abs(h1 - a1) / (Math.abs(h1 - a1) + Math.abs(h2 - a2));
         const intersectVal = h1 + ratio * (h2 - h1);
         
-        // 5' -> 10' 사이면 '5'+ ' 처럼 유니크한 키 생성
         const intersectPoint = {
           interval: `${current.interval}+`, 
           isIntersect: true,

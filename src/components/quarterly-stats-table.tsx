@@ -19,6 +19,12 @@ interface QuarterlyStatsTableProps {
 export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
   const { homeTeam, awayTeam, quarterlyStats } = data
 
+  const safeVal = (val: any, decimals: number = 0) => {
+    const num = typeof val === 'number' ? val : parseFloat(val);
+    if (isNaN(num)) return "0";
+    return decimals === 0 ? Math.round(num).toString() : num.toFixed(decimals);
+  };
+
   const renderTeamRows = (teamName: string, stats: any[], isHome: boolean) => {
     const colorClass = isHome ? "text-primary" : "text-chart-2";
     return (
@@ -32,32 +38,60 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
           <TableCell className="pl-6 text-sm font-medium">득점 (필드/PC)</TableCell>
           {stats.map(q => {
             const s = isHome ? q.home : q.away;
-            return <TableCell key={q.quarter} className="text-center border-x">{Math.round(s.goals?.field)} / {Math.round(s.goals?.pc)}</TableCell>
+            return (
+              <TableCell key={q.quarter} className="text-center border-x">
+                {safeVal(s.goals?.field)} / {safeVal(s.goals?.pc)}
+              </TableCell>
+            );
           })}
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">슈팅</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{Math.round((isHome ? q.home : q.away).shots)}</TableCell>)}
+          {stats.map(q => (
+            <TableCell key={q.quarter} className="text-center border-x">
+              {safeVal((isHome ? q.home : q.away).shots)}
+            </TableCell>
+          ))}
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">페널티코너 (PC)</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{Math.round((isHome ? q.home : q.away).pcs)}</TableCell>)}
+          {stats.map(q => (
+            <TableCell key={q.quarter} className="text-center border-x">
+              {safeVal((isHome ? q.home : q.away).pcs)}
+            </TableCell>
+          ))}
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">서클 진입 (CE)</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{Math.round((isHome ? q.home : q.away).circleEntries)}</TableCell>)}
+          {stats.map(q => (
+            <TableCell key={q.quarter} className="text-center border-x">
+              {safeVal((isHome ? q.home : q.away).circleEntries)}
+            </TableCell>
+          ))}
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">점유율 (%)</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).possession?.toFixed(1)}</TableCell>)}
+          {stats.map(q => (
+            <TableCell key={q.quarter} className="text-center border-x">
+              {safeVal((isHome ? q.home : q.away).possession, 1)}
+            </TableCell>
+          ))}
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">평균 SPP (s)</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).spp?.toFixed(1)}</TableCell>)}
+          {stats.map(q => (
+            <TableCell key={q.quarter} className="text-center border-x">
+              {safeVal((isHome ? q.home : q.away).spp, 1)}
+            </TableCell>
+          ))}
         </TableRow>
         <TableRow>
           <TableCell className="pl-6 text-sm font-medium">공격 점유율 (%)</TableCell>
-          {stats.map(q => <TableCell key={q.quarter} className="text-center border-x">{(isHome ? q.home : q.away).attackPossession?.toFixed(1)}</TableCell>)}
+          {stats.map(q => (
+            <TableCell key={q.quarter} className="text-center border-x">
+              {safeVal((isHome ? q.home : q.away).attackPossession, 1)}
+            </TableCell>
+          ))}
         </TableRow>
       </>
     )

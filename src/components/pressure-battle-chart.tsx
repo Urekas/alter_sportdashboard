@@ -47,7 +47,6 @@ const CustomTooltip = ({ active, payload, label, homeTeam, awayTeam }: TooltipPr
 };
 
 export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattleChartProps) {
-  // 정밀 음영 처리를 위한 데이터 가공 (SPP는 낮을수록 우수하므로 그래프상 위에 위치함)
   const chartData = useMemo(() => {
     const result: any[] = [];
     if (data.length === 0) return result;
@@ -70,7 +69,6 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
 
       result.push(createPoint(current, h1, a1));
 
-      // 교차 지점 계산 (SPP는 낮을수록 우위)
       if ((h1 - a1) * (h2 - a2) < 0) {
         const ratio = Math.abs(h1 - a1) / (Math.abs(h1 - a1) + Math.abs(h2 - a2));
         const intersectVal = h1 + ratio * (h2 - h1);
