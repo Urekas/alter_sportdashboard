@@ -31,16 +31,18 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
       name: q.quarter,
       x: isHome ? q.home.attackPossession : q.away.attackPossession,
       y: isHome ? q.home.timePerCE : q.away.timePerCE,
+      z: 100, // Regular size for quarters
       team: team.name,
       color: team.color,
       isTotal: false
     })).filter(p => p.x > 0 && p.y > 0);
 
-    // 2. Total point (Standalone)
+    // 2. Total point (Standalone & Bigger)
     const total = {
       name: "Total",
       x: isHome ? matchStats.home.attackPossession : matchStats.away.attackPossession,
       y: isHome ? matchStats.home.timePerCE : matchStats.away.timePerCE,
+      z: 300, // Larger size for Total
       team: team.name,
       color: team.color,
       isTotal: true
@@ -73,11 +75,10 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
       <CardHeader className="pb-2 bg-muted/20">
         <CardTitle className="text-xl font-bold text-primary">Match Trajectory Analysis (공격 전술 궤적)</CardTitle>
         <CardDescription className="text-sm font-medium">
-          공격 점유율 vs 서클 진입 속도 (상단일수록 빠르고 위협적인 공격 / Q4에서 Total로 이어지는 선은 의도적으로 제외)
+          공격 점유율 vs 서클 진입 속도 (상단일수록 빠르고 위협적인 공격 / Total은 쿼터별 흐름과 분리하여 별도로 강조됨)
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {/* PDF 최적화를 위해 차트 높이를 h-[520px]로 대폭 확대 */}
         <div className="h-[520px] w-full mt-6">
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart margin={{ top: 30, right: 50, bottom: 50, left: 20 }}>
@@ -110,8 +111,7 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
                 <Label value="Time per Entry (s) [↑ Faster]" angle={-90} position="left" offset={0} className="fill-muted-foreground text-xs font-bold" />
               </YAxis>
               
-              {/* 포인트 크기를 키우기 위해 range 조정 */}
-              <ZAxis type="number" range={[150, 400]} />
+              <ZAxis type="number" dataKey="z" range={[80, 450]} />
               
               <Tooltip content={<CustomTooltip />} />
 
@@ -125,7 +125,8 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
                 <Label value="FAST & HIGH POSS (Dominance)" position="top" offset={-40} className="fill-teal-600 text-[10px] font-black uppercase tracking-tighter" />
               </ReferenceLine>
               <ReferenceLine x={75} stroke="none">
-                <Label value="SLOW & HIGH POSS (Sterile)" position="bottom" offset={-380} className="fill-gray-500 text-[10px] font-black uppercase tracking-tighter" />
+                {/* 레이블 위치를 아래 구역(Sterile)으로 명확히 이동 */}
+                <Label value="SLOW & HIGH POSS (Sterile)" position="insideBottom" offset={40} className="fill-gray-500 text-[10px] font-black uppercase tracking-tighter" />
               </ReferenceLine>
 
               {/* 홈팀 궤적 (Q1-Q4) */}
@@ -138,14 +139,14 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
               >
                 <LabelList dataKey="name" position="top" offset={12} style={{ fill: homeTeam.color, fontSize: 11, fontWeight: '900' }} />
               </Scatter>
-              {/* 홈팀 Total (Standalone & Bigger) */}
+              {/* 홈팀 Total (Standalone & Bigger, No Line) */}
               <Scatter 
                 name={`${homeTeam.name} Total`} 
                 data={homeData.total} 
                 fill={homeTeam.color} 
                 shape="circle"
               >
-                <LabelList dataKey="name" position="top" offset={15} style={{ fill: homeTeam.color, fontSize: 13, fontWeight: '900' }} />
+                <LabelList dataKey="name" position="top" offset={18} style={{ fill: homeTeam.color, fontSize: 14, fontWeight: '900' }} />
               </Scatter>
 
               {/* 어웨이팀 궤적 (Q1-Q4) */}
@@ -158,14 +159,14 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
               >
                 <LabelList dataKey="name" position="bottom" offset={12} style={{ fill: awayTeam.color, fontSize: 11, fontWeight: '900' }} />
               </Scatter>
-              {/* 어웨이팀 Total (Standalone & Bigger) */}
+              {/* 어웨이팀 Total (Standalone & Bigger, No Line) */}
               <Scatter 
                 name={`${awayTeam.name} Total`} 
                 data={awayData.total} 
                 fill={awayTeam.color} 
                 shape="square"
               >
-                <LabelList dataKey="name" position="bottom" offset={15} style={{ fill: awayTeam.color, fontSize: 13, fontWeight: '900' }} />
+                <LabelList dataKey="name" position="bottom" offset={18} style={{ fill: awayTeam.color, fontSize: 14, fontWeight: '900' }} />
               </Scatter>
 
             </ScatterChart>
