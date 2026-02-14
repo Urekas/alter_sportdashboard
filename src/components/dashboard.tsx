@@ -23,12 +23,11 @@ export function Dashboard() {
   const [matchData, setMatchData] = useState<MatchData | null>(null)
   const [tournamentName, setTournamentName] = useState("")
   const [matchName, setMatchName] = useState("")
-  const [homeColor, setHomeColor] = useState("#0066ff") // Vivid Blue
-  const [awayColor, setAwayColor] = useState("#ef4444") // Red-Orange
+  const [homeColor, setHomeColor] = useState("#0066ff") 
+  const [awayColor, setAwayColor] = useState("#ef4444") 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
-  // 팀 색상 및 대회/경기 정보 실시간 동기화
   useEffect(() => {
     if (matchData) {
       setMatchData(prev => prev ? {
@@ -44,8 +43,8 @@ export function Dashboard() {
   const handleLoadMockData = () => {
     const data = {
       ...mockMatchData,
-      tournamentName: tournamentName || "데모 대회 (Demo Tournament)",
-      matchName: "Korea vs Netherlands (Friendly Match)",
+      tournamentName: tournamentName || "데모 대회",
+      matchName: "Korea vs Netherlands (Demo)",
       homeTeam: { ...mockMatchData.homeTeam, color: homeColor },
       awayTeam: { ...mockMatchData.awayTeam, color: awayColor }
     };
@@ -100,14 +99,13 @@ export function Dashboard() {
         </div>
         
         <div className="flex flex-wrap items-center gap-4 bg-card p-3 rounded-lg border shadow-sm">
-          {/* 대회 이름 입력 필드 */}
           <div className="flex items-center gap-3 border-r pr-4">
             <Trophy className="h-4 w-4 text-muted-foreground" />
             <div className="flex flex-col gap-1">
-              <Label htmlFor="tournament-input" className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">대회 이름 (Tournament)</Label>
+              <Label htmlFor="tournament-input" className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">대회 이름</Label>
               <Input 
                 id="tournament-input"
-                placeholder="대회 이름을 입력하세요"
+                placeholder="대회 이름 입력"
                 value={tournamentName}
                 onChange={(e) => setTournamentName(e.target.value)}
                 className="h-8 text-xs w-48"
@@ -115,7 +113,6 @@ export function Dashboard() {
             </div>
           </div>
 
-          {/* 팀 컬러 설정 필드 */}
           <div className="flex items-center gap-3 border-r pr-4">
             <Settings2 className="h-4 w-4 text-muted-foreground" />
             <div className="flex flex-col gap-1">
@@ -162,7 +159,7 @@ export function Dashboard() {
           <div className="py-20 text-center bg-card rounded-xl border-2 border-dashed border-muted-foreground/25">
             <Activity className="w-16 h-16 text-muted-foreground/40 mx-auto mb-4" />
             <h2 className="text-2xl font-semibold mb-2">분석을 시작하세요</h2>
-            <p className="text-muted-foreground mb-6">상단에서 대회 이름을 입력하고 팀 컬러를 선택한 후 데이터를 업로드하세요.</p>
+            <p className="text-muted-foreground mb-6">데이터를 업로드하여 심층 분석 리포트를 생성하세요.</p>
             <div className="flex justify-center gap-3">
               <Button onClick={() => fileInputRef.current?.click()}>파일 업로드</Button>
               <Button variant="secondary" onClick={handleLoadMockData}>데모 데이터</Button>
@@ -170,7 +167,6 @@ export function Dashboard() {
           </div>
         ) : (
           <div className="space-y-12">
-            {/* 리포트 메인 헤더 (Page 1 Top) */}
             <div className="border-b-4 border-primary pb-4 mb-8">
               <div className="flex justify-between items-end">
                 <div>
@@ -184,7 +180,6 @@ export function Dashboard() {
               </div>
             </div>
 
-            {/* 페이지 1: 기본 통계 요약 */}
             <div className="page-break space-y-8">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {[matchData.homeTeam, matchData.awayTeam].map((team, i) => (
@@ -205,7 +200,6 @@ export function Dashboard() {
               <BasicMatchStats data={matchData} />
             </div>
 
-            {/* 페이지 2: 쿼터별 상세 데이터 (독립 페이지) */}
             <div className="page-break space-y-8">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Activity className="h-6 w-6" /> 쿼터별 상세 데이터 (Quarterly Analysis)
@@ -213,7 +207,6 @@ export function Dashboard() {
               <QuarterlyStatsTable data={matchData} />
             </div>
 
-            {/* 페이지 3: 공격 성능 분석 */}
             <div className="page-break space-y-8">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Sword className="h-6 w-6" /> 공격 성능 분석 (Attack Analysis)
@@ -222,7 +215,6 @@ export function Dashboard() {
               <BuildUpEfficiencyChart data={matchData} />
             </div>
 
-            {/* 페이지 4: 서클 진입 및 공격 궤적 분석 (한 장에 꽉 차게) */}
             <div className="page-break space-y-8 break-inside-avoid">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Target className="h-6 w-6" /> 서클 진입 및 공격 궤적 분석 (Circle Entry & Trajectory)
@@ -244,7 +236,6 @@ export function Dashboard() {
               </div>
             </div>
 
-            {/* 페이지 5: 압박 및 수비 분석 (한 장에 통합) */}
             <div className="page-break space-y-6 break-inside-avoid">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Shield className="h-6 w-6" /> 압박 및 수비 분석 (Pressure & Defense)
