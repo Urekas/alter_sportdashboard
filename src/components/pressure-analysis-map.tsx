@@ -26,7 +26,6 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
       const myTeam = isHome ? homeTeam.name : awayTeam.name;
       const oppTeam = isHome ? awayTeam.name : homeTeam.name;
 
-      // Map field labels to visual zones
       const mapping = isHome ? {
         0: { opp: ["우_100", "우_0"], my: "좌_25" }, 
         1: { opp: ["중_100", "중_0"], my: "중_25" }, 
@@ -48,8 +47,6 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
         const isMyFoul = e.team === myTeam && e.type === 'foul';
 
         if (!isOpponentError && !isMyFoul) return;
-
-        // Auto-fix typo '유' to '우'
         const loc = e.locationLabel.trim().replace('유', '우');
 
         Object.entries(mapping).forEach(([idxStr, maps]) => {

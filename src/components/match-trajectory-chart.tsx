@@ -27,12 +27,10 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
   const { homeTeam, awayTeam, quarterlyStats, matchStats } = data
 
   const processTeamData = (team: Team, isHome: boolean) => {
-    // 1. Trajectory (Q1-Q4)
     const trajectory = quarterlyStats.map(q => {
       const rawX = isHome ? q.home.attackPossession : q.away.attackPossession;
       const rawTime = isHome ? q.home.timePerCE : q.away.timePerCE;
       
-      // If no entries (0), visual Y is bottom (450)
       const visualY = rawTime === 0 ? 450 : Math.min(450, rawTime);
 
       return {
@@ -46,7 +44,6 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
       };
     }).filter(p => p.x > 0);
 
-    // 2. Total point
     const totalRawX = isHome ? matchStats.home.attackPossession : matchStats.away.attackPossession;
     const totalRawTime = isHome ? matchStats.home.timePerCE : matchStats.away.timePerCE;
     const totalVisualY = totalRawTime === 0 ? 450 : Math.min(450, totalRawTime);
@@ -97,7 +94,6 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
             <ScatterChart margin={{ top: 60, right: 80, bottom: 80, left: 60 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
               
-              {/* Strategic Zones */}
               <ReferenceArea x1={0} x2={50} y1={0} y2={150} fill="#4bc0c0" fillOpacity={0.08} />
               <ReferenceArea x1={50} x2={100} y1={0} y2={150} fill="#4bc0c0" fillOpacity={0.15} />
               <ReferenceArea x1={50} x2={100} y1={150} y2={450} fill="#94a3b8" fillOpacity={0.08} />
@@ -145,7 +141,6 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
                 <Label value="SLOW & LOW POSS (Inefficient)" position="insideBottom" offset={80} className="fill-indigo-700 text-xs font-black uppercase tracking-tighter" />
               </ReferenceLine>
 
-              {/* Trajectory Points */}
               <Scatter 
                 name={homeTeam.name} 
                 data={homeData.trajectory} 
