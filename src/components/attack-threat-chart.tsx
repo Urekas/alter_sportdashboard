@@ -101,7 +101,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
       <CardHeader>
         <CardTitle>Attack Threat Trend (슈팅+PC)</CardTitle>
         <CardDescription>
-          5분 단위 슈팅 및 페널티코너 합산 위협도 추이입니다. (Y축 최대값: 7 고정)
+          5분 단위 슈팅 및 페널티코너 합산 위협도 추이입니다. (Y축 최대값: 6 고정)
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -110,7 +110,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
             <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
             <XAxis dataKey="interval" interval="preserveStartEnd" />
             <YAxis 
-              domain={[0, 7]} 
+              domain={[0, 6]} 
               label={{ value: '공격 위협도', angle: -90, position: 'insideLeft' }} 
               allowDecimals={false} 
             />

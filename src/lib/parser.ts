@@ -194,17 +194,16 @@ export const createMatchDataFromUpload = (
     const attTime = myEvents.filter(e => e.code.trim() === `${team} ATT`).reduce((acc, e) => acc + e.duration, 0);
     const buildUpTime = teamTime - attTime; // 형님 공식: TEAM - ATT
 
-    const oppTeamTime = oppEvents.filter(e => e.code.trim() === `${opponent} TEAM`).reduce((acc, e) => acc + e.duration, 0);
-    const oppAttTime = oppEvents.filter(e => e.code.trim() === `${opponent} ATT`).reduce((acc, e) => acc + e.duration, 0);
-    const oppBuildUpTime = oppTeamTime - oppAttTime;
-
     // 2. 철칙: 슈팅, 서클진입, PC, 25y 진입 (Row Code 정확히 일치)
     const shotCount = myEvents.filter(e => e.code.trim() === `${team} 슈팅`).length;
     const ceCount = myEvents.filter(e => e.code.trim() === `${team} 슈팅서클 진입`).length;
     const pcCount = myEvents.filter(e => e.code.trim() === `${team} 페널티코너`).length;
     const a25Count = myEvents.filter(e => e.code.trim() === `${team} A25 START`).length;
 
-    // 3. SPP 및 압박 지수 (형님 공식 이식)
+    const oppTeamTime = oppEvents.filter(e => e.code.trim() === `${opponent} TEAM`).reduce((acc, e) => acc + e.duration, 0);
+    const oppAttTime = oppEvents.filter(e => e.code.trim() === `${opponent} ATT`).reduce((acc, e) => acc + e.duration, 0);
+    const oppBuildUpTime = oppTeamTime - oppAttTime;
+
     const getZoneCount = (evts: MatchEvent[], codes: string[], zones: number[]) => {
       return evts.filter(e => {
         const zone = mapZone(e.locationLabel || e.code).zoneBand;
@@ -227,14 +226,12 @@ export const createMatchDataFromUpload = (
     // 4. CE당 소요시간 = 전체 TEAM 시간 / 슈팅서클 진입 횟수
     const timePerCE = ceCount > 0 ? teamTime / ceCount : 0;
 
-    // 5. 점유율 및 기타
     const totalPossession = teamTime + oppTeamTime;
     const totalATT = attTime + oppAttTime;
 
     const buildAttempts = myEvents.filter(e => e.code.trim() === `${team} TEAM` && mapZone(e.locationLabel || e.code).zoneBand <= 50).length;
     const build25Ratio = buildAttempts > 0 ? (a25Count / buildAttempts) * 100 : 0;
 
-    // 득점 계산
     const goals = myEvents.filter(e => e.code.includes(`${team} 득점`) || (e.code.includes(`${team} 슈팅`) && e.resultLabel.includes('득점')));
     const pcGoals = goals.filter(e => e.resultLabel.toUpperCase().includes('PC') || e.resultLabel.includes('페널티코너')).length;
 
