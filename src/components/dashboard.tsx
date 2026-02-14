@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useRef } from "react"
-import { Upload, Printer, TrendingDown, Target, Activity, ShieldCheck } from "lucide-react"
+import { Upload, FileDown, TrendingDown, Target, Activity, ShieldCheck, PieChart, Sword, Shield } from "lucide-react"
 import type { MatchData } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
 import { Button } from "@/components/ui/button"
@@ -65,11 +65,11 @@ export function Dashboard() {
         <div className="flex gap-2 mt-4 md:mt-0">
           <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xml,.csv" className="hidden" />
           <Button onClick={() => fileInputRef.current?.click()} className="shadow-md">
-            <Upload className="mr-2 h-4 w-4" /> 데이터 업로드 (XML/CSV)
+            <Upload className="mr-2 h-4 w-4" /> 데이터 업로드
           </Button>
           {matchData && (
-            <Button variant="outline" onClick={() => window.print()} className="shadow-sm">
-              <Printer className="mr-2 h-4 w-4" /> 리포트 인쇄
+            <Button variant="default" onClick={() => window.print()} className="shadow-sm bg-emerald-600 hover:bg-emerald-700">
+              <FileDown className="mr-2 h-4 w-4" /> PDF 리포트 다운로드
             </Button>
           )}
         </div>
@@ -86,44 +86,65 @@ export function Dashboard() {
             </div>
           </div>
         ) : (
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {[matchData.homeTeam, matchData.awayTeam].map((team, i) => (
-                <div key={team.name} className="space-y-3">
-                  <div className="flex items-center gap-2 font-bold" style={{ color: i === 0 ? 'hsl(var(--primary))' : 'hsl(var(--chart-2))' }}>
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: i === 0 ? 'hsl(var(--primary))' : 'hsl(var(--chart-2))' }} />
-                    {team.name} ({i === 0 ? '홈' : '어웨이'})
+          <div className="space-y-12">
+            {/* Page 1: Overview & Stats */}
+            <div className="page-break space-y-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {[matchData.homeTeam, matchData.awayTeam].map((team, i) => (
+                  <div key={team.name} className="space-y-3">
+                    <div className="flex items-center gap-2 font-bold" style={{ color: i === 0 ? 'hsl(var(--primary))' : 'hsl(var(--chart-2))' }}>
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: i === 0 ? 'hsl(var(--primary))' : 'hsl(var(--chart-2))' }} />
+                      {team.name} ({i === 0 ? '홈' : '어웨이'})
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <StatsCard title="SPP (압박 지수)" value={i === 0 ? matchData.matchStats.home.spp : matchData.matchStats.away.spp} isTime icon={<TrendingDown className="text-emerald-500 h-4 w-4" />} />
+                      <StatsCard title="빌드업 성공률" value={i === 0 ? matchData.matchStats.home.build25Ratio : matchData.matchStats.away.build25Ratio} isPercentage icon={<ShieldCheck className="text-primary/60 h-4 w-4" />} />
+                      <StatsCard title="공격 점유율" value={i === 0 ? matchData.matchStats.home.attackPossession : matchData.matchStats.away.attackPossession} isPercentage icon={<Target className="text-primary/60 h-4 w-4" />} />
+                      <StatsCard title="CE 소요 시간" value={i === 0 ? matchData.matchStats.home.timePerCE : matchData.matchStats.away.timePerCE} isTime icon={<Activity className="text-primary/60 h-4 w-4" />} />
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <StatsCard title="SPP (압박 지수)" value={i === 0 ? matchData.matchStats.home.spp : matchData.matchStats.away.spp} isTime icon={<TrendingDown className="text-emerald-500 h-4 w-4" />} />
-                    <StatsCard title="빌드업 성공률" value={i === 0 ? matchData.matchStats.home.build25Ratio : matchData.matchStats.away.build25Ratio} isPercentage icon={<ShieldCheck className="text-primary/60 h-4 w-4" />} />
-                    <StatsCard title="공격 점유율" value={i === 0 ? matchData.matchStats.home.attackPossession : matchData.matchStats.away.attackPossession} isPercentage icon={<Target className="text-primary/60 h-4 w-4" />} />
-                    <StatsCard title="CE 소요 시간" value={i === 0 ? matchData.matchStats.home.timePerCE : matchData.matchStats.away.timePerCE} isTime icon={<Activity className="text-primary/60 h-4 w-4" />} />
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
+              <BasicMatchStats data={matchData} />
+              <QuarterlyStatsTable data={matchData} />
             </div>
 
-            <BasicMatchStats data={matchData} />
-            <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <CircleEntryAnalysis 
-                teamName={matchData.homeTeam.name} 
-                entries={matchData.circleEntries.filter(e => e.team === matchData.homeTeam.name)} 
-                teamColor={matchData.homeTeam.color}
-              />
-              <CircleEntryAnalysis 
-                teamName={matchData.awayTeam.name} 
-                entries={matchData.circleEntries.filter(e => e.team === matchData.awayTeam.name)} 
-                teamColor={matchData.awayTeam.color}
-              />
+            {/* Page 2: Attack Flow Section */}
+            <div className="page-break space-y-8">
+              <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+                <Sword className="h-6 w-6" /> 공격 성능 분석 (Attack Analysis)
+              </div>
+              <AttackThreatChart data={matchData.attackThreatData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
+              <BuildUpEfficiencyChart data={matchData} />
             </div>
 
-            <BuildUpEfficiencyChart data={matchData} />
-            <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
-            <AttackThreatChart data={matchData.attackThreatData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
-            <QuarterlyStatsTable data={matchData} />
+            {/* Page 3: Circle Entry Analysis */}
+            <div className="page-break space-y-8">
+              <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+                <Target className="h-6 w-6" /> 서클 진입 상세 분석 (Circle Entry Details)
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <CircleEntryAnalysis 
+                  teamName={matchData.homeTeam.name} 
+                  entries={matchData.circleEntries.filter(e => e.team === matchData.homeTeam.name)} 
+                  teamColor={matchData.homeTeam.color}
+                />
+                <CircleEntryAnalysis 
+                  teamName={matchData.awayTeam.name} 
+                  entries={matchData.circleEntries.filter(e => e.team === matchData.awayTeam.name)} 
+                  teamColor={matchData.awayTeam.color}
+                />
+              </div>
+            </div>
+
+            {/* Page 4: Pressure Section */}
+            <div className="page-break space-y-8">
+              <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+                <Shield className="h-6 w-6" /> 압박 및 수비 분석 (Pressure & Defense)
+              </div>
+              <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
+              <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
+            </div>
           </div>
         )}
       </main>

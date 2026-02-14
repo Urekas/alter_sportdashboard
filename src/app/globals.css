@@ -79,6 +79,24 @@ body {
 
 @layer utilities {
   .print-hidden {
-    display: none;
+    @apply print:hidden;
+  }
+  .page-break {
+    @apply print:break-after-page;
+  }
+}
+
+@media print {
+  body {
+    background-color: white !important;
+  }
+  .printable-area {
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #eee !important;
   }
 }

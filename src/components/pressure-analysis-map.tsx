@@ -42,7 +42,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
 
       events.forEach(e => {
         const isOpponentError = e.team === oppTeam && (e.type === 'turnover' || e.type === 'foul');
-        const isMyFoul = e.team === myTeam && e.type === 'foul');
+        const isMyFoul = e.team === myTeam && e.type === 'foul';
 
         if (!isOpponentError && !isMyFoul) return;
 
@@ -66,19 +66,26 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
       }));
     };
 
+    const home = calculateStats(true);
+    const away = calculateStats(false);
+    
+    // 양팀 통합 최대 압박 횟수 계산 (음영 기준 동기화)
+    const globalMaxCount = Math.max(...home.map(s => s.count), ...away.map(s => s.count), 1);
+
     return {
-      home: calculateStats(true),
-      away: calculateStats(false)
+      home,
+      away,
+      globalMaxCount
     };
   }, [events, homeTeam, awayTeam]);
 
-  const renderHalfPitch = (stats: ZoneStat[], team: Team, isHome: boolean) => {
+  const renderHalfPitch = (stats: ZoneStat[], team: Team, isHome: boolean, globalMaxCount: number) => {
+    // 어웨이팀의 경우 아래가 L, 위가 R이 되도록 라벨 순서 조정
     const labels = isHome 
       ? ["25L", "25C", "25R", "50L", "50C", "50R"]
       : ["25R", "25C", "25L", "50R", "50C", "50L"];
 
     const CX = 27.5; 
-    const maxCount = Math.max(...stats.map(s => s.count), 1);
     
     return (
       <div className="flex flex-col gap-4">
@@ -117,8 +124,8 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
               const yIdx = i % 3; 
               let rectX = isHome ? (xIdx === 0 ? 22.85 : 0) : (xIdx === 0 ? 0 : 22.85);
               const rectY = yIdx * 18.33;
-              // 음영 기준: 성공률이 아닌 횟수 기준
-              const intensity = stat.count > 0 ? (stat.count / maxCount) * 0.45 + 0.1 : 0;
+              // 음영 기준: 동기화된 globalMaxCount 기반 횟수 비중
+              const intensity = stat.count > 0 ? (stat.count / globalMaxCount) * 0.45 + 0.1 : 0;
 
               return (
                 <g key={i}>
@@ -161,8 +168,8 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
       </CardHeader>
       <CardContent className="p-4 md:p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-          {renderHalfPitch(zoneStats.home, homeTeam, true)}
-          {renderHalfPitch(zoneStats.away, awayTeam, false)}
+          {renderHalfPitch(zoneStats.home, homeTeam, true, zoneStats.globalMaxCount)}
+          {renderHalfPitch(zoneStats.away, awayTeam, false, zoneStats.globalMaxCount)}
         </div>
       </CardContent>
     </Card>

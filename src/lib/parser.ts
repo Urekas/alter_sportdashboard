@@ -17,6 +17,7 @@ const extractTeamName = (code: string, detectedTeams: { home: string, away: stri
     const homeUpper = detectedTeams.home.toUpperCase();
     const awayUpper = detectedTeams.away.toUpperCase();
     
+    // "중국 TEAM", "인도 TEAM" 같은 경우 국가명 포함 여부로 매칭
     if (upperCode.includes(homeUpper)) return detectedTeams.home;
     if (upperCode.includes(awayUpper)) return detectedTeams.away;
     
