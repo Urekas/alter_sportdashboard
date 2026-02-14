@@ -42,7 +42,6 @@ export function BuildUpEfficiencyChart({ data }: BuildUpEfficiencyChartProps) {
   const homeData = getTeamChartData(true)
   const awayData = getTeamChartData(false)
 
-  // Y축 동기화: 양팀 모든 쿼터 중 최대값 계산
   const globalMaxEntries = useMemo(() => {
     const allVals = [...homeData, ...awayData].map(d => Math.max(d["25y Entries"], d["Circle Entries"]))
     const max = Math.max(...allVals, 5)
@@ -76,7 +75,8 @@ export function BuildUpEfficiencyChart({ data }: BuildUpEfficiencyChartProps) {
           }} />
           <Bar yAxisId="left" dataKey="25y Entries" fill={color} fillOpacity={0.3} radius={[4, 4, 0, 0]} barSize={40} />
           <Bar yAxisId="left" dataKey="Circle Entries" fill={color} radius={[4, 4, 0, 0]} barSize={25} />
-          <Line yAxisId="right" type="monotone" dataKey="Efficiency (%)" stroke="hsl(var(--destructive))" strokeWidth={3} dot={{ r: 5, fill: "hsl(var(--destructive))" }} />
+          {/* 효율 선 그래프 색상을 팀 색상으로 변경 */}
+          <Line yAxisId="right" type="monotone" dataKey="Efficiency (%)" stroke={color} strokeWidth={3} dot={{ r: 5, fill: color }} />
         </ComposedChart>
       </ResponsiveContainer>
     </div>
@@ -85,9 +85,9 @@ export function BuildUpEfficiencyChart({ data }: BuildUpEfficiencyChartProps) {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>25y 진입 대비 서클 진입 효율 (Y축 동기화)</CardTitle>
+        <CardTitle>25y 진입 대비 서클 진입 효율</CardTitle>
         <CardDescription>
-          양팀의 공격 효율을 동일한 기준(Y축)에서 비교합니다. (25m 진입 대비 서클 진입 성공률)
+          양팀의 공격 효율을 비교합니다. (25m 진입 대비 서클 진입 성공률)
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-12">

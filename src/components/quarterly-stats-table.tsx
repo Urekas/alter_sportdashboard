@@ -1,3 +1,4 @@
+
 "use client"
 
 import {
@@ -50,7 +51,6 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
               </TableCell>
             );
           })}
-          {/* 경기 전체 열 */}
           <TableCell className={cn("text-center border-x bg-muted/30 font-bold", totalWinnerClass.includes("text-primary") && totalWinnerClass)}>
             {safeVal(hTotal, decimals)}
           </TableCell>
@@ -67,7 +67,6 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
               </TableCell>
             );
           })}
-          {/* 경기 전체 열 */}
           <TableCell className={cn("text-center border-x bg-muted/30 font-bold", totalWinnerClass.includes("text-chart-2") && totalWinnerClass)}>
             {safeVal(aTotal, decimals)}
           </TableCell>

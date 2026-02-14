@@ -1,3 +1,4 @@
+
 import type { MatchEvent, MatchData, TeamMatchStats, QuarterStats, CircleEntry } from './types';
 
 const detectRealTeamNames = (text: string): { home: string, away: string } | null => {
@@ -17,7 +18,7 @@ const extractTeamName = (code: string, detectedTeams: { home: string, away: stri
     const homeUpper = detectedTeams.home.toUpperCase();
     const awayUpper = detectedTeams.away.toUpperCase();
     
-    // 국가명이 코드에 포함되어 있는지 확인
+    // 국가명이 코드에 포함되어 있는지 확인 (중국, 인도 등 경기 대응)
     if (upperCode.includes(homeUpper)) return detectedTeams.home;
     if (upperCode.includes(awayUpper)) return detectedTeams.away;
     
@@ -204,6 +205,7 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const spp = buildUpFailures > 0 ? buildUpTime / buildUpFailures : 0;
 
     const twentyFiveCount = teamEvents.filter(e => e.code.toUpperCase().includes('A25 START')).length;
+    // 띄어쓰기 반영한 슈팅서클 진입
     const ceCount = teamEvents.filter(e => e.code.includes('슈팅서클 진입')).length;
     const shotCount = teamEvents.filter(e => e.code.includes('슈팅')).length;
     const pcCount = teamEvents.filter(e => e.code.includes('페널티코너')).length;
