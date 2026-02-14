@@ -216,7 +216,7 @@ export const createMatchDataFromUpload = (
     const opponentErrors = oppEvents.filter(e => e.type === 'turnover' || e.type === 'foul').length;
     const spp = opponentErrors > 0 ? oppBuildUpTime / opponentErrors : 0;
 
-    // 4. CE 소요시간: 전체 TEAM 시간 / 슈팅서클 진입(횟수) - 철칙 업데이트 반영
+    // 4. CE 소요시간: 전체 TEAM 시간 / 슈팅서클 진입(횟수) - 철칙 반영
     const timePerCE = ceCount > 0 ? myTotalTime / ceCount : 0;
 
     // 5. 점유율: Duration 기반
@@ -281,8 +281,8 @@ export const createMatchDataFromUpload = (
     }),
     attackThreatData: Array(12).fill(0).map((_, i) => ({
       interval: `${(i+1)*5}'`,
-      [homeName]: events.filter(e => e.team === homeName && e.time <= (i+1)*300 && e.time > i*300 && (e.code.includes('슈팅') || e.code.includes('페널티코너'))).length,
-      [awayName]: events.filter(e => e.team === awayName && e.time <= (i+1)*300 && e.time > i*300 && (e.code.includes('슈팅') || e.code.includes('페널티코너'))).length,
+      [homeName]: events.filter(e => e.team === homeName && e.time <= (i+1)*300 && e.time > i*300 && (e.code.trim() === `${homeName} 슈팅` || e.code.trim() === `${homeName} 페널티코너`)).length,
+      [awayName]: events.filter(e => e.team === awayName && e.time <= (i+1)*300 && e.time > i*300 && (e.code.trim() === `${awayName} 슈팅` || e.code.trim() === `${awayName} 페널티코너`)).length,
     })),
     build25Ratio: { home: homeStats.build25Ratio, away: awayStats.build25Ratio },
     spp: { home: homeStats.spp, away: awayStats.spp },
