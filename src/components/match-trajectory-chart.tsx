@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useMemo } from "react"
@@ -25,25 +26,24 @@ interface MatchTrajectoryChartProps {
 /**
  * MatchTrajectoryChart
  * - X: Attack Possession (%)
- * - Y: 450 - Time per CE (s) -> Higher is Faster, 0 is No Entry/Slow
+ * - Y: Time per CE (s) -> Reversed (0 is top/fast, 450 is bottom/slow)
  */
 export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
   const { homeTeam, awayTeam, quarterlyStats, matchStats } = data
 
   const processTeamData = (team: Team, isHome: boolean) => {
-    const transformY = (val: number) => {
-      if (val === 0) return 0; // No entry = Bottom (Slowest/Failed)
-      return Math.max(0, 450 - val); // Faster (smaller time) = Higher Y
-    };
-
     // 1. Trajectory (Q1-Q4)
     const trajectory = quarterlyStats.map(q => {
       const rawX = isHome ? q.home.attackPossession : q.away.attackPossession;
       const rawTime = isHome ? q.home.timePerCE : q.away.timePerCE;
+      
+      // If time is 0 (No entry), map to bottom of chart (450s) for visualization
+      const visualY = rawTime === 0 ? 450 : rawTime;
+
       return {
         name: q.quarter,
         x: rawX,
-        y: transformY(rawTime),
+        y: visualY,
         rawTime: rawTime,
         z: 150,
         team: team.name,
@@ -54,12 +54,14 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
     // 2. Total point (Isolated from trajectory line)
     const totalRawX = isHome ? matchStats.home.attackPossession : matchStats.away.attackPossession;
     const totalRawTime = isHome ? matchStats.home.timePerCE : matchStats.away.timePerCE;
+    const totalVisualY = totalRawTime === 0 ? 450 : totalRawTime;
+
     const total = [{
       name: "Total",
       x: totalRawX,
-      y: transformY(totalRawTime),
+      y: totalVisualY,
       rawTime: totalRawTime,
-      z: 1000, // 가장 크게 강조
+      z: 1000, 
       team: team.name,
       color: team.color
     }].filter(p => p.x > 0);
@@ -91,21 +93,20 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
       <CardHeader className="pb-2 bg-muted/20 border-b">
         <CardTitle className="text-2xl font-black text-primary italic">Match Trajectory Analysis (공격 전술 궤적)</CardTitle>
         <CardDescription className="text-sm font-bold text-muted-foreground mt-1">
-          공격 점유율 vs 서클 진입 속도 (상단일수록 빠르고 위협적인 공격 / 0은 진입 실패를 의미함)
+          공격 점유율 vs 서클 진입 속도 (상단일수록 빠르고 효율적 / 수치는 서클 진입당 소요 시간(s))
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {/* PDF 한 페이지를 꽉 채우기 위해 높이를 h-[750px]로 대폭 확대 */}
         <div className="h-[750px] w-full mt-8">
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart margin={{ top: 60, right: 80, bottom: 80, left: 60 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
               
-              {/* Quadrant Backgrounds (Y axis threshold 350 = 100s) */}
-              <ReferenceArea x1={0} x2={50} y1={350} y2={450} fill="#ff6384" fillOpacity={0.08} />
-              <ReferenceArea x1={50} x2={100} y1={350} y2={450} fill="#4bc0c0" fillOpacity={0.08} />
-              <ReferenceArea x1={50} x2={100} y1={0} y2={350} fill="#94a3b8" fillOpacity={0.08} />
-              <ReferenceArea x1={0} x2={50} y1={0} y2={350} fill="#6366f1" fillOpacity={0.06} />
+              {/* Quadrants Backgrounds (0-100s is Fast, 100-450s is Slow) */}
+              <ReferenceArea x1={0} x2={50} y1={0} y2={100} fill="#ff6384" fillOpacity={0.08} />
+              <ReferenceArea x1={50} x2={100} y1={0} y2={100} fill="#4bc0c0" fillOpacity={0.08} />
+              <ReferenceArea x1={50} x2={100} y1={100} y2={450} fill="#94a3b8" fillOpacity={0.08} />
+              <ReferenceArea x1={0} x2={50} y1={100} y2={450} fill="#6366f1" fillOpacity={0.06} />
 
               <XAxis 
                 type="number" 
@@ -121,10 +122,12 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
               <YAxis 
                 type="number" 
                 dataKey="y" 
-                name="Speed" 
+                name="Time" 
+                unit="s"
+                reversed
                 domain={[0, 450]}
                 tick={{ fontSize: 13, fontWeight: 'bold' }}
-                label={{ value: 'Attack Speed (↑ Faster / ↓ Slower)', angle: -90, position: 'insideLeft', offset: -10, className: "fill-foreground text-base font-black uppercase tracking-widest" }}
+                label={{ value: 'Attack Speed (↑ Fast: 0s / ↓ Slow: 450s)', angle: -90, position: 'insideLeft', offset: -10, className: "fill-foreground text-base font-black uppercase tracking-widest" }}
               />
               
               <ZAxis type="number" dataKey="z" range={[200, 1200]} />
@@ -132,9 +135,9 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
               <Tooltip content={<CustomTooltip />} />
 
               <ReferenceLine x={50} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={2} opacity={0.4} />
-              <ReferenceLine y={350} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={2} opacity={0.4} />
+              <ReferenceLine y={100} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={2} opacity={0.4} />
 
-              {/* Quadrant Labels - 위치 정밀 조정 */}
+              {/* Quadrant Labels */}
               <ReferenceLine x={25} stroke="none">
                 <Label value="FAST & LOW POSS (Counter)" position="top" offset={-60} className="fill-rose-600 text-xs font-black uppercase tracking-tighter" />
               </ReferenceLine>

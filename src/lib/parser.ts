@@ -1,3 +1,4 @@
+
 import type { MatchEvent, MatchData, TeamMatchStats, QuarterStats, CircleEntry } from './types';
 
 const detectRealTeamNames = (text: string): { home: string, away: string } | null => {
@@ -32,7 +33,7 @@ const extractTeamName = (code: string, detectedTeams: { home: string, away: stri
 };
 
 const mapZone = (locStr: string): { x: number, y: number, lane: 'Left' | 'Center' | 'Right', zoneBand: number } => {
-  // '유' 오타 처리
+  // '유' 오타 보정 (전체 프로젝트 적용)
   const text = locStr.toUpperCase().replace('유', '우');
   let lane: 'Left' | 'Center' | 'Right' = 'Center';
   if (text.includes('좌') || text.includes('LEFT') || text.startsWith('L_') || text.startsWith('L ')) lane = 'Left';
@@ -207,12 +208,13 @@ export const createMatchDataFromUpload = (
     }).reduce((acc, e) => acc + e.duration, 0);
     const totalAttackTime = attackTime + oppAttackTime;
     
-    // 빌드업 시간: 우리 진영(25, 50)에서의 활동 시간 (START 태그 없어도 집계되도록 유연화)
+    // 빌드업 시간: 우리 진영(25, 50 구역)에서 발생한 모든 시퀀스의 합산 시간
     const buildUpTime = teamEvents.filter(e => {
         const zone = mapZone(e.locationLabel || e.code).zoneBand;
         return zone <= 50 && !['turnover', 'foul'].includes(e.type);
     }).reduce((acc, e) => acc + e.duration, 0);
 
+    // 빌드업 실패: 우리 진영에서의 턴오버나 파울
     const buildUpFailures = teamEvents.filter(e => 
       (e.type === 'turnover' || e.type === 'foul') && 
       (e.locationLabel.includes('25') || e.locationLabel.includes('50') || e.code.toUpperCase().includes('DM') || e.code.toUpperCase().includes('D25'))
@@ -272,7 +274,7 @@ export const createMatchDataFromUpload = (
     }),
     circleEntries: events.filter(e => e.code.includes('서클') || e.code.includes('CIRCLE')).map(e => {
       const res = e.resultLabel.toUpperCase();
-      const isSuccess = res.includes('PC') || res.includes('SHOT') || res.includes('득점') || res.includes('슈팅');
+      const isSuccess = res.includes('PC') || res.includes('SHOT') || res.includes('득점') || res.includes('슈팅') || res.includes('GOAL');
       return {
         team: e.team,
         channel: /좌|LEFT/i.test(e.locationLabel) ? 'Left' : /우|RIGHT/i.test(e.locationLabel) ? 'Right' : 'Center',
@@ -281,8 +283,8 @@ export const createMatchDataFromUpload = (
     }),
     attackThreatData: Array(12).fill(0).map((_, i) => ({
       interval: `${(i+1)*5}'`,
-      [homeName]: events.filter(e => e.team === homeName && e.time <= (i+1)*300 && e.time > i*300 && (e.code.includes('슈팅') || e.code.includes('페널티코너'))).length,
-      [awayName]: events.filter(e => e.team === awayName && e.time <= (i+1)*300 && e.time > i*300 && (e.code.includes('슈팅') || e.code.includes('페널티코너'))).length,
+      [homeName]: events.filter(e => e.team === homeName && e.time <= (i+1)*300 && e.time > i*300 && (e.code.includes('슈팅') || e.code.includes('페널티코너') || e.code.includes('SHOT') || e.code.includes('PC'))).length,
+      [awayName]: events.filter(e => e.team === awayName && e.time <= (i+1)*300 && e.time > i*300 && (e.code.includes('슈팅') || e.code.includes('페널티코너') || e.code.includes('SHOT') || e.code.includes('PC'))).length,
     })),
     build25Ratio: { home: homeStats.build25Ratio, away: awayStats.build25Ratio },
     spp: { home: homeStats.spp, away: awayStats.spp },
