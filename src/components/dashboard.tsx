@@ -28,6 +28,7 @@ export function Dashboard() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
+  // 팀 색상 및 대회/경기 정보 실시간 동기화
   useEffect(() => {
     if (matchData) {
       setMatchData(prev => prev ? {
@@ -99,6 +100,7 @@ export function Dashboard() {
         </div>
         
         <div className="flex flex-wrap items-center gap-4 bg-card p-3 rounded-lg border shadow-sm">
+          {/* 대회 이름 입력 필드 */}
           <div className="flex items-center gap-3 border-r pr-4">
             <Trophy className="h-4 w-4 text-muted-foreground" />
             <div className="flex flex-col gap-1">
@@ -113,6 +115,7 @@ export function Dashboard() {
             </div>
           </div>
 
+          {/* 팀 컬러 설정 필드 */}
           <div className="flex items-center gap-3 border-r pr-4">
             <Settings2 className="h-4 w-4 text-muted-foreground" />
             <div className="flex flex-col gap-1">
@@ -248,7 +251,7 @@ export function Dashboard() {
               </div>
               <div className="flex flex-col gap-6">
                 <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} height={260} />
-                <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} isCompact />
+                <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={awayTeam} isCompact />
               </div>
             </div>
           </div>
