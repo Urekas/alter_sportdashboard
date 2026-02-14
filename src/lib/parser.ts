@@ -32,7 +32,7 @@ const extractTeamName = (code: string, detectedTeams: { home: string, away: stri
 };
 
 const mapZone = (locStr: string): { x: number, y: number, lane: 'Left' | 'Center' | 'Right', zoneBand: number } => {
-  // '유' 오타 처리 포함
+  // '유' 오타 처리
   const text = locStr.toUpperCase().replace('유', '우');
   let lane: 'Left' | 'Center' | 'Right' = 'Center';
   if (text.includes('좌') || text.includes('LEFT') || text.startsWith('L_') || text.startsWith('L ')) lane = 'Left';
@@ -192,12 +192,10 @@ export const createMatchDataFromUpload = (
     const teamEvents = targetEvents.filter(e => e.team === team);
     const oppEvents = targetEvents.filter(e => e.team === opponent);
 
-    // 전체 점유 시간: 'TEAM' 태그 혹은 일반 시퀀스 지속 시간 합산
     const teamTime = teamEvents.reduce((acc, e) => acc + e.duration, 0);
     const oppTeamTime = oppEvents.reduce((acc, e) => acc + e.duration, 0);
     const totalPossessionTime = teamTime + oppTeamTime;
 
-    // 공격 시간: 상대 진영(75, 100)에서의 활동 시간
     const attackTime = teamEvents.filter(e => {
         const zone = mapZone(e.locationLabel || e.code).zoneBand;
         return zone >= 75;

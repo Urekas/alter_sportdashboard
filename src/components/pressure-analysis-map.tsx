@@ -25,7 +25,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
       const myTeam = isHome ? homeTeam.name : awayTeam.name;
       const oppTeam = isHome ? awayTeam.name : homeTeam.name;
 
-      // 구역 매핑 로직 유연화 (데이터의 0/100 기준이 다를 수 있음을 고려)
+      // 구역 매핑 로직 (홈/어웨이 방향성 및 데이터 라벨 보정)
       const mapping = isHome ? {
         0: { opp: ["우_100", "우_0"], my: "좌_25" }, 
         1: { opp: ["중_100", "중_0"], my: "중_25" }, 
@@ -67,7 +67,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
 
       return zones.map(z => ({
         ...z,
-        rate: z.count > 0 ? Math.round((z.success / z.count) * 100) : 0
+        rate: z.count > 0 ? (z.success / z.count) * 100 : 0
       }));
     };
 
