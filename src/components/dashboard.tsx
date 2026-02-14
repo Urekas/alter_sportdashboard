@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useRef, useEffect } from "react"
@@ -251,7 +252,7 @@ export function Dashboard() {
               </div>
               <div className="flex flex-col gap-6">
                 <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} height={260} />
-                <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={awayTeam} isCompact />
+                <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} isCompact />
               </div>
             </div>
           </div>
