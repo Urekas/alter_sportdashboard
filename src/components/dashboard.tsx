@@ -15,6 +15,7 @@ import { BasicMatchStats } from "./basic-match-stats"
 import { AttackThreatChart } from "./attack-threat-chart"
 import { QuarterlyStatsTable } from "./quarterly-stats-table"
 import { BuildUpEfficiencyChart } from "./build-up-efficiency-chart"
+import { MatchTrajectoryChart } from "./match-trajectory-chart"
 import { parseXMLData, parseCSVData, createMatchDataFromUpload } from "@/lib/parser"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -55,7 +56,7 @@ export function Dashboard() {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
-      const detectedMatchName = file.name.replace(/\.[^/.]+$/, ""); // 파일명에서 확장자 제거
+      const detectedMatchName = file.name.replace(/\.[^/.]+$/, "");
       const reader = new FileReader();
       
       reader.onload = (e) => {
@@ -167,7 +168,6 @@ export function Dashboard() {
           </div>
         ) : (
           <div className="space-y-12">
-            {/* Header Section for PDF */}
             <div className="border-b-4 border-primary pb-4 mb-8">
               <div className="flex justify-between items-end">
                 <div>
@@ -216,11 +216,11 @@ export function Dashboard() {
               <BuildUpEfficiencyChart data={matchData} />
             </div>
 
-            <div className="page-break space-y-8">
+            <div className="page-break space-y-8 break-inside-avoid">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                <Target className="h-6 w-6" /> 서클 진입 상세 분석 (Circle Entry Details)
+                <Target className="h-6 w-6" /> 서클 진입 및 공격 궤적 분석 (Circle Entry & Trajectory)
               </div>
-              <div className="grid grid-cols-2 gap-6 print:grid-cols-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:grid-cols-2">
                 <CircleEntryAnalysis 
                   teamName={matchData.homeTeam.name} 
                   entries={matchData.circleEntries.filter(e => e.team === matchData.homeTeam.name)} 
@@ -232,6 +232,7 @@ export function Dashboard() {
                   teamColor={matchData.awayTeam.color}
                 />
               </div>
+              <MatchTrajectoryChart data={matchData} />
             </div>
 
             <div className="page-break space-y-6 break-inside-avoid">
