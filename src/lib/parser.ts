@@ -176,7 +176,7 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const teamEvents = targetEvents.filter(e => e.team === team);
     const oppEvents = targetEvents.filter(e => e.team === opponent);
 
-    const teamTime = teamEvents.filter(e => e.code.includes('TEAM')).reduce((acc, e) => acc + e.duration, 0);
+    const teamTime = teamEvents.filter(e => e.code === `${team} TEAM`).reduce((acc, e) => acc + e.duration, 0);
     const attackTime = teamEvents.filter(e => e.code.includes('ATT')).reduce((acc, e) => acc + e.duration, 0);
     const buildUpTime = Math.max(0, teamTime - attackTime);
 
@@ -187,29 +187,33 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     
     const spp = buildUpFailures > 0 ? buildUpTime / buildUpFailures : 0;
 
+    const oppTeamTime = oppEvents.filter(e => e.code === `${opponent} TEAM`).reduce((acc, e) => acc + e.duration, 0);
+    const totalPossessionTime = teamTime + oppTeamTime;
+    
     const oppAttackTime = oppEvents.filter(e => e.code.includes('ATT')).reduce((acc, e) => acc + e.duration, 0);
-    const attackPossession = (attackTime + oppAttackTime) > 0 ? (attackTime / (attackTime + oppAttackTime)) * 100 : 0;
+    const totalAttackTime = attackTime + oppAttackTime;
 
     const buildRows = teamEvents.filter(e => (e.code.includes('DM START') || e.code.includes('D25 START')));
     const buildSuccess = buildRows.filter(e => e.resultLabel.includes('25Y entry')).length;
 
-    const ceCount = teamEvents.filter(e => e.code.toLowerCase().includes('슈팅서클진입')).length;
-    const shotCount = teamEvents.filter(e => e.code.includes('슈팅') && !e.code.includes('진입')).length;
-    const pcCount = teamEvents.filter(e => e.code.includes('페널티코너')).length;
-    const goals = teamEvents.filter(e => /득점|goal/i.test(e.code));
-    const pcGoals = goals.filter(e => /PC|페널티 코너/i.test(e.code)).length;
-
-    const totalTeamTime = teamEvents.reduce((acc, e) => acc + e.duration, 0);
-    const totalOppTime = oppEvents.reduce((acc, e) => acc + e.duration, 0);
+    // "슈팅서클 진입"으로 키워드 수정
+    const ceCount = teamEvents.filter(e => e.code === `${team} 슈팅서클 진입`).length;
+    // "슈팅"만 카운트
+    const shotCount = teamEvents.filter(e => e.code === `${team} 슈팅`).length;
+    // "페널티코너" 카운트
+    const pcCount = teamEvents.filter(e => e.code === `${team} 페널티코너`).length;
+    
+    const goals = teamEvents.filter(e => e.code === `${team} 득점`);
+    const pcGoals = goals.filter(e => e.resultLabel.includes('PC') || e.resultLabel.includes('페널티코너')).length;
 
     return {
       goals: { field: Math.max(0, goals.length - pcGoals), pc: pcGoals },
       shots: shotCount,
       pcs: pcCount,
       circleEntries: ceCount,
-      twentyFiveEntries: teamEvents.filter(e => e.code.includes('A25 START')).length,
-      possession: (totalTeamTime + totalOppTime) > 0 ? (totalTeamTime / (totalTeamTime + totalOppTime)) * 100 : 0,
-      attackPossession,
+      twentyFiveEntries: teamEvents.filter(e => e.code === `${team} A25 START`).length,
+      possession: totalPossessionTime > 0 ? (teamTime / totalPossessionTime) * 100 : 0,
+      attackPossession: totalAttackTime > 0 ? (attackTime / totalAttackTime) * 100 : 0,
       spp: parseFloat(spp.toFixed(2)),
       allowedSpp: 0, 
       build25Ratio: buildRows.length > 0 ? (buildSuccess / buildRows.length) * 100 : 0,
@@ -239,15 +243,16 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
         [awayName]: aS.spp,
       };
     }),
-    circleEntries: events.filter(e => e.code.toLowerCase().includes('슈팅서클진입')).map(e => ({
+    circleEntries: events.filter(e => e.code.includes('슈팅서클 진입')).map(e => ({
       team: e.team,
       channel: /좌|LEFT/i.test(e.locationLabel) ? 'Left' : /우|RIGHT/i.test(e.locationLabel) ? 'Right' : 'Center',
-      outcome: /득점|goal/i.test(e.resultLabel) ? 'Goal' : /슈팅|shot/i.test(e.resultLabel) ? 'Shot On Target' : 'No Shot'
+      outcome: e.resultLabel.includes('득점') || e.resultLabel.includes('goal') ? 'Goal' : 
+               e.resultLabel.includes('슈팅') || e.resultLabel.includes('shot') ? 'Shot On Target' : 'No Shot'
     })),
     attackThreatData: Array(12).fill(0).map((_, i) => ({
       interval: `${(i+1)*5}'`,
-      [homeName]: events.filter(e => e.team === homeName && e.time <= (i+1)*300 && e.time > i*300 && e.code.includes('슈팅') && !e.code.includes('진입')).length,
-      [awayName]: events.filter(e => e.team === awayName && e.time <= (i+1)*300 && e.time > i*300 && e.code.includes('슈팅') && !e.code.includes('진입')).length,
+      [homeName]: events.filter(e => e.team === homeName && e.time <= (i+1)*300 && e.time > i*300 && e.code === `${homeName} 슈팅`).length,
+      [awayName]: events.filter(e => e.team === awayName && e.time <= (i+1)*300 && e.time > i*300 && e.code === `${awayName} 슈팅`).length,
     })),
     build25Ratio: { home: homeStats.build25Ratio, away: awayStats.build25Ratio },
     spp: { home: homeStats.spp, away: awayStats.spp },

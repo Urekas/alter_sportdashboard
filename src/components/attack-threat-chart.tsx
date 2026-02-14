@@ -1,6 +1,7 @@
+
 "use client"
 
-import React from "react"
+import React, { useMemo } from "react"
 import {
   LineChart,
   Line,
@@ -11,7 +12,9 @@ import {
   ResponsiveContainer,
   TooltipProps,
   ReferenceLine,
-  Label
+  ReferenceArea,
+  Label,
+  CartesianGrid
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import type { AttackThreatDataPoint, Team } from "@/lib/types"
@@ -46,22 +49,52 @@ const CustomTooltip = ({ active, payload, label, homeTeam, awayTeam }: TooltipPr
 
 
 export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChartProps) {
+  const dominanceSegments = useMemo(() => {
+    if (!data || data.length === 0) return []
+    const segments = []
+    
+    for (let i = 0; i < data.length - 1; i++) {
+      const h1 = Number(data[i][homeTeam.name])
+      const a1 = Number(data[i][awayTeam.name])
+      const dominant = h1 >= a1 ? homeTeam.name : awayTeam.name
+      
+      segments.push({
+        x1: data[i].interval,
+        x2: data[i+1].interval,
+        dominant: dominant
+      })
+    }
+    return segments
+  }, [data, homeTeam, awayTeam])
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Attack Threat Trend (5m Avg)</CardTitle>
         <CardDescription>
-          슈팅, PC, 서클 진입 등 주요 공격 이벤트를 5분 단위 평균 위협 지수로 시각화한 차트입니다.
+          슈팅 발생 빈도 추이입니다. 선 사이의 음영은 더 많은 공격을 시도한 팀의 우세를 나타냅니다.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
             <XAxis dataKey="interval" />
-            <YAxis label={{ value: '위협 지수', angle: -90, position: 'insideLeft' }} />
+            <YAxis label={{ value: '공격 위협도', angle: -90, position: 'insideLeft' }} />
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
             
+            {dominanceSegments.map((seg, idx) => (
+              <ReferenceArea
+                key={idx}
+                x1={seg.x1}
+                x2={seg.x2}
+                fill={seg.dominant === homeTeam.name ? homeTeam.color : awayTeam.color}
+                fillOpacity={0.1}
+                strokeOpacity={0}
+              />
+            ))}
+
             <ReferenceLine x="15'" stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3">
               <Label value="Q1 | Q2" position="top" fill="hsl(var(--muted-foreground))" fontSize={12} offset={10} />
             </ReferenceLine>

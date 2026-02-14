@@ -51,24 +51,20 @@ const CustomTooltip = ({ active, payload, label, homeTeam, awayTeam }: TooltipPr
 export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattleChartProps) {
   const dominanceSegments = useMemo(() => {
     if (!data || data.length === 0) return []
-
     const segments = []
-    let currentSegment = {
-      x1: data[0].interval,
-      dominant: data[0][homeTeam.name] <= data[0][awayTeam.name] ? homeTeam.name : awayTeam.name,
+    
+    for (let i = 0; i < data.length - 1; i++) {
+      const h1 = Number(data[i][homeTeam.name])
+      const a1 = Number(data[i][awayTeam.name])
+      // SPP는 낮을수록 우수함 (그래프상 위에 있음)
+      const dominant = h1 <= a1 ? homeTeam.name : awayTeam.name
+      
+      segments.push({
+        x1: data[i].interval,
+        x2: data[i+1].interval,
+        dominant: dominant
+      })
     }
-
-    for (let i = 1; i < data.length; i++) {
-      const homeValue = data[i][homeTeam.name] as number
-      const awayValue = data[i][awayTeam.name] as number
-      const currentDominant = homeValue <= awayValue ? homeTeam.name : awayTeam.name
-
-      if (currentDominant !== currentSegment.dominant) {
-        segments.push({ ...currentSegment, x2: data[i].interval })
-        currentSegment = { x1: data[i].interval, dominant: currentDominant }
-      }
-    }
-    segments.push({ ...currentSegment, x2: data[data.length - 1].interval })
     return segments
   }, [data, homeTeam, awayTeam])
 
@@ -77,7 +73,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
       <CardHeader>
         <CardTitle>Pressure Battle (3m Avg)</CardTitle>
         <CardDescription>
-          SPP(Seconds Per Press) 추이입니다. 값이 낮을수록 상대 압박에 빠르게 대응(우수)함을 의미합니다.
+          SPP(Seconds Per Press) 추이입니다. 음영은 압박에 더 잘 대응하고 있는(그래프상 상단) 팀의 우세를 나타냅니다.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -87,21 +83,20 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
             <XAxis dataKey="interval" />
             <YAxis 
               reversed 
-              domain={[0, 'auto']}
+              domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.2)]}
               label={{ value: 'SPP (s)', angle: -90, position: 'insideLeft' }} 
             />
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
-            {dominanceSegments.map((seg, index) => (
+            
+            {dominanceSegments.map((seg, idx) => (
               <ReferenceArea
-                key={index}
+                key={idx}
                 x1={seg.x1}
                 x2={seg.x2}
-                y1={0}
-                y2="dataMax"
-                strokeOpacity={0}
                 fill={seg.dominant === homeTeam.name ? homeTeam.color : awayTeam.color}
-                fillOpacity={0.05}
+                fillOpacity={0.1}
+                strokeOpacity={0}
               />
             ))}
 
