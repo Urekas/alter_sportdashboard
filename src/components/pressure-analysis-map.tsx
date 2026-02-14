@@ -8,6 +8,7 @@ interface PressureAnalysisMapProps {
   events: MatchEvent[];
   homeTeam: Team;
   awayTeam: Team;
+  isCompact?: boolean;
 }
 
 type ZoneStat = {
@@ -16,7 +17,7 @@ type ZoneStat = {
   rate: number;
 };
 
-export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnalysisMapProps) {
+export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: PressureAnalysisMapProps) {
   const zoneStats = useMemo(() => {
     const calculateStats = (isHome: boolean) => {
       const zones: ZoneStat[] = Array(6).fill(null).map(() => ({ count: 0, success: 0, rate: 0 }));
@@ -88,11 +89,11 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
     const CX = 27.5; 
     
     return (
-      <div className="flex flex-col gap-4">
-        <h3 className="text-sm font-bold text-center p-2 rounded-t-lg border-b-2" style={{ backgroundColor: `${team.color}15`, color: team.color, borderColor: team.color }}>
+      <div className="flex flex-col gap-2">
+        <h3 className="text-xs font-bold text-center p-1 rounded-t-lg border-b-2" style={{ backgroundColor: `${team.color}15`, color: team.color, borderColor: team.color }}>
           {team.name} 상대 진영 압박
         </h3>
-        <div className="relative aspect-[45.7/55] bg-green-50/50 rounded-b-lg overflow-hidden border-2 border-muted shadow-inner">
+        <div className="relative aspect-[45.7/55] bg-green-50/50 rounded-b-lg overflow-hidden border border-muted shadow-inner">
           <svg viewBox="-2 0 49.7 55" className="w-full h-full overflow-visible">
             <g stroke="#000" strokeWidth="0.25" fill="none" opacity="0.4">
               <rect x="0" y="0" width="45.7" height="55" />
@@ -160,14 +161,14 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
 
   return (
     <Card className="lg:col-span-3">
-      <CardHeader>
-        <CardTitle>Pressure Analysis Map</CardTitle>
-        <CardDescription>
+      <CardHeader className={isCompact ? "py-3" : ""}>
+        <CardTitle className={isCompact ? "text-lg" : ""}>Pressure Analysis Map</CardTitle>
+        <CardDescription className={isCompact ? "text-xs" : ""}>
           상대 진영 구역 내 압박 횟수 및 성공률입니다. (홈팀: 위L-아래R / 어웨이팀: 위R-아래L)
         </CardDescription>
       </CardHeader>
-      <CardContent className="p-4 md:p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+      <CardContent className={isCompact ? "p-2" : "p-4 md:p-6"}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {renderHalfPitch(zoneStats.home, homeTeam, true, zoneStats.globalMaxCount)}
           {renderHalfPitch(zoneStats.away, awayTeam, false, zoneStats.globalMaxCount)}
         </div>

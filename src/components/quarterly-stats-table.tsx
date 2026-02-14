@@ -30,7 +30,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
     const nA = parseFloat(valA as any);
     if (isNaN(nH) || isNaN(nA) || nH === nA) return "";
     const hWins = lowerIsBetter ? nH < nA : nH > nA;
-    return hWins ? "text-primary font-bold" : "text-chart-2 font-bold";
+    return hWins ? "home-win" : "away-win";
   };
 
   const renderStatRows = (label: string, field: string, decimals: number = 0, lowerIsBetter: boolean = false) => {
@@ -47,12 +47,19 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
             const aVal = (q.away as any)[field];
             const winnerClass = getWinnerClass(hVal, aVal, lowerIsBetter);
             return (
-              <TableCell key={q.quarter} className={cn("text-center border-x", winnerClass.includes("text-primary") && winnerClass)}>
+              <TableCell 
+                key={q.quarter} 
+                className="text-center border-x"
+                style={winnerClass === "home-win" ? { color: homeTeam.color, fontWeight: 'bold' } : {}}
+              >
                 {safeVal(hVal, decimals)}
               </TableCell>
             );
           })}
-          <TableCell className={cn("text-center border-x bg-muted/30 font-bold", totalWinnerClass.includes("text-primary") && totalWinnerClass)}>
+          <TableCell 
+            className="text-center border-x bg-muted/30 font-bold"
+            style={totalWinnerClass === "home-win" ? { color: homeTeam.color } : {}}
+          >
             {safeVal(hTotal, decimals)}
           </TableCell>
         </TableRow>
@@ -63,12 +70,19 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
             const aVal = (q.away as any)[field];
             const winnerClass = getWinnerClass(hVal, aVal, lowerIsBetter);
             return (
-              <TableCell key={q.quarter} className={cn("text-center border-x", winnerClass.includes("text-chart-2") && winnerClass)}>
+              <TableCell 
+                key={q.quarter} 
+                className="text-center border-x"
+                style={winnerClass === "away-win" ? { color: awayTeam.color, fontWeight: 'bold' } : {}}
+              >
                 {safeVal(aVal, decimals)}
               </TableCell>
             );
           })}
-          <TableCell className={cn("text-center border-x bg-muted/30 font-bold", totalWinnerClass.includes("text-chart-2") && totalWinnerClass)}>
+          <TableCell 
+            className="text-center border-x bg-muted/30 font-bold"
+            style={totalWinnerClass === "away-win" ? { color: awayTeam.color } : {}}
+          >
             {safeVal(aTotal, decimals)}
           </TableCell>
         </TableRow>
@@ -108,12 +122,19 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
                 const aTot = (q.away.goals?.field || 0) + (q.away.goals?.pc || 0);
                 const winnerClass = getWinnerClass(hTot, aTot);
                 return (
-                  <TableCell key={q.quarter} className={cn("text-center border-x", winnerClass.includes("text-primary") && winnerClass)}>
+                  <TableCell 
+                    key={q.quarter} 
+                    className="text-center border-x"
+                    style={winnerClass === "home-win" ? { color: homeTeam.color, fontWeight: 'bold' } : {}}
+                  >
                     {safeVal(q.home.goals?.field)}/{safeVal(q.home.goals?.pc)}
                   </TableCell>
                 );
               })}
-              <TableCell className={cn("text-center border-x bg-muted/30 font-bold", getWinnerClass(matchStats.home.goals.field + matchStats.home.goals.pc, matchStats.away.goals.field + matchStats.away.goals.pc).includes("text-primary") && "text-primary")}>
+              <TableCell 
+                className="text-center border-x bg-muted/30 font-bold"
+                style={getWinnerClass(matchStats.home.goals.field + matchStats.home.goals.pc, matchStats.away.goals.field + matchStats.away.goals.pc) === "home-win" ? { color: homeTeam.color } : {}}
+              >
                 {safeVal(matchStats.home.goals.field)}/{safeVal(matchStats.home.goals.pc)}
               </TableCell>
             </TableRow>
@@ -124,12 +145,19 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
                 const aTot = (q.away.goals?.field || 0) + (q.away.goals?.pc || 0);
                 const winnerClass = getWinnerClass(hTot, aTot);
                 return (
-                  <TableCell key={q.quarter} className={cn("text-center border-x", winnerClass.includes("text-chart-2") && winnerClass)}>
+                  <TableCell 
+                    key={q.quarter} 
+                    className="text-center border-x"
+                    style={winnerClass === "away-win" ? { color: awayTeam.color, fontWeight: 'bold' } : {}}
+                  >
                     {safeVal(q.away.goals?.field)}/{safeVal(q.away.goals?.pc)}
                   </TableCell>
                 );
               })}
-              <TableCell className={cn("text-center border-x bg-muted/30 font-bold", getWinnerClass(matchStats.home.goals.field + matchStats.home.goals.pc, matchStats.away.goals.field + matchStats.away.goals.pc).includes("text-chart-2") && "text-chart-2")}>
+              <TableCell 
+                className="text-center border-x bg-muted/30 font-bold"
+                style={getWinnerClass(matchStats.home.goals.field + matchStats.home.goals.pc, matchStats.away.goals.field + matchStats.away.goals.pc) === "away-win" ? { color: awayTeam.color } : {}}
+              >
                 {safeVal(matchStats.away.goals.field)}/{safeVal(matchStats.away.goals.pc)}
               </TableCell>
             </TableRow>

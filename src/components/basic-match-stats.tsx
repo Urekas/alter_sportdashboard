@@ -22,7 +22,7 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
   const getWinnerClass = (valH: number, valA: number, lowerIsBetter: boolean = false) => {
     if (valH === valA) return "";
     const hWins = lowerIsBetter ? valH < valA : valH > valA;
-    return hWins ? "text-primary font-bold" : "text-chart-2 font-bold";
+    return hWins ? "home-win" : "away-win";
   };
 
   const formatValue = (val: any) => {
@@ -60,8 +60,8 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
           <TableHeader>
             <TableRow>
               <TableHead>분석 항목</TableHead>
-              <TableHead className="text-center text-primary font-bold">{homeTeam.name}</TableHead>
-              <TableHead className="text-center text-chart-2 font-bold">{awayTeam.name}</TableHead>
+              <TableHead className="text-center font-bold" style={{ color: homeTeam.color }}>{homeTeam.name}</TableHead>
+              <TableHead className="text-center font-bold" style={{ color: awayTeam.color }}>{awayTeam.name}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -73,10 +73,16 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
               return (
                 <TableRow key={s.label}>
                   <TableCell className="font-medium">{s.label}</TableCell>
-                  <TableCell className={cn("text-center", winnerClass.includes("text-primary") && winnerClass)}>
+                  <TableCell 
+                    className="text-center" 
+                    style={winnerClass === "home-win" ? { color: homeTeam.color, fontWeight: 'bold' } : {}}
+                  >
                     {s.isFloat ? Number(s.h).toFixed(1) : s.h}
                   </TableCell>
-                  <TableCell className={cn("text-center", winnerClass.includes("text-chart-2") && winnerClass)}>
+                  <TableCell 
+                    className="text-center"
+                    style={winnerClass === "away-win" ? { color: awayTeam.color, fontWeight: 'bold' } : {}}
+                  >
                     {s.isFloat ? Number(s.a).toFixed(1) : s.a}
                   </TableCell>
                 </TableRow>

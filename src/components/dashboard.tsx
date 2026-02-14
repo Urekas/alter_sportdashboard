@@ -137,7 +137,7 @@ export function Dashboard() {
           </div>
         ) : (
           <div className="space-y-12">
-            {/* Page 1: Overview & Stats */}
+            {/* Page 1: Overview & Basic Stats */}
             <div className="page-break space-y-8">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {[matchData.homeTeam, matchData.awayTeam].map((team, i) => (
@@ -156,10 +156,14 @@ export function Dashboard() {
                 ))}
               </div>
               <BasicMatchStats data={matchData} />
+            </div>
+
+            {/* Page 2: Quarterly Stats (Separated) */}
+            <div className="page-break space-y-8">
               <QuarterlyStatsTable data={matchData} />
             </div>
 
-            {/* Page 2: Attack Flow Section */}
+            {/* Page 3: Attack Performance */}
             <div className="page-break space-y-8">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Sword className="h-6 w-6" /> 공격 성능 분석 (Attack Analysis)
@@ -168,7 +172,7 @@ export function Dashboard() {
               <BuildUpEfficiencyChart data={matchData} />
             </div>
 
-            {/* Page 3: Circle Entry Analysis */}
+            {/* Page 4: Circle Entry Detail */}
             <div className="page-break space-y-8">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Target className="h-6 w-6" /> 서클 진입 상세 분석 (Circle Entry Details)
@@ -187,13 +191,15 @@ export function Dashboard() {
               </div>
             </div>
 
-            {/* Page 4: Pressure Section */}
-            <div className="page-break space-y-8">
+            {/* Page 5: Pressure Section (Combined on one page) */}
+            <div className="page-break space-y-6">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Shield className="h-6 w-6" /> 압박 및 수비 분석 (Pressure & Defense)
               </div>
-              <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
-              <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
+              <div className="grid grid-cols-1 gap-6">
+                <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} height={280} />
+                <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} isCompact />
+              </div>
             </div>
           </div>
         )}

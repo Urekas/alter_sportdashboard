@@ -23,6 +23,7 @@ interface PressureBattleChartProps {
   data: PressureDataPoint[]
   homeTeam: Team
   awayTeam: Team
+  height?: number
 }
 
 const CustomTooltip = ({ active, payload, label, homeTeam, awayTeam }: TooltipProps<ValueType, NameType> & { homeTeam: Team, awayTeam: Team }) => {
@@ -45,7 +46,7 @@ const CustomTooltip = ({ active, payload, label, homeTeam, awayTeam }: TooltipPr
   return null;
 };
 
-export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattleChartProps) {
+export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: PressureBattleChartProps) {
   const chartData = useMemo(() => {
     const result: any[] = [];
     if (data.length === 0) return result;
@@ -104,7 +105,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={350}>
+        <ResponsiveContainer width="100%" height={height}>
           <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
             <XAxis dataKey="interval" interval="preserveStartEnd" />
@@ -155,8 +156,8 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
               stroke={homeTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { key, cx, cy, payload } = props;
-                if (payload.isIntersect) return <path key={key} d="" />;
+                const { cx, cy, payload, key } = props;
+                if (payload.isIntersect) return <path key={`inter-${key}`} d="" />;
                 return <circle key={key} cx={cx} cy={cy} r={4} fill={homeTeam.color} stroke="none" />;
               }} 
               activeDot={{ r: 6 }} 
@@ -167,8 +168,8 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
               stroke={awayTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { key, cx, cy, payload } = props;
-                if (payload.isIntersect) return <path key={key} d="" />;
+                const { cx, cy, payload, key } = props;
+                if (payload.isIntersect) return <path key={`inter-${key}`} d="" />;
                 return <circle key={key} cx={cx} cy={cy} r={4} fill={awayTeam.color} stroke="none" />;
               }} 
               activeDot={{ r: 6 }} 

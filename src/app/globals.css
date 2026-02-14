@@ -99,4 +99,8 @@ body {
     box-shadow: none !important;
     border: 1px solid #eee !important;
   }
+  .page-break {
+    page-break-after: always;
+    break-after: page;
+  }
 }
