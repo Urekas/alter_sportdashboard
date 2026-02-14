@@ -1,3 +1,4 @@
+
 import type { MatchEvent, MatchData, TeamMatchStats, QuarterStats, CircleEntry } from './types';
 
 const detectRealTeamNames = (text: string): { home: string, away: string } | null => {
@@ -175,7 +176,15 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
   return { events, teams: { home: detectedTeams?.home || "Home", away: detectedTeams?.away || "Away" } };
 };
 
-export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string, awayName: string, homeColor: string, awayColor: string): MatchData => {
+export const createMatchDataFromUpload = (
+  events: MatchEvent[], 
+  homeName: string, 
+  awayName: string, 
+  homeColor: string, 
+  awayColor: string,
+  tournamentName?: string,
+  matchName?: string
+): MatchData => {
   const homeTeam = { name: homeName, color: homeColor }; 
   const awayTeam = { name: awayName, color: awayColor }; 
 
@@ -231,6 +240,8 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
   const awayStats = calculateTeamStats(awayName, homeName, events);
 
   return {
+    tournamentName,
+    matchName,
     homeTeam,
     awayTeam,
     events,

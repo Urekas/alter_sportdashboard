@@ -61,6 +61,8 @@ export interface AttackThreatDataPoint {
 }
 
 export interface MatchData {
+  tournamentName?: string;
+  matchName?: string;
   homeTeam: Team;
   awayTeam: Team;
   events: MatchEvent[];

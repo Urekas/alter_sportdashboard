@@ -1,7 +1,8 @@
+
 "use client"
 
 import React, { useState, useRef, useEffect } from "react"
-import { Upload, FileDown, TrendingDown, Target, Activity, ShieldCheck, Sword, Shield, Settings2 } from "lucide-react"
+import { Upload, FileDown, TrendingDown, Target, Activity, ShieldCheck, Sword, Shield, Settings2, Trophy } from "lucide-react"
 import type { MatchData } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
 import { Button } from "@/components/ui/button"
@@ -20,6 +21,8 @@ import { Label } from "@/components/ui/label"
 
 export function Dashboard() {
   const [matchData, setMatchData] = useState<MatchData | null>(null)
+  const [tournamentName, setTournamentName] = useState("")
+  const [matchName, setMatchName] = useState("")
   const [homeColor, setHomeColor] = useState("#0066ff") // Vivid Blue
   const [awayColor, setAwayColor] = useState("#ef4444") // Red-Orange
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -29,15 +32,19 @@ export function Dashboard() {
     if (matchData) {
       setMatchData(prev => prev ? {
         ...prev,
+        tournamentName,
+        matchName: matchName || prev.matchName,
         homeTeam: { ...prev.homeTeam, color: homeColor },
         awayTeam: { ...prev.awayTeam, color: awayColor }
       } : null);
     }
-  }, [homeColor, awayColor]);
+  }, [homeColor, awayColor, tournamentName, matchName]);
 
   const handleLoadMockData = () => {
     const data = {
       ...mockMatchData,
+      tournamentName: tournamentName || "데모 대회 (Demo Tournament)",
+      matchName: "Korea vs Netherlands (Friendly Match)",
       homeTeam: { ...mockMatchData.homeTeam, color: homeColor },
       awayTeam: { ...mockMatchData.awayTeam, color: awayColor }
     };
@@ -48,6 +55,7 @@ export function Dashboard() {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
+      const detectedMatchName = file.name.replace(/\.[^/.]+$/, ""); // 파일명에서 확장자 제거
       const reader = new FileReader();
       
       reader.onload = (e) => {
@@ -62,7 +70,16 @@ export function Dashboard() {
           const parsed = file.name.endsWith('.xml') ? parseXMLData(content) : parseCSVData(content);
           if (parsed.events.length === 0) throw new Error("분석 가능한 데이터가 없습니다.");
           
-          const newData = createMatchDataFromUpload(parsed.events, parsed.teams.home, parsed.teams.away, homeColor, awayColor);
+          setMatchName(detectedMatchName);
+          const newData = createMatchDataFromUpload(
+            parsed.events, 
+            parsed.teams.home, 
+            parsed.teams.away, 
+            homeColor, 
+            awayColor,
+            tournamentName,
+            detectedMatchName
+          );
           setMatchData(newData);
           toast({ title: "분석 완료", description: `${parsed.teams.home} vs ${parsed.teams.away}` });
         } catch (error: any) {
@@ -82,6 +99,20 @@ export function Dashboard() {
         </div>
         
         <div className="flex flex-wrap items-center gap-4 bg-card p-3 rounded-lg border shadow-sm">
+          <div className="flex items-center gap-3 border-r pr-4">
+            <Trophy className="h-4 w-4 text-muted-foreground" />
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="tournament-input" className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">대회 이름 (Tournament)</Label>
+              <Input 
+                id="tournament-input"
+                placeholder="대회 이름을 입력하세요"
+                value={tournamentName}
+                onChange={(e) => setTournamentName(e.target.value)}
+                className="h-8 text-xs w-48"
+              />
+            </div>
+          </div>
+
           <div className="flex items-center gap-3 border-r pr-4">
             <Settings2 className="h-4 w-4 text-muted-foreground" />
             <div className="flex flex-col gap-1">
@@ -128,7 +159,7 @@ export function Dashboard() {
           <div className="py-20 text-center bg-card rounded-xl border-2 border-dashed border-muted-foreground/25">
             <Activity className="w-16 h-16 text-muted-foreground/40 mx-auto mb-4" />
             <h2 className="text-2xl font-semibold mb-2">분석을 시작하세요</h2>
-            <p className="text-muted-foreground mb-6">상단에서 팀 컬러를 선택한 후 데이터를 업로드하세요.</p>
+            <p className="text-muted-foreground mb-6">상단에서 대회 이름을 입력하고 팀 컬러를 선택한 후 데이터를 업로드하세요.</p>
             <div className="flex justify-center gap-3">
               <Button onClick={() => fileInputRef.current?.click()}>파일 업로드</Button>
               <Button variant="secondary" onClick={handleLoadMockData}>데모 데이터</Button>
@@ -136,6 +167,20 @@ export function Dashboard() {
           </div>
         ) : (
           <div className="space-y-12">
+            {/* Header Section for PDF */}
+            <div className="border-b-4 border-primary pb-4 mb-8">
+              <div className="flex justify-between items-end">
+                <div>
+                  <h2 className="text-xl font-bold text-muted-foreground uppercase tracking-widest">{matchData.tournamentName || "Tournament Report"}</h2>
+                  <h1 className="text-4xl font-black italic tracking-tighter text-foreground mt-1">{matchData.matchName || "Match Performance Analysis"}</h1>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-muted-foreground">REPORT DATE</p>
+                  <p className="text-lg font-bold">{new Date().toLocaleDateString()}</p>
+                </div>
+              </div>
+            </div>
+
             <div className="page-break space-y-8">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {[matchData.homeTeam, matchData.awayTeam].map((team, i) => (
@@ -175,7 +220,7 @@ export function Dashboard() {
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Target className="h-6 w-6" /> 서클 진입 상세 분석 (Circle Entry Details)
               </div>
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-2 gap-6 print:grid-cols-2">
                 <CircleEntryAnalysis 
                   teamName={matchData.homeTeam.name} 
                   entries={matchData.circleEntries.filter(e => e.team === matchData.homeTeam.name)} 
