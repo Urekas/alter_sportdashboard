@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useState, useRef } from "react"
-import { Upload, FileDown, TrendingDown, Target, Activity, ShieldCheck, PieChart, Sword, Shield } from "lucide-react"
+import React, { useState, useRef, useEffect } from "react"
+import { Upload, FileDown, TrendingDown, Target, Activity, ShieldCheck, Sword, Shield, Settings2 } from "lucide-react"
 import type { MatchData } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
 import { Button } from "@/components/ui/button"
@@ -15,14 +15,34 @@ import { AttackThreatChart } from "./attack-threat-chart"
 import { QuarterlyStatsTable } from "./quarterly-stats-table"
 import { BuildUpEfficiencyChart } from "./build-up-efficiency-chart"
 import { parseXMLData, parseCSVData, createMatchDataFromUpload } from "@/lib/parser"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 export function Dashboard() {
   const [matchData, setMatchData] = useState<MatchData | null>(null)
+  const [homeColor, setHomeColor] = useState("#0066ff") // Vivid Blue
+  const [awayColor, setAwayColor] = useState("#ef4444") // Red
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
+  // 색상 변경 시 실시간 반영
+  useEffect(() => {
+    if (matchData) {
+      setMatchData(prev => prev ? {
+        ...prev,
+        homeTeam: { ...prev.homeTeam, color: homeColor },
+        awayTeam: { ...prev.awayTeam, color: awayColor }
+      } : null);
+    }
+  }, [homeColor, awayColor]);
+
   const handleLoadMockData = () => {
-    setMatchData(mockMatchData)
+    const data = {
+      ...mockMatchData,
+      homeTeam: { ...mockMatchData.homeTeam, color: homeColor },
+      awayTeam: { ...mockMatchData.awayTeam, color: awayColor }
+    };
+    setMatchData(data)
     toast({ title: "데모 데이터 로드됨" })
   }
 
@@ -44,7 +64,7 @@ export function Dashboard() {
           const parsed = file.name.endsWith('.xml') ? parseXMLData(content) : parseCSVData(content);
           if (parsed.events.length === 0) throw new Error("분석 가능한 데이터가 없습니다.");
           
-          const newData = createMatchDataFromUpload(parsed.events, parsed.teams.home, parsed.teams.away);
+          const newData = createMatchDataFromUpload(parsed.events, parsed.teams.home, parsed.teams.away, homeColor, awayColor);
           setMatchData(newData);
           toast({ title: "분석 완료", description: `${parsed.teams.home} vs ${parsed.teams.away}` });
         } catch (error: any) {
@@ -57,21 +77,51 @@ export function Dashboard() {
 
   return (
     <div className="p-4 md:p-6 lg:p-8">
-      <header className="flex flex-col md:flex-row justify-between items-center mb-8 print-hidden">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 print-hidden gap-4">
         <div>
           <h1 className="text-4xl font-bold text-primary italic tracking-tight font-headline">Field Focus</h1>
           <p className="text-muted-foreground mt-1">Advanced Hockey Performance Analytics</p>
         </div>
-        <div className="flex gap-2 mt-4 md:mt-0">
-          <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xml,.csv" className="hidden" />
-          <Button onClick={() => fileInputRef.current?.click()} className="shadow-md">
-            <Upload className="mr-2 h-4 w-4" /> 데이터 업로드
-          </Button>
-          {matchData && (
-            <Button variant="default" onClick={() => window.print()} className="shadow-sm bg-emerald-600 hover:bg-emerald-700">
-              <FileDown className="mr-2 h-4 w-4" /> PDF 리포트 다운로드
+        
+        <div className="flex flex-wrap items-center gap-4 bg-card p-3 rounded-lg border shadow-sm">
+          <div className="flex items-center gap-3 border-r pr-4">
+            <Settings2 className="h-4 w-4 text-muted-foreground" />
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="home-color" className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">홈팀 색상</Label>
+              <Input 
+                id="home-color"
+                type="color" 
+                value={homeColor} 
+                onChange={(e) => setHomeColor(e.target.value)}
+                className="w-12 h-8 p-1 cursor-pointer bg-transparent border-none"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="away-color" className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">어웨이팀 색상</Label>
+              <Input 
+                id="away-color"
+                type="color" 
+                value={awayColor} 
+                onChange={(e) => setAwayColor(e.target.value)}
+                className="w-12 h-8 p-1 cursor-pointer bg-transparent border-none"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xml,.csv" className="hidden" />
+            <Button onClick={() => fileInputRef.current?.click()} className="shadow-md h-9">
+              <Upload className="mr-2 h-4 w-4" /> 데이터 업로드
             </Button>
-          )}
+            {matchData && (
+              <Button variant="default" onClick={() => window.print()} className="shadow-sm bg-emerald-600 hover:bg-emerald-700 h-9">
+                <FileDown className="mr-2 h-4 w-4" /> PDF 리포트 다운로드
+              </Button>
+            )}
+            {!matchData && (
+              <Button variant="outline" onClick={handleLoadMockData} className="h-9">데모</Button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -80,6 +130,7 @@ export function Dashboard() {
           <div className="py-20 text-center bg-card rounded-xl border-2 border-dashed border-muted-foreground/25">
             <Activity className="w-16 h-16 text-muted-foreground/40 mx-auto mb-4" />
             <h2 className="text-2xl font-semibold mb-2">분석을 시작하세요</h2>
+            <p className="text-muted-foreground mb-6">위 상단에서 팀 컬러를 선택한 후 데이터를 업로드하세요.</p>
             <div className="flex justify-center gap-3">
               <Button onClick={() => fileInputRef.current?.click()}>파일 업로드</Button>
               <Button variant="secondary" onClick={handleLoadMockData}>데모 데이터</Button>
@@ -92,8 +143,8 @@ export function Dashboard() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {[matchData.homeTeam, matchData.awayTeam].map((team, i) => (
                   <div key={team.name} className="space-y-3">
-                    <div className="flex items-center gap-2 font-bold" style={{ color: i === 0 ? 'hsl(var(--primary))' : 'hsl(var(--chart-2))' }}>
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: i === 0 ? 'hsl(var(--primary))' : 'hsl(var(--chart-2))' }} />
+                    <div className="flex items-center gap-2 font-bold" style={{ color: team.color }}>
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: team.color }} />
                       {team.name} ({i === 0 ? '홈' : '어웨이'})
                     </div>
                     <div className="grid grid-cols-2 gap-3">

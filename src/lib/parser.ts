@@ -17,7 +17,6 @@ const extractTeamName = (code: string, detectedTeams: { home: string, away: stri
     const homeUpper = detectedTeams.home.toUpperCase();
     const awayUpper = detectedTeams.away.toUpperCase();
     
-    // "중국 TEAM", "인도 TEAM" 같은 경우 국가명 포함 여부로 매칭
     if (upperCode.includes(homeUpper)) return detectedTeams.home;
     if (upperCode.includes(awayUpper)) return detectedTeams.away;
     
@@ -176,9 +175,9 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
   return { events, teams: { home: detectedTeams?.home || "Home", away: detectedTeams?.away || "Away" } };
 };
 
-export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string, awayName: string): MatchData => {
-  const homeTeam = { name: homeName, color: 'hsl(var(--primary))' }; 
-  const awayTeam = { name: awayName, color: 'hsl(var(--chart-2))' }; 
+export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string, awayName: string, homeColor: string, awayColor: string): MatchData => {
+  const homeTeam = { name: homeName, color: homeColor }; 
+  const awayTeam = { name: awayName, color: awayColor }; 
 
   const calculateTeamStats = (team: string, opponent: string, targetEvents: MatchEvent[]): TeamMatchStats => {
     const teamEvents = targetEvents.filter(e => e.team === team);
