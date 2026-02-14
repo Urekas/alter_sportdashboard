@@ -22,6 +22,7 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
   const formatValue = (val: any, type: 'count' | 'float') => {
     const num = parseFloat(val);
     if (isNaN(num)) return "0";
+    // 횟수(count)는 정수로, 비율/시간(float)은 소수점 1자리로 표시
     return type === 'float' ? num.toFixed(1) : Math.round(num).toString();
   };
 

@@ -34,6 +34,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
       const pressureEvents = events.filter(e => e.type === 'turnover' || e.type === 'foul');
 
       pressureEvents.forEach(e => {
+        // 공격 진영 확인
         const isAttackingHalf = isHome ? (e.x > MID_X) : (e.x < MID_X);
         if (!isAttackingHalf) return;
 
@@ -48,16 +49,13 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
         const zoneIdx = (xIdx * 3) + yIdx;
         if (zoneIdx < 0 || zoneIdx >= 6) return;
 
-        // 분모: 해당 구역 내 모든 턴오버/파울
+        // 분모: 해당 구역 내 모든 턴오버/파울 (나의 실수 + 상대의 실수)
         zones[zoneIdx].count++;
 
-        // 성공: 상대의 턴오버
-        if (e.team === opponentName && e.type === 'turnover') {
+        // 성공: 상대팀의 실책 (턴오버 또는 파울 발생)
+        // 요청에 따라 나의 공격 파울을 차감하지 않고 상대의 실책만 더함
+        if (e.team === opponentName && (e.type === 'turnover' || e.type === 'foul')) {
           zones[zoneIdx].success++;
-        }
-        // 실패: 나의 공격 파울
-        else if (e.team === teamName && e.type === 'foul') {
-          zones[zoneIdx].success--;
         }
       });
 
@@ -121,7 +119,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
               }
               const rectY = yIdx * 18.33;
               const intensity = stat.count > 0 ? (Math.abs(stat.rate) / 100) * 0.4 + 0.1 : 0;
-              const zoneColor = stat.rate >= 0 ? team.color : "hsl(var(--destructive))";
+              const zoneColor = team.color; // 성공률 히트맵은 팀 색상으로 통일
 
               return (
                 <g key={i}>
@@ -162,7 +160,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
         <CardDescription>
           상대 진영 6개 구역 내 압박 성공률입니다.
           <br />
-          <span className="text-xs text-muted-foreground font-medium">성공률 = (상대 실책 - 나의 공격 파울) / 총 압박 이벤트 (턴오버+파울)</span>
+          <span className="text-xs text-muted-foreground font-medium">성공률 = (상대 실책 합계) / 총 압박 이벤트 (턴오버+파울)</span>
         </CardDescription>
       </CardHeader>
       <CardContent className="p-4 md:p-6">

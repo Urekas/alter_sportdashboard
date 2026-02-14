@@ -2,10 +2,11 @@
 import type { MatchEvent, MatchData, TeamMatchStats, QuarterStats, CircleEntry } from './types';
 
 const detectRealTeamNames = (text: string): { home: string, away: string } | null => {
-  const pattern = /([가-힣A-Za-z]+)\s*0\s*-\s*([가-힣A-Za-z]+)\s*0/;
+  // "중국 0 - 일본 0" 또는 "중국(HOME side) - 일본(AWAY side)" 패턴 분석
+  const pattern = /([가-힣A-Za-z]+)\s*(\d+)?\s*-\s*([가-힣A-Za-z]+)\s*(\d+)?/;
   const match = text.match(pattern);
   if (match) {
-    return { home: match[1].trim(), away: match[2].trim() };
+    return { home: match[1].trim(), away: match[3].trim() };
   }
   return null;
 };
@@ -13,12 +14,16 @@ const detectRealTeamNames = (text: string): { home: string, away: string } | nul
 const extractTeamName = (code: string, detectedTeams: { home: string, away: string } | null): string => {
   if (!code) return "Unknown";
   const upperCode = code.toUpperCase();
+  
+  // 파이썬 로직: split(' ')[0] 우선 적용
+  const first = code.trim().split(/\s+/)[0];
+  const ignoreTags = ["한국빌드업", "한국프레스", "코치님", "START", "Unknown", "YOO", "DM", "D25", "AM", "A25"];
+  
   if (detectedTeams) {
     if (upperCode.includes("HOME")) return detectedTeams.home;
     if (upperCode.includes("AWAY")) return detectedTeams.away;
   }
-  const first = code.trim().split(/\s+/)[0];
-  const ignoreTags = ["한국빌드업", "한국프레스", "코치님", "START", "Unknown", "YOO"];
+  
   if (ignoreTags.includes(first)) return "Unknown";
   return first;
 };
@@ -35,6 +40,7 @@ const mapZone = (locStr: string): { x: number, y: number, lane: 'Left' | 'Center
     zoneBand = parseInt(zoneMatch[1]);
   }
 
+  // 좌표 매핑
   let x = 45.7;
   if (zoneBand === 25) x = 11.5;
   else if (zoneBand === 50) x = 34.5;
@@ -184,6 +190,7 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
       (e.locationLabel.includes('25') || e.locationLabel.includes('50'))
     ).length;
     
+    // 분모가 0이면 0.0으로 처리
     const spp = buildUpFailures > 0 ? buildUpTime / buildUpFailures : 0;
 
     const oppAttackTime = oppEvents.filter(e => e.code.includes('ATT')).reduce((acc, e) => acc + e.duration, 0);
@@ -207,12 +214,12 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
       twentyFiveEntries: teamEvents.filter(e => e.code.includes('A25 START')).length,
       possession: (totalTeamTime + totalOppTime) > 0 ? (totalTeamTime / (totalTeamTime + totalOppTime)) * 100 : 0,
       attackPossession,
-      spp,
+      spp: parseFloat(spp.toFixed(2)),
       allowedSpp: 0, 
       build25Ratio: buildRows.length > 0 ? (buildSuccess / buildRows.length) * 100 : 0,
       avgAttackDuration: teamEvents.filter(e => e.code.includes('ATT')).length > 0 ? attackTime / teamEvents.filter(e => e.code.includes('ATT')).length : 0,
       timePerCE: ceCount > 0 ? attackTime / ceCount : 0,
-      pressAttempts: 0, // Heatmap에서 계산
+      pressAttempts: 0, 
       pressSuccess: 0
     };
   };
@@ -232,8 +239,8 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
       const aS = calculateTeamStats(awayName, homeName, periodEvents);
       return {
         interval: `${minute}'`,
-        [homeName]: parseFloat(hS.spp.toFixed(1)),
-        [awayName]: parseFloat(aS.spp.toFixed(1)),
+        [homeName]: hS.spp,
+        [awayName]: aS.spp,
       };
     }),
     circleEntries: events.filter(e => e.code.toLowerCase().includes('circle entry') || e.code.includes('서클 진입')).map(e => ({
