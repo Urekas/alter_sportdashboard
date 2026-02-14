@@ -28,8 +28,6 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
       const oppTeam = isHome ? awayTeam.name : homeTeam.name;
 
       // 형님 공식: Home 25L = (Away 100R TO/Foul) + (Home 25L Foul)
-      // 0: 25L, 1: 25C, 2: 25R, 3: 50L, 4: 50C, 5: 50R (지도 라벨 기준)
-      // 매핑: 25L -> Opp 100R, 25C -> Opp 100C, 25R -> Opp 100L...
       const mapping = [
         { oppZone: 100, oppLane: 'Right', myZone: 25, myLane: 'Left' },   // 0: 25L
         { oppZone: 100, oppLane: 'Center', myZone: 25, myLane: 'Center' }, // 1: 25C
@@ -117,7 +115,14 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
 
             {teamData.zones.map((stat, i) => {
               const xIdx = Math.floor(i / 3); 
-              const yIdx = i % 3; 
+              let yIdx = i % 3; 
+
+              // 형님 철칙: 어웨이팀 지도는 아래가 L, 위가 R (시각적 반전)
+              if (!isHome) {
+                if (yIdx === 0) yIdx = 2; // L -> 하단으로
+                else if (yIdx === 2) yIdx = 0; // R -> 상단으로
+              }
+
               let rectX = isHome ? (xIdx === 0 ? 22.85 : 0) : (xIdx === 0 ? 0 : 22.85);
               const rectY = yIdx * 18.33;
               const intensity = stat.count > 0 ? (stat.count / globalMaxCount) * 0.45 + 0.1 : 0;
@@ -145,7 +150,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
       <CardHeader className={isCompact ? "py-2 px-4" : ""}>
         <CardTitle className={isCompact ? "text-lg" : ""}>Pressure Analysis Map</CardTitle>
         <CardDescription className={isCompact ? "text-[10px]" : ""}>
-          구역별 압박 시도, 성공 횟수 및 성공률 (상단 요약 바 표시)
+          구역별 압박 시도, 성공 횟수 및 성공률 (어웨이팀: 아래L/위R)
         </CardDescription>
       </CardHeader>
       <CardContent className={isCompact ? "p-2 md:p-4" : "p-4 md:p-6"}>

@@ -192,6 +192,13 @@ export const createMatchDataFromUpload = (
     return { q, min, max, duration: Math.max(1, max - min) };
   });
 
+  const getNormalizedTime = (e: MatchEvent) => {
+    const info = qMap.find(item => item.q === e.quarter) || qMap[0];
+    const qOffset = quartersList.indexOf(e.quarter) * 900;
+    const relativePos = info.duration > 0 ? (e.time - info.min) / info.duration : 0;
+    return qOffset + (relativePos * 900);
+  };
+
   const calculateTeamStats = (team: string, opponent: string, targetEvents: MatchEvent[]): TeamMatchStats => {
     const allEvents = targetEvents;
     const myEvents = allEvents.filter(e => e.team === team);
@@ -218,11 +225,13 @@ export const createMatchDataFromUpload = (
       }).length;
     };
 
+    // 형님 공식: (상대 75/100 TO + Foul) + (우리 25/50 Foul)
     const press_attempts = getZoneCount(oppEvents, ["turnover", "foul"], [75, 100]) + 
                           getZoneCount(myEvents, ["foul"], [25, 50]);
 
     const press_success = getZoneCount(oppEvents, ["turnover", "foul"], [75, 100]);
 
+    // 형님 공식: 상대 빌드업 시간 / 우리 Press Attempt
     const spp = press_attempts > 0 ? oppBuildUpTime / press_attempts : 0;
     const timePerCE = ceCount > 0 ? teamTime / ceCount : 0;
     const totalPossession = teamTime + oppTeamTime;
@@ -265,11 +274,14 @@ export const createMatchDataFromUpload = (
       const qIdx = Math.floor(i / 5);
       const subIdx = i % 5;
       const q = quartersList[qIdx];
-      const info = qMap[qIdx];
-      const start = info.min + (subIdx * (info.duration / 5));
-      const end = info.min + ((subIdx + 1) * (info.duration / 5));
+      const normStart = (i * 180);
+      const normEnd = ((i + 1) * 180);
       
-      const periodEvents = events.filter(e => e.quarter === q && e.time >= start && e.time < end);
+      const periodEvents = events.filter(e => {
+        const nTime = getNormalizedTime(e);
+        return nTime >= normStart && nTime < normEnd;
+      });
+
       const hS = calculateTeamStats(homeName, awayName, periodEvents);
       const aS = calculateTeamStats(awayName, homeName, periodEvents);
       return {
@@ -288,23 +300,21 @@ export const createMatchDataFromUpload = (
       };
     }),
     attackThreatData: Array(12).fill(0).map((_, i) => {
-      const qIdx = Math.floor(i / 3);
-      const subIdx = i % 3;
-      const q = quartersList[qIdx];
-      const info = qMap[qIdx];
-      const start = info.min + (subIdx * (info.duration / 3));
-      const end = info.min + ((subIdx + 1) * (info.duration / 3));
+      const normStart = i * 300;
+      const normEnd = (i + 1) * 300;
 
       return {
         interval: `${(i + 1) * 5}'`,
-        [homeName]: events.filter(e => 
-          e.team === homeName && e.quarter === q && e.time >= start && e.time < end &&
-          (e.code.trim() === `${homeName} 슈팅` || e.code.trim() === `${homeName} 페널티코너`)
-        ).length,
-        [awayName]: events.filter(e => 
-          e.team === awayName && e.quarter === q && e.time >= start && e.time < end &&
-          (e.code.trim() === `${awayName} 슈팅` || e.code.trim() === `${awayName} 페널티코너`)
-        ).length,
+        [homeName]: events.filter(e => {
+          const nTime = getNormalizedTime(e);
+          return e.team === homeName && nTime >= normStart && nTime < normEnd &&
+          (e.code.trim() === `${homeName} 슈팅` || e.code.trim() === `${homeName} 페널티코너`);
+        }).length,
+        [awayName]: events.filter(e => {
+          const nTime = getNormalizedTime(e);
+          return e.team === awayName && nTime >= normStart && nTime < normEnd &&
+          (e.code.trim() === `${awayName} 슈팅` || e.code.trim() === `${awayName} 페널티코너`);
+        }).length,
       };
     }),
     build25Ratio: { home: homeStats.build25Ratio, away: awayStats.build25Ratio },

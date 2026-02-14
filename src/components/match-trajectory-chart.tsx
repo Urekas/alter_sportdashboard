@@ -152,11 +152,11 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
               </Scatter>
 
               {/* Total 데이터 포인트 (팀명 표시, 아주 희미하게 배경처럼) */}
-              <Scatter name={`${homeTeam.name} Total`} data={homeData.total} fill={homeTeam.color} fillOpacity={0.15} stroke={homeTeam.color} strokeOpacity={0.2} shape="circle">
-                <LabelList dataKey="name" position="top" offset={45} style={{ fill: homeTeam.color, fontSize: 28, fontWeight: '950', opacity: 0.15 }} />
+              <Scatter name={`${homeTeam.name} Total`} data={homeData.total} fill={homeTeam.color} fillOpacity={0.1} stroke={homeTeam.color} strokeOpacity={0.15} shape="circle">
+                <LabelList dataKey="name" position="top" offset={45} style={{ fill: homeTeam.color, fontSize: 28, fontWeight: '950', opacity: 0.1 }} />
               </Scatter>
-              <Scatter name={`${awayTeam.name} Total`} data={awayData.total} fill={awayTeam.color} fillOpacity={0.15} stroke={awayTeam.color} strokeOpacity={0.2} shape="square">
-                <LabelList dataKey="name" position="bottom" offset={45} style={{ fill: awayTeam.color, fontSize: 28, fontWeight: '950', opacity: 0.15 }} />
+              <Scatter name={`${awayTeam.name} Total`} data={awayData.total} fill={awayTeam.color} fillOpacity={0.1} stroke={awayTeam.color} strokeOpacity={0.15} shape="square">
+                <LabelList dataKey="name" position="bottom" offset={45} style={{ fill: awayTeam.color, fontSize: 28, fontWeight: '950', opacity: 0.1 }} />
               </Scatter>
             </ScatterChart>
           </ResponsiveContainer>
