@@ -32,8 +32,8 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
       const rawX = isHome ? q.home.attackPossession : q.away.attackPossession;
       const rawTime = isHome ? q.home.timePerCE : q.away.timePerCE;
       
-      // If time is 0 (no entry), place at bottom (450)
-      const visualY = rawTime === 0 ? 450 : Math.min(450, rawTime);
+      // If time is 0 (no entry), place at bottom (300)
+      const visualY = rawTime === 0 ? 300 : Math.min(300, rawTime);
 
       return {
         name: q.quarter,
@@ -46,10 +46,10 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
       };
     }).filter(p => p.x > 0);
 
-    // 2. Total point (Isolated)
+    // 2. Total point (Isolated, no connection line)
     const totalRawX = isHome ? matchStats.home.attackPossession : matchStats.away.attackPossession;
     const totalRawTime = isHome ? matchStats.home.timePerCE : matchStats.away.timePerCE;
-    const totalVisualY = totalRawTime === 0 ? 450 : Math.min(450, totalRawTime);
+    const totalVisualY = totalRawTime === 0 ? 300 : Math.min(300, totalRawTime);
 
     const total = [{
       name: "Total",
@@ -100,8 +100,8 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
               {/* Quadrants Backgrounds */}
               <ReferenceArea x1={0} x2={50} y1={0} y2={100} fill="#4bc0c0" fillOpacity={0.08} />
               <ReferenceArea x1={50} x2={100} y1={0} y2={100} fill="#4bc0c0" fillOpacity={0.15} />
-              <ReferenceArea x1={50} x2={100} y1={100} y2={450} fill="#94a3b8" fillOpacity={0.08} />
-              <ReferenceArea x1={0} x2={50} y1={100} y2={450} fill="#6366f1" fillOpacity={0.06} />
+              <ReferenceArea x1={50} x2={100} y1={100} y2={300} fill="#94a3b8" fillOpacity={0.08} />
+              <ReferenceArea x1={0} x2={50} y1={100} y2={300} fill="#6366f1" fillOpacity={0.06} />
 
               <XAxis 
                 type="number" 
@@ -118,7 +118,7 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
                 type="number" 
                 dataKey="y" 
                 name="Efficiency" 
-                domain={[0, 450]}
+                domain={[0, 300]}
                 reversed
                 tick={{ fontSize: 13, fontWeight: 'bold' }}
                 label={{ value: 'CE Time (s) (↑ Fast / ↓ Slow)', angle: -90, position: 'insideLeft', offset: -10, className: "fill-foreground text-base font-black uppercase tracking-widest" }}
