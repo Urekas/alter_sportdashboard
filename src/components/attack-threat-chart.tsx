@@ -47,9 +47,11 @@ const CustomTooltip = ({ active, payload, label, homeTeam, awayTeam }: TooltipPr
 };
 
 export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChartProps) {
-  // 정밀 음영 처리를 위한 데이터 가공 (기울기 교차 지점 보간)
+  // 정밀 음영 처리를 위한 데이터 가공 (Intersection 보간 포함)
   const chartData = useMemo(() => {
     const result: any[] = [];
+    if (data.length === 0) return result;
+
     for (let i = 0; i < data.length - 1; i++) {
       const current = data[i];
       const next = data[i + 1];
@@ -58,42 +60,43 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
       const h2 = Number(next[homeTeam.name]);
       const a2 = Number(next[awayTeam.name]);
 
-      const addPoint = (d: any) => {
-        const h = Number(d[homeTeam.name]);
-        const a = Number(d[awayTeam.name]);
-        result.push({
-          ...d,
-          homeDominance: h > a ? [a, h] : [h, h],
-          awayDominance: a > h ? [h, a] : [a, a]
-        });
-      };
+      const createPoint = (d: any, h: number, a: number) => ({
+        ...d,
+        [homeTeam.name]: h,
+        [awayTeam.name]: a,
+        homeDominance: h >= a ? [a, h] : [h, h],
+        awayDominance: a > h ? [h, a] : [a, a]
+      });
 
-      addPoint(current);
+      result.push(createPoint(current, h1, a1));
 
-      // 교차 지점 계산 (기울기 기반 보간)
+      // 교차 지점 계산 (Intersection)
       if ((h1 - a1) * (h2 - a2) < 0) {
         const ratio = Math.abs(h1 - a1) / (Math.abs(h1 - a1) + Math.abs(h2 - a2));
         const intersectVal = h1 + ratio * (h2 - h1);
-        result.push({
-          interval: `${current.interval}+`, // 교차 지점 가상 포인트
+        
+        // 5' -> 10' 사이면 '5'+ ' 처럼 유니크한 키 생성
+        const intersectPoint = {
+          interval: `${current.interval}+`, 
+          isIntersect: true,
           [homeTeam.name]: intersectVal,
           [awayTeam.name]: intersectVal,
           homeDominance: [intersectVal, intersectVal],
-          awayDominance: [intersectVal, intersectVal],
-          isIntersect: true
-        });
+          awayDominance: [intersectVal, intersectVal]
+        };
+        result.push(intersectPoint);
       }
     }
-    if (data.length > 0) {
-      const last = data[data.length - 1];
-      const h = Number(last[homeTeam.name]);
-      const a = Number(last[awayTeam.name]);
-      result.push({
-        ...last,
-        homeDominance: h > a ? [a, h] : [h, h],
-        awayDominance: a > h ? [h, a] : [a, a]
-      });
-    }
+    
+    const last = data[data.length - 1];
+    const hLast = Number(last[homeTeam.name]);
+    const aLast = Number(last[awayTeam.name]);
+    result.push({
+      ...last,
+      homeDominance: hLast >= aLast ? [aLast, hLast] : [aLast, aLast],
+      awayDominance: aLast > hLast ? [hLast, aLast] : [hLast, hLast]
+    });
+
     return result;
   }, [data, homeTeam, awayTeam]);
 
@@ -109,12 +112,13 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
         <ResponsiveContainer width="100%" height={350}>
           <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-            <XAxis dataKey="interval" hide={false} interval="preserveStartEnd" />
+            <XAxis dataKey="interval" interval="preserveStartEnd" />
             <YAxis label={{ value: '공격 위협도', angle: -90, position: 'insideLeft' }} allowDecimals={false} />
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
             
             <Area
+              type="monotone"
               dataKey="homeDominance"
               stroke="none"
               fill={homeTeam.color}
@@ -125,6 +129,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               tooltipType="none"
             />
             <Area
+              type="monotone"
               dataKey="awayDominance"
               stroke="none"
               fill={awayTeam.color}

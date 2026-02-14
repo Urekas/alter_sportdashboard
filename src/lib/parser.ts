@@ -178,14 +178,17 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const teamEvents = targetEvents.filter(e => e.team === team);
     const oppEvents = targetEvents.filter(e => e.team === opponent);
 
+    // 점유율: "팀명 TEAM" 지속 시간
     const teamTime = teamEvents.filter(e => e.code === `${team} TEAM`).reduce((acc, e) => acc + e.duration, 0);
     const oppTeamTime = oppEvents.filter(e => e.code === `${opponent} TEAM`).reduce((acc, e) => acc + e.duration, 0);
     const totalPossessionTime = teamTime + oppTeamTime;
 
+    // 공격 점유율: AM START, A25 START 지속 시간
     const attackTime = teamEvents.filter(e => e.code.includes('AM START') || e.code.includes('A25 START')).reduce((acc, e) => acc + e.duration, 0);
     const oppAttackTime = oppEvents.filter(e => e.code.includes('AM START') || e.code.includes('A25 START')).reduce((acc, e) => acc + e.duration, 0);
     const totalAttackTime = attackTime + oppAttackTime;
 
+    // 빌드업 시간 (SPP용)
     const buildUpTime = teamEvents.filter(e => e.code.includes('DM START') || e.code.includes('D25 START')).reduce((acc, e) => acc + e.duration, 0);
     const buildUpFailures = teamEvents.filter(e => 
       (e.type === 'turnover' || e.type === 'foul') && 
@@ -193,14 +196,22 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     ).length;
     const spp = buildUpFailures > 0 ? buildUpTime / buildUpFailures : 0;
 
+    // 25y 진입: "팀명 A25 START" 개수
+    const twentyFiveCount = teamEvents.filter(e => e.code === `${team} A25 START`).length;
+
+    // 서클 진입: "팀명 슈팅서클 진입"
+    const ceCount = teamEvents.filter(e => e.code === `${team} 슈팅서클 진입`).length;
+
+    // 슈팅: "팀명 슈팅"
+    const shotCount = teamEvents.filter(e => e.code === `${team} 슈팅`).length;
+
+    // 페널티코너: "팀명 페널티코너"
+    const pcCount = teamEvents.filter(e => e.code === `${team} 페널티코너`).length;
+
+    // 빌드업 성공률 (DM/D25 -> 25Y entry)
     const buildRows = teamEvents.filter(e => e.code.includes('DM START') || e.code.includes('D25 START'));
     const buildSuccess = buildRows.filter(e => e.resultLabel.includes('25Y entry')).length;
 
-    const shotCount = teamEvents.filter(e => e.code === `${team} 슈팅`).length;
-    const pcCount = teamEvents.filter(e => e.code === `${team} 페널티코너`).length;
-    const ceCount = teamEvents.filter(e => e.code === `${team} 슈팅서클 진입`).length;
-    const twentyFiveCount = teamEvents.filter(e => e.code === `${team} A25 START`).length;
-    
     const goals = teamEvents.filter(e => e.code === `${team} 득점`);
     const pcGoals = goals.filter(e => e.resultLabel.includes('PC') || e.resultLabel.includes('페널티코너')).length;
 
