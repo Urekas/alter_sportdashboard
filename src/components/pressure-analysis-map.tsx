@@ -25,21 +25,20 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
       const myTeam = isHome ? homeTeam.name : awayTeam.name;
       const oppTeam = isHome ? awayTeam.name : homeTeam.name;
 
-      // 위치 레이블 매핑 로직 (EUC-KR/UTF-8 호환성 고려)
       const mapping = isHome ? {
-        0: { opp: "우_100", my: "좌_25" }, // 25L (Top)
-        1: { opp: "중_100", my: "중_25" }, // 25C
-        2: { opp: "좌_100", my: "우_25" }, // 25R (Bottom)
-        3: { opp: "우_75", my: "좌_50" },  // 50L (Top)
-        4: { opp: "중_75", my: "중_50" },  // 50C
-        5: { opp: "좌_75", my: "우_50" }   // 50R (Bottom)
+        0: { opp: "우_100", my: "좌_25" }, 
+        1: { opp: "중_100", my: "중_25" }, 
+        2: { opp: "좌_100", my: "우_25" }, 
+        3: { opp: "우_75", my: "좌_50" },  
+        4: { opp: "중_75", my: "중_50" },  
+        5: { opp: "좌_75", my: "우_50" }   
       } : {
-        0: { opp: "우_0", my: "좌_100" },   // 25R (Top)
-        1: { opp: "중_0", my: "중_100" },   // 25C
-        2: { opp: "좌_0", my: "우_100" },   // 25L (Bottom)
-        3: { opp: "우_25", my: "좌_75" },   // 50R (Top)
-        4: { opp: "중_25", my: "중_75" },   // 50C
-        5: { opp: "좌_25", my: "우_75" }    // 50L (Bottom)
+        0: { opp: "우_0", my: "좌_100" },   
+        1: { opp: "중_0", my: "중_100" },   
+        2: { opp: "좌_0", my: "우_100" },   
+        3: { opp: "우_25", my: "좌_75" },   
+        4: { opp: "중_25", my: "중_75" },   
+        5: { opp: "좌_25", my: "우_75" }    
       };
 
       events.forEach(e => {
@@ -71,7 +70,6 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
     const home = calculateStats(true);
     const away = calculateStats(false);
     
-    // 양팀 통합 최대 압박 횟수 계산 (음영 기준 동기화)
     const globalMaxCount = Math.max(...home.map(s => s.count), ...away.map(s => s.count), 1);
 
     return {
@@ -82,7 +80,6 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
   }, [events, homeTeam, awayTeam]);
 
   const renderHalfPitch = (stats: ZoneStat[], team: Team, isHome: boolean, globalMaxCount: number) => {
-    // 어웨이팀의 경우 아래가 L, 위가 R이 되도록 라벨 순서 조정
     const labels = isHome 
       ? ["25L", "25C", "25R", "50L", "50C", "50R"]
       : ["25R", "25C", "25L", "50R", "50C", "50L"];
@@ -91,7 +88,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
     
     return (
       <div className="flex flex-col gap-1">
-        <h3 className="text-xs font-bold text-center p-1 rounded-t-lg border-b-2" style={{ backgroundColor: `${team.color}15`, color: team.color, borderColor: team.color }}>
+        <h3 className="text-[10px] md:text-xs font-bold text-center p-1 rounded-t-lg border-b-2" style={{ backgroundColor: `${team.color}15`, color: team.color, borderColor: team.color }}>
           {team.name} 상대 진영 압박
         </h3>
         <div className="relative aspect-[45.7/55] bg-green-50/50 rounded-b-lg overflow-hidden border border-muted shadow-inner">
@@ -126,7 +123,6 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
               const yIdx = i % 3; 
               let rectX = isHome ? (xIdx === 0 ? 22.85 : 0) : (xIdx === 0 ? 0 : 22.85);
               const rectY = yIdx * 18.33;
-              // 음영 기준: 동기화된 globalMaxCount 기반 횟수 비중
               const intensity = stat.count > 0 ? (stat.count / globalMaxCount) * 0.45 + 0.1 : 0;
 
               return (
@@ -148,7 +144,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
                     style={{ fontSize: '3px' }}
                   >
                     <tspan x={rectX + 11.42} dy="-4" fontWeight="bold">{labels[i]}</tspan>
-                    <tspan x={rectX + 11.42} dy="4.5" fontWeight="bold">압박 횟수 : {Math.round(stat.count)}</tspan>
+                    <tspan x={rectX + 11.42} dy="4.5" fontWeight="bold">압박 : {Math.round(stat.count)}</tspan>
                     <tspan x={rectX + 11.42} dy="3.5" fontSize="2.2px" fontWeight="normal" opacity="0.8">{stat.rate.toFixed(1)}%</tspan>
                   </text>
                 </g>
@@ -164,12 +160,12 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
     <Card className="lg:col-span-3">
       <CardHeader className={isCompact ? "py-2 px-4" : ""}>
         <CardTitle className={isCompact ? "text-lg" : ""}>Pressure Analysis Map</CardTitle>
-        <CardDescription className={isCompact ? "text-xs" : ""}>
-          상대 진영 구역 내 압박 횟수 및 성공률입니다. (홈팀: 위L-아래R / 어웨이팀: 위R-아래L)
+        <CardDescription className={isCompact ? "text-[10px]" : ""}>
+          구역별 압박 횟수 및 성공률 (인쇄 시에도 나란히 배치)
         </CardDescription>
       </CardHeader>
       <CardContent className={isCompact ? "p-2 md:p-4" : "p-4 md:p-6"}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           {renderHalfPitch(zoneStats.home, homeTeam, true, zoneStats.globalMaxCount)}
           {renderHalfPitch(zoneStats.away, awayTeam, false, zoneStats.globalMaxCount)}
         </div>
