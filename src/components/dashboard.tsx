@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useRef, useEffect } from "react"
@@ -33,7 +32,7 @@ export function Dashboard() {
     if (matchData) {
       setMatchData(prev => prev ? {
         ...prev,
-        tournamentName,
+        tournamentName: tournamentName || prev.tournamentName,
         matchName: matchName || prev.matchName,
         homeTeam: { ...prev.homeTeam, color: homeColor },
         awayTeam: { ...prev.awayTeam, color: awayColor }
@@ -232,7 +231,9 @@ export function Dashboard() {
                   teamColor={matchData.awayTeam.color}
                 />
               </div>
-              <MatchTrajectoryChart data={matchData} />
+              <div className="mt-6">
+                <MatchTrajectoryChart data={matchData} />
+              </div>
             </div>
 
             <div className="page-break space-y-6 break-inside-avoid">
