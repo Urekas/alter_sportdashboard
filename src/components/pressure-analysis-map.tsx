@@ -25,6 +25,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
       const myTeam = isHome ? homeTeam.name : awayTeam.name;
       const oppTeam = isHome ? awayTeam.name : homeTeam.name;
 
+      // 위치 레이블 매핑 로직 (EUC-KR/UTF-8 호환성 고려)
       const mapping = isHome ? {
         0: { opp: "우_100", my: "좌_25" }, // 25L (Top)
         1: { opp: "중_100", my: "중_25" }, // 25C
@@ -89,7 +90,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
     const CX = 27.5; 
     
     return (
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1">
         <h3 className="text-xs font-bold text-center p-1 rounded-t-lg border-b-2" style={{ backgroundColor: `${team.color}15`, color: team.color, borderColor: team.color }}>
           {team.name} 상대 진영 압박
         </h3>
@@ -161,14 +162,14 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
 
   return (
     <Card className="lg:col-span-3">
-      <CardHeader className={isCompact ? "py-3" : ""}>
+      <CardHeader className={isCompact ? "py-2 px-4" : ""}>
         <CardTitle className={isCompact ? "text-lg" : ""}>Pressure Analysis Map</CardTitle>
         <CardDescription className={isCompact ? "text-xs" : ""}>
           상대 진영 구역 내 압박 횟수 및 성공률입니다. (홈팀: 위L-아래R / 어웨이팀: 위R-아래L)
         </CardDescription>
       </CardHeader>
-      <CardContent className={isCompact ? "p-2" : "p-4 md:p-6"}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <CardContent className={isCompact ? "p-2 md:p-4" : "p-4 md:p-6"}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {renderHalfPitch(zoneStats.home, homeTeam, true, zoneStats.globalMaxCount)}
           {renderHalfPitch(zoneStats.away, awayTeam, false, zoneStats.globalMaxCount)}
         </div>

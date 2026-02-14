@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label"
 export function Dashboard() {
   const [matchData, setMatchData] = useState<MatchData | null>(null)
   const [homeColor, setHomeColor] = useState("#0066ff") // Vivid Blue
-  const [awayColor, setAwayColor] = useState("#ef4444") // Red
+  const [awayColor, setAwayColor] = useState("#ef4444") // Red-Orange
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
@@ -53,7 +53,6 @@ export function Dashboard() {
       reader.onload = (e) => {
         try {
           const ab = e.target?.result as ArrayBuffer;
-          
           let content = new TextDecoder('utf-8').decode(ab);
           const replacementCharCount = (content.match(/\ufffd/g) || []).length;
           if (replacementCharCount > 5) {
@@ -129,7 +128,7 @@ export function Dashboard() {
           <div className="py-20 text-center bg-card rounded-xl border-2 border-dashed border-muted-foreground/25">
             <Activity className="w-16 h-16 text-muted-foreground/40 mx-auto mb-4" />
             <h2 className="text-2xl font-semibold mb-2">분석을 시작하세요</h2>
-            <p className="text-muted-foreground mb-6">위 상단에서 팀 컬러를 선택한 후 데이터를 업로드하세요.</p>
+            <p className="text-muted-foreground mb-6">상단에서 팀 컬러를 선택한 후 데이터를 업로드하세요.</p>
             <div className="flex justify-center gap-3">
               <Button onClick={() => fileInputRef.current?.click()}>파일 업로드</Button>
               <Button variant="secondary" onClick={handleLoadMockData}>데모 데이터</Button>
@@ -142,8 +141,8 @@ export function Dashboard() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {[matchData.homeTeam, matchData.awayTeam].map((team, i) => (
                   <div key={team.name} className="space-y-3">
-                    <div className="flex items-center gap-2 font-bold" style={{ color: team.color }}>
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: team.color }} />
+                    <div className="flex items-center gap-2 font-bold text-xl" style={{ color: team.color }}>
+                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: team.color }} />
                       {team.name} ({i === 0 ? '홈' : '어웨이'})
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -158,8 +157,11 @@ export function Dashboard() {
               <BasicMatchStats data={matchData} />
             </div>
 
-            {/* Page 2: Quarterly Stats (Separated) */}
+            {/* Page 2: Quarterly Stats (Now separate page) */}
             <div className="page-break space-y-8">
+              <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+                <Activity className="h-6 w-6" /> 쿼터별 상세 데이터 (Quarterly Analysis)
+              </div>
               <QuarterlyStatsTable data={matchData} />
             </div>
 
@@ -192,12 +194,12 @@ export function Dashboard() {
             </div>
 
             {/* Page 5: Pressure Section (Combined on one page) */}
-            <div className="page-break space-y-6">
+            <div className="page-break space-y-6 break-inside-avoid">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Shield className="h-6 w-6" /> 압박 및 수비 분석 (Pressure & Defense)
               </div>
               <div className="grid grid-cols-1 gap-6">
-                <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} height={280} />
+                <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} height={260} />
                 <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} isCompact />
               </div>
             </div>

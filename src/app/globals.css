@@ -14,7 +14,7 @@ body {
     --card-foreground: 209 25% 20%;
     --popover: 0 0% 100%;
     --popover-foreground: 209 25% 20%;
-    --primary: 221 100% 50%; /* 더욱 쨍한 Vivid Blue */
+    --primary: 221 100% 50%; /* Vivid Blue */
     --primary-foreground: 0 0% 100%; /* White text */
     --secondary: 210 20% 88%;
     --secondary-foreground: 221 83% 53%;
@@ -79,10 +79,20 @@ body {
 
 @layer utilities {
   .print-hidden {
-    @apply print:hidden;
+    @media print {
+      display: none !important;
+    }
   }
   .page-break {
-    @apply print:break-after-page;
+    @media print {
+      break-after: page;
+      page-break-after: always;
+    }
+  }
+  .break-inside-avoid {
+    @media print {
+      break-inside: avoid;
+    }
   }
 }
 
@@ -98,9 +108,5 @@ body {
   .card {
     box-shadow: none !important;
     border: 1px solid #eee !important;
-  }
-  .page-break {
-    page-break-after: always;
-    break-after: page;
   }
 }
