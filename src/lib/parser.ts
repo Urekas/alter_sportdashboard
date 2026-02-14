@@ -216,14 +216,14 @@ export const createMatchDataFromUpload = (
     const opponentErrors = oppEvents.filter(e => e.type === 'turnover' || e.type === 'foul').length;
     const spp = opponentErrors > 0 ? oppBuildUpTime / opponentErrors : 0;
 
-    // 4. CE 소요시간: ATT(duration) / 슈팅서클 진입(횟수)
-    const timePerCE = ceCount > 0 ? myATTTime / ceCount : 0;
+    // 4. CE 소요시간: 전체 TEAM 시간 / 슈팅서클 진입(횟수) - 철칙 업데이트 반영
+    const timePerCE = ceCount > 0 ? myTotalTime / ceCount : 0;
 
     // 5. 점유율: Duration 기반
     const totalPossession = myTotalTime + oppTotalTime;
     const totalATT = myATTTime + oppATTTime;
 
-    // 6. 빌드업 성공률
+    // 6. 빌드업 성공률: TEAM 시퀀스 중 우리 진영(25, 50)에서 시작된 것 대비 A25 진입 비율
     const buildAttempts = myTEAMEvents.filter(e => mapZone(e.locationLabel || e.code).zoneBand < 75).length;
     const build25Ratio = buildAttempts > 0 ? (a25Count / buildAttempts) * 100 : 0;
 
