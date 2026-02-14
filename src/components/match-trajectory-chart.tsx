@@ -30,7 +30,6 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
     const trajectory = quarterlyStats.map(q => {
       const rawX = isHome ? q.home.attackPossession : q.away.attackPossession;
       const rawTime = isHome ? q.home.timePerCE : q.away.timePerCE;
-      
       const visualY = rawTime === 0 ? 450 : Math.min(450, rawTime);
 
       return {
@@ -128,55 +127,19 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
               <ReferenceLine x={50} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={2} opacity={0.4} />
               <ReferenceLine y={150} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={2} opacity={0.4} />
 
-              <ReferenceLine x={25} stroke="none">
-                <Label value="FAST & LOW POSS (Counter)" position="top" offset={-60} className="fill-rose-600 text-xs font-black uppercase tracking-tighter" />
-              </ReferenceLine>
-              <ReferenceLine x={75} stroke="none">
-                <Label value="FAST & HIGH POSS (Dominance)" position="top" offset={-60} className="fill-teal-600 text-xs font-black uppercase tracking-tighter" />
-              </ReferenceLine>
-              <ReferenceLine x={75} stroke="none">
-                <Label value="SLOW & HIGH POSS (Sterile)" position="insideBottom" offset={80} className="fill-slate-600 text-xs font-black uppercase tracking-tighter" />
-              </ReferenceLine>
-              <ReferenceLine x={25} stroke="none">
-                <Label value="SLOW & LOW POSS (Inefficient)" position="insideBottom" offset={80} className="fill-indigo-700 text-xs font-black uppercase tracking-tighter" />
-              </ReferenceLine>
-
-              <Scatter 
-                name={homeTeam.name} 
-                data={homeData.trajectory} 
-                fill={homeTeam.color} 
-                line={{ stroke: homeTeam.color, strokeWidth: 5 }}
-                shape="circle"
-              >
+              <Scatter name={homeTeam.name} data={homeData.trajectory} fill={homeTeam.color} line={{ stroke: homeTeam.color, strokeWidth: 5 }} shape="circle">
                 <LabelList dataKey="name" position="top" offset={20} style={{ fill: homeTeam.color, fontSize: 16, fontWeight: '900' }} />
               </Scatter>
-              <Scatter 
-                name={`${homeTeam.name} Total`} 
-                data={homeData.total} 
-                fill={homeTeam.color} 
-                shape="circle"
-              >
+              <Scatter name={`${homeTeam.name} Total`} data={homeData.total} fill={homeTeam.color} shape="circle">
                 <LabelList dataKey="name" position="top" offset={40} style={{ fill: homeTeam.color, fontSize: 24, fontWeight: '950' }} />
               </Scatter>
 
-              <Scatter 
-                name={awayTeam.name} 
-                data={awayData.trajectory} 
-                fill={awayTeam.color} 
-                line={{ stroke: awayTeam.color, strokeWidth: 5, strokeDasharray: '10 6' }}
-                shape="square"
-              >
+              <Scatter name={awayTeam.name} data={awayData.trajectory} fill={awayTeam.color} line={{ stroke: awayTeam.color, strokeWidth: 5, strokeDasharray: '10 6' }} shape="square">
                 <LabelList dataKey="name" position="bottom" offset={20} style={{ fill: awayTeam.color, fontSize: 16, fontWeight: '900' }} />
               </Scatter>
-              <Scatter 
-                name={`${awayTeam.name} Total`} 
-                data={awayData.total} 
-                fill={awayTeam.color} 
-                shape="square"
-              >
+              <Scatter name={`${awayTeam.name} Total`} data={awayData.total} fill={awayTeam.color} shape="square">
                 <LabelList dataKey="name" position="bottom" offset={40} style={{ fill: awayTeam.color, fontSize: 24, fontWeight: '950' }} />
               </Scatter>
-
             </ScatterChart>
           </ResponsiveContainer>
         </div>

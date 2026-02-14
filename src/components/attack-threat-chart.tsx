@@ -101,7 +101,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
       <CardHeader>
         <CardTitle>Attack Threat Trend (슈팅+PC)</CardTitle>
         <CardDescription>
-          5분 단위 슈팅 및 페널티코너 합산 위협도 추이입니다. (Y축 최대값: 7)
+          5분 단위 슈팅 및 페널티코너 합산 위협도 추이입니다. (Y축 최대값: 7 고정)
         </CardDescription>
       </CardHeader>
       <CardContent>
