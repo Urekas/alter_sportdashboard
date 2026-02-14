@@ -27,7 +27,6 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
       const myTeam = isHome ? homeTeam.name : awayTeam.name;
       const oppTeam = isHome ? awayTeam.name : homeTeam.name;
 
-      // 형님 공식: Home 25L = (Away 100R TO/Foul) + (Home 25L Foul)
       const mapping = [
         { oppZone: 100, oppLane: 'Right', myZone: 25, myLane: 'Left' },   // 0: 25L
         { oppZone: 100, oppLane: 'Center', myZone: 25, myLane: 'Center' }, // 1: 25C
@@ -117,10 +116,9 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
               const xIdx = Math.floor(i / 3); 
               let yIdx = i % 3; 
 
-              // 형님 철칙: 어웨이팀 지도는 아래가 L, 위가 R (시각적 반전)
               if (!isHome) {
-                if (yIdx === 0) yIdx = 2; // L -> 하단으로
-                else if (yIdx === 2) yIdx = 0; // R -> 상단으로
+                if (yIdx === 0) yIdx = 2; // L -> 하단
+                else if (yIdx === 2) yIdx = 0; // R -> 상단
               }
 
               let rectX = isHome ? (xIdx === 0 ? 22.85 : 0) : (xIdx === 0 ? 0 : 22.85);

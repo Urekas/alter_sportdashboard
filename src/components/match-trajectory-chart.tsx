@@ -48,7 +48,7 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
     const totalVisualY = totalRawTime === 0 ? 450 : Math.min(450, totalRawTime);
 
     const total = [{
-      name: team.name,
+      name: team.name, // "Total" 대신 팀명(나라이름) 표시
       x: totalRawX,
       y: totalVisualY,
       rawTime: totalRawTime,
