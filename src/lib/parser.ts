@@ -19,6 +19,8 @@ const extractTeamName = (code: string, detectedTeams: { home: string, away: stri
     const upperCode = code.toUpperCase();
     if (upperCode.includes("HOME")) return detectedTeams.home;
     if (upperCode.includes("AWAY")) return detectedTeams.away;
+    if (upperCode.includes(detectedTeams.home.toUpperCase())) return detectedTeams.home;
+    if (upperCode.includes(detectedTeams.away.toUpperCase())) return detectedTeams.away;
   }
   
   if (ignoreTags.includes(first)) return "Unknown";
@@ -181,24 +183,24 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const oppTeamTime = oppEvents.filter(e => e.code === `${opponent} TEAM`).reduce((acc, e) => acc + e.duration, 0);
     const totalPossessionTime = teamTime + oppTeamTime;
 
-    // 공격 점유: "AM START" 또는 "A25 START"가 포함된 시퀀스 시간
+    // 공격 점유: "AM START" 또는 "A25 START" 포함 시퀀스
     const attackTime = teamEvents.filter(e => e.code.includes('AM START') || e.code.includes('A25 START')).reduce((acc, e) => acc + e.duration, 0);
     const oppAttackTime = oppEvents.filter(e => e.code.includes('AM START') || e.code.includes('A25 START')).reduce((acc, e) => acc + e.duration, 0);
     const totalAttackTime = attackTime + oppAttackTime;
 
-    // SPP: 빌드업 시간(전체 - 공격) / 빌드업 구역(25, 50) 내 우리 팀 실책(턴오버+파울)
-    const buildUpTime = Math.max(0, teamTime - attackTime);
+    // SPP: (DM START + D25 START 시간) / (해당 지역 내 우리 팀의 실책(턴오버+파울) 횟수)
+    const buildUpTime = teamEvents.filter(e => e.code.includes('DM START') || e.code.includes('D25 START')).reduce((acc, e) => acc + e.duration, 0);
     const buildUpFailures = teamEvents.filter(e => 
       (e.type === 'turnover' || e.type === 'foul') && 
       (e.locationLabel.includes('25') || e.locationLabel.includes('50'))
     ).length;
     const spp = buildUpFailures > 0 ? buildUpTime / buildUpFailures : 0;
 
-    // 빌드업 성공률: Row "D25 START" 또는 "DM START" 중 결과 "25Y entry"
+    // 빌드업 성공률: Row "DM START/D25 START" 중 결과 "25Y entry"
     const buildRows = teamEvents.filter(e => e.code.includes('DM START') || e.code.includes('D25 START'));
     const buildSuccess = buildRows.filter(e => e.resultLabel.includes('25Y entry')).length;
 
-    // 정확한 키워드 매칭
+    // 정밀 키워드 매칭
     const shotCount = teamEvents.filter(e => e.code === `${team} 슈팅`).length;
     const pcCount = teamEvents.filter(e => e.code === `${team} 페널티코너`).length;
     const ceCount = teamEvents.filter(e => e.code === `${team} 슈팅서클 진입`).length;

@@ -18,7 +18,7 @@ import {
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import type { PressureDataPoint, Team } from "@/lib/types"
-import { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent';
+import { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
 
 interface PressureBattleChartProps {
   data: PressureDataPoint[]
@@ -47,19 +47,54 @@ const CustomTooltip = ({ active, payload, label, homeTeam, awayTeam }: TooltipPr
 };
 
 export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattleChartProps) {
-  // 음영 처리를 위한 데이터 가공 (SPP는 낮을수록 우세하므로 반대로 채움)
+  // 정밀 음영 처리를 위한 데이터 가공 (SPP는 낮을수록 우수하므로 그래프상 위에 위치함)
   const chartData = useMemo(() => {
-    return data.map(d => {
-      const h = Number(d[homeTeam.name]) || 0;
-      const a = Number(d[awayTeam.name]) || 0;
-      return {
-        ...d,
-        // SPP는 낮을수록(그래프상 위) 우수함. 
-        // Home이 우세할 때(h < a) 범위 [Home, Away] -> Y축 Reversed이므로 상단이 낮은값
+    const result: any[] = [];
+    for (let i = 0; i < data.length - 1; i++) {
+      const current = data[i];
+      const next = data[i + 1];
+      const h1 = Number(current[homeTeam.name]);
+      const a1 = Number(current[awayTeam.name]);
+      const h2 = Number(next[homeTeam.name]);
+      const a2 = Number(next[awayTeam.name]);
+
+      const addPoint = (d: any) => {
+        const h = Number(d[homeTeam.name]);
+        const a = Number(d[awayTeam.name]);
+        // SPP는 낮을수록 우수하므로 h < a 일 때 home이 위
+        result.push({
+          ...d,
+          homeDominance: h < a ? [h, a] : [a, a],
+          awayDominance: a < h ? [a, h] : [h, h]
+        });
+      };
+
+      addPoint(current);
+
+      if ((h1 - a1) * (h2 - a2) < 0) {
+        const ratio = Math.abs(h1 - a1) / (Math.abs(h1 - a1) + Math.abs(h2 - a2));
+        const intersectVal = h1 + ratio * (h2 - h1);
+        result.push({
+          interval: `${current.interval}+`,
+          [homeTeam.name]: intersectVal,
+          [awayTeam.name]: intersectVal,
+          homeDominance: [intersectVal, intersectVal],
+          awayDominance: [intersectVal, intersectVal],
+          isIntersect: true
+        });
+      }
+    }
+    if (data.length > 0) {
+      const last = data[data.length - 1];
+      const h = Number(last[homeTeam.name]);
+      const a = Number(last[awayTeam.name]);
+      result.push({
+        ...last,
         homeDominance: h < a ? [h, a] : [a, a],
         awayDominance: a < h ? [a, h] : [h, h]
-      }
-    });
+      });
+    }
+    return result;
   }, [data, homeTeam, awayTeam]);
 
   return (
@@ -67,14 +102,14 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
       <CardHeader>
         <CardTitle>Pressure Battle (SPP 추이)</CardTitle>
         <CardDescription>
-          SPP(Seconds Per Press) 추이입니다. 음영은 압박에 더 잘 대응하고 있는(그래프상 상단) 팀의 우세를 나타냅니다.
+          SPP(Seconds Per Press) 추이입니다. 음영은 압박 대응이 우수한(그래프상 상단) 팀의 색으로 채워집니다.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={350}>
           <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-            <XAxis dataKey="interval" />
+            <XAxis dataKey="interval" interval="preserveStartEnd" />
             <YAxis 
               reversed 
               domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.2)]}
@@ -83,7 +118,6 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
             
-            {/* 우세 구역 음영 채우기 (Reversed Y축 대응) */}
             <Area
               dataKey="homeDominance"
               stroke="none"
@@ -115,8 +149,8 @@ export function PressureBattleChart({ data, homeTeam, awayTeam }: PressureBattle
               <Label value="Q3 | Q4" position="top" fill="hsl(var(--muted-foreground))" fontSize={11} offset={10} />
             </ReferenceLine>
 
-            <Line type="monotone" dataKey={homeTeam.name} stroke={homeTeam.color} strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-            <Line type="monotone" dataKey={awayTeam.name} stroke={awayTeam.color} strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+            <Line type="monotone" dataKey={homeTeam.name} stroke={homeTeam.color} strokeWidth={3} dot={(props) => props.payload.isIntersect ? null : <circle {...props} r={4} />} activeDot={{ r: 6 }} />
+            <Line type="monotone" dataKey={awayTeam.name} stroke={awayTeam.color} strokeWidth={3} dot={(props) => props.payload.isIntersect ? null : <circle {...props} r={4} />} activeDot={{ r: 6 }} />
           </ComposedChart>
         </ResponsiveContainer>
       </CardContent>

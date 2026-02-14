@@ -134,10 +134,11 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam }: PressureAnal
                     textAnchor="middle"
                     dominantBaseline="middle"
                     className="font-bold fill-foreground"
+                    style={{ fontSize: '2.5px' }}
                   >
-                    <tspan x={rectX + rectW/2} dy="-3" fontSize="3">{labels[i]}</tspan>
-                    <tspan x={rectX + rectW/2} dy="4" fontSize="2.5" fontWeight="normal">압박 횟수 : {stat.count}</tspan>
-                    <tspan x={rectX + rectW/2} dy="3.5" fontSize="2" fontWeight="bold" opacity="0.8">{stat.rate}%</tspan>
+                    <tspan x={rectX + rectW/2} dy="-4" fontWeight="bold">{labels[i]}</tspan>
+                    <tspan x={rectX + rectW/2} dy="4" fontWeight="bold">압박 횟수 : {Math.round(stat.count)}</tspan>
+                    <tspan x={rectX + rectW/2} dy="3.5" fontSize="2px" fontWeight="normal" opacity="0.8">{stat.rate.toFixed(1)}%</tspan>
                   </text>
                 </g>
               );
