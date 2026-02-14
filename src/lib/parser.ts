@@ -211,6 +211,7 @@ export const createMatchDataFromUpload = (
     const opponentErrors = oppEvents.filter(e => e.type === 'turnover' || e.type === 'foul').length;
     const spp = opponentErrors > 0 ? oppBuildUpTime / opponentErrors : 0;
 
+    // CE per second: (Total TEAM Duration) / (Circle Entries)
     const timePerCE = ceCount > 0 ? myTotalTime / ceCount : 0;
 
     const totalPossession = myTotalTime + oppTotalTime;
@@ -270,6 +271,7 @@ export const createMatchDataFromUpload = (
         outcome: isSuccess ? 'Shot On Target' : 'No Shot'
       };
     }),
+    // Attack Threat = Shots + PC
     attackThreatData: Array(12).fill(0).map((_, i) => ({
       interval: `${(i+1)*5}'`,
       [homeName]: events.filter(e => e.team === homeName && e.time <= (i+1)*300 && e.time > i*300 && (e.code.trim() === `${homeName} 슈팅` || e.code.trim() === `${homeName} 페널티코너`)).length,

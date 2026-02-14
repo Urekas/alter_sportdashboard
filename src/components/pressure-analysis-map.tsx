@@ -26,6 +26,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
       const myTeam = isHome ? homeTeam.name : awayTeam.name;
       const oppTeam = isHome ? awayTeam.name : homeTeam.name;
 
+      // Map field labels to visual zones
       const mapping = isHome ? {
         0: { opp: ["우_100", "우_0"], my: "좌_25" }, 
         1: { opp: ["중_100", "중_0"], my: "중_25" }, 
@@ -48,6 +49,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
 
         if (!isOpponentError && !isMyFoul) return;
 
+        // Auto-fix typo '유' to '우'
         const loc = e.locationLabel.trim().replace('유', '우');
 
         Object.entries(mapping).forEach(([idxStr, maps]) => {
@@ -64,36 +66,48 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
         });
       });
 
-      return zones.map(z => ({
-        ...z,
-        rate: z.count > 0 ? (z.success / z.count) * 100 : 0
-      }));
+      const totalCount = zones.reduce((acc, z) => acc + z.count, 0);
+      const totalSuccess = zones.reduce((acc, z) => acc + z.success, 0);
+
+      return {
+        zones: zones.map(z => ({
+          ...z,
+          rate: z.count > 0 ? (z.success / z.count) * 100 : 0
+        })),
+        totalCount,
+        totalSuccess
+      };
     };
 
-    const home = calculateStats(true);
-    const away = calculateStats(false);
+    const homeData = calculateStats(true);
+    const awayData = calculateStats(false);
     
-    const globalMaxCount = Math.max(...home.map(s => s.count), ...away.map(s => s.count), 1);
+    const globalMaxCount = Math.max(...homeData.zones.map(s => s.count), ...awayData.zones.map(s => s.count), 1);
 
     return {
-      home,
-      away,
+      home: homeData,
+      away: awayData,
       globalMaxCount
     };
   }, [events, homeTeam, awayTeam]);
 
-  const renderHalfPitch = (stats: ZoneStat[], team: Team, isHome: boolean, globalMaxCount: number) => {
+  const renderHalfPitch = (teamData: { zones: ZoneStat[], totalCount: number, totalSuccess: number }, team: Team, isHome: boolean, globalMaxCount: number) => {
     const labels = isHome 
       ? ["25L", "25C", "25R", "50L", "50C", "50R"]
       : ["25R", "25C", "25L", "50R", "50C", "50L"];
 
-    const CX = 27.5; 
-    
+    const totalRate = teamData.totalCount > 0 ? (teamData.totalSuccess / teamData.totalCount * 100).toFixed(1) : "0.0";
+
     return (
       <div className="flex flex-col gap-1">
-        <h3 className="text-[10px] md:text-xs font-bold text-center p-1 rounded-t-lg border-b-2" style={{ backgroundColor: `${team.color}15`, color: team.color, borderColor: team.color }}>
-          {team.name} 상대 진영 압박
-        </h3>
+        <div className="flex flex-col items-center justify-center p-2 rounded-t-lg border-b-2" style={{ backgroundColor: `${team.color}15`, borderColor: team.color }}>
+          <h3 className="text-xs font-black uppercase tracking-tighter" style={{ color: team.color }}>
+            {team.name} 상대 진영 압박
+          </h3>
+          <p className="text-[10px] font-bold mt-1">
+            총 압박: {teamData.totalCount}회 | 성공: {teamData.totalSuccess}회 ({totalRate}%)
+          </p>
+        </div>
         <div className="relative aspect-[45.7/55] bg-green-50/50 rounded-b-lg overflow-hidden border border-muted shadow-inner">
           <svg viewBox="-2 0 49.7 55" className="w-full h-full overflow-visible">
             <g stroke="#000" strokeWidth="0.25" fill="none" opacity="0.4">
@@ -101,27 +115,26 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
               {isHome ? (
                 <>
                   <line x1="45.7" y1="0" x2="45.7" y2="55" /> 
-                  <path d={`M 45.7,${CX - 14.63} A 14.63,14.63 0 0,0 31.07,${CX} A 14.63,14.63 0 0,0 45.7,${CX + 14.63}`} />
-                  <path d={`M 45.7,${CX - 19.63} A 19.63,19.63 0 0,0 26.07,${CX} A 19.63,19.63 0 0,0 45.7,${CX + 19.63}`} strokeDasharray="1,1" />
-                  <circle cx={45.7 - 6.47} cy={CX} r="0.3" fill="black" stroke="none" />
-                  <rect x="45.7" y={CX - 1.83} width="1.2" height="3.66" />
-                  <line x1="22.85" y1="0" x2="22.85" y2="55" strokeDasharray="1,1" />
+                  <path d={`M 45.7,${27.5 - 14.63} A 14.63,14.63 0 0,0 31.07,27.5 A 14.63,14.63 0 0,0 45.7,${27.5 + 14.63}`} />
+                  <path d={`M 45.7,${27.5 - 19.63} A 19.63,19.63 0 0,0 26.07,27.5 A 19.63,19.63 0 0,0 45.7,${27.5 + 19.63}`} strokeDasharray="1,1" />
+                  <circle cx={45.7 - 6.47} cy={27.5} r="0.3" fill="black" stroke="none" />
+                  <rect x="45.7" y={27.5 - 1.83} width="1.2" height="3.66" />
                 </>
               ) : (
                 <>
                   <line x1="0" y1="0" x2="0" y2="55" />
-                  <path d={`M 0,${CX - 14.63} A 14.63,14.63 0 0,1 14.63,${CX} A 14.63,14.63 0 0,1 0,${CX + 14.63}`} />
-                  <path d={`M 0,${CX - 19.63} A 19.63,19.63 0 0,1 19.63,${CX} A 19.63,19.63 0 0,1 0,${CX + 14.63}`} strokeDasharray="1,1" />
-                  <circle cx={6.47} cy={CX} r="0.3" fill="black" stroke="none" />
-                  <rect x="-1.2" y={CX - 1.83} width="1.2" height="3.66" />
-                  <line x1="22.85" y1="0" x2="22.85" y2="55" strokeDasharray="1,1" />
+                  <path d={`M 0,${27.5 - 14.63} A 14.63,14.63 0 0,1 14.63,27.5 A 14.63,14.63 0 0,1 0,${27.5 + 14.63}`} />
+                  <path d={`M 0,${27.5 - 19.63} A 19.63,19.63 0 0,1 19.63,27.5 A 19.63,19.63 0 0,1 0,${27.5 + 19.63}`} strokeDasharray="1,1" />
+                  <circle cx={6.47} cy={27.5} r="0.3" fill="black" stroke="none" />
+                  <rect x="-1.2" y={27.5 - 1.83} width="1.2" height="3.66" />
                 </>
               )}
               <line x1="0" y1="18.33" x2="45.7" y2="18.33" strokeDasharray="1,1" />
               <line x1="0" y1="36.66" x2="45.7" y2="36.66" strokeDasharray="1,1" />
+              <line x1="22.85" y1="0" x2="22.85" y2="55" strokeDasharray="1,1" />
             </g>
 
-            {stats.map((stat, i) => {
+            {teamData.zones.map((stat, i) => {
               const xIdx = Math.floor(i / 3); 
               const yIdx = i % 3; 
               let rectX = isHome ? (xIdx === 0 ? 22.85 : 0) : (xIdx === 0 ? 0 : 22.85);
@@ -165,7 +178,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
       <CardHeader className={isCompact ? "py-2 px-4" : ""}>
         <CardTitle className={isCompact ? "text-lg" : ""}>Pressure Analysis Map</CardTitle>
         <CardDescription className={isCompact ? "text-[10px]" : ""}>
-          구역별 압박 전체 시도, 성공 횟수 및 성공률
+          구역별 압박 전체 시도, 성공 횟수 및 성공률 (상단에 경기 전체 총계 표시)
         </CardDescription>
       </CardHeader>
       <CardContent className={isCompact ? "p-2 md:p-4" : "p-4 md:p-6"}>
