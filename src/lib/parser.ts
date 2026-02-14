@@ -200,10 +200,8 @@ export const createMatchDataFromUpload = (
     const pcCount = myEvents.filter(e => e.code.trim() === `${team} 페널티코너`).length;
     const a25Count = myEvents.filter(e => e.code.trim() === `${team} A25 START`).length;
 
-    const oppTeamTime = oppEvents.filter(e => e.code.trim() === `${opponent} TEAM`).reduce((acc, e) => acc + e.duration, 0);
-    const oppAttTime = oppEvents.filter(e => e.code.trim() === `${opponent} ATT`).reduce((acc, e) => acc + e.duration, 0);
-    const oppBuildUpTime = oppTeamTime - oppAttTime;
-
+    // 3. 압박 지표 산출 (형님 공식)
+    // 우리팀의 Press Attempt = (상대 75/100 TO + 상대 75/100 파울) + (우리 25/50 파울)
     const getZoneCount = (evts: MatchEvent[], codes: string[], zones: number[]) => {
       return evts.filter(e => {
         const zone = mapZone(e.locationLabel || e.code).zoneBand;
@@ -212,7 +210,6 @@ export const createMatchDataFromUpload = (
       }).length;
     };
 
-    // 홈팀 Press Attempt = (어웨이 75/100 TO) + (어웨이 75/100 파울) + (홈팀 25/50 파울)
     const opp_to_75_100 = getZoneCount(oppEvents, ["TURN", "TO", "턴오버"], [75, 100]);
     const opp_foul_75_100 = getZoneCount(oppEvents, ["FOUL", "파울"], [75, 100]);
     const my_foul_25_50 = getZoneCount(myEvents, ["FOUL", "파울"], [25, 50]);
@@ -220,8 +217,21 @@ export const createMatchDataFromUpload = (
     const press_attempts = opp_to_75_100 + opp_foul_75_100 + my_foul_25_50;
     const press_success = opp_to_75_100 + opp_foul_75_100;
 
-    // 홈팀 SPP = 상대 빌드업 시간 / 홈팀 Press Attempt
+    // 상대팀의 Press Attempt (Allowed SPP 계산용)
+    const my_to_75_100 = getZoneCount(myEvents, ["TURN", "TO", "턴오버"], [75, 100]);
+    const my_foul_75_100 = getZoneCount(myEvents, ["FOUL", "파울"], [75, 100]);
+    const opp_foul_25_50 = getZoneCount(oppEvents, ["FOUL", "파울"], [25, 50]);
+    const opp_press_attempts = my_to_75_100 + my_foul_75_100 + opp_foul_25_50;
+
+    // 상대팀 빌드업 시간
+    const oppTeamTime = oppEvents.filter(e => e.code.trim() === `${opponent} TEAM`).reduce((acc, e) => acc + e.duration, 0);
+    const oppAttTime = oppEvents.filter(e => e.code.trim() === `${opponent} ATT`).reduce((acc, e) => acc + e.duration, 0);
+    const oppBuildUpTime = oppTeamTime - oppAttTime;
+
+    // SPP = 상대 빌드업 시간 / 우리 Press Attempt
     const spp = press_attempts > 0 ? oppBuildUpTime / press_attempts : 0;
+    // Allowed SPP = 우리 빌드업 시간 / 상대 Press Attempt
+    const allowed_spp = opp_press_attempts > 0 ? buildUpTime / opp_press_attempts : 0;
 
     // 4. CE당 소요시간 = 전체 TEAM 시간 / 슈팅서클 진입 횟수
     const timePerCE = ceCount > 0 ? teamTime / ceCount : 0;
@@ -244,7 +254,7 @@ export const createMatchDataFromUpload = (
       possession: totalPossession > 0 ? (teamTime / totalPossession) * 100 : 0,
       attackPossession: totalATT > 0 ? (attTime / totalATT) * 100 : 0,
       spp: parseFloat(spp.toFixed(1)),
-      allowedSpp: 0, 
+      allowedSpp: parseFloat(allowed_spp.toFixed(1)), 
       build25Ratio: Math.min(100, build25Ratio),
       avgAttackDuration: 0,
       timePerCE: parseFloat(timePerCE.toFixed(1)),
@@ -283,6 +293,7 @@ export const createMatchDataFromUpload = (
         outcome: isSuccess ? 'Shot On Target' : 'No Shot'
       };
     }),
+    // 공격 위협도 (슈팅 + PC 합산)
     attackThreatData: Array(12).fill(0).map((_, i) => ({
       interval: `${(i+1)*5}'`,
       [homeName]: events.filter(e => e.team === homeName && e.time <= (i+1)*300 && e.time > i*300 && (e.code.trim() === `${homeName} 슈팅` || e.code.trim() === `${homeName} 페널티코너`)).length,
