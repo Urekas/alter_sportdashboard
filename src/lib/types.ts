@@ -61,6 +61,8 @@ export interface AttackThreatDataPoint {
 }
 
 export interface MatchData {
+  id?: string;
+  tournamentId?: string;
   tournamentName?: string;
   matchName?: string;
   homeTeam: Team;
@@ -76,4 +78,12 @@ export interface MatchData {
     away: TeamMatchStats;
   };
   quarterlyStats: QuarterStats[];
+  uploadedAt?: any;
+}
+
+export interface Tournament {
+  id: string;
+  name: string;
+  startDate: string;
+  createdAt: any;
 }
