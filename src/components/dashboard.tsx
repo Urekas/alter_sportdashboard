@@ -61,9 +61,10 @@ export function Dashboard() {
 
   useEffect(() => {
     fetchTournaments();
-  }, [viewMode]) // 탭 전환 시마다 목록 갱신
+  }, [viewMode])
 
   useEffect(() => {
+    // 수동 업로드 시에만 이 로직이 작동하도록 제어 (DB 로드 시에는 이미 matchData가 설정됨)
     if (parsedEvents.length > 0 && homeTeamName && awayTeamName) {
       const newData = createMatchDataFromUpload(
         parsedEvents,
@@ -157,6 +158,24 @@ export function Dashboard() {
       };
       reader.readAsArrayBuffer(file);
     }
+  }
+
+  // DB에서 경기를 불러와서 대시보드에 설정하는 함수
+  const handleViewMatchFromDB = (data: MatchData) => {
+    // 의존성들을 수동으로 설정하여 useEffect가 데이터를 덮어쓰지 않도록 함
+    setParsedEvents([]); // 일단 비우고
+    setHomeTeamName(data.homeTeam.name);
+    setAwayTeamName(data.awayTeam.name);
+    setHomeColor(data.homeTeam.color);
+    setAwayColor(data.awayTeam.color);
+    setTournamentName(data.tournamentName || "");
+    setMatchName(data.matchName || "");
+    
+    // 최종 데이터 설정
+    setMatchData(data);
+    setViewMode('single');
+    
+    toast({ title: "경기 데이터 로드 완료", description: `"${data.matchName}" 분석을 시작합니다.` });
   }
 
   return (
@@ -301,7 +320,7 @@ export function Dashboard() {
 
       <main className="printable-area">
         {viewMode === 'manage' ? (
-          <TournamentManager />
+          <TournamentManager onViewMatch={handleViewMatchFromDB} />
         ) : viewMode === 'tournament' ? (
           <TournamentDashboard tournamentId={activeTournamentId} />
         ) : !matchData ? (
@@ -392,90 +411,6 @@ export function Dashboard() {
               <div className="flex flex-col gap-6">
                 <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} height={260} />
                 <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} isCompact />
-              </div>
-            </div>
-
-            <div className="page-break space-y-8 break-inside-avoid">
-              <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                <BookOpen className="h-6 w-6" /> 분석 지표 정의 및 산출 방식 (Glossary & Methodology)
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="border-l-4 border-l-primary shadow-md">
-                  <CardHeader className="pb-3 bg-primary/5">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Sword className="h-5 w-5 text-primary" /> 공격 지표 (Attack Metrics)
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-4 space-y-4 text-sm">
-                    <div>
-                      <h4 className="font-bold text-primary mb-1">공격 점유율 (Attack Possession, %)</h4>
-                      <p className="text-muted-foreground leading-relaxed">
-                        전체 필드 플레이 시간 중 공격 진영(ATT)에 머무른 시간의 비율입니다.<br/>
-                        <span className="font-mono text-[11px] bg-muted px-1 rounded">공식: (팀 ATT 시간 / 양팀 총 ATT 시간) * 100</span>
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-primary mb-1">CE 1회당 소요 시간 (Time per CE, s)</h4>
-                      <p className="text-muted-foreground leading-relaxed">
-                        공격 서클 진입(CE) 1회를 만들기 위해 필요한 평균 팀 소유 시간입니다. 낮을수록 공격 전개 속도가 빠르고 효율적임을 의미합니다.<br/>
-                        <span className="font-mono text-[11px] bg-muted px-1 rounded">공식: 팀 전체 소유(TEAM) 시간 / 서클 진입(CE) 횟수</span>
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-primary mb-1">빌드업 성공률 (Build-up Success, %)</h4>
-                      <p className="text-muted-foreground leading-relaxed">
-                        자기 진영(25m, 50m)에서 시작된 빌드업 시퀀스가 상대 25y 구역(A25) 진입에 성공한 비율입니다.
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-emerald-600 shadow-md">
-                  <CardHeader className="pb-3 bg-emerald-50">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Shield className="h-5 w-5 text-emerald-600" /> 압박 및 수비 지표 (Pressure Metrics)
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-4 space-y-4 text-sm">
-                    <div>
-                      <h4 className="font-bold text-emerald-700 mb-1">SPP (Successive Pressure Performance, s)</h4>
-                      <p className="text-muted-foreground leading-relaxed">
-                        상대가 빌드업을 시도하는 동안 우리가 얼마나 자주 압박 이벤트를 발생시켰는지 측정하는 압박 지수입니다. 수치가 낮을수록 압박 강도가 높음을 의미합니다.<br/>
-                        <span className="font-mono text-[11px] bg-muted px-1 rounded">공식: 상대팀 빌드업 시간 / 우리팀 압박 시도(Press Attempt) 횟수</span>
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-emerald-700 mb-1">압박 시도 (Press Attempt)</h4>
-                      <p className="text-muted-foreground leading-relaxed">
-                        상대 빌드업을 방해한 유효한 수비 행위의 합계입니다.<br/>
-                        <span className="font-mono text-[11px] bg-muted px-1 rounded">집계: (상대 75/100m 구역 실책) + (우리 25/50m 구역 파울)</span>
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="md:col-span-2 border-l-4 border-l-amber-500 shadow-md">
-                  <CardHeader className="pb-3 bg-amber-50">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Info className="h-5 w-5 text-amber-500" /> 분석 시스템 핵심 로직 (System Logic)
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
-                    <div className="space-y-2">
-                      <h4 className="font-bold text-amber-700">15분 쿼터 정규화 (Time Normalization)</h4>
-                      <p className="text-muted-foreground leading-relaxed">
-                        데이터의 절대 시간과 관계없이 <span className="font-bold">Ungrouped</span> 열의 쿼터 라벨(1Q~4Q)을 기준으로 모든 데이터를 각 15분 블록에 정밀하게 매핑합니다.
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="font-bold text-amber-700">전술 궤적 분석 (Match Trajectory)</h4>
-                      <p className="text-muted-foreground leading-relaxed">
-                        [공격 점유율]과 [CE 소요 시간]을 결합하여 팀의 공격 스타일을 사분면에 배치합니다. 
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
             </div>
           </div>

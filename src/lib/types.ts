@@ -65,6 +65,7 @@ export interface MatchData {
   tournamentId?: string;
   tournamentName?: string;
   matchName?: string;
+  orderIndex?: number;
   homeTeam: Team;
   awayTeam: Team;
   events: MatchEvent[];

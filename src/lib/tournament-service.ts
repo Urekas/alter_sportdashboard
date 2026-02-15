@@ -1,3 +1,4 @@
+
 'use client';
 /**
  * @fileOverview 대회 및 경기 데이터를 Firestore와 연동하는 서비스입니다.
@@ -15,7 +16,7 @@ import {
   updateDoc,
   serverTimestamp,
   getCountFromServer,
-  setDoc
+  orderBy
 } from 'firebase/firestore';
 import type { MatchData, Tournament } from './types';
 
@@ -38,7 +39,7 @@ export const TournamentService = {
     }
   },
 
-  // 대회 수정 (이름 변경 등)
+  // 대회 수정
   async updateTournament(id: string, name: string) {
     const docRef = doc(db, TOURNAMENTS_COL, id);
     await updateDoc(docRef, { name });
@@ -47,7 +48,7 @@ export const TournamentService = {
   // 대회 목록 가져오기
   async getTournaments(): Promise<Tournament[]> {
     try {
-      const q = query(collection(db, TOURNAMENTS_COL));
+      const q = query(collection(db, TOURNAMENTS_COL), orderBy('createdAt', 'desc'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tournament));
     } catch (error) {
@@ -56,24 +57,19 @@ export const TournamentService = {
     }
   },
 
-  // 특정 대회의 경기 수 가져오기
-  async getMatchCount(tournamentId: string): Promise<number> {
-    try {
-      const q = query(collection(db, MATCHES_COL), where('tournamentId', '==', tournamentId));
-      const snapshot = await getCountFromServer(q);
-      return snapshot.data().count;
-    } catch (error) {
-      return 0;
-    }
-  },
-
   // 특정 대회에 경기 데이터 추가
   async addMatchToTournament(tournamentId: string, matchData: MatchData) {
     try {
+      // 현재 경기 수 확인하여 orderIndex 설정
+      const q = query(collection(db, MATCHES_COL), where('tournamentId', '==', tournamentId));
+      const countSnapshot = await getCountFromServer(q);
+      const nextOrder = countSnapshot.data().count;
+
       const { id, ...dataToSave } = matchData;
       await addDoc(collection(db, MATCHES_COL), {
         ...dataToSave,
         tournamentId,
+        orderIndex: nextOrder,
         uploadedAt: serverTimestamp(),
       });
     } catch (error) {
@@ -82,10 +78,22 @@ export const TournamentService = {
     }
   },
 
-  // 기존 경기 데이터 교체 (Update)
+  // 경기 이름 수정
+  async updateMatchName(matchId: string, matchName: string) {
+    const docRef = doc(db, MATCHES_COL, matchId);
+    await updateDoc(docRef, { matchName });
+  },
+
+  // 경기 순서 업데이트
+  async updateMatchOrder(matchId: string, newOrder: number) {
+    const docRef = doc(db, MATCHES_COL, matchId);
+    await updateDoc(docRef, { orderIndex: newOrder });
+  },
+
+  // 기존 경기 데이터 교체
   async updateMatchData(matchId: string, matchData: MatchData) {
     try {
-      const { id, ...dataToSave } = matchData;
+      const { id, uploadedAt, ...dataToSave } = matchData;
       const docRef = doc(db, MATCHES_COL, matchId);
       await updateDoc(docRef, {
         ...dataToSave,
@@ -94,21 +102,6 @@ export const TournamentService = {
     } catch (error) {
       console.error("Error updating match data:", error);
       throw error;
-    }
-  },
-
-  // 특정 대회의 모든 경기 가져오기
-  async getMatchesByTournament(tournamentId: string): Promise<MatchData[]> {
-    try {
-      const q = query(
-        collection(db, MATCHES_COL), 
-        where('tournamentId', '==', tournamentId)
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MatchData));
-    } catch (error) {
-      console.error("Error fetching matches:", error);
-      return [];
     }
   },
 
