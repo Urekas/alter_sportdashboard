@@ -58,12 +58,17 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
     return data.map(d => {
       const hVal = Number(d[homeTeam.name]);
       const aVal = Number(d[awayTeam.name]);
+      
+      // SPP는 축이 반전되어 있으므로 수치가 낮을수록 시각적으로 위에 있음
+      // 시각적으로 위에 있는 팀의 색상으로 격차를 채우기 위한 로직
       return {
         ...d,
         [homeTeam.name]: hVal,
         [awayTeam.name]: aVal,
-        // 두 선 사이의 간격을 채우기 위한 범위 데이터
-        range: [hVal, aVal]
+        // 홈팀이 시각적으로 우세(위에 있음)할 때: hVal < aVal
+        homeLead: hVal <= aVal ? [hVal, aVal] : [aVal, aVal],
+        // 어웨이팀이 시각적으로 우세(위에 있음)할 때: aVal < hVal
+        awayLead: aVal < hVal ? [aVal, hVal] : [hVal, hVal],
       };
     });
   }, [data, homeTeam, awayTeam]);
@@ -74,7 +79,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
         <CardTitle>{isMatchTrend ? 'Pressure Battle Trend (경기별 SPP 추이)' : 'Pressure Battle (3분 단위 SPP 추이)'}</CardTitle>
         <CardDescription>
           {isMatchTrend 
-            ? `${homeTeam.name}가 치른 각 경기에서의 SPP(압박 지수) 변화입니다. 음영은 양 팀의 압박 강도 차이를 나타냅니다.` 
+            ? `${homeTeam.name}가 치른 각 경기에서의 SPP(압박 지수) 변화입니다. 음영은 시각적으로 상단(높은 압박)에 위치한 팀의 색상입니다.` 
             : 'SPP 추이입니다. 상단에 위치할수록 압박 강도가 높음을 의미합니다.'}
         </CardDescription>
       </CardHeader>
@@ -87,15 +92,28 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
             
-            {/* 두 선 사이의 간격만 채우는 음영 */}
+            {/* 홈팀이 시각적으로 위에 있을 때의 음영 (SPP가 더 낮을 때) */}
             <Area
               type="monotone"
-              dataKey="range"
+              dataKey="homeLead"
               fill={homeTeam.color}
-              fillOpacity={0.15}
+              fillOpacity={0.2}
               stroke="none"
               legendType="none"
               tooltipType="none"
+              connectNulls
+            />
+
+            {/* 어웨이팀이 시각적으로 위에 있을 때의 음영 (SPP가 더 낮을 때) */}
+            <Area
+              type="monotone"
+              dataKey="awayLead"
+              fill={awayTeam.color}
+              fillOpacity={0.2}
+              stroke="none"
+              legendType="none"
+              tooltipType="none"
+              connectNulls
             />
 
             <Line 
