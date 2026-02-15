@@ -83,6 +83,7 @@ export function CircleEntryAnalysis({ entries, teamName, teamColor }: CircleEntr
                 `}
                 strokeWidth="0.6"
               />
+              {/* 배경 점선 명도 낮춤 */}
               <path
                 d={`
                   M ${CX - 1.83 - 19.63} ${toSvgY(0)}
@@ -92,6 +93,7 @@ export function CircleEntryAnalysis({ entries, teamName, teamColor }: CircleEntr
                 `}
                 strokeWidth="0.4"
                 strokeDasharray="1, 1"
+                opacity="0.25"
               />
               <circle cx={CX} cy={toSvgY(6.47)} r="0.15" fill="black" stroke="none" />
             </g>
@@ -102,26 +104,26 @@ export function CircleEntryAnalysis({ entries, teamName, teamColor }: CircleEntr
               <line x1="52.25" y1={toSvgY(17)} x2="44.0" y2={toSvgY(8)} />
             </g>
 
-            <g className="fill-black" style={{ fontSize: '1.1px', textAnchor: 'middle' }}>
-              <text x="6.5" y={toSvgY(19)}>
+            <g className="fill-black" style={{ fontSize: '1.2px', textAnchor: 'middle' }}>
+              <text x="6.5" y={toSvgY(19.5)}>
                 <tspan x="6.5" dy="0" fontWeight="bold">좌측 (Left)</tspan>
-                <tspan x="6.5" dy="1.6" fontWeight="bold">진입: {analysis.Left.entries}회</tspan>
-                <tspan x="6.5" dy="1.6" fontWeight="bold">성공: {analysis.Left.success}회</tspan>
-                <tspan x="6.5" dy="1.6" fontWeight="bold" fill="#d62728">효율: {analysis.Left.eff}%</tspan>
+                <tspan x="6.5" dy="1.6">진입: <tspan fontWeight="bold">{analysis.Left.entries}</tspan>회</tspan>
+                <tspan x="6.5" dy="1.6">성공: <tspan fontWeight="bold">{analysis.Left.success}</tspan>회</tspan>
+                <tspan x="6.5" dy="1.6" fill="#d62728">효율: <tspan fontWeight="bold">{analysis.Left.eff}</tspan>%</tspan>
               </text>
 
-              <text x="27.5" y={toSvgY(19)}>
+              <text x="27.5" y={toSvgY(19.5)}>
                 <tspan x="27.5" dy="0" fontWeight="bold">중앙 (Center)</tspan>
-                <tspan x="27.5" dy="1.6" fontWeight="bold">진입: {analysis.Center.entries}회</tspan>
-                <tspan x="27.5" dy="1.6" fontWeight="bold">성공: {analysis.Center.success}회</tspan>
-                <tspan x="27.5" dy="1.6" fontWeight="bold" fill="#d62728">효율: {analysis.Center.eff}%</tspan>
+                <tspan x="27.5" dy="1.6">진입: <tspan fontWeight="bold">{analysis.Center.entries}</tspan>회</tspan>
+                <tspan x="27.5" dy="1.6">성공: <tspan fontWeight="bold">{analysis.Center.success}</tspan>회</tspan>
+                <tspan x="27.5" dy="1.6" fill="#d62728">효율: <tspan fontWeight="bold">{analysis.Center.eff}</tspan>%</tspan>
               </text>
 
-              <text x="48" y={toSvgY(19)}>
+              <text x="48" y={toSvgY(19.5)}>
                 <tspan x="48" dy="0" fontWeight="bold">우측 (Right)</tspan>
-                <tspan x="48" dy="1.6" fontWeight="bold">진입: {analysis.Right.entries}회</tspan>
-                <tspan x="48" dy="1.6" fontWeight="bold">성공: {analysis.Right.success}회</tspan>
-                <tspan x="48" dy="1.6" fontWeight="bold" fill="#d62728">효율: {analysis.Right.eff}%</tspan>
+                <tspan x="48" dy="1.6">진입: <tspan fontWeight="bold">{analysis.Right.entries}</tspan>회</tspan>
+                <tspan x="48" dy="1.6">성공: <tspan fontWeight="bold">{analysis.Right.success}</tspan>회</tspan>
+                <tspan x="48" dy="1.6" fill="#d62728">효율: <tspan fontWeight="bold">{analysis.Right.eff}</tspan>%</tspan>
               </text>
             </g>
           </svg>
