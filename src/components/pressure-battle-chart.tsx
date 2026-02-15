@@ -4,6 +4,7 @@
 import React, { useMemo } from "react"
 import {
   Line,
+  Area,
   ComposedChart,
   XAxis,
   YAxis,
@@ -54,11 +55,17 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
   }, [data, homeTeam, awayTeam]);
 
   const chartData = useMemo(() => {
-    return data.map(d => ({
-      ...d,
-      [homeTeam.name]: Number(d[homeTeam.name]),
-      [awayTeam.name]: Number(d[awayTeam.name]),
-    }));
+    return data.map(d => {
+      const hVal = Number(d[homeTeam.name]);
+      const aVal = Number(d[awayTeam.name]);
+      return {
+        ...d,
+        [homeTeam.name]: hVal,
+        [awayTeam.name]: aVal,
+        // 두 선 사이의 간격을 채우기 위한 범위 데이터
+        range: [hVal, aVal]
+      };
+    });
   }, [data, homeTeam, awayTeam]);
 
   return (
@@ -67,7 +74,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
         <CardTitle>{isMatchTrend ? 'Pressure Battle Trend (경기별 SPP 추이)' : 'Pressure Battle (3분 단위 SPP 추이)'}</CardTitle>
         <CardDescription>
           {isMatchTrend 
-            ? `${homeTeam.name}가 치른 각 경기에서의 SPP(압박 지수) 변화입니다. 상단일수록 압박이 강합니다.` 
+            ? `${homeTeam.name}가 치른 각 경기에서의 SPP(압박 지수) 변화입니다. 음영은 양 팀의 압박 강도 차이를 나타냅니다.` 
             : 'SPP 추이입니다. 상단에 위치할수록 압박 강도가 높음을 의미합니다.'}
         </CardDescription>
       </CardHeader>
@@ -80,6 +87,17 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
             
+            {/* 두 선 사이의 간격만 채우는 음영 */}
+            <Area
+              type="monotone"
+              dataKey="range"
+              fill={homeTeam.color}
+              fillOpacity={0.15}
+              stroke="none"
+              legendType="none"
+              tooltipType="none"
+            />
+
             <Line 
               type="monotone" 
               dataKey={homeTeam.name} 
