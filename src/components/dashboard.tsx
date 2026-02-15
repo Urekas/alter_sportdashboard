@@ -27,7 +27,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export function Dashboard() {
   const [viewMode, setViewMode] = useState<'single' | 'tournament' | 'manage'>('single')
@@ -64,7 +63,6 @@ export function Dashboard() {
   }, [viewMode])
 
   useEffect(() => {
-    // 수동 업로드 시에만 이 로직이 작동하도록 제어 (DB 로드 시에는 이미 matchData가 설정됨)
     if (parsedEvents.length > 0 && homeTeamName && awayTeamName) {
       const newData = createMatchDataFromUpload(
         parsedEvents,
@@ -108,8 +106,12 @@ export function Dashboard() {
     }
     try {
       await TournamentService.addMatchToTournament(activeTournamentId, matchData);
-      toast({ title: "경기 데이터 저장 완료", description: "대회 DB에 성공적으로 기록되었습니다." });
+      toast({ 
+        title: "경기 데이터 저장 완료", 
+        description: "대회 DB에 성공적으로 기록되었습니다.",
+      });
     } catch (e: any) {
+      console.error("Save to DB error:", e);
       toast({ title: "저장 실패", description: e.message, variant: "destructive" });
     }
   }
@@ -160,21 +162,16 @@ export function Dashboard() {
     }
   }
 
-  // DB에서 경기를 불러와서 대시보드에 설정하는 함수
   const handleViewMatchFromDB = (data: MatchData) => {
-    // 의존성들을 수동으로 설정하여 useEffect가 데이터를 덮어쓰지 않도록 함
-    setParsedEvents([]); // 일단 비우고
+    setParsedEvents([]); 
     setHomeTeamName(data.homeTeam.name);
     setAwayTeamName(data.awayTeam.name);
     setHomeColor(data.homeTeam.color);
     setAwayColor(data.awayTeam.color);
     setTournamentName(data.tournamentName || "");
     setMatchName(data.matchName || "");
-    
-    // 최종 데이터 설정
     setMatchData(data);
     setViewMode('single');
-    
     toast({ title: "경기 데이터 로드 완료", description: `"${data.matchName}" 분석을 시작합니다.` });
   }
 
