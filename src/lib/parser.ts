@@ -80,7 +80,6 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     let ungroupedText = "";
 
     for (let i = 0; i < labels.length; i++) {
-      const group = (labels[i].getElementsByTagName("group")[ group.length ? 0 : 0 ]?.textContent || "").trim();
       const groupText = labels[i].getElementsByTagName("group")[0]?.textContent || "";
       const text = (labels[i].getElementsByTagName("text")[0]?.textContent || "").trim();
       if (/지역|Location|Zone/i.test(groupText)) locLabel = text;
@@ -122,27 +121,42 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
 };
 
 export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { home: string, away: string } } => {
-  // \r?\n 정규표현식을 사용하여 Unix(LF)와 Windows(CRLF) 줄바꿈을 모두 지원하며 빈 줄을 제거합니다.
+  console.log("--- CSV Parsing Debug Start ---");
+  // Robust line splitting for both Unix and Windows
   const lines = csvText.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
-  if (lines.length < 2) return { events: [], teams: { home: "", away: "" } };
+  console.log(`Total non-empty lines: ${lines.length}`);
+
+  if (lines.length < 2) {
+    console.warn("CSV Error: Less than 2 lines found.");
+    return { events: [], teams: { home: "", away: "" } };
+  }
 
   const splitCSVLine = (line: string) => {
-    // 쉼표로 구분하되 따옴표 안의 쉼표는 무시하는 정규표현식
     return line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(item => item.replace(/^"|"$/g, '').trim());
   };
 
   const headers = splitCSVLine(lines[0]);
-  const getColIdx = (colNames: string[]) => headers.findIndex(h => colNames.some(name => h.trim().includes(name)));
-  
+  console.log("Detected Headers:", headers);
+
+  const getColIdx = (colNames: string[]) => {
+    const idx = headers.findIndex(h => 
+      colNames.some(name => h.toLowerCase().replace(/\s/g, '').includes(name.toLowerCase().replace(/\s/g, '')))
+    );
+    if (idx === -1) console.warn(`CSV Warning: Column not found for ${colNames.join("/")}`);
+    return idx;
+  };
+
   const idxMap = {
-    code: getColIdx(["Row", "Code"]),
-    start: getColIdx(["Start time"]),
+    code: getColIdx(["Code", "Row"]),
+    start: getColIdx(["StartTime"]),
     duration: getColIdx(["Duration"]),
-    location: getColIdx(["지역", "Location"]),
-    result: getColIdx(["결과", "Result"]),
+    location: getColIdx(["지역", "Location", "Zone"]),
+    result: getColIdx(["결과", "Result", "Outcome"]),
     ungrouped: getColIdx(["Ungrouped"]),
     id: getColIdx(["Instance", "ID"])
   };
+
+  console.log("Index Mapping:", idxMap);
 
   let detectedTeams = detectRealTeamNames(csvText);
   const events: MatchEvent[] = [];
@@ -177,6 +191,7 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
       code
     });
   }
+  console.log("--- CSV Parsing Debug End ---");
 
   return { 
     events, 
