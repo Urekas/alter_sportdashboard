@@ -15,6 +15,7 @@ import { PressureBattleChart } from "./pressure-battle-chart"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase"
 import { collection, query, where } from "firebase/firestore"
 
@@ -24,6 +25,8 @@ interface TournamentDashboardProps {
 
 export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) {
   const [selectedTeamName, setSelectedTeamName] = useState("")
+  const [selectedTeamColor, setSelectedTeamColor] = useState("#ef4444") // 기본 빨강
+  const [opponentColor, setOpponentColor] = useState("#f59e0b") // 기본 노랑/오렌지
   const { toast } = useToast()
   const db = useFirestore()
 
@@ -161,8 +164,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     });
 
     const mockMatch: MatchData = {
-      homeTeam: { name: currentTeam, color: 'hsl(var(--chart-2))' }, 
-      awayTeam: { name: '대회 전체 평균', color: 'hsl(var(--chart-1))' },
+      homeTeam: { name: currentTeam, color: selectedTeamColor }, 
+      awayTeam: { name: '대회 전체 평균', color: 'hsl(var(--chart-1))' }, // 차트는 파랑 고정
       events: [],
       pressureData: teamMatches.map((m, i) => {
         const isHome = m.homeTeam.name === currentTeam;
@@ -188,23 +191,23 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     };
 
     return { mockMatch, allTeams, currentTeam, allMatchesPoints };
-  }, [matches, selectedTeamName]);
+  }, [matches, selectedTeamName, selectedTeamColor]);
 
   if (loading) return <div className="py-20 text-center">대회 데이터를 불러오는 중...</div>;
   if (matches.length === 0) return <div className="py-20 text-center text-muted-foreground">데이터가 없습니다. 분석할 경기를 업로드하고 DB에 저장해 주세요.</div>;
 
   return (
     <div className="space-y-12 pb-20">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b-4 border-primary pb-4 gap-4">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center border-b-4 border-primary pb-4 gap-4">
         <div>
           <h1 className="text-4xl font-black italic text-primary uppercase tracking-tighter">Tournament Report</h1>
           <p className="text-muted-foreground font-bold text-lg">{selectedTeamName || analysisData?.currentTeam} 성과 분석</p>
         </div>
-        <div className="flex items-center gap-4 bg-card p-3 rounded-lg border shadow-sm w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-4 bg-card p-3 rounded-lg border shadow-sm w-full xl:w-auto">
           <div className="flex flex-col gap-1">
-            <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">분석 대상 팀 선택</Label>
+            <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">분석 대상 팀</Label>
             <Select value={selectedTeamName || (analysisData?.currentTeam || "")} onValueChange={setSelectedTeamName}>
-              <SelectTrigger className="h-10 w-56 font-bold text-sm">
+              <SelectTrigger className="h-10 w-44 font-bold text-sm">
                 <SelectValue placeholder="팀 선택" />
               </SelectTrigger>
               <SelectContent>
@@ -212,7 +215,18 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               </SelectContent>
             </Select>
           </div>
-          <Button variant="default" onClick={() => window.print()} className="h-10 bg-emerald-600 hover:bg-emerald-700 font-bold">
+
+          <div className="flex flex-col gap-1">
+            <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">우리 팀 색상</Label>
+            <Input type="color" value={selectedTeamColor} onChange={(e) => setSelectedTeamColor(e.target.value)} className="w-16 h-10 p-1 cursor-pointer" />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">상대 팀 색상</Label>
+            <Input type="color" value={opponentColor} onChange={(e) => setOpponentColor(e.target.value)} className="w-16 h-10 p-1 cursor-pointer" />
+          </div>
+
+          <Button variant="default" onClick={() => window.print()} className="h-10 bg-emerald-600 hover:bg-emerald-700 font-bold mt-auto">
             <FileDown className="h-4 w-4 mr-2" /> PDF 다운로드
           </Button>
         </div>
@@ -253,13 +267,13 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             <div className="grid grid-cols-1 gap-8">
               <AttackThreatChart 
                 data={analysisData.mockMatch.attackThreatData} 
-                homeTeam={analysisData.mockMatch.homeTeam} 
-                awayTeam={{ name: '상대 팀', color: 'hsl(var(--chart-5))' }} 
+                homeTeam={{ name: analysisData.currentTeam, color: selectedTeamColor }} 
+                awayTeam={{ name: '상대 팀', color: opponentColor }} 
               />
               <PressureBattleChart 
                 data={analysisData.mockMatch.pressureData} 
-                homeTeam={analysisData.mockMatch.homeTeam} 
-                awayTeam={{ name: '상대 팀', color: 'hsl(var(--chart-5))' }} 
+                homeTeam={{ name: analysisData.currentTeam, color: selectedTeamColor }} 
+                awayTeam={{ name: '상대 팀', color: opponentColor }} 
                 height={300} 
               />
             </div>
@@ -270,7 +284,10 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               <Target className="h-6 w-6" /> 대회 전술적 궤적 흐름
             </div>
             <MatchTrajectoryChart 
-              data={analysisData.mockMatch} 
+              data={{
+                ...analysisData.mockMatch,
+                homeTeam: { ...analysisData.mockMatch.homeTeam, color: selectedTeamColor }
+              }} 
               isTournamentView={true}
               allMatchesPoints={analysisData.allMatchesPoints}
             />

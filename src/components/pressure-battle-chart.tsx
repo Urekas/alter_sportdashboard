@@ -3,7 +3,6 @@
 
 import React, { useMemo } from "react"
 import {
-  Area,
   Line,
   ComposedChart,
   XAxis,
@@ -11,8 +10,6 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  ReferenceLine,
-  Label,
   TooltipProps,
   CartesianGrid
 } from "recharts"
@@ -27,7 +24,7 @@ interface PressureBattleChartProps {
   height?: number
 }
 
-const CustomTooltip = ({ active, payload, label, homeTeam, awayTeam, maxY }: TooltipProps<ValueType, NameType> & { homeTeam: Team, awayTeam: Team, maxY: number }) => {
+const CustomTooltip = ({ active, payload, label, homeTeam, awayTeam }: TooltipProps<ValueType, NameType> & { homeTeam: Team, awayTeam: Team }) => {
   if (active && payload && payload.length) {
     const homePayload = payload.find(p => p.dataKey === homeTeam.name);
     const awayPayload = payload.find(p => p.dataKey === awayTeam.name);
@@ -57,17 +54,11 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
   }, [data, homeTeam, awayTeam]);
 
   const chartData = useMemo(() => {
-    return data.map(d => {
-      const hVal = Number(d[homeTeam.name]);
-      const aVal = Number(d[awayTeam.name]);
-      return {
-        ...d,
-        [homeTeam.name]: hVal,
-        [awayTeam.name]: aVal,
-        homeDominance: hVal <= aVal ? [hVal, aVal] : [aVal, aVal],
-        awayDominance: aVal < hVal ? [aVal, hVal] : [hVal, hVal]
-      };
-    });
+    return data.map(d => ({
+      ...d,
+      [homeTeam.name]: Number(d[homeTeam.name]),
+      [awayTeam.name]: Number(d[awayTeam.name]),
+    }));
   }, [data, homeTeam, awayTeam]);
 
   return (
@@ -86,28 +77,9 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
             <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
             <XAxis dataKey="interval" interval={0} />
             <YAxis reversed domain={[0, maxY]} label={{ value: 'SPP (s)', angle: -90, position: 'insideLeft' }} />
-            <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} maxY={maxY} />} />
+            <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
             
-            <Area
-              type="monotone"
-              dataKey="homeDominance"
-              stroke="none"
-              fill={homeTeam.color}
-              fillOpacity={0.15}
-              connectNulls
-              legendType="none"
-            />
-            <Area
-              type="monotone"
-              dataKey="awayDominance"
-              stroke="none"
-              fill={awayTeam.color}
-              fillOpacity={0.15}
-              connectNulls
-              legendType="none"
-            />
-
             <Line 
               type="monotone" 
               dataKey={homeTeam.name} 

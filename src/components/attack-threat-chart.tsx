@@ -3,15 +3,12 @@
 
 import React, { useMemo } from "react"
 import {
-  Area,
   XAxis,
   YAxis,
   Tooltip,
   Legend,
   ResponsiveContainer,
   TooltipProps,
-  ReferenceLine,
-  Label,
   CartesianGrid,
   ComposedChart,
   Line
@@ -50,23 +47,11 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
   const isMatchTrend = data.some(d => d.interval.startsWith('M'));
 
   const chartData = useMemo(() => {
-    const result: any[] = [];
-    if (data.length === 0) return result;
-
-    for (let i = 0; i < data.length; i++) {
-      const current = data[i];
-      const hVal = Number(current[homeTeam.name]);
-      const aVal = Number(current[awayTeam.name]);
-
-      result.push({
-        ...current,
-        [homeTeam.name]: hVal,
-        [awayTeam.name]: aVal,
-        homeDominance: hVal >= aVal ? [aVal, hVal] : [aVal, aVal],
-        awayDominance: aVal > hVal ? [hVal, aVal] : [hVal, hVal]
-      });
-    }
-    return result;
+    return data.map(current => ({
+      ...current,
+      [homeTeam.name]: Number(current[homeTeam.name]),
+      [awayTeam.name]: Number(current[awayTeam.name]),
+    }));
   }, [data, homeTeam, awayTeam]);
 
   return (
@@ -88,27 +73,6 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
             
-            <Area
-              type="monotone"
-              dataKey="homeDominance"
-              stroke="none"
-              fill={homeTeam.color}
-              fillOpacity={0.15}
-              connectNulls
-              activeDot={false}
-              legendType="none"
-            />
-            <Area
-              type="monotone"
-              dataKey="awayDominance"
-              stroke="none"
-              fill={awayTeam.color}
-              fillOpacity={0.15}
-              connectNulls
-              activeDot={false}
-              legendType="none"
-            />
-
             <Line 
               type="monotone" 
               dataKey={homeTeam.name} 
