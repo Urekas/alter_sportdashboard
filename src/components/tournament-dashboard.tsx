@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { Trophy, Activity, Target, Shield, Sword, Trash2, FileDown, Database, TrendingUp, Grid3X3 } from "lucide-react"
+import { Trophy, Activity, Target, Shield, Sword, Trash2, FileDown, Database, TrendingUp, Grid3X3, ArrowRight } from "lucide-react"
 import type { MatchData, TeamMatchStats, Tournament } from "@/lib/types"
 import { TournamentService } from "@/lib/tournament-service"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -11,6 +11,7 @@ import { BasicMatchStats } from "./basic-match-stats"
 import { AttackThreatChart } from "./attack-threat-chart"
 import { PressureBattleChart } from "./pressure-battle-chart"
 import { TacticalQuadrantChart } from "./tactical-quadrant-charts"
+import { MatchTrajectoryChart } from "./match-trajectory-chart"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
@@ -62,7 +63,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       const sum = { 
         goals: 0, shots: 0, pcs: 0, circle: 0, entry25: 0, 
         possession: 0, attPoss: 0, spp: 0, timeCE: 0, 
-        // 상대가 해당 팀에게 기록한 지표 (수비 지표)
         allowed25: 0, allowedCircle: 0, allowedShots: 0, allowedPC: 0 
       };
 
@@ -120,7 +120,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       attPoss: teamStatsList.reduce((a, b) => a + b.avgAttPoss, 0) / globalCount,
     };
 
-    // 4분면 차트용 데이터 매핑
     const quadrantData = {
       attackEfficiency: teamStatsList.map(t => ({ name: t.name, x: t.avg25y, y: t.avgCircle, z: 200 })),
       finishingEfficiency: teamStatsList.map(t => ({ name: t.name, x: t.avgCircle, y: t.avgThreat, z: 200 })),
@@ -157,7 +156,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       matchStats: { 
         home: {
           ...getTeamAverages(currentTeam),
-          goals: { field: getTeamAverages(currentTeam).avgGoals, pc: 0 }, // 간소화된 표시용
+          goals: { field: getTeamAverages(currentTeam).avgGoals, pc: 0 },
           shots: getTeamAverages(currentTeam).avgShots,
           pcs: getTeamAverages(currentTeam).avgPCs,
           circleEntries: getTeamAverages(currentTeam).avgCircle,
@@ -184,11 +183,17 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       quarterlyStats: []
     };
 
-    return { mockMatch, allTeams, currentTeam, teamStatsList, globalAvg, quadrantData };
+    return { mockMatch, allTeams, currentTeam, teamStatsList, globalAvg, quadrantData, teamMatches };
   }, [matches, selectedTeamName, selectedTeamColor, opponentColor]);
 
   if (loading) return <div className="py-20 text-center">대회 데이터를 불러오는 중...</div>;
   if (matches.length === 0) return <div className="py-20 text-center text-muted-foreground">데이터가 없습니다. 분석할 경기를 업로드하고 DB에 저장해 주세요.</div>;
+
+  const trajectoryPoints = analysisData?.teamMatches.map(m => ({
+    homeX: m.homeTeam.name === analysisData.currentTeam ? m.matchStats.home.attackPossession : m.matchStats.away.attackPossession,
+    homeY: m.homeTeam.name === analysisData.currentTeam ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE,
+    homeRawTime: m.homeTeam.name === analysisData.currentTeam ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE,
+  })) || [];
 
   return (
     <div className="space-y-12 pb-20">
@@ -228,15 +233,16 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
       {analysisData && (
         <div className="space-y-16">
+          {/* 상단 통계 요약 */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
              <Card className="lg:col-span-1 border-2">
                 <CardHeader className="bg-muted/10 border-b">
                   <CardTitle className="text-xl font-black flex items-center gap-2">
-                    <Database className="h-5 w-5 text-primary" /> 분석 대상 경기 ({matches.filter(m => m.homeTeam.name === analysisData.currentTeam || m.awayTeam.name === analysisData.currentTeam).length})
+                    <Database className="h-5 w-5 text-primary" /> 분석 대상 경기 ({analysisData.teamMatches.length})
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 space-y-2 max-h-[450px] overflow-auto">
-                  {matches.filter(m => m.homeTeam.name === analysisData.currentTeam || m.awayTeam.name === analysisData.currentTeam).map((m, i) => (
+                  {analysisData.teamMatches.map((m, i) => (
                     <div key={m.id || i} className="p-4 bg-card border rounded-xl shadow-sm hover:border-primary transition-all">
                       <p className="text-xs font-black text-muted-foreground uppercase mb-1">Match {String(i+1).padStart(2, '0')}</p>
                       <p className="font-bold text-sm">{m.matchName}</p>
@@ -254,36 +260,80 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
              </div>
           </div>
 
-          {/* 4분면 전술 분석 섹션 */}
+          {/* 경기별 트렌드 (상단 배치) */}
           <div className="page-break space-y-8">
+            <div className="flex items-center gap-2 text-2xl font-black text-primary border-b-2 pb-1">
+              <TrendingUp className="h-6 w-6" /> 경기별 트렌드 추이 (Match-by-Match Trend)
+            </div>
+            <div className="grid grid-cols-1 gap-8">
+              <AttackThreatChart 
+                data={analysisData.mockMatch.attackThreatData} 
+                homeTeam={{ name: analysisData.currentTeam, color: selectedTeamColor }} 
+                awayTeam={{ name: '상대 팀', color: opponentColor }} 
+              />
+              <PressureBattleChart 
+                data={analysisData.mockMatch.pressureData} 
+                homeTeam={{ name: analysisData.currentTeam, color: selectedTeamColor }} 
+                awayTeam={{ name: '상대 팀', color: opponentColor }} 
+                height={300} 
+              />
+            </div>
+          </div>
+
+          {/* 공격 전술 궤적 분석 (부활) */}
+          <div className="page-break space-y-8">
+            <div className="flex items-center gap-2 text-2xl font-black text-primary border-b-2 pb-1">
+              <Target className="h-6 w-6" /> 팀 공격 전술 궤적 분석 (Match Trajectory Analysis)
+            </div>
+            <MatchTrajectoryChart 
+              data={analysisData.mockMatch} 
+              isTournamentView 
+              allMatchesPoints={trajectoryPoints} 
+            />
+          </div>
+
+          {/* 4분면 전술 분석 섹션 (대형화) */}
+          <div className="page-break space-y-12">
             <div className="flex items-center gap-2 text-2xl font-black text-primary border-b-2 pb-1">
               <Grid3X3 className="h-6 w-6" /> 대회 전술 4분면 분석 (Tactical Quadrant Analysis)
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-12">
               <TacticalQuadrantChart 
                 title="공격 전개 효율"
                 description="25y 진입 대비 서클 진입 전환력"
                 data={analysisData.quadrantData.attackEfficiency}
-                xAxisLabel="평균 25y 진입"
-                yAxisLabel="평균 서클 진입"
+                xAxisLabel="평균 25y 진입 (A25)"
+                yAxisLabel="평균 서클 진입 (CE)"
                 avgX={analysisData.globalAvg.entry25}
                 avgY={analysisData.globalAvg.circle}
                 selectedTeamName={analysisData.currentTeam}
                 selectedColor={selectedTeamColor}
                 opponentColor={opponentColor}
+                labels={{
+                  tr: "Efficient Dominance (효율적 공격 지배)",
+                  tl: "Direct & High Volume (공격 빈도는 낮으나 효율적)",
+                  br: "Inefficient Volume (진입은 많으나 서클 전환 부족)",
+                  bl: "Low Intensity (전체적인 공격력 저조)"
+                }}
               />
               <TacticalQuadrantChart 
                 title="공격 결정력"
                 description="서클 진입 대비 기회 창출력"
                 data={analysisData.quadrantData.finishingEfficiency}
-                xAxisLabel="평균 서클 진입"
+                xAxisLabel="평균 서클 진입 (CE)"
                 yAxisLabel="평균 슈팅+PC"
                 avgX={analysisData.globalAvg.circle}
                 avgY={analysisData.globalAvg.threat}
                 selectedTeamName={analysisData.currentTeam}
                 selectedColor={selectedTeamColor}
                 opponentColor={opponentColor}
+                labels={{
+                  tr: "High Conversion (높은 기회 창출력)",
+                  tl: "Clinical Efficiency (진입 대비 높은 집중력)",
+                  br: "Poor Final Ball (서클 진입 후 마무리 부족)",
+                  bl: "Ineffective Attack (서클 내 기회 창출 부족)"
+                }}
               />
               <TacticalQuadrantChart 
                 title="수비 복원력"
@@ -297,6 +347,12 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                 selectedColor={selectedTeamColor}
                 opponentColor={opponentColor}
                 reversedX reversedY
+                labels={{
+                  tr: "Defensive Fortress (철벽 수비)",
+                  tl: "Resilient Defense (25y 허용 대비 서클 방어 우수)",
+                  br: "Vulnerable Shell (25y 진입 시 쉽게 서클 허용)",
+                  bl: "Defensive Weakness (전체적인 수비 불안)"
+                }}
               />
               <TacticalQuadrantChart 
                 title="서클 수비력"
@@ -310,6 +366,12 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                 selectedColor={selectedTeamColor}
                 opponentColor={opponentColor}
                 reversedX reversedY
+                labels={{
+                  tr: "Elite Circle Defense (서클 내 완벽 차단)",
+                  tl: "Good Survival (서클 진입 후 슈팅 억제 우수)",
+                  br: "Soft Center (서클 진입 시 높은 슈팅 허용)",
+                  bl: "Critical Vulnerability (위험 지역 수비 부재)"
+                }}
               />
               <TacticalQuadrantChart 
                 title="압박 및 점유 효율"
@@ -322,28 +384,15 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                 selectedTeamName={analysisData.currentTeam}
                 selectedColor={selectedTeamColor}
                 opponentColor={opponentColor}
-                reversedX // SPP는 낮을수록 좋음
+                reversedX 
                 xUnit="s"
                 yUnit="%"
-              />
-            </div>
-          </div>
-
-          <div className="page-break space-y-8">
-            <div className="flex items-center gap-2 text-2xl font-black text-primary border-b-2 pb-1">
-              <TrendingUp className="h-6 w-6" /> 경기별 트렌드 (Match-by-Match)
-            </div>
-            <div className="grid grid-cols-1 gap-8">
-              <AttackThreatChart 
-                data={analysisData.mockMatch.attackThreatData} 
-                homeTeam={{ name: analysisData.currentTeam, color: selectedTeamColor }} 
-                awayTeam={{ name: '상대 팀', color: opponentColor }} 
-              />
-              <PressureBattleChart 
-                data={analysisData.mockMatch.pressureData} 
-                homeTeam={{ name: analysisData.currentTeam, color: selectedTeamColor }} 
-                awayTeam={{ name: '상대 팀', color: opponentColor }} 
-                height={300} 
+                labels={{
+                  tr: "Aggressive Dominance (강한 압박과 주도권)",
+                  tl: "High Press / Low Return (강하게 압박하나 점유 부족)",
+                  br: "Passive Control (압박은 낮으나 점유율 유지)",
+                  bl: "Passive & Dominated (압박도 낮고 주도권도 없음)"
+                }}
               />
             </div>
           </div>
