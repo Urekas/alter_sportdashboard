@@ -23,6 +23,15 @@ interface TournamentDashboardProps {
   tournamentId: string
 }
 
+// 팀 이름별 고유 색상을 생성하는 헬퍼 함수
+const getTeamColor = (name: string, index: number): string => {
+  const colors = [
+    "#3b82f6", "#ef4444", "#f59e0b", "#10b981", "#8b5cf6", 
+    "#ec4899", "#06b6d4", "#f97316", "#6366f1", "#14b8a6"
+  ];
+  return colors[index % colors.length];
+};
+
 export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) {
   const [selectedTeamName, setSelectedTeamName] = useState("")
   const [selectedTeamColor, setSelectedTeamColor] = useState("#ef4444")
@@ -55,7 +64,12 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     const allTeams = Array.from(new Set(matches.flatMap(m => [m.homeTeam.name, m.awayTeam.name]))).sort();
     const currentTeam = selectedTeamName || allTeams[0];
 
-    // 각 팀별 평균 데이터 계산 로직
+    // 각 팀별 고유 색상 매핑
+    const teamColorMap = new Map<string, string>();
+    allTeams.forEach((name, idx) => {
+      teamColorMap.set(name, getTeamColor(name, idx));
+    });
+
     const getTeamAverages = (teamName: string) => {
       const myMatches = matches.filter(m => m.homeTeam.name === teamName || m.awayTeam.name === teamName);
       const count = myMatches.length || 1;
@@ -89,6 +103,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
       return {
         name: teamName,
+        color: teamColorMap.get(teamName),
         avgGoals: sum.goals / count,
         avgShots: sum.shots / count,
         avgPCs: sum.pcs / count,
@@ -107,7 +122,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
     const teamStatsList = allTeams.map(name => getTeamAverages(name));
     
-    // 대회 전체 평균 계산
     const globalCount = teamStatsList.length || 1;
     const globalAvg = {
       entry25: teamStatsList.reduce((a, b) => a + b.avg25y, 0) / globalCount,
@@ -121,11 +135,11 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     };
 
     const quadrantData = {
-      attackEfficiency: teamStatsList.map(t => ({ name: t.name, x: t.avg25y, y: t.avgCircle, z: 200 })),
-      finishingEfficiency: teamStatsList.map(t => ({ name: t.name, x: t.avgCircle, y: t.avgThreat, z: 200 })),
-      defensiveResilience: teamStatsList.map(t => ({ name: t.name, x: t.avgAllowed25, y: t.avgAllowedCircle, z: 200 })),
-      circleDefense: teamStatsList.map(t => ({ name: t.name, x: t.avgAllowedCircle, y: t.avgAllowedThreat, z: 200 })),
-      pressEfficiency: teamStatsList.map(t => ({ name: t.name, x: t.avgSPP, y: t.avgAttPoss, z: 200 }))
+      attackEfficiency: teamStatsList.map(t => ({ name: t.name, x: t.avg25y, y: t.avgCircle, z: 200, color: t.color })),
+      finishingEfficiency: teamStatsList.map(t => ({ name: t.name, x: t.avgCircle, y: t.avgThreat, z: 200, color: t.color })),
+      defensiveResilience: teamStatsList.map(t => ({ name: t.name, x: t.avgAllowed25, y: t.avgAllowedCircle, z: 200, color: t.color })),
+      circleDefense: teamStatsList.map(t => ({ name: t.name, x: t.avgAllowedCircle, y: t.avgAllowedThreat, z: 200, color: t.color })),
+      pressEfficiency: teamStatsList.map(t => ({ name: t.name, x: t.avgSPP, y: t.avgAttPoss, z: 200, color: t.color }))
     };
 
     const teamMatches = matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam);
@@ -233,7 +247,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
       {analysisData && (
         <div className="space-y-16">
-          {/* 상단 통계 요약 */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
              <Card className="lg:col-span-1 border-2">
                 <CardHeader className="bg-muted/10 border-b">
@@ -260,7 +273,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
              </div>
           </div>
 
-          {/* 경기별 트렌드 (상단 배치) */}
           <div className="page-break space-y-8">
             <div className="flex items-center gap-2 text-2xl font-black text-primary border-b-2 pb-1">
               <TrendingUp className="h-6 w-6" /> 경기별 트렌드 추이 (Match-by-Match Trend)
@@ -280,7 +292,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             </div>
           </div>
 
-          {/* 공격 전술 궤적 분석 (부활) */}
           <div className="page-break space-y-8">
             <div className="flex items-center gap-2 text-2xl font-black text-primary border-b-2 pb-1">
               <Target className="h-6 w-6" /> 팀 공격 전술 궤적 분석 (Match Trajectory Analysis)
@@ -292,7 +303,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             />
           </div>
 
-          {/* 4분면 전술 분석 섹션 (대형화) */}
           <div className="page-break space-y-12">
             <div className="flex items-center gap-2 text-2xl font-black text-primary border-b-2 pb-1">
               <Grid3X3 className="h-6 w-6" /> 대회 전술 4분면 분석 (Tactical Quadrant Analysis)
@@ -309,7 +319,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                 avgY={analysisData.globalAvg.circle}
                 selectedTeamName={analysisData.currentTeam}
                 selectedColor={selectedTeamColor}
-                opponentColor={opponentColor}
                 labels={{
                   tr: "Efficient Dominance (효율적 공격 지배)",
                   tl: "Direct & High Volume (공격 빈도는 낮으나 효율적)",
@@ -327,7 +336,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                 avgY={analysisData.globalAvg.threat}
                 selectedTeamName={analysisData.currentTeam}
                 selectedColor={selectedTeamColor}
-                opponentColor={opponentColor}
                 labels={{
                   tr: "High Conversion (높은 기회 창출력)",
                   tl: "Clinical Efficiency (진입 대비 높은 집중력)",
@@ -345,7 +353,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                 avgY={analysisData.globalAvg.allowedCircle}
                 selectedTeamName={analysisData.currentTeam}
                 selectedColor={selectedTeamColor}
-                opponentColor={opponentColor}
                 reversedX reversedY
                 labels={{
                   tr: "Defensive Fortress (철벽 수비)",
@@ -364,7 +371,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                 avgY={analysisData.globalAvg.allowedThreat}
                 selectedTeamName={analysisData.currentTeam}
                 selectedColor={selectedTeamColor}
-                opponentColor={opponentColor}
                 reversedX reversedY
                 labels={{
                   tr: "Elite Circle Defense (서클 내 완벽 차단)",
@@ -383,7 +389,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                 avgY={analysisData.globalAvg.attPoss}
                 selectedTeamName={analysisData.currentTeam}
                 selectedColor={selectedTeamColor}
-                opponentColor={opponentColor}
                 reversedX 
                 xUnit="s"
                 yUnit="%"
