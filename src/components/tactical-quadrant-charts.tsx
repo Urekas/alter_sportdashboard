@@ -82,9 +82,9 @@ export function TacticalQuadrantChart({
   labels
 }: TacticalQuadrantChartProps) {
   
-  // 축의 가시 범위를 명시적으로 계산 (데이터 + 여백)
-  const maxX = Math.max(...data.map(d => d.x), avgX * 1.5, 10) * 1.1;
-  const maxY = Math.max(...data.map(d => d.y), avgY * 1.5, 10) * 1.1;
+  // 축의 가시 범위를 명시적으로 계산 (데이터 + 여백)하여 정수로 올림 처리
+  const maxX = Math.ceil(Math.max(...data.map(d => d.x), avgX * 1.5, 10) * 1.1);
+  const maxY = Math.ceil(Math.max(...data.map(d => d.y), avgY * 1.5, 10) * 1.1);
 
   return (
     <Card className="border-2 shadow-xl overflow-hidden">
@@ -141,6 +141,7 @@ export function TacticalQuadrantChart({
                 name={xAxisLabel} 
                 reversed={reversedX}
                 domain={[0, maxX]}
+                allowDecimals={false}
                 tick={{ fontSize: 12, fontWeight: 'bold' }}
               >
                 <Label value={`${xAxisLabel} ➝`} position="bottom" offset={30} className="fill-foreground text-xs font-black uppercase tracking-widest" />
@@ -151,6 +152,7 @@ export function TacticalQuadrantChart({
                 name={yAxisLabel} 
                 reversed={reversedY}
                 domain={[0, maxY]}
+                allowDecimals={false}
                 tick={{ fontSize: 12, fontWeight: 'bold' }}
                 label={{ value: `${yAxisLabel} (↑ High / ↓ Low)`, angle: -90, position: 'insideLeft', className: "fill-foreground text-xs font-black uppercase tracking-widest" }}
               />
