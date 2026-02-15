@@ -1,10 +1,9 @@
-
 "use client"
 
-import React, { useState, useEffect } from "react"
-import { Trophy, Calendar, Database, Trash2, Edit3, Save, X, Plus } from "lucide-react"
+import React, { useState, useMemo } from "react"
+import { Trophy, Database, Trash2, Edit3, Save, X, Plus } from "lucide-react"
 import { TournamentService } from "@/lib/tournament-service"
-import type { Tournament } from "@/lib/types"
+import type { Tournament, MatchData } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,38 +11,38 @@ import { useToast } from "@/hooks/use-toast"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
+import { collection, query } from "firebase/firestore"
 
 export function TournamentManager() {
-  const [tournaments, setTournaments] = useState<(Tournament & { matchCount: number })[]>([])
-  const [loading, setLoading] = useState(true)
+  const db = useFirestore()
+  const { toast } = useToast()
+  
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState("")
   const [isNewDialogOpen, setIsNewDialogOpen] = useState(false)
   const [newName, setNewName] = useState("")
-  const { toast } = useToast()
 
-  const fetchTournaments = async () => {
-    try {
-      setLoading(true)
-      const list = await TournamentService.getTournaments()
-      const listWithCounts = await Promise.all(
-        list.map(async (t) => {
-          const count = await TournamentService.getMatchCount(t.id)
-          return { ...t, matchCount: count }
-        })
-      )
-      setTournaments(listWithCounts)
-    } catch (e) {
-      console.error("Failed to fetch tournaments", e)
-      toast({ title: "대회 목록 로드 실패", variant: "destructive" })
-    } finally {
-      setLoading(false)
-    }
-  }
+  // 대회 및 경기 데이터 구독
+  const tourneyQuery = useMemoFirebase(() => db ? query(collection(db, 'tournaments')) : null, [db]);
+  const matchesQuery = useMemoFirebase(() => db ? query(collection(db, 'matches')) : null, [db]);
 
-  useEffect(() => {
-    fetchTournaments()
-  }, [])
+  const { data: rawTournaments, isLoading: loadingTourneys } = useCollection<Tournament>(tourneyQuery);
+  const { data: rawMatches } = useCollection<MatchData>(matchesQuery);
+
+  // 클라이언트 사이드 정렬 및 데이터 가공
+  const tournaments = useMemo(() => {
+    if (!rawTournaments) return [];
+    
+    return [...rawTournaments].map(t => {
+      const matchCount = rawMatches?.filter(m => m.tournamentId === t.id).length || 0;
+      return { ...t, matchCount };
+    }).sort((a, b) => {
+      const timeA = a.createdAt?.seconds || 0;
+      const timeB = b.createdAt?.seconds || 0;
+      return timeB - timeA; // 최신순
+    });
+  }, [rawTournaments, rawMatches]);
 
   const handleCreate = async () => {
     if (!newName.trim()) return
@@ -51,7 +50,6 @@ export function TournamentManager() {
       await TournamentService.createTournament(newName, new Date().toISOString())
       setNewName("")
       setIsNewDialogOpen(false)
-      fetchTournaments()
       toast({ title: "새 대회 생성 완료" })
     } catch (e: any) {
       toast({ title: "대회 생성 실패", description: e.message, variant: "destructive" })
@@ -63,7 +61,6 @@ export function TournamentManager() {
     try {
       await TournamentService.updateTournament(id, editName)
       setEditingId(null)
-      fetchTournaments()
       toast({ title: "대회 이름 수정 완료" })
     } catch (e: any) {
       toast({ title: "수정 실패", description: e.message, variant: "destructive" })
@@ -71,10 +68,9 @@ export function TournamentManager() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("이 대회를 삭제하시겠습니까? 대회에 포함된 모든 경기 요약 정보가 관리 목록에서 사라집니다.")) return
+    if (!confirm("이 대회를 삭제하시겠습니까? 대회에 포함된 모든 경기 정보가 사라집니다.")) return
     try {
       await TournamentService.deleteTournament(id)
-      fetchTournaments()
       toast({ title: "대회 삭제 완료" })
     } catch (e: any) {
       toast({ title: "삭제 실패", description: e.message, variant: "destructive" })
@@ -132,7 +128,7 @@ export function TournamentManager() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (
+              {loadingTourneys ? (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center py-10 text-muted-foreground italic">데이터를 불러오는 중...</TableCell>
                 </TableRow>
