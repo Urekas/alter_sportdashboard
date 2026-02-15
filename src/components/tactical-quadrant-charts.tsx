@@ -82,15 +82,16 @@ export function TacticalQuadrantChart({
   labels
 }: TacticalQuadrantChartProps) {
   
-  // 데이터의 최대 범위를 계산하여 사분면 배경을 꽉 채움
-  const rawMaxX = Math.max(...data.map(d => d.x), avgX * 1.5, 1);
-  const rawMaxY = Math.max(...data.map(d => d.y), avgY * 1.5, 1);
-  const maxX = rawMaxX * 1.2;
-  const maxY = rawMaxY * 1.2;
+  // 데이터 도메인 계산
+  const maxX = Math.max(...data.map(d => d.x), avgX * 1.5, 10) * 1.1;
+  const maxY = Math.max(...data.map(d => d.y), avgY * 1.5, 10) * 1.1;
 
-  // 축 반전 여부에 따른 시각적 사분면 영역 계산
-  // Recharts는 reversed일 때 시각적으로 뒤집지만 데이터 좌표는 유지함
-  
+  // 배경 영역을 위한 극단값
+  const farX = maxX * 2;
+  const farY = maxY * 2;
+
+  // 4분면 배경 렌더링 로직 (축 반전에 따라 물리적 위치 매핑)
+  // Recharts ReferenceArea는 데이터 좌표를 사용함
   return (
     <Card className="border-2 shadow-xl overflow-hidden">
       <CardHeader className="bg-muted/10 pb-4 border-b">
@@ -103,49 +104,41 @@ export function TacticalQuadrantChart({
             <ScatterChart margin={{ top: 40, right: 60, bottom: 60, left: 60 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               
-              {/* 사분면 배경 및 라벨 (전술 궤적 스타일) */}
-              {/* TR (Top-Right): 긍정적 지표 영역 */}
+              {/* 4분면 배경색 및 라벨 */}
+              {/* TR: High X, High Y */}
               <ReferenceArea 
-                x1={reversedX ? 0 : avgX} 
-                x2={reversedX ? avgX : maxX} 
-                y1={reversedY ? 0 : avgY} 
-                y2={reversedY ? avgY : maxY} 
-                fill="#4bc0c0" fillOpacity={0.1}
+                x1={avgX} x2={farX} 
+                y1={avgY} y2={farY} 
+                fill="#4bc0c0" fillOpacity={0.12}
               >
-                {labels?.tr && <Label value={labels.tr} position="insideTopRight" offset={15} className="fill-emerald-700 font-black text-[11px] uppercase italic tracking-tighter" />}
+                {labels?.tr && <Label value={labels.tr} position={reversedX ? "insideTopLeft" : "insideTopRight"} offset={15} className="fill-emerald-800 font-black text-[11px] uppercase italic tracking-tighter" />}
               </ReferenceArea>
 
-              {/* TL (Top-Left) */}
+              {/* TL: Low X, High Y */}
               <ReferenceArea 
-                x1={reversedX ? avgX : maxX} 
-                x2={reversedX ? maxX : avgX} 
-                y1={reversedY ? 0 : avgY} 
-                y2={reversedY ? avgY : maxY} 
-                fill="#4bc0c0" fillOpacity={0.04}
+                x1={0} x2={avgX} 
+                y1={avgY} y2={farY} 
+                fill="#4bc0c0" fillOpacity={0.06}
               >
-                {labels?.tl && <Label value={labels.tl} position="insideTopLeft" offset={15} className="fill-teal-700 font-black text-[11px] uppercase italic tracking-tighter" />}
+                {labels?.tl && <Label value={labels.tl} position={reversedX ? "insideTopRight" : "insideTopLeft"} offset={15} className="fill-teal-800 font-black text-[11px] uppercase italic tracking-tighter" />}
               </ReferenceArea>
 
-              {/* BR (Bottom-Right) */}
+              {/* BR: High X, Low Y */}
               <ReferenceArea 
-                x1={reversedX ? 0 : avgX} 
-                x2={reversedX ? avgX : maxX} 
-                y1={reversedY ? maxY : avgY} 
-                y2={reversedY ? avgY : 0} 
-                fill="#94a3b8" fillOpacity={0.06}
+                x1={avgX} x2={farX} 
+                y1={0} y2={avgY} 
+                fill="#94a3b8" fillOpacity={0.08}
               >
-                {labels?.br && <Label value={labels.br} position="insideBottomRight" offset={15} className="fill-slate-600 font-black text-[11px] uppercase italic tracking-tighter" />}
+                {labels?.br && <Label value={labels.br} position={reversedX ? "insideBottomLeft" : "insideBottomRight"} offset={15} className="fill-slate-700 font-black text-[11px] uppercase italic tracking-tighter" />}
               </ReferenceArea>
 
-              {/* BL (Bottom-Left): 부정적 지표 영역 */}
+              {/* BL: Low X, Low Y */}
               <ReferenceArea 
-                x1={reversedX ? avgX : maxX} 
-                x2={reversedX ? maxX : avgX} 
-                y1={reversedY ? maxY : avgY} 
-                y2={reversedY ? avgY : 0} 
-                fill="#6366f1" fillOpacity={0.04}
+                x1={0} x2={avgX} 
+                y1={0} y2={avgY} 
+                fill="#6366f1" fillOpacity={0.05}
               >
-                {labels?.bl && <Label value={labels.bl} position="insideBottomLeft" offset={15} className="fill-indigo-700 font-black text-[11px] uppercase italic tracking-tighter" />}
+                {labels?.bl && <Label value={labels.bl} position={reversedX ? "insideBottomRight" : "insideBottomLeft"} offset={15} className="fill-indigo-800 font-black text-[11px] uppercase italic tracking-tighter" />}
               </ReferenceArea>
 
               <XAxis 
@@ -156,7 +149,7 @@ export function TacticalQuadrantChart({
                 domain={[0, maxX]}
                 tick={{ fontSize: 12, fontWeight: 'bold' }}
               >
-                <Label value={`${xAxisLabel} ${reversedX ? '➝' : '➝'}`} position="bottom" offset={30} className="fill-foreground text-xs font-black uppercase tracking-widest" />
+                <Label value={`${xAxisLabel} ➝`} position="bottom" offset={30} className="fill-foreground text-xs font-black uppercase tracking-widest" />
               </XAxis>
               <YAxis 
                 type="number" 
@@ -185,14 +178,36 @@ export function TacticalQuadrantChart({
                 ))}
                 <LabelList 
                   dataKey="name" 
-                  position="bottom" 
-                  offset={12} 
+                  position="top" 
+                  offset={15} 
                   style={{ 
                     fontSize: '11px', 
-                    fontWeight: '700', // 볼드체 강도 낮춤
-                    fill: 'hsl(var(--muted-foreground))',
-                    opacity: 0.8
-                  }} 
+                    fontWeight: '500', 
+                    fill: 'hsl(var(--foreground))',
+                    opacity: 0.9
+                  }}
+                  // 선택된 팀만 조금 더 강조 (그래도 굵기는 줄임)
+                  content={(props: any) => {
+                    const { x, y, value } = props;
+                    const isSelected = value === selectedTeamName;
+                    return (
+                      <text 
+                        x={x} 
+                        y={y - 10} 
+                        textAnchor="middle" 
+                        fill={isSelected ? selectedColor : "hsl(var(--muted-foreground))"}
+                        style={{ 
+                          fontSize: '11px', 
+                          fontWeight: isSelected ? '600' : '500',
+                          paintOrder: 'stroke',
+                          stroke: 'white',
+                          strokeWidth: 2
+                        }}
+                      >
+                        {value}
+                      </text>
+                    );
+                  }}
                 />
               </Scatter>
             </ScatterChart>
