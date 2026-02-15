@@ -42,10 +42,10 @@ interface TacticalQuadrantChartProps {
   reversedY?: boolean
   reversedX?: boolean
   labels?: {
-    tr: string; // Top-Right (Positive)
+    tr: string; // Top-Right
     tl: string; // Top-Left
     br: string; // Bottom-Right
-    bl: string; // Bottom-Left (Negative)
+    bl: string; // Bottom-Left
   }
 }
 
@@ -82,16 +82,14 @@ export function TacticalQuadrantChart({
   labels
 }: TacticalQuadrantChartProps) {
   
-  // 데이터 도메인 계산
+  // 데이터 가시 범위 계산 (배경색이 잘리거나 안 보이는 현상 방지)
   const maxX = Math.max(...data.map(d => d.x), avgX * 1.5, 10) * 1.1;
   const maxY = Math.max(...data.map(d => d.y), avgY * 1.5, 10) * 1.1;
 
-  // 배경 영역을 위한 극단값
+  // 배경 영역을 위한 충분히 큰 값
   const farX = maxX * 2;
   const farY = maxY * 2;
 
-  // 4분면 배경 렌더링 로직 (축 반전에 따라 물리적 위치 매핑)
-  // Recharts ReferenceArea는 데이터 좌표를 사용함
   return (
     <Card className="border-2 shadow-xl overflow-hidden">
       <CardHeader className="bg-muted/10 pb-4 border-b">
@@ -104,14 +102,14 @@ export function TacticalQuadrantChart({
             <ScatterChart margin={{ top: 40, right: 60, bottom: 60, left: 60 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               
-              {/* 4분면 배경색 및 라벨 */}
+              {/* 4분면 배경색 - 데이터가 어느 범위에 있든 항상 보이도록 avgX/avgY 기준으로 영역 분할 */}
               {/* TR: High X, High Y */}
               <ReferenceArea 
                 x1={avgX} x2={farX} 
                 y1={avgY} y2={farY} 
                 fill="#4bc0c0" fillOpacity={0.12}
               >
-                {labels?.tr && <Label value={labels.tr} position={reversedX ? "insideTopLeft" : "insideTopRight"} offset={15} className="fill-emerald-800 font-black text-[11px] uppercase italic tracking-tighter" />}
+                {labels?.tr && <Label value={labels.tr} position="insideTopRight" offset={15} className="fill-emerald-800 font-black text-[11px] uppercase italic tracking-tighter" />}
               </ReferenceArea>
 
               {/* TL: Low X, High Y */}
@@ -120,7 +118,7 @@ export function TacticalQuadrantChart({
                 y1={avgY} y2={farY} 
                 fill="#4bc0c0" fillOpacity={0.06}
               >
-                {labels?.tl && <Label value={labels.tl} position={reversedX ? "insideTopRight" : "insideTopLeft"} offset={15} className="fill-teal-800 font-black text-[11px] uppercase italic tracking-tighter" />}
+                {labels?.tl && <Label value={labels.tl} position="insideTopLeft" offset={15} className="fill-teal-800 font-black text-[11px] uppercase italic tracking-tighter" />}
               </ReferenceArea>
 
               {/* BR: High X, Low Y */}
@@ -129,7 +127,7 @@ export function TacticalQuadrantChart({
                 y1={0} y2={avgY} 
                 fill="#94a3b8" fillOpacity={0.08}
               >
-                {labels?.br && <Label value={labels.br} position={reversedX ? "insideBottomLeft" : "insideBottomRight"} offset={15} className="fill-slate-700 font-black text-[11px] uppercase italic tracking-tighter" />}
+                {labels?.br && <Label value={labels.br} position="insideBottomRight" offset={15} className="fill-slate-700 font-black text-[11px] uppercase italic tracking-tighter" />}
               </ReferenceArea>
 
               {/* BL: Low X, Low Y */}
@@ -138,7 +136,7 @@ export function TacticalQuadrantChart({
                 y1={0} y2={avgY} 
                 fill="#6366f1" fillOpacity={0.05}
               >
-                {labels?.bl && <Label value={labels.bl} position={reversedX ? "insideBottomRight" : "insideBottomLeft"} offset={15} className="fill-indigo-800 font-black text-[11px] uppercase italic tracking-tighter" />}
+                {labels?.bl && <Label value={labels.bl} position="insideBottomLeft" offset={15} className="fill-indigo-800 font-black text-[11px] uppercase italic tracking-tighter" />}
               </ReferenceArea>
 
               <XAxis 
@@ -173,32 +171,25 @@ export function TacticalQuadrantChart({
                     fill={entry.name === selectedTeamName ? selectedColor : (entry.color || "#94a3b8")}
                     fillOpacity={entry.name === selectedTeamName ? 1 : 0.6}
                     stroke={entry.name === selectedTeamName ? 'black' : 'none'}
-                    strokeWidth={entry.name === selectedTeamName ? 2 : 0}
+                    strokeWidth={entry.name === selectedTeamName ? 1.5 : 0}
                   />
                 ))}
                 <LabelList 
                   dataKey="name" 
                   position="top" 
-                  offset={15} 
-                  style={{ 
-                    fontSize: '11px', 
-                    fontWeight: '500', 
-                    fill: 'hsl(var(--foreground))',
-                    opacity: 0.9
-                  }}
-                  // 선택된 팀만 조금 더 강조 (그래도 굵기는 줄임)
+                  offset={10} 
                   content={(props: any) => {
                     const { x, y, value } = props;
                     const isSelected = value === selectedTeamName;
                     return (
                       <text 
                         x={x} 
-                        y={y - 10} 
+                        y={y - 12} 
                         textAnchor="middle" 
                         fill={isSelected ? selectedColor : "hsl(var(--muted-foreground))"}
                         style={{ 
                           fontSize: '11px', 
-                          fontWeight: isSelected ? '600' : '500',
+                          fontWeight: isSelected ? '600' : '500', // 너무 굵지 않게 조정
                           paintOrder: 'stroke',
                           stroke: 'white',
                           strokeWidth: 2
