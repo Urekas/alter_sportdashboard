@@ -252,11 +252,16 @@ export const createMatchDataFromUpload = (
     const buildAttempts = myEvents.filter(e => e.code.trim() === `${team} TEAM` && mapZone(e.locationLabel || e.code).zoneBand <= 50).length;
     const build25Ratio = buildAttempts > 0 ? (a25Count / buildAttempts) * 100 : 0;
 
-    const goals = myEvents.filter(e => e.code.includes(`${team} 득점`) || (e.code.includes(`${team} 슈팅`) && e.resultLabel.includes('득점')));
-    const pcGoals = goals.filter(e => e.resultLabel.toUpperCase().includes('PC') || e.resultLabel.includes('페널티코너')).length;
+    // 득점 로직 최신화: [팀명] 득점 코드를 전체 득점으로, [팀명] 페널티코너+GOAL라벨을 PC득점으로 분류
+    const totalGoals = myEvents.filter(e => e.code.includes(`${team} 득점`)).length;
+    const pcGoals = myEvents.filter(e => 
+      e.code.includes(`${team} 페널티코너`) && 
+      (e.resultLabel.toUpperCase().includes('GOAL') || e.resultLabel.includes('득점'))
+    ).length;
+    const fieldGoals = Math.max(0, totalGoals - pcGoals);
 
     return {
-      goals: { field: Math.max(0, goals.length - pcGoals), pc: pcGoals },
+      goals: { field: fieldGoals, pc: pcGoals },
       shots: shotCount,
       pcs: pcCount,
       circleEntries: ceCount,
