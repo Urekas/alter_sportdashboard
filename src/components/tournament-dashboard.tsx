@@ -149,7 +149,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
     const teamMatches = matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam);
 
-    // 3. Match-based Trajectory Points (버그 수정: 우리 팀이 홈/어웨이 어디든 우리 데이터 매핑)
     const allMatchesPoints = teamMatches.map(m => {
       const isHome = m.homeTeam.name === currentTeam;
       const myStats = isHome ? m.matchStats.home : m.matchStats.away;
@@ -162,7 +161,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     });
 
     const mockMatch: MatchData = {
-      // 형님 요청대로 색상 스왑: 우리 팀 = 빨강, 대회 평균 = 파랑
       homeTeam: { name: currentTeam, color: 'hsl(var(--chart-2))' }, 
       awayTeam: { name: '대회 전체 평균', color: 'hsl(var(--chart-1))' },
       events: [],
@@ -171,7 +169,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         return {
           interval: `M${String(i + 1).padStart(2, '0')}`,
           [currentTeam]: isHome ? m.matchStats.home.spp : m.matchStats.away.spp,
-          "Opponent": isHome ? m.matchStats.away.spp : m.matchStats.home.spp
+          "상대 팀": isHome ? m.matchStats.away.spp : m.matchStats.home.spp
         };
       }),
       circleEntries: [],
@@ -180,7 +178,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         return {
           interval: `M${String(i + 1).padStart(2, '0')}`,
           [currentTeam]: isHome ? m.matchStats.home.shots + m.matchStats.home.pcs : m.matchStats.away.shots + m.matchStats.away.pcs,
-          "Opponent": isHome ? m.matchStats.away.shots + m.matchStats.away.pcs : m.matchStats.home.shots + m.matchStats.home.pcs
+          "상대 팀": isHome ? m.matchStats.away.shots + m.matchStats.away.pcs : m.matchStats.home.shots + m.matchStats.home.pcs
         };
       }),
       build25Ratio: { home: 0, away: 0 },
