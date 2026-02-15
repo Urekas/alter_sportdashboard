@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useState, useEffect, useMemo } from "react"
-import { Trophy, Activity, Target, Shield, Sword, Trash2, FileDown } from "lucide-react"
+import { Trophy, Activity, Target, Shield, Sword, Trash2, FileDown, Database } from "lucide-react"
 import type { MatchData, Team, QuarterStats, TeamMatchStats } from "@/lib/types"
 import { TournamentService } from "@/lib/tournament-service"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -27,14 +27,22 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
   const { toast } = useToast()
 
   const fetchMatches = async () => {
-    if (!tournamentId) return;
-    setLoading(true);
-    const list = await TournamentService.getMatchesByTournament(tournamentId);
-    setMatches(list);
-    if (list.length > 0 && !selectedTeamName) {
-      setSelectedTeamName(list[0].homeTeam.name);
+    if (!tournamentId) {
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+    try {
+      setLoading(true);
+      const list = await TournamentService.getMatchesByTournament(tournamentId);
+      setMatches(list);
+      if (list.length > 0 && !selectedTeamName) {
+        setSelectedTeamName(list[0].homeTeam.name);
+      }
+    } catch (e) {
+      console.error("Failed to fetch matches", e);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -43,9 +51,13 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
   const handleDeleteMatch = async (id: string) => {
     if (!confirm("이 경기를 삭제하시겠습니까?")) return;
-    await TournamentService.deleteMatch(id);
-    fetchMatches();
-    toast({ title: "경기 삭제됨" });
+    try {
+      await TournamentService.deleteMatch(id);
+      fetchMatches();
+      toast({ title: "경기 삭제됨" });
+    } catch (e: any) {
+      toast({ title: "삭제 실패", description: e.message, variant: "destructive" });
+    }
   }
 
   // 대회 전체 평균 데이터 계산
@@ -105,8 +117,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         const qData = m.quarterlyStats.find(qs => qs.quarter === q);
         if (qData) {
           ['shots', 'spp', 'timePerCE', 'possession', 'attackPossession'].forEach(key => {
-            qHomeSums[key] += (qData.home as any)[key];
-            qAwaySums[key] += (qData.away as any)[key];
+            qHomeSums[key] += (qData.home as any)[key] || 0;
+            qAwaySums[key] += (qData.away as any)[key] || 0;
           });
         }
       });
@@ -140,8 +152,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     const avgThreat = matches[0].attackThreatData.map((d, idx) => {
       let hSum = 0, aSum = 0;
       matches.forEach(m => {
-        hSum += Number(m.attackThreatData[idx][m.homeTeam.name]);
-        aSum += Number(m.attackThreatData[idx][m.awayTeam.name]);
+        hSum += Number(m.attackThreatData[idx][m.homeTeam.name] || 0);
+        aSum += Number(m.attackThreatData[idx][m.awayTeam.name] || 0);
       });
       return {
         interval: d.interval,
@@ -153,8 +165,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     const avgPressure = matches[0].pressureData.map((d, idx) => {
       let hSum = 0, aSum = 0;
       matches.forEach(m => {
-        hSum += Number(m.pressureData[idx][m.homeTeam.name]);
-        aSum += Number(m.pressureData[idx][m.awayTeam.name]);
+        hSum += Number(m.pressureData[idx][m.homeTeam.name] || 0);
+        aSum += Number(m.pressureData[idx][m.awayTeam.name] || 0);
       });
       return {
         interval: d.interval,
@@ -217,12 +229,12 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
           </CardHeader>
           <CardContent className="space-y-2">
             {matches.map((m, i) => (
-              <div key={m.id} className="flex justify-between items-center p-3 bg-muted/20 rounded-lg border group">
+              <div key={m.id || i} className="flex justify-between items-center p-3 bg-muted/20 rounded-lg border group">
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-black text-muted-foreground">M{String(i+1).padStart(2, '0')}</span>
                   <div>
                     <p className="text-sm font-bold">{m.matchName}</p>
-                    <p className="text-[10px] text-muted-foreground">{new Date(m.uploadedAt?.seconds * 1000).toLocaleDateString()} 업로드</p>
+                    <p className="text-[10px] text-muted-foreground">{m.uploadedAt?.seconds ? new Date(m.uploadedAt.seconds * 1000).toLocaleDateString() : '최근 업로드'}</p>
                   </div>
                 </div>
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDeleteMatch(m.id!)}>
@@ -234,14 +246,12 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         </Card>
 
         {tournamentStats && (
-          <>
-            <div className="lg:col-span-2 space-y-6">
-              <div className="flex items-center gap-2 text-xl font-bold text-primary border-b pb-1">
-                <Database className="h-5 w-5" /> 대회 평균 퍼포먼스 (Average Stats)
-              </div>
-              <BasicMatchStats data={tournamentStats.mockMatch} />
+          <div className="lg:col-span-2 space-y-6">
+            <div className="flex items-center gap-2 text-xl font-bold text-primary border-b pb-1">
+              <Database className="h-5 w-5" /> 대회 평균 퍼포먼스 (Average Stats)
             </div>
-          </>
+            <BasicMatchStats data={tournamentStats.mockMatch} />
+          </div>
         )}
       </div>
 
@@ -270,7 +280,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             </div>
             <MatchTrajectoryChart data={{
               ...tournamentStats.mockMatch,
-              quarterlyStats: tournamentStats.trajectoryData // 쿼터 대신 경기번호(M01...) 전달
+              quarterlyStats: tournamentStats.trajectoryData
             }} />
             <p className="text-xs text-muted-foreground mt-4 text-center font-bold">
               * M01, M02 등은 각 경기의 수치를 나타내며, 배경의 큰 팀명은 대회 전체의 평균 위치를 의미합니다.
