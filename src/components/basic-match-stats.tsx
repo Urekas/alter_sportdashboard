@@ -32,9 +32,9 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
 
   const stats = [
     { 
-      label: "득점 (필드 / PC)", 
-      h: `${Math.round(matchStats.home.goals.field)} / ${Math.round(matchStats.home.goals.pc)}`, 
-      a: `${Math.round(matchStats.away.goals.field)} / ${Math.round(matchStats.away.goals.pc)}`,
+      label: "득점 (PC / 전체득점)", 
+      h: `${Math.round(matchStats.home.goals.pc)} / ${Math.round(matchStats.home.goals.field + matchStats.home.goals.pc)}`, 
+      a: `${Math.round(matchStats.away.goals.pc)} / ${Math.round(matchStats.away.goals.field + matchStats.away.goals.pc)}`,
       hVal: matchStats.home.goals.field + matchStats.home.goals.pc,
       aVal: matchStats.away.goals.field + matchStats.away.goals.pc
     },

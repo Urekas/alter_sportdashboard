@@ -116,7 +116,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
           <TableBody>
             {/* 득점 섹션 */}
             <TableRow className="bg-primary/5">
-              <TableCell className="pl-6 text-sm font-medium">득점 (필드/PC) ({homeTeam.name})</TableCell>
+              <TableCell className="pl-6 text-sm font-medium">득점 (PC/전체득점) ({homeTeam.name})</TableCell>
               {quarterlyStats.map(q => {
                 const hTot = (q.home.goals?.field || 0) + (q.home.goals?.pc || 0);
                 const aTot = (q.away.goals?.field || 0) + (q.away.goals?.pc || 0);
@@ -127,7 +127,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
                     className="text-center border-x"
                     style={winnerClass === "home-win" ? { color: homeTeam.color, fontWeight: 'bold' } : {}}
                   >
-                    {safeVal(q.home.goals?.field)}/{safeVal(q.home.goals?.pc)}
+                    {safeVal(q.home.goals?.pc)} / {safeVal(hTot)}
                   </TableCell>
                 );
               })}
@@ -135,11 +135,11 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
                 className="text-center border-x bg-muted/30 font-bold"
                 style={getWinnerClass(matchStats.home.goals.field + matchStats.home.goals.pc, matchStats.away.goals.field + matchStats.away.goals.pc) === "home-win" ? { color: homeTeam.color } : {}}
               >
-                {safeVal(matchStats.home.goals.field)}/{safeVal(matchStats.home.goals.pc)}
+                {safeVal(matchStats.home.goals.pc)} / {safeVal(matchStats.home.goals.field + matchStats.home.goals.pc)}
               </TableCell>
             </TableRow>
             <TableRow className="bg-chart-2/5 border-b-[4px] border-b-foreground/30">
-              <TableCell className="pl-6 text-sm font-medium">득점 (필드/PC) ({awayTeam.name})</TableCell>
+              <TableCell className="pl-6 text-sm font-medium">득점 (PC/전체득점) ({awayTeam.name})</TableCell>
               {quarterlyStats.map(q => {
                 const hTot = (q.home.goals?.field || 0) + (q.home.goals?.pc || 0);
                 const aTot = (q.away.goals?.field || 0) + (q.away.goals?.pc || 0);
@@ -150,7 +150,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
                     className="text-center border-x"
                     style={winnerClass === "away-win" ? { color: awayTeam.color, fontWeight: 'bold' } : {}}
                   >
-                    {safeVal(q.away.goals?.field)}/{safeVal(q.away.goals?.pc)}
+                    {safeVal(q.away.goals?.pc)} / {safeVal(aTot)}
                   </TableCell>
                 );
               })}
@@ -158,7 +158,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
                 className="text-center border-x bg-muted/30 font-bold"
                 style={getWinnerClass(matchStats.home.goals.field + matchStats.home.goals.pc, matchStats.away.goals.field + matchStats.away.goals.pc) === "away-win" ? { color: awayTeam.color } : {}}
               >
-                {safeVal(matchStats.away.goals.field)}/{safeVal(matchStats.away.goals.pc)}
+                {safeVal(matchStats.away.goals.pc)} / {safeVal(matchStats.away.goals.field + matchStats.away.goals.pc)}
               </TableCell>
             </TableRow>
 
