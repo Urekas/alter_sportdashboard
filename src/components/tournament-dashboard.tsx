@@ -2,16 +2,15 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { Trophy, Activity, Target, Shield, Sword, Trash2, FileDown, Database, TrendingUp } from "lucide-react"
-import type { MatchData, QuarterStats, TeamMatchStats, Team } from "@/lib/types"
+import { Trophy, Activity, Target, Shield, Sword, Trash2, FileDown, Database, TrendingUp, Grid3X3 } from "lucide-react"
+import type { MatchData, TeamMatchStats, Tournament } from "@/lib/types"
 import { TournamentService } from "@/lib/tournament-service"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { BasicMatchStats } from "./basic-match-stats"
-import { QuarterlyStatsTable } from "./quarterly-stats-table"
-import { MatchTrajectoryChart } from "./match-trajectory-chart"
 import { AttackThreatChart } from "./attack-threat-chart"
 import { PressureBattleChart } from "./pressure-battle-chart"
+import { TacticalQuadrantChart } from "./tactical-quadrant-charts"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
@@ -25,8 +24,8 @@ interface TournamentDashboardProps {
 
 export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) {
   const [selectedTeamName, setSelectedTeamName] = useState("")
-  const [selectedTeamColor, setSelectedTeamColor] = useState("#ef4444") // 기본 빨강
-  const [opponentColor, setOpponentColor] = useState("#f59e0b") // 기본 노랑/오렌지
+  const [selectedTeamColor, setSelectedTeamColor] = useState("#ef4444")
+  const [opponentColor, setOpponentColor] = useState("#f59e0b")
   const { toast } = useToast()
   const db = useFirestore()
 
@@ -55,116 +54,85 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     const allTeams = Array.from(new Set(matches.flatMap(m => [m.homeTeam.name, m.awayTeam.name]))).sort();
     const currentTeam = selectedTeamName || allTeams[0];
 
-    // 1. Selected Team Averages
-    const getAvgStatsForTeam = (teamName: string): TeamMatchStats => {
-      const relevant = matches.filter(m => m.homeTeam.name === teamName || m.awayTeam.name === teamName);
-      const count = relevant.length || 1;
+    // 각 팀별 평균 데이터 계산 로직
+    const getTeamAverages = (teamName: string) => {
+      const myMatches = matches.filter(m => m.homeTeam.name === teamName || m.awayTeam.name === teamName);
+      const count = myMatches.length || 1;
       
       const sum = { 
-        goals: { field: 0, pc: 0 }, 
-        shots: 0, 
-        pcs: 0, 
-        circleEntries: 0, 
-        twentyFiveEntries: 0, 
-        possession: 0, 
-        attackPossession: 0, 
-        spp: 0, 
-        timePerCE: 0, 
-        build25Ratio: 0,
-        pressAttempts: 0,
-        pressSuccess: 0
+        goals: 0, shots: 0, pcs: 0, circle: 0, entry25: 0, 
+        possession: 0, attPoss: 0, spp: 0, timeCE: 0, 
+        // 상대가 해당 팀에게 기록한 지표 (수비 지표)
+        allowed25: 0, allowedCircle: 0, allowedShots: 0, allowedPC: 0 
       };
 
-      relevant.forEach(m => {
-        const s = m.homeTeam.name === teamName ? m.matchStats.home : m.matchStats.away;
-        sum.goals.field += (s.goals?.field || 0); 
-        sum.goals.pc += (s.goals?.pc || 0);
-        sum.shots += (s.shots || 0); 
-        sum.pcs += (s.pcs || 0); 
-        sum.circleEntries += (s.circleEntries || 0);
-        sum.twentyFiveEntries += (s.twentyFiveEntries || 0); 
-        sum.possession += (s.possession || 0);
-        sum.attackPossession += (s.attackPossession || 0); 
-        sum.spp += (s.spp || 0);
-        sum.timePerCE += (s.timePerCE || 0); 
-        sum.build25Ratio += (s.build25Ratio || 0);
+      myMatches.forEach(m => {
+        const isHome = m.homeTeam.name === teamName;
+        const my = isHome ? m.matchStats.home : m.matchStats.away;
+        const opp = isHome ? m.matchStats.away : m.matchStats.home;
+
+        sum.goals += (my.goals?.field || 0) + (my.goals?.pc || 0);
+        sum.shots += (my.shots || 0);
+        sum.pcs += (my.pcs || 0);
+        sum.circle += (my.circleEntries || 0);
+        sum.entry25 += (my.twentyFiveEntries || 0);
+        sum.possession += (my.possession || 0);
+        sum.attPoss += (my.attackPossession || 0);
+        sum.spp += (my.spp || 0);
+        sum.timeCE += (my.timePerCE || 0);
+
+        sum.allowed25 += (opp.twentyFiveEntries || 0);
+        sum.allowedCircle += (opp.circleEntries || 0);
+        sum.allowedShots += (opp.shots || 0);
+        sum.allowedPC += (opp.pcs || 0);
       });
 
       return {
-        goals: { field: sum.goals.field / count, pc: sum.goals.pc / count },
-        shots: sum.shots / count, 
-        pcs: sum.pcs / count, 
-        circleEntries: sum.circleEntries / count,
-        twentyFiveEntries: sum.twentyFiveEntries / count, 
-        possession: sum.possession / count,
-        attackPossession: sum.attackPossession / count, 
-        spp: sum.spp / count,
-        timePerCE: sum.timePerCE / count, 
-        build25Ratio: sum.build25Ratio / count,
-      } as TeamMatchStats;
+        name: teamName,
+        avgGoals: sum.goals / count,
+        avgShots: sum.shots / count,
+        avgPCs: sum.pcs / count,
+        avgCircle: sum.circle / count,
+        avg25y: sum.entry25 / count,
+        avgPoss: sum.possession / count,
+        avgAttPoss: sum.attPoss / count,
+        avgSPP: sum.spp / count,
+        avgTimeCE: sum.timeCE / count,
+        avgAllowed25: sum.allowed25 / count,
+        avgAllowedCircle: sum.allowedCircle / count,
+        avgAllowedThreat: (sum.allowedShots + sum.allowedPC) / count,
+        avgThreat: (sum.shots + sum.pcs) / count
+      };
     };
 
-    // 2. Global Tournament Averages (대회 전체 평균)
-    const getGlobalAvgStats = (): TeamMatchStats => {
-      let totalCount = matches.length * 2;
-      const sum = { 
-        goals: { field: 0, pc: 0 }, 
-        shots: 0, 
-        pcs: 0, 
-        circleEntries: 0, 
-        twentyFiveEntries: 0, 
-        possession: 0, 
-        attackPossession: 0, 
-        spp: 0, 
-        timePerCE: 0, 
-        build25Ratio: 0 
-      };
-      
-      matches.forEach(m => {
-        [m.matchStats.home, m.matchStats.away].forEach(s => {
-          sum.goals.field += (s.goals?.field || 0); 
-          sum.goals.pc += (s.goals?.pc || 0);
-          sum.shots += (s.shots || 0); 
-          sum.pcs += (s.pcs || 0); 
-          sum.circleEntries += (s.circleEntries || 0);
-          sum.twentyFiveEntries += (s.twentyFiveEntries || 0); 
-          sum.possession += (s.possession || 0);
-          sum.attackPossession += (s.attackPossession || 0); 
-          sum.spp += (s.spp || 0);
-          sum.timePerCE += (s.timePerCE || 0); 
-          sum.build25Ratio += (s.build25Ratio || 0);
-        });
-      });
+    const teamStatsList = allTeams.map(name => getTeamAverages(name));
+    
+    // 대회 전체 평균 계산
+    const globalCount = teamStatsList.length || 1;
+    const globalAvg = {
+      entry25: teamStatsList.reduce((a, b) => a + b.avg25y, 0) / globalCount,
+      circle: teamStatsList.reduce((a, b) => a + b.avgCircle, 0) / globalCount,
+      threat: teamStatsList.reduce((a, b) => a + b.avgThreat, 0) / globalCount,
+      allowed25: teamStatsList.reduce((a, b) => a + b.avgAllowed25, 0) / globalCount,
+      allowedCircle: teamStatsList.reduce((a, b) => a + b.avgAllowedCircle, 0) / globalCount,
+      allowedThreat: teamStatsList.reduce((a, b) => a + b.avgAllowedThreat, 0) / globalCount,
+      spp: teamStatsList.reduce((a, b) => a + b.avgSPP, 0) / globalCount,
+      attPoss: teamStatsList.reduce((a, b) => a + b.avgAttPoss, 0) / globalCount,
+    };
 
-      return {
-        goals: { field: sum.goals.field / totalCount, pc: sum.goals.pc / totalCount },
-        shots: sum.shots / totalCount, 
-        pcs: sum.pcs / totalCount, 
-        circleEntries: sum.circleEntries / totalCount,
-        twentyFiveEntries: sum.twentyFiveEntries / totalCount, 
-        possession: sum.possession / totalCount,
-        attackPossession: sum.attackPossession / totalCount, 
-        spp: sum.spp / totalCount,
-        timePerCE: sum.timePerCE / totalCount, 
-        build25Ratio: sum.build25Ratio / totalCount,
-      } as TeamMatchStats;
+    // 4분면 차트용 데이터 매핑
+    const quadrantData = {
+      attackEfficiency: teamStatsList.map(t => ({ name: t.name, x: t.avg25y, y: t.avgCircle, z: 200 })),
+      finishingEfficiency: teamStatsList.map(t => ({ name: t.name, x: t.avgCircle, y: t.avgThreat, z: 200 })),
+      defensiveResilience: teamStatsList.map(t => ({ name: t.name, x: t.avgAllowed25, y: t.avgAllowedCircle, z: 200 })),
+      circleDefense: teamStatsList.map(t => ({ name: t.name, x: t.avgAllowedCircle, y: t.avgAllowedThreat, z: 200 })),
+      pressEfficiency: teamStatsList.map(t => ({ name: t.name, x: t.avgSPP, y: t.avgAttPoss, z: 200 }))
     };
 
     const teamMatches = matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam);
 
-    const allMatchesPoints = teamMatches.map(m => {
-      const isHome = m.homeTeam.name === currentTeam;
-      const myStats = isHome ? m.matchStats.home : m.matchStats.away;
-      
-      return {
-        homeX: myStats.attackPossession,
-        homeY: myStats.timePerCE === 0 ? 450 : Math.min(450, myStats.timePerCE),
-        homeRawTime: myStats.timePerCE
-      };
-    });
-
     const mockMatch: MatchData = {
-      homeTeam: { name: currentTeam, color: selectedTeamColor }, 
+      homeTeam: { name: currentTeam, color: selectedTeamColor },
       awayTeam: { name: '대회 전체 평균', color: opponentColor },
       events: [],
       pressureData: teamMatches.map((m, i) => {
@@ -186,11 +154,37 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       }),
       build25Ratio: { home: 0, away: 0 },
       spp: { home: 0, away: 0 },
-      matchStats: { home: getAvgStatsForTeam(currentTeam), away: getGlobalAvgStats() },
+      matchStats: { 
+        home: {
+          ...getTeamAverages(currentTeam),
+          goals: { field: getTeamAverages(currentTeam).avgGoals, pc: 0 }, // 간소화된 표시용
+          shots: getTeamAverages(currentTeam).avgShots,
+          pcs: getTeamAverages(currentTeam).avgPCs,
+          circleEntries: getTeamAverages(currentTeam).avgCircle,
+          twentyFiveEntries: getTeamAverages(currentTeam).avg25y,
+          possession: getTeamAverages(currentTeam).avgPoss,
+          attackPossession: getTeamAverages(currentTeam).avgAttPoss,
+          spp: getTeamAverages(currentTeam).avgSPP,
+          timePerCE: getTeamAverages(currentTeam).avgTimeCE,
+          build25Ratio: 0
+        } as any, 
+        away: {
+          goals: { field: teamStatsList.reduce((a,b)=>a+b.avgGoals,0)/globalCount, pc: 0 },
+          shots: teamStatsList.reduce((a,b)=>a+b.avgShots,0)/globalCount,
+          pcs: teamStatsList.reduce((a,b)=>a+b.avgPCs,0)/globalCount,
+          circleEntries: globalAvg.circle,
+          twentyFiveEntries: globalAvg.entry25,
+          possession: teamStatsList.reduce((a,b)=>a+b.avgPoss,0)/globalCount,
+          attackPossession: globalAvg.attPoss,
+          spp: globalAvg.spp,
+          timePerCE: teamStatsList.reduce((a,b)=>a+b.avgTimeCE,0)/globalCount,
+          build25Ratio: 0
+        } as any
+      },
       quarterlyStats: []
     };
 
-    return { mockMatch, allTeams, currentTeam, allMatchesPoints };
+    return { mockMatch, allTeams, currentTeam, teamStatsList, globalAvg, quadrantData };
   }, [matches, selectedTeamName, selectedTeamColor, opponentColor]);
 
   if (loading) return <div className="py-20 text-center">대회 데이터를 불러오는 중...</div>;
@@ -260,6 +254,81 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
              </div>
           </div>
 
+          {/* 4분면 전술 분석 섹션 */}
+          <div className="page-break space-y-8">
+            <div className="flex items-center gap-2 text-2xl font-black text-primary border-b-2 pb-1">
+              <Grid3X3 className="h-6 w-6" /> 대회 전술 4분면 분석 (Tactical Quadrant Analysis)
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <TacticalQuadrantChart 
+                title="공격 전개 효율"
+                description="25y 진입 대비 서클 진입 전환력"
+                data={analysisData.quadrantData.attackEfficiency}
+                xAxisLabel="평균 25y 진입"
+                yAxisLabel="평균 서클 진입"
+                avgX={analysisData.globalAvg.entry25}
+                avgY={analysisData.globalAvg.circle}
+                selectedTeamName={analysisData.currentTeam}
+                selectedColor={selectedTeamColor}
+                opponentColor={opponentColor}
+              />
+              <TacticalQuadrantChart 
+                title="공격 결정력"
+                description="서클 진입 대비 기회 창출력"
+                data={analysisData.quadrantData.finishingEfficiency}
+                xAxisLabel="평균 서클 진입"
+                yAxisLabel="평균 슈팅+PC"
+                avgX={analysisData.globalAvg.circle}
+                avgY={analysisData.globalAvg.threat}
+                selectedTeamName={analysisData.currentTeam}
+                selectedColor={selectedTeamColor}
+                opponentColor={opponentColor}
+              />
+              <TacticalQuadrantChart 
+                title="수비 복원력"
+                description="상대 25y 진입 대비 서클 허용 억제"
+                data={analysisData.quadrantData.defensiveResilience}
+                xAxisLabel="평균 25y 허용"
+                yAxisLabel="평균 서클 허용"
+                avgX={analysisData.globalAvg.allowed25}
+                avgY={analysisData.globalAvg.allowedCircle}
+                selectedTeamName={analysisData.currentTeam}
+                selectedColor={selectedTeamColor}
+                opponentColor={opponentColor}
+                reversedX reversedY
+              />
+              <TacticalQuadrantChart 
+                title="서클 수비력"
+                description="상대 서클 진입 대비 슈팅 허용 억제"
+                data={analysisData.quadrantData.circleDefense}
+                xAxisLabel="평균 서클 허용"
+                yAxisLabel="평균 슈팅+PC 허용"
+                avgX={analysisData.globalAvg.allowedCircle}
+                avgY={analysisData.globalAvg.allowedThreat}
+                selectedTeamName={analysisData.currentTeam}
+                selectedColor={selectedTeamColor}
+                opponentColor={opponentColor}
+                reversedX reversedY
+              />
+              <TacticalQuadrantChart 
+                title="압박 및 점유 효율"
+                description="압박 강도와 공격 점유율의 상관관계"
+                data={analysisData.quadrantData.pressEfficiency}
+                xAxisLabel="압박 지수 (SPP, 초)"
+                yAxisLabel="공격 점유율 (%)"
+                avgX={analysisData.globalAvg.spp}
+                avgY={analysisData.globalAvg.attPoss}
+                selectedTeamName={analysisData.currentTeam}
+                selectedColor={selectedTeamColor}
+                opponentColor={opponentColor}
+                reversedX // SPP는 낮을수록 좋음
+                xUnit="s"
+                yUnit="%"
+              />
+            </div>
+          </div>
+
           <div className="page-break space-y-8">
             <div className="flex items-center gap-2 text-2xl font-black text-primary border-b-2 pb-1">
               <TrendingUp className="h-6 w-6" /> 경기별 트렌드 (Match-by-Match)
@@ -277,17 +346,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                 height={300} 
               />
             </div>
-          </div>
-
-          <div className="page-break">
-            <div className="flex items-center gap-2 text-2xl font-black text-primary border-b-2 pb-1 mb-8">
-              <Target className="h-6 w-6" /> 대회 전술적 궤적 흐름
-            </div>
-            <MatchTrajectoryChart 
-              data={analysisData.mockMatch} 
-              isTournamentView={true}
-              allMatchesPoints={analysisData.allMatchesPoints}
-            />
           </div>
         </div>
       )}
