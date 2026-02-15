@@ -1,5 +1,17 @@
 {
   "entities": {
+    "Tournament": {
+      "title": "Tournament",
+      "type": "object",
+      "description": "Represents a sports tournament containing multiple matches.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "object" }
+      },
+      "required": ["id", "name"]
+    },
     "Team": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Team",
@@ -100,6 +112,10 @@
         "awayScore": {
           "type": "number",
           "description": "The final score of the away team."
+        },
+        "tournamentId": {
+          "type": "string",
+          "description": "Reference to the Tournament this match belongs to."
         }
       },
       "required": [
@@ -205,81 +221,9 @@
           "type": "number",
           "description": "The overall circle entry efficiency for the team in this match."
         },
-        "turnoverCountAttackLeft": {
-          "type": "number",
-          "description": "The number of turnovers in the Attack Left zone."
-        },
-        "turnoverCountAttackCenter": {
-          "type": "number",
-          "description": "The number of turnovers in the Attack Center zone."
-        },
-        "turnoverCountAttackRight": {
-          "type": "number",
-          "description": "The number of turnovers in the Attack Right zone."
-        },
-        "turnoverCountMidfieldLeft": {
-          "type": "number",
-          "description": "The number of turnovers in the Midfield Left zone."
-        },
-        "turnoverCountMidfieldCenter": {
-          "type": "number",
-          "description": "The number of turnovers in the Midfield Center zone."
-        },
-        "turnoverCountMidfieldRight": {
-          "type": "number",
-          "description": "The number of turnovers in the Midfield Right zone."
-        },
-        "turnoverCountDefenseLeft": {
-          "type": "number",
-          "description": "The number of turnovers in the Defense Left zone."
-        },
-        "turnoverCountDefenseCenter": {
-          "type": "number",
-          "description": "The number of turnovers in the Defense Center zone."
-        },
-        "turnoverCountDefenseRight": {
-          "type": "number",
-          "description": "The number of turnovers in the Defense Right zone."
-        },
         "circleEntriesTotal": {
           "type": "number",
           "description": "The total number of circle entries made by the team."
-        },
-        "circleEntriesLeftCount": {
-          "type": "number",
-          "description": "The number of circle entries made via the Left channel."
-        },
-        "circleEntriesCenterCount": {
-          "type": "number",
-          "description": "The number of circle entries made via the Center channel."
-        },
-        "circleEntriesRightCount": {
-          "type": "number",
-          "description": "The number of circle entries made via the Right channel."
-        },
-        "shotsFromCircleEntryLeft": {
-          "type": "number",
-          "description": "The number of shots taken after a circle entry via the Left channel."
-        },
-        "shotsFromCircleEntryCenter": {
-          "type": "number",
-          "description": "The number of shots taken after a circle entry via the Center channel."
-        },
-        "shotsFromCircleEntryRight": {
-          "type": "number",
-          "description": "The number of shots taken after a circle entry via the Right channel."
-        },
-        "efficiencyFromCircleEntryLeft": {
-          "type": "number",
-          "description": "The efficiency percentage of converting Left channel circle entries into shots."
-        },
-        "efficiencyFromCircleEntryCenter": {
-          "type": "number",
-          "description": "The efficiency percentage of converting Center channel circle entries into shots."
-        },
-        "efficiencyFromCircleEntryRight": {
-          "type": "number",
-          "description": "The efficiency percentage of converting Right channel circle entries into shots."
         }
       },
       "required": [
@@ -290,10 +234,7 @@
         "secondsPerPress",
         "build25Ratio",
         "circleEntryEfficiency",
-        "circleEntriesTotal",
-        "circleEntriesLeftCount",
-        "circleEntriesCenterCount",
-        "circleEntriesRightCount"
+        "circleEntriesTotal"
       ]
     }
   },
@@ -306,37 +247,25 @@
   "firestore": {
     "structure": [
       {
+        "path": "/tournaments/{tournamentId}",
+        "definition": {
+          "entityName": "Tournament",
+          "schema": { "$ref": "#/backend/entities/Tournament" },
+          "description": "Root collection for sports tournaments."
+        }
+      },
+      {
         "path": "/teams/{teamId}",
         "definition": {
           "entityName": "Team",
           "schema": {
             "$ref": "#/backend/entities/Team"
           },
-          "description": "Root collection for all sports teams. Each document represents a single team. This collection serves as a primary entity for data related to specific teams. The structure supports Authorization Independence as access can be determined solely by the document data (or global permissions) without needing to query parent documents.",
+          "description": "Root collection for all sports teams.",
           "params": [
             {
               "name": "teamId",
               "description": "Unique identifier for a specific Team."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/teams/{teamId}/players/{playerId}",
-        "definition": {
-          "entityName": "Player",
-          "schema": {
-            "$ref": "#/backend/entities/Player"
-          },
-          "description": "Subcollection for players belonging to a specific team. Each document represents a single player. The 'teamId' is implicitly part of the path and explicitly present in the document, supporting Authorization Independence by containing all necessary contextual IDs for access within the document or path.",
-          "params": [
-            {
-              "name": "teamId",
-              "description": "Unique identifier of the parent Team."
-            },
-            {
-              "name": "playerId",
-              "description": "Unique identifier for a specific Player."
             }
           ]
         }
@@ -348,7 +277,7 @@
           "schema": {
             "$ref": "#/backend/entities/Match"
           },
-          "description": "Root collection for all matches played. Each document represents a single match. This collection serves as a primary entity for match-specific data. The structure supports Authorization Independence as access can be determined solely by the document data (or global permissions) without needing to query parent documents.",
+          "description": "Root collection for all matches played.",
           "params": [
             {
               "name": "matchId",
@@ -356,48 +285,7 @@
             }
           ]
         }
-      },
-      {
-        "path": "/matches/{matchId}/events/{matchEventId}",
-        "definition": {
-          "entityName": "MatchEvent",
-          "schema": {
-            "$ref": "#/backend/entities/MatchEvent"
-          },
-          "description": "Subcollection for events occurring within a specific match. Each document represents a single match event. The 'matchId' is implicitly part of the path and explicitly present in the document, and 'teamId' is also denormalized within the document, supporting Authorization Independence.",
-          "params": [
-            {
-              "name": "matchId",
-              "description": "Unique identifier of the parent Match."
-            },
-            {
-              "name": "matchEventId",
-              "description": "Unique identifier for a specific MatchEvent."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/matches/{matchId}/team_performances/{teamMatchPerformanceId}",
-        "definition": {
-          "entityName": "TeamMatchPerformance",
-          "schema": {
-            "$ref": "#/backend/entities/TeamMatchPerformance"
-          },
-          "description": "Subcollection for calculated team performance metrics within a specific match. Each document represents the performance of one team in that match. The 'matchId' is implicitly part of the path and explicitly present in the document, and 'teamId' is also denormalized within the document, supporting Authorization Independence.",
-          "params": [
-            {
-              "name": "matchId",
-              "description": "Unique identifier of the parent Match."
-            },
-            {
-              "name": "teamMatchPerformanceId",
-              "description": "Unique identifier for a specific TeamMatchPerformance record."
-            }
-          ]
-        }
       }
-    ],
-    "reasoning": "The recommended Firestore structure for the 'Field Focus' application prioritizes secure, scalable, and debuggable access to sports analytics data. Given the analytical and reporting nature of the application, the primary access model is assumed to be publicly readable by authenticated application users, with write access restricted to administrators or automated ingestion processes. \n\n**Authorization Independence:** The design achieves Authorization Independence by ensuring that all relevant contextual IDs required for basic data integrity and access control are either embedded directly within the document or inferable from its path. For instance, a `Player` document residing at `/teams/{teamId}/players/{playerId}` implicitly carries the `teamId` from its parent collection, and the `Player` schema itself includes `teamId`. Similarly, `MatchEvent` and `TeamMatchPerformance` documents explicitly include `matchId` and `teamId`. This eliminates the need for `get()` calls to parent documents to establish basic relationships or verify ownership for structural integrity, supporting atomic operations and simpler rules. \n\n**If user-specific ownership (e.g., a coach owning specific teams) were to be introduced, a critical denormalization strategy would be applied:** If a `Team` document were to include an `ownerId` (representing a user's UID) or a `members` map for collaborative access, then this `ownerId` or `members` map *must* be copied into every `Player` document within `/teams/{teamId}/players`. The same principle would apply if `Match` documents had an `ownerId`: that `ownerId` would need to be denormalized into `MatchEvent` and `TeamMatchPerformance` documents within `/matches/{matchId}/events` and `/matches/{matchId}/team_performances` respectively. This would enable robust authorization checks like `allow read: if request.auth.uid == resource.data.ownerId;` without breaking atomicity or relying on `get()` operations, thereby maintaining Authorization Independence. As per the provided entities, such user-specific ownership fields are not present, hence the current structure focuses on data context rather than user-role specific denormalization for authorization.\n\n**QAPs (Rules are not Filters):** The structure facilitates Queryable Access Patterns (QAPs) through strict structural segregation and predictable paths. Each collection holds documents of a homogeneous security posture. For example, `/teams/{teamId}/players` exclusively contains players belonging to a specific team, and `/matches/{matchId}/events` contains only events for a given match. This ensures that any `list` operation on these collections will return only data that the requesting user is implicitly authorized to see (e.g., all players of a team they have access to, or all events of a match they can view). There is no need for complex `where` clauses in security rules to filter results, as access is determined by the collection path and the denormalized fields within the documents themselves. This simplifies rules and improves query performance, adhering to the principle that security rules validate requested access, rather than filter results."
+    ]
   }
 }

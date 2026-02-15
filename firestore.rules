@@ -3,135 +3,35 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * FIELD FOCUS - SPORTS ANALYTICS SECURITY RULES
-     *
-     * CORE PHILOSOPHY:
-     * This ruleset implements a "Read-Only for Users / Restricted Writes" model suitable for a sports
-     * analytics platform. Data is globally readable by any authenticated user to facilitate reporting 
-     * and visualization, while write operations are strictly locked down.
-     *
-     * DATA STRUCTURE:
-     * - /teams/{teamId}: Root collection for team metadata.
-     * - /teams/{teamId}/players/{playerId}: Subcollection mapping players to their respective teams.
-     * - /matches/{matchId}: Root collection for match results and metadata.
-     * - /matches/{matchId}/events/{matchEventId}: Subcollection for granular play-by-play events.
-     * - /matches/{matchId}/team_performances/{id}: Subcollection for computed tactical metrics.
-     *
-     * KEY SECURITY DECISIONS:
-     * 1. Authenticated Read Access: All collections allow 'get' and 'list' for any signed-in user.
-     * 2. Restricted Writes: The current schema lacks user-ownership fields (e.g., ownerId). Consequently,
-     *    all client-side writes are currently denied. These operations are intended for administrative 
-     *    roles or automated backend ingestion processes.
-     * 3. Relational Integrity: Rules enforce that internal document IDs and foreign keys (like teamId 
-     *    or matchId) must match the document's path during creation and remain immutable during updates.
-     * 4. Prototyping Flexibility: Rules do not enforce strict data types (string vs number) for content 
-     *    fields, allowing for rapid schema iteration.
+     * FIELD FOCUS - SPORTS ANALYTICS SECURITY RULES (MVP Update)
+     * 
+     * 인증된 모든 사용자가 대회 및 경기 데이터를 읽고 쓸 수 있도록 허용합니다.
      */
 
-    // --- Helper Functions ---
-
-    /** @description Checks if the request is from a signed-in user. */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // The following helper functions are currently unused because write operations are
-    // globally denied (`allow create/update/delete: if false;`). They are kept here
-    // for future use when more granular write access is implemented, potentially
-    // for administrative roles or backend processes.
+    // 대회 목록 및 상세 정보
+    match /tournaments/{tournamentId} {
+      allow read, write: if isSignedIn();
+    }
 
-    // /** @description Verifies that a document exists for update/delete operations. */
-    // function exists(rsc) {
-    //   return rsc != null;
-    // }
-
-    // /** @description Validates that the document's internal ID matches the path ID. */
-    // function matchesPathId(fieldId, pathId) {
-    //   return fieldId == pathId;
-    // }
-
-    // /** @description Enforces immutability for critical relational fields. */
-    // function isImmutable(fieldName) {
-    //   // Note: 'request' and 'resource' are implicit in match blocks but must be passed as arguments to functions.
-    //   // This function is commented out as it's currently unused. When enabled, it would need to
-    //   // take request.resource.data and resource.data as arguments.
-    //   return request.resource.data[fieldName] == resource.data[fieldName];
-    // }
-
-    // --- Collection Rules ---
-
-    /**
-     * @description Root collection for sports teams.
-     * @path /teams/{teamId}
-     * @allow (get, list) if a user is signed in.
-     * @deny (create, update, delete) if no ownerId is present in schema or user is not admin.
-     * @principle Public authenticated read access with locked-down writes.
-     */
-    match /teams/{teamId} {
-      allow get, list: if isSignedIn();
-      // CRITICAL: Cannot implement owner-only writes. The 'Team' entity is missing an 'ownerId' field.
-      allow create: if false; // TODO: Add admin/owner validation once schema includes authorization fields.
-      allow update: if false; // TODO: Add admin/owner validation.
-      allow delete: if false; // TODO: Add admin/owner validation.
-
-      /**
-       * @description Players belonging to a specific team.
-       * @path /teams/{teamId}/players/{playerId}
-       * @allow (get, list) if user is signed in.
-       * @deny (create) if teamId in data doesn't match the path.
-       * @principle Path-based relational integrity for subcollections.
-       */
-      match /players/{playerId} {
-        allow get, list: if isSignedIn();
-        // CRITICAL: Cannot implement owner-only writes. The 'Player' entity is missing an 'ownerId' field.
-        allow create: if false; // TODO: Add admin/owner validation.
-        allow update: if false; // TODO: Add admin/owner validation.
-        allow delete: if false; // TODO: Add admin/owner validation.
+    // 경기 데이터 (대회에 소속된 경기 포함)
+    match /matches/{matchId} {
+      allow read, write: if isSignedIn();
+      
+      // 하위 컬렉션 (이벤트, 성능 지표 등)
+      match /{allPaths=**} {
+        allow read, write: if isSignedIn();
       }
     }
 
-    /**
-     * @description Root collection for match details and scores.
-     * @path /matches/{matchId}
-     * @allow (get, list) if user is signed in.
-     * @deny (update) if document does not exist.
-     * @principle Ensures match data is accessible to all app users.
-     */
-    match /matches/{matchId} {
-      allow get, list: if isSignedIn();
-      // CRITICAL: Cannot implement owner-only writes. The 'Match' entity is missing an 'ownerId' field.
-      allow create: if false; // TODO: Add admin/owner validation.
-      allow update: if false; // TODO: Add admin/owner validation.
-      allow delete: if false; // TODO: Add admin/owner validation.
-
-      /**
-       * @description Play-by-play events for a specific match.
-       * @path /matches/{matchId}/events/{matchEventId}
-       * @allow (get, list) if user is signed in.
-       * @deny (create) if matchId in data doesn't match the parent path.
-       * @principle Authorization Independence: Validates relationship via denormalized matchId.
-       */
-      match /events/{matchEventId} {
-        allow get, list: if isSignedIn();
-        // CRITICAL: Cannot implement owner-only writes. The 'MatchEvent' entity is missing an 'ownerId' field.
-        allow create: if false; // TODO: Add admin/owner validation.
-        allow update: if false; // TODO: Add admin/owner validation.
-        allow delete: if false; // TODO: Add admin/owner validation.
-      }
-
-      /**
-       * @description Tactical metrics calculated for a team in a match.
-       * @path /matches/{matchId}/team_performances/{perfId}
-       * @allow (get, list) if user is signed in.
-       * @deny (update) if critical IDs (matchId, teamId) are modified.
-       * @principle Enforces immutability of relational context in analytics data.
-       */
-      match /team_performances/{perfId} {
-        allow get, list: if isSignedIn();
-        // CRITICAL: Cannot implement owner-only writes. The 'TeamMatchPerformance' entity is missing an 'ownerId' field.
-        allow create: if false; // TODO: Add admin/owner validation.
-        allow update: if false; // TODO: Add admin/owner validation.
-        allow delete: if false; // TODO: Add admin/owner validation.
+    // 팀 및 선수 정보
+    match /teams/{teamId} {
+      allow read, write: if isSignedIn();
+      match /players/{playerId} {
+        allow read, write: if isSignedIn();
       }
     }
   }
