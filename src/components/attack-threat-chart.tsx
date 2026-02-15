@@ -52,13 +52,13 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
       const hVal = Number(current[homeTeam.name]);
       const aVal = Number(current[awayTeam.name]);
       
+      // 음영이 선 밖으로 나가지 않도록 리드하지 않는 팀의 영역은 해당 지점의 낮은 선 수치로 수렴시킴
       return {
         ...current,
         [homeTeam.name]: hVal,
         [awayTeam.name]: aVal,
-        // 리드하지 않는 구간에서는 상단 선(리드 중인 팀의 선)으로 수렴시켜 아래쪽 번짐 방지
-        homeLead: hVal >= aVal ? [aVal, hVal] : [aVal, aVal],
-        awayLead: aVal > hVal ? [hVal, aVal] : [hVal, hVal],
+        homeLead: hVal >= aVal ? [aVal, hVal] : [hVal, hVal],
+        awayLead: aVal > hVal ? [hVal, aVal] : [aVal, aVal],
       };
     });
   }, [data, homeTeam, awayTeam]);
@@ -83,7 +83,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
             <Legend />
             
             <Area
-              type="monotone"
+              type="linear"
               dataKey="homeLead"
               fill={homeTeam.color}
               fillOpacity={0.3}
@@ -94,7 +94,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
             />
 
             <Area
-              type="monotone"
+              type="linear"
               dataKey="awayLead"
               fill={awayTeam.color}
               fillOpacity={0.3}
@@ -105,7 +105,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
             />
 
             <Line 
-              type="monotone" 
+              type="linear" 
               dataKey={homeTeam.name} 
               stroke={homeTeam.color} 
               strokeWidth={3} 
@@ -113,7 +113,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               activeDot={{ r: 8 }} 
             />
             <Line 
-              type="monotone" 
+              type="linear" 
               dataKey={awayTeam.name} 
               stroke={awayTeam.color} 
               strokeWidth={3} 

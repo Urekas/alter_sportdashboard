@@ -59,8 +59,8 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
       const hVal = Number(d[homeTeam.name]);
       const aVal = Number(d[awayTeam.name]);
       
-      // SPP는 낮을수록 시각적으로 상단 (reversed). 
-      // 리드하지 않는 구간에서는 상단 선(리드 중인 선)으로 수렴시켜 아래쪽 번짐 제거
+      // SPP는 낮을수록 시각적으로 상단 (reversed 축).
+      // linear 보간을 사용하여 음영이 선 밖으로 나가는 것을 물리적으로 방지함.
       return {
         ...d,
         [homeTeam.name]: hVal,
@@ -91,7 +91,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
             <Legend />
             
             <Area
-              type="monotone"
+              type="linear"
               dataKey="homeLead"
               fill={homeTeam.color}
               fillOpacity={0.3}
@@ -102,7 +102,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
             />
 
             <Area
-              type="monotone"
+              type="linear"
               dataKey="awayLead"
               fill={awayTeam.color}
               fillOpacity={0.3}
@@ -113,7 +113,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
             />
 
             <Line 
-              type="monotone" 
+              type="linear" 
               dataKey={homeTeam.name} 
               stroke={homeTeam.color} 
               strokeWidth={3} 
@@ -121,7 +121,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               activeDot={{ r: 8 }} 
             />
             <Line 
-              type="monotone" 
+              type="linear" 
               dataKey={awayTeam.name} 
               stroke={awayTeam.color} 
               strokeWidth={3} 
