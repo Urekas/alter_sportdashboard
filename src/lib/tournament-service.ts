@@ -1,5 +1,5 @@
 
-'use server';
+'use client';
 /**
  * @fileOverview 대회 및 경기 데이터를 Firestore와 연동하는 서비스입니다.
  */
@@ -68,6 +68,5 @@ export const TournamentService = {
   // 대회 삭제
   async deleteTournament(tournamentId: string) {
     await deleteDoc(doc(db, TOURNAMENTS_COL, tournamentId));
-    // 주의: 실제 서비스에서는 대회에 속한 경기도 함께 삭제하는 배치가 필요함
   }
 };
