@@ -51,14 +51,14 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
     return data.map(current => {
       const hVal = Number(current[homeTeam.name]);
       const aVal = Number(current[awayTeam.name]);
+      
+      // 음영이 선을 벗어나지 않도록 리드하는 팀의 구간만 범위를 지정하고 나머지는 null 처리
       return {
         ...current,
         [homeTeam.name]: hVal,
         [awayTeam.name]: aVal,
-        // 홈팀이 우세할 때의 범위 (홈팀 색상 적용용)
-        homeLead: hVal >= aVal ? [aVal, hVal] : [aVal, aVal],
-        // 어웨이팀이 우세할 때의 범위 (어웨이팀 색상 적용용)
-        awayLead: aVal > hVal ? [hVal, aVal] : [hVal, hVal],
+        homeLead: hVal >= aVal ? [aVal, hVal] : null,
+        awayLead: aVal > hVal ? [hVal, aVal] : null,
       };
     });
   }, [data, homeTeam, awayTeam]);
@@ -69,7 +69,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
         <CardTitle>{isMatchTrend ? 'Attack Threat Trend (경기별 추이)' : 'Attack Threat Trend (5분 단위)'}</CardTitle>
         <CardDescription>
           {isMatchTrend 
-            ? `${homeTeam.name}가 치른 각 경기에서의 공격 위협도(슈팅+PC) 비교입니다. 음영은 상단에 위치한 팀의 색상으로 격차를 나타냅니다.` 
+            ? `${homeTeam.name}와 상대 팀의 공격 위협도 비교입니다. 음영은 시각적으로 상단에 위치한 팀의 색상으로 격차를 나타냅니다.` 
             : '5분 단위 슈팅 및 페널티코너 합산 위협도 추이입니다.'}
         </CardDescription>
       </CardHeader>
@@ -82,7 +82,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
             
-            {/* 홈팀이 위에 있을 때의 음영 */}
+            {/* 홈팀 우세 구간 음영 */}
             <Area
               type="monotone"
               dataKey="homeLead"
@@ -91,10 +91,10 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               stroke="none"
               legendType="none"
               tooltipType="none"
-              connectNulls
+              connectNulls={false}
             />
 
-            {/* 어웨이팀이 위에 있을 때의 음영 */}
+            {/* 상대팀 우세 구간 음영 */}
             <Area
               type="monotone"
               dataKey="awayLead"
@@ -103,7 +103,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               stroke="none"
               legendType="none"
               tooltipType="none"
-              connectNulls
+              connectNulls={false}
             />
 
             <Line 
