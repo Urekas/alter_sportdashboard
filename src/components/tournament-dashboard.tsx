@@ -165,7 +165,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
     const mockMatch: MatchData = {
       homeTeam: { name: currentTeam, color: selectedTeamColor }, 
-      awayTeam: { name: '대회 전체 평균', color: 'hsl(var(--chart-1))' }, // 차트는 파랑 고정
+      awayTeam: { name: '대회 전체 평균', color: opponentColor },
       events: [],
       pressureData: teamMatches.map((m, i) => {
         const isHome = m.homeTeam.name === currentTeam;
@@ -191,7 +191,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     };
 
     return { mockMatch, allTeams, currentTeam, allMatchesPoints };
-  }, [matches, selectedTeamName, selectedTeamColor]);
+  }, [matches, selectedTeamName, selectedTeamColor, opponentColor]);
 
   if (loading) return <div className="py-20 text-center">대회 데이터를 불러오는 중...</div>;
   if (matches.length === 0) return <div className="py-20 text-center text-muted-foreground">데이터가 없습니다. 분석할 경기를 업로드하고 DB에 저장해 주세요.</div>;
@@ -284,10 +284,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               <Target className="h-6 w-6" /> 대회 전술적 궤적 흐름
             </div>
             <MatchTrajectoryChart 
-              data={{
-                ...analysisData.mockMatch,
-                homeTeam: { ...analysisData.mockMatch.homeTeam, color: selectedTeamColor }
-              }} 
+              data={analysisData.mockMatch} 
               isTournamentView={true}
               allMatchesPoints={analysisData.allMatchesPoints}
             />

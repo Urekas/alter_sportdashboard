@@ -86,12 +86,13 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
       const hVal = Number(d[homeTeam.name]);
       const aVal = Number(d[awayTeam.name]);
       
+      // 리드하지 않는 구간의 음영은 상단 선에 밀착시켜 아래쪽으로 새지 않게 함
       return {
         ...d,
         [homeTeam.name]: hVal,
         [awayTeam.name]: aVal,
-        homeLead: hVal >= aVal ? [aVal, hVal] : [hVal, hVal],
-        awayLead: aVal > hVal ? [hVal, aVal] : [aVal, aVal],
+        homeLead: hVal >= aVal ? [aVal, hVal] : [aVal, aVal],
+        awayLead: aVal > hVal ? [hVal, aVal] : [hVal, hVal],
       };
     });
   }, [data, homeTeam, awayTeam]);

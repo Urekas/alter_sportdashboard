@@ -92,7 +92,8 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
       const hVal = Number(d[homeTeam.name]);
       const aVal = Number(d[awayTeam.name]);
       
-      // SPP는 낮을수록 시각적으로 상단 (reversed 축).
+      // SPP는 낮을수록 시각적으로 상단 (reversed 축). 
+      // 리드하지 않는 구간의 음영은 상단 선에 밀착시켜 번짐 방지
       return {
         ...d,
         [homeTeam.name]: hVal,
