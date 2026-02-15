@@ -100,15 +100,15 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
     return result.map(d => {
       const hVal = Number(d[homeTeam.name]);
       const aVal = Number(d[awayTeam.name]);
-      const homeIsLeading = hVal <= aVal; // SPP는 낮을수록 리드
+      const homeIsLeading = hVal <= aVal; // SPP는 낮을수록 리드(위에 위치)
       
       return {
         ...d,
         [homeTeam.name]: hVal,
         [awayTeam.name]: aVal,
-        homeLead: [aVal, hVal],
-        awayLead: [hVal, aVal],
-        activeLeadColor: homeIsLeading ? homeTeam.color : awayTeam.color
+        // 시각적으로 위에 있는 팀의 음영만 표시하기 위해 나머지는 겹침
+        homeLead: homeIsLeading ? [aVal, hVal] : [hVal, hVal],
+        awayLead: !homeIsLeading ? [hVal, aVal] : [aVal, aVal],
       };
     });
   }, [data, homeTeam, awayTeam, isMatchTrend]);
@@ -189,8 +189,8 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               stroke={homeTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { key, cx, cy, payload } = props;
-                if (payload.isIntersection) return null;
+                const { key, cx, cy } = props;
+                if (props.payload.isIntersection) return null;
                 return <circle key={key} cx={cx} cy={cy} r={6} fill={homeTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
@@ -201,8 +201,8 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               stroke={awayTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { key, cx, cy, payload } = props;
-                if (payload.isIntersection) return null;
+                const { key, cx, cy } = props;
+                if (props.payload.isIntersection) return null;
                 return <circle key={key} cx={cx} cy={cy} r={6} fill={awayTeam.color} />;
               }}
               activeDot={{ r: 8 }} 

@@ -95,16 +95,14 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
     return result.map(d => {
       const hVal = Number(d[homeTeam.name]);
       const aVal = Number(d[awayTeam.name]);
-      const homeIsLeading = hVal >= aVal;
-      const awayIsLeading = aVal > hVal;
       
       return {
         ...d,
         [homeTeam.name]: hVal,
         [awayTeam.name]: aVal,
-        homeLead: [aVal, hVal], // 항상 두 값 사이를 칠하되, homeLead는 홈이 높을 때 색상 적용
-        awayLead: [hVal, aVal], // awayLead는 어웨이가 높을 때 색상 적용
-        activeLeadColor: homeIsLeading ? homeTeam.color : awayTeam.color
+        // 리드하는 팀의 음영만 표시하기 위해 리드하지 않는 구간은 두 선을 겹침(높이 0)
+        homeLead: hVal >= aVal ? [aVal, hVal] : [hVal, hVal],
+        awayLead: aVal > hVal ? [hVal, aVal] : [aVal, aVal],
       };
     });
   }, [data, homeTeam, awayTeam, isMatchTrend]);
@@ -160,9 +158,6 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               legendType="none"
               tooltipType="none"
               connectNulls
-              // 홈이 리드할 때만 색이 보이도록 mask/clip 하는 대신 
-              // 리드하지 않을 때는 값을 수렴시켜서 면적을 0으로 만듦
-              baseValue="dataMin" 
             />
 
             <Area
@@ -182,8 +177,8 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               stroke={homeTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { key, cx, cy, payload } = props;
-                if (payload.isIntersection) return null;
+                const { key, cx, cy } = props;
+                if (props.payload.isIntersection) return null;
                 return <circle key={key} cx={cx} cy={cy} r={6} fill={homeTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
@@ -194,8 +189,8 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               stroke={awayTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { key, cx, cy, payload } = props;
-                if (payload.isIntersection) return null;
+                const { key, cx, cy } = props;
+                if (props.payload.isIntersection) return null;
                 return <circle key={key} cx={cx} cy={cy} r={6} fill={awayTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
