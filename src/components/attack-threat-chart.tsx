@@ -56,10 +56,9 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
         ...current,
         [homeTeam.name]: hVal,
         [awayTeam.name]: aVal,
-        // 홈팀이 위에 있을 때만 면적을 가지고, 아니면 두 값을 같게 하여 높이를 0으로 만듦 (연속성 유지)
-        homeLead: hVal >= aVal ? [aVal, hVal] : [hVal, hVal],
-        // 어웨이팀이 위에 있을 때만 면적을 가짐
-        awayLead: aVal > hVal ? [hVal, aVal] : [aVal, aVal],
+        // 리드하지 않는 구간에서는 상단 선(리드 중인 팀의 선)으로 수렴시켜 아래쪽 번짐 방지
+        homeLead: hVal >= aVal ? [aVal, hVal] : [aVal, aVal],
+        awayLead: aVal > hVal ? [hVal, aVal] : [hVal, hVal],
       };
     });
   }, [data, homeTeam, awayTeam]);
@@ -70,7 +69,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
         <CardTitle>{isMatchTrend ? 'Attack Threat Trend (경기별 추이)' : 'Attack Threat Trend (5분 단위)'}</CardTitle>
         <CardDescription>
           {isMatchTrend 
-            ? `${homeTeam.name}와 상대 팀의 공격 위협도 비교입니다. 음영은 시각적으로 상단에 위치한 팀의 색상으로 격차를 나타냅니다.` 
+            ? `${homeTeam.name}와 상대 팀의 공격 위협도 비교입니다. 음영은 상단에 위치한 팀의 색상으로 격차를 나타냅니다.` 
             : '5분 단위 슈팅 및 페널티코너 합산 위협도 추이입니다.'}
         </CardDescription>
       </CardHeader>
@@ -83,7 +82,6 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
             
-            {/* 홈팀 우세 구간 음영: 홈팀 선 색상 사용 */}
             <Area
               type="monotone"
               dataKey="homeLead"
@@ -95,7 +93,6 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               connectNulls={true}
             />
 
-            {/* 상대팀 우세 구간 음영: 상대팀 선 색상 사용 */}
             <Area
               type="monotone"
               dataKey="awayLead"

@@ -59,15 +59,14 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
       const hVal = Number(d[homeTeam.name]);
       const aVal = Number(d[awayTeam.name]);
       
-      // SPP는 수치가 낮을수록 시각적으로 위에 있음 (reversed 축)
-      // homeLead: 홈팀이 위에 있음 (hVal <= aVal)
+      // SPP는 낮을수록 시각적으로 상단 (reversed). 
+      // 리드하지 않는 구간에서는 상단 선(리드 중인 선)으로 수렴시켜 아래쪽 번짐 제거
       return {
         ...d,
         [homeTeam.name]: hVal,
         [awayTeam.name]: aVal,
-        // 구간별로 시각적으로 상단에 위치한 팀의 색상을 적용하기 위해 높이가 0인 지점과 교차하며 연속성 유지
-        homeLead: hVal <= aVal ? [hVal, aVal] : [hVal, hVal],
-        awayLead: aVal < hVal ? [aVal, hVal] : [aVal, aVal],
+        homeLead: hVal <= aVal ? [hVal, aVal] : [aVal, aVal],
+        awayLead: aVal < hVal ? [aVal, hVal] : [hVal, hVal],
       };
     });
   }, [data, homeTeam, awayTeam]);
@@ -78,7 +77,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
         <CardTitle>{isMatchTrend ? 'Pressure Battle Trend (경기별 SPP 추이)' : 'Pressure Battle (3분 단위 SPP 추이)'}</CardTitle>
         <CardDescription>
           {isMatchTrend 
-            ? `${homeTeam.name}와 상대 팀의 SPP(압박 지수) 변화입니다. 음영은 시각적으로 상단(높은 압박)에 위치한 팀의 색상입니다.` 
+            ? `${homeTeam.name}와 상대 팀의 SPP(압박 지수) 변화입니다. 음영은 상단(높은 압박)에 위치한 팀의 색상입니다.` 
             : 'SPP 추이입니다. 상단에 위치할수록 압박 강도가 높음을 의미합니다.'}
         </CardDescription>
       </CardHeader>
@@ -91,7 +90,6 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
             
-            {/* 홈팀 우세 구간 음영 */}
             <Area
               type="monotone"
               dataKey="homeLead"
@@ -103,7 +101,6 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               connectNulls={true}
             />
 
-            {/* 상대팀 우세 구간 음영 */}
             <Area
               type="monotone"
               dataKey="awayLead"
