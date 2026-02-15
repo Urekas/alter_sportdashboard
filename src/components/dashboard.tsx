@@ -53,7 +53,7 @@ export function Dashboard() {
 
   const handleLoadMockData = () => {
     setParsedEvents(mockMatchData.events);
-    const uniqueTeams = Array.from(new Set(mockMatchData.events.map(e => e.team)));
+    const uniqueTeams = Array.from(new Set(mockMatchData.events.map(e => e.team.trim()))).filter(Boolean);
     setDetectedTeams(uniqueTeams);
     setHomeTeamName(mockMatchData.homeTeam.name);
     setAwayTeamName(mockMatchData.awayTeam.name);
@@ -81,7 +81,7 @@ export function Dashboard() {
           if (parsed.events.length === 0) throw new Error("분석 가능한 데이터가 없습니다.");
           
           setParsedEvents(parsed.events);
-          const uniqueTeams = Array.from(new Set(parsed.events.map(e => e.team)));
+          const uniqueTeams = Array.from(new Set(parsed.events.map(e => e.team.trim()))).filter(Boolean);
           setDetectedTeams(uniqueTeams);
           
           // 초기 팀 설정
@@ -143,7 +143,7 @@ export function Dashboard() {
                   </SelectTrigger>
                   <SelectContent>
                     {detectedTeams.map(team => (
-                      <SelectItem key={team} value={team}>{team}</SelectItem>
+                      <SelectItem key={`home-${team}`} value={team}>{team}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -166,7 +166,7 @@ export function Dashboard() {
                   </SelectTrigger>
                   <SelectContent>
                     {detectedTeams.map(team => (
-                      <SelectItem key={team} value={team}>{team}</SelectItem>
+                      <SelectItem key={`away-${team}`} value={team}>{team}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -227,7 +227,7 @@ export function Dashboard() {
             <div className="page-break space-y-8">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {[matchData.homeTeam, matchData.awayTeam].map((team, i) => (
-                  <div key={team.name} className="space-y-3">
+                  <div key={`${team.name}-${i}`} className="space-y-3">
                     <div className="flex items-center gap-2 font-bold text-xl" style={{ color: team.color }}>
                       <div className="w-4 h-4 rounded-full" style={{ backgroundColor: team.color }} />
                       {team.name} ({i === 0 ? '홈' : '어웨이'})

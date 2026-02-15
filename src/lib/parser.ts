@@ -15,13 +15,13 @@ const extractTeamName = (code: string, detectedTeams: { home: string, away: stri
   const upperCode = code.toUpperCase();
   
   if (detectedTeams) {
-    const homeUpper = detectedTeams.home.toUpperCase();
-    const awayUpper = detectedTeams.away.toUpperCase();
+    const homeUpper = detectedTeams.home.toUpperCase().trim();
+    const awayUpper = detectedTeams.away.toUpperCase().trim();
     
-    if (upperCode.includes(homeUpper)) return detectedTeams.home;
-    if (upperCode.includes(awayUpper)) return detectedTeams.away;
-    if (upperCode.includes("HOME")) return detectedTeams.home;
-    if (upperCode.includes("AWAY")) return detectedTeams.away;
+    if (upperCode.includes(homeUpper)) return detectedTeams.home.trim();
+    if (upperCode.includes(awayUpper)) return detectedTeams.away.trim();
+    if (upperCode.includes("HOME")) return detectedTeams.home.trim();
+    if (upperCode.includes("AWAY")) return detectedTeams.away.trim();
   }
   
   return "Unknown";
@@ -88,7 +88,7 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
       if (!detectedTeams) detectedTeams = detectRealTeamNames(text);
     }
 
-    const team = extractTeamName(code, detectedTeams);
+    const team = extractTeamName(code, detectedTeams).trim();
     if (team === "Unknown") return;
 
     const startTime = parseFloat(instance.getElementsByTagName("start")[0]?.textContent || "0");
@@ -111,7 +111,13 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     });
   });
 
-  return { events, teams: { home: detectedTeams?.home || "Home", away: detectedTeams?.away || "Away" } };
+  return { 
+    events, 
+    teams: { 
+      home: detectedTeams?.home.trim() || "Home", 
+      away: detectedTeams?.away.trim() || "Away" 
+    } 
+  };
 };
 
 export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { home: string, away: string } } => {
@@ -144,7 +150,7 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
     const ungrouped = idxMap.ungrouped > -1 ? row[idxMap.ungrouped] : "";
     if (!detectedTeams) detectedTeams = detectRealTeamNames(ungrouped + code);
     
-    const team = extractTeamName(code, detectedTeams);
+    const team = extractTeamName(code, detectedTeams).trim();
     if (team === "Unknown") continue;
 
     const startTime = parseFloat(idxMap.start > -1 ? row[idxMap.start] : "0");
@@ -169,7 +175,13 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
     });
   }
 
-  return { events, teams: { home: detectedTeams?.home || "Home", away: detectedTeams?.away || "Away" } };
+  return { 
+    events, 
+    teams: { 
+      home: detectedTeams?.home.trim() || "Home", 
+      away: detectedTeams?.away.trim() || "Away" 
+    } 
+  };
 };
 
 export const createMatchDataFromUpload = (
@@ -181,8 +193,8 @@ export const createMatchDataFromUpload = (
   tournamentName?: string,
   matchName?: string
 ): MatchData => {
-  const homeTeam = { name: homeName, color: homeColor }; 
-  const awayTeam = { name: awayName, color: awayColor }; 
+  const homeTeam = { name: homeName.trim(), color: homeColor }; 
+  const awayTeam = { name: awayName.trim(), color: awayColor }; 
 
   const quartersList = ['Q1', 'Q2', 'Q3', 'Q4'];
   
@@ -208,11 +220,11 @@ export const createMatchDataFromUpload = (
 
     const teamTime = myEvents.filter(e => e.code.trim() === `${team} TEAM`).reduce((acc, e) => acc + e.duration, 0);
     const attTime = myEvents.filter(e => e.code.trim() === `${team} ATT`).reduce((acc, e) => acc + e.duration, 0);
-    const buildUpTime = teamTime - attTime; 
+    const buildUpTime = Math.max(0, teamTime - attTime); 
 
     const oppTeamTime = oppEvents.filter(e => e.code.trim() === `${opponent} TEAM`).reduce((acc, e) => acc + e.duration, 0);
     const oppAttTime = oppEvents.filter(e => e.code.trim() === `${opponent} ATT`).reduce((acc, e) => acc + e.duration, 0);
-    const oppBuildUpTime = oppTeamTime - oppAttTime;
+    const oppBuildUpTime = Math.max(0, oppTeamTime - oppAttTime);
 
     const shotCount = myEvents.filter(e => e.code.trim() === `${team} 슈팅`).length;
     const ceCount = myEvents.filter(e => e.code.trim() === `${team} 슈팅서클 진입`).length;
