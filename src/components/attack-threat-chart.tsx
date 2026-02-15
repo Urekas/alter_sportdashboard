@@ -33,12 +33,12 @@ const CustomTooltip = ({ active, payload, label, homeTeam, awayTeam }: TooltipPr
 
     return (
       <div className="bg-card p-3 border rounded-lg shadow-lg text-sm">
-        <p className="font-bold text-base mb-2">{`시간대: ${label}`}</p>
+        <p className="font-bold text-base mb-2">{`${label}`}</p>
         {homePayload && <p style={{ color: homePayload.color }}>
-          {`${homePayload.name} 위협도: ${Math.round(Number(homePayload.value))}`}
+          {`${homePayload.name}: ${Math.round(Number(homePayload.value))}`}
         </p>}
         {awayPayload && <p style={{ color: awayPayload.color }}>
-          {`${awayPayload.name} 위협도: ${Math.round(Number(awayPayload.value))}`}
+          {`${awayPayload.name}: ${Math.round(Number(awayPayload.value))}`}
         </p>}
       </div>
     );
@@ -47,73 +47,44 @@ const CustomTooltip = ({ active, payload, label, homeTeam, awayTeam }: TooltipPr
 };
 
 export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChartProps) {
+  const isMatchTrend = data.some(d => d.interval.startsWith('M'));
+
   const chartData = useMemo(() => {
     const result: any[] = [];
     if (data.length === 0) return result;
 
-    for (let i = 0; i < data.length - 1; i++) {
+    for (let i = 0; i < data.length; i++) {
       const current = data[i];
-      const next = data[i + 1];
-      const h1 = Number(current[homeTeam.name]);
-      const a1 = Number(current[awayTeam.name]);
-      const h2 = Number(next[homeTeam.name]);
-      const a2 = Number(next[awayTeam.name]);
+      const hVal = Number(current[homeTeam.name]);
+      const aVal = Number(current[awayTeam.name]);
 
-      const createPoint = (d: any, h: number, a: number) => ({
-        ...d,
-        [homeTeam.name]: h,
-        [awayTeam.name]: a,
-        homeDominance: h >= a ? [a, h] : [a, a],
-        awayDominance: a > h ? [h, a] : [h, h]
+      result.push({
+        ...current,
+        [homeTeam.name]: hVal,
+        [awayTeam.name]: aVal,
+        homeDominance: hVal >= aVal ? [aVal, hVal] : [aVal, aVal],
+        awayDominance: aVal > hVal ? [hVal, aVal] : [hVal, hVal]
       });
-
-      result.push(createPoint(current, h1, a1));
-
-      if ((h1 - a1) * (h2 - a2) < 0) {
-        const ratio = Math.abs(h1 - a1) / (Math.abs(h1 - a1) + Math.abs(h2 - a2));
-        const intersectVal = h1 + ratio * (h2 - h1);
-        
-        result.push({
-          interval: `${current.interval}+`, 
-          isIntersect: true,
-          [homeTeam.name]: intersectVal,
-          [awayTeam.name]: intersectVal,
-          homeDominance: [intersectVal, intersectVal],
-          awayDominance: [intersectVal, intersectVal]
-        });
-      }
     }
-    
-    const last = data[data.length - 1];
-    const hLast = Number(last[homeTeam.name]);
-    const aLast = Number(last[awayTeam.name]);
-    result.push({
-      ...last,
-      homeDominance: hLast >= aLast ? [aLast, hLast] : [aLast, aLast],
-      awayDominance: aLast > hLast ? [hLast, aLast] : [hLast, hLast]
-    });
-
     return result;
   }, [data, homeTeam, awayTeam]);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Attack Threat Trend (슈팅+PC)</CardTitle>
+        <CardTitle>{isMatchTrend ? 'Attack Threat Trend (경기별 추이)' : 'Attack Threat Trend (5분 단위)'}</CardTitle>
         <CardDescription>
-          5분 단위 슈팅 및 페널티코너 합산 위협도 추이입니다. (Y축 최대값: 6 고정)
+          {isMatchTrend 
+            ? `${homeTeam.name}가 치른 각 경기에서의 공격 위협도(슈팅+PC) 비교입니다.` 
+            : '5분 단위 슈팅 및 페널티코너 합산 위협도 추이입니다.'}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={350}>
           <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-            <XAxis dataKey="interval" interval="preserveStartEnd" />
-            <YAxis 
-              domain={[0, 6]} 
-              label={{ value: '공격 위협도', angle: -90, position: 'insideLeft' }} 
-              allowDecimals={false} 
-            />
+            <XAxis dataKey="interval" interval={0} />
+            <YAxis label={{ value: '공격 위협도', angle: -90, position: 'insideLeft' }} allowDecimals={false} />
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
             
@@ -126,7 +97,6 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               connectNulls
               activeDot={false}
               legendType="none"
-              tooltipType="none"
             />
             <Area
               type="monotone"
@@ -137,42 +107,23 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               connectNulls
               activeDot={false}
               legendType="none"
-              tooltipType="none"
             />
-
-            <ReferenceLine x="15'" stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3">
-              <Label value="Q1 | Q2" position="top" fill="hsl(var(--muted-foreground))" fontSize={11} offset={10} />
-            </ReferenceLine>
-            <ReferenceLine x="30'" stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3">
-              <Label value="Q2 | Q3" position="top" fill="hsl(var(--muted-foreground))" fontSize={11} offset={10} />
-            </ReferenceLine>
-            <ReferenceLine x="45'" stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3">
-              <Label value="Q3 | Q4" position="top" fill="hsl(var(--muted-foreground))" fontSize={11} offset={10} />
-            </ReferenceLine>
 
             <Line 
               type="monotone" 
               dataKey={homeTeam.name} 
               stroke={homeTeam.color} 
               strokeWidth={3} 
-              dot={(props: any) => {
-                const { key, cx, cy, payload } = props;
-                if (payload.isIntersect) return <path key={key} d="" />;
-                return <circle key={key} cx={cx} cy={cy} r={4} fill={homeTeam.color} stroke="none" />;
-              }} 
-              activeDot={{ r: 6 }} 
+              dot={{ r: 6, fill: homeTeam.color }}
+              activeDot={{ r: 8 }} 
             />
             <Line 
               type="monotone" 
               dataKey={awayTeam.name} 
               stroke={awayTeam.color} 
               strokeWidth={3} 
-              dot={(props: any) => {
-                const { key, cx, cy, payload } = props;
-                if (payload.isIntersect) return <path key={key} d="" />;
-                return <circle key={key} cx={cx} cy={cy} r={4} fill={awayTeam.color} stroke="none" />;
-              }} 
-              activeDot={{ r: 6 }} 
+              dot={{ r: 6, fill: awayTeam.color }}
+              activeDot={{ r: 8 }} 
             />
           </ComposedChart>
         </ResponsiveContainer>
