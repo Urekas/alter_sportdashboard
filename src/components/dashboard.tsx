@@ -50,12 +50,17 @@ export function Dashboard() {
   const { toast } = useToast()
 
   // 대회 목록 로드
-  useEffect(() => {
-    const fetchTournaments = async () => {
-      const list = await TournamentService.getTournaments()
-      setTournaments(list)
+  const fetchTournaments = async () => {
+    try {
+      const list = await TournamentService.getTournaments();
+      setTournaments(list);
+    } catch (e) {
+      console.error("Failed to fetch tournaments", e);
     }
-    fetchTournaments()
+  };
+
+  useEffect(() => {
+    fetchTournaments();
   }, [])
 
   useEffect(() => {
@@ -74,30 +79,36 @@ export function Dashboard() {
   }, [parsedEvents, homeTeamName, awayTeamName, homeColor, awayColor, tournamentName, matchName]);
 
   const handleCreateTournament = async () => {
-    if (!newTournamentName) return;
+    if (!newTournamentName.trim()) {
+      toast({ title: "대회 이름을 입력해주세요.", variant: "destructive" });
+      return;
+    }
     try {
       const id = await TournamentService.createTournament(newTournamentName, new Date().toISOString());
-      const updatedList = await TournamentService.getTournaments();
-      setTournaments(updatedList);
+      await fetchTournaments();
       setActiveTournamentId(id);
       setIsNewTournamentDialogOpen(false);
       setNewTournamentName("");
-      toast({ title: "대회 생성 완료" });
-    } catch (e) {
-      toast({ title: "대회 생성 실패", variant: "destructive" });
+      toast({ title: "대회 생성 완료", description: `"${newTournamentName}" 대회가 생성되었습니다.` });
+    } catch (e: any) {
+      toast({ title: "대회 생성 실패", description: e.message, variant: "destructive" });
     }
   }
 
   const handleSaveToDB = async () => {
-    if (!matchData || !activeTournamentId) {
-      toast({ title: "대회를 선택하거나 데이터를 먼저 로드하세요.", variant: "destructive" });
+    if (!matchData) {
+      toast({ title: "데이터를 먼저 업로드하세요.", variant: "destructive" });
+      return;
+    }
+    if (!activeTournamentId) {
+      toast({ title: "저장할 대회를 먼저 선택해주세요.", variant: "destructive" });
       return;
     }
     try {
       await TournamentService.addMatchToTournament(activeTournamentId, matchData);
       toast({ title: "경기 데이터 저장 완료", description: "대회 DB에 성공적으로 기록되었습니다." });
-    } catch (e) {
-      toast({ title: "저장 실패", variant: "destructive" });
+    } catch (e: any) {
+      toast({ title: "저장 실패", description: e.message, variant: "destructive" });
     }
   }
 
@@ -200,7 +211,12 @@ export function Dashboard() {
                     <div className="py-4 space-y-4">
                       <div className="space-y-2">
                         <Label>대회 이름</Label>
-                        <Input value={newTournamentName} onChange={(e) => setNewTournamentName(e.target.value)} placeholder="예: 2024 파리 올림픽" />
+                        <Input 
+                          value={newTournamentName} 
+                          onChange={(e) => setNewTournamentName(e.target.value)} 
+                          placeholder="예: 2024 파리 올림픽"
+                          onKeyDown={(e) => e.key === 'Enter' && handleCreateTournament()}
+                        />
                       </div>
                     </div>
                     <DialogFooter>
