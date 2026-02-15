@@ -104,19 +104,19 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       return {
         name: teamName,
         color: teamColorMap.get(teamName),
-        avgGoals: sum.goals / count,
-        avgShots: sum.shots / count,
-        avgPCs: sum.pcs / count,
-        avgCircle: sum.circle / count,
-        avg25y: sum.entry25 / count,
-        avgPoss: sum.possession / count,
-        avgAttPoss: sum.attPoss / count,
-        avgSPP: sum.spp / count,
-        avgTimeCE: sum.timeCE / count,
-        avgAllowed25: sum.allowed25 / count,
-        avgAllowedCircle: sum.allowedCircle / count,
-        avgAllowedThreat: (sum.allowedShots + sum.allowedPC) / count,
-        avgThreat: (sum.shots + sum.pcs) / count
+        avgGoals: parseFloat((sum.goals / count).toFixed(1)),
+        avgShots: parseFloat((sum.shots / count).toFixed(1)),
+        avgPCs: parseFloat((sum.pcs / count).toFixed(1)),
+        avgCircle: parseFloat((sum.circle / count).toFixed(1)),
+        avg25y: parseFloat((sum.entry25 / count).toFixed(1)),
+        avgPoss: parseFloat((sum.possession / count).toFixed(1)),
+        avgAttPoss: parseFloat((sum.attPoss / count).toFixed(1)),
+        avgSPP: parseFloat((sum.spp / count).toFixed(1)),
+        avgTimeCE: parseFloat((sum.timeCE / count).toFixed(1)),
+        avgAllowed25: parseFloat((sum.allowed25 / count).toFixed(1)),
+        avgAllowedCircle: parseFloat((sum.allowedCircle / count).toFixed(1)),
+        avgAllowedThreat: parseFloat(((sum.allowedShots + sum.allowedPC) / count).toFixed(1)),
+        avgThreat: parseFloat(((sum.shots + sum.pcs) / count).toFixed(1))
       };
     };
 
@@ -124,14 +124,14 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     
     const globalCount = teamStatsList.length || 1;
     const globalAvg = {
-      entry25: teamStatsList.reduce((a, b) => a + b.avg25y, 0) / globalCount,
-      circle: teamStatsList.reduce((a, b) => a + b.avgCircle, 0) / globalCount,
-      threat: teamStatsList.reduce((a, b) => a + b.avgThreat, 0) / globalCount,
-      allowed25: teamStatsList.reduce((a, b) => a + b.avgAllowed25, 0) / globalCount,
-      allowedCircle: teamStatsList.reduce((a, b) => a + b.avgAllowedCircle, 0) / globalCount,
-      allowedThreat: teamStatsList.reduce((a, b) => a + b.avgAllowedThreat, 0) / globalCount,
-      spp: teamStatsList.reduce((a, b) => a + b.avgSPP, 0) / globalCount,
-      attPoss: teamStatsList.reduce((a, b) => a + b.avgAttPoss, 0) / globalCount,
+      entry25: parseFloat((teamStatsList.reduce((a, b) => a + b.avg25y, 0) / globalCount).toFixed(1)),
+      circle: parseFloat((teamStatsList.reduce((a, b) => a + b.avgCircle, 0) / globalCount).toFixed(1)),
+      threat: parseFloat((teamStatsList.reduce((a, b) => a + b.avgThreat, 0) / globalCount).toFixed(1)),
+      allowed25: parseFloat((teamStatsList.reduce((a, b) => a + b.avgAllowed25, 0) / globalCount).toFixed(1)),
+      allowedCircle: parseFloat((teamStatsList.reduce((a, b) => a + b.avgAllowedCircle, 0) / globalCount).toFixed(1)),
+      allowedThreat: parseFloat((teamStatsList.reduce((a, b) => a + b.avgAllowedThreat, 0) / globalCount).toFixed(1)),
+      spp: parseFloat((teamStatsList.reduce((a, b) => a + b.avgSPP, 0) / globalCount).toFixed(1)),
+      attPoss: parseFloat((teamStatsList.reduce((a, b) => a + b.avgAttPoss, 0) / globalCount).toFixed(1)),
     };
 
     const quadrantData = {
@@ -182,15 +182,15 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
           build25Ratio: 0
         } as any, 
         away: {
-          goals: { field: teamStatsList.reduce((a,b)=>a+b.avgGoals,0)/globalCount, pc: 0 },
-          shots: teamStatsList.reduce((a,b)=>a+b.avgShots,0)/globalCount,
-          pcs: teamStatsList.reduce((a,b)=>a+b.avgPCs,0)/globalCount,
+          goals: { field: parseFloat((teamStatsList.reduce((a,b)=>a+b.avgGoals,0)/globalCount).toFixed(1)), pc: 0 },
+          shots: parseFloat((teamStatsList.reduce((a,b)=>a+b.avgShots,0)/globalCount).toFixed(1)),
+          pcs: parseFloat((teamStatsList.reduce((a,b)=>a+b.avgPCs,0)/globalCount).toFixed(1)),
           circleEntries: globalAvg.circle,
           twentyFiveEntries: globalAvg.entry25,
-          possession: teamStatsList.reduce((a,b)=>a+b.avgPoss,0)/globalCount,
+          possession: parseFloat((teamStatsList.reduce((a,b)=>a+b.avgPoss,0)/globalCount).toFixed(1)),
           attackPossession: globalAvg.attPoss,
           spp: globalAvg.spp,
-          timePerCE: teamStatsList.reduce((a,b)=>a+b.avgTimeCE,0)/globalCount,
+          timePerCE: parseFloat((teamStatsList.reduce((a,b)=>a+b.avgTimeCE,0)/globalCount).toFixed(1)),
           build25Ratio: 0
         } as any
       },
