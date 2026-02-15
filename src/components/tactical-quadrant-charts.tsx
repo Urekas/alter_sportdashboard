@@ -54,10 +54,10 @@ const CustomTooltip = ({ active, payload, xLabel, yLabel, xUnit, yUnit }: any) =
     const p = payload[0].payload
     return (
       <div className="bg-card p-3 border-2 rounded-lg shadow-xl text-xs">
-        <p className="font-black border-b pb-1 mb-2 text-primary uppercase italic">{p.name}</p>
-        <div className="space-y-1 font-bold">
-          <p>{xLabel}: <span className="text-primary">{p.x.toFixed(1)}{xUnit}</span></p>
-          <p>{yLabel}: <span className="text-primary">{p.y.toFixed(1)}{yUnit}</span></p>
+        <p className="font-bold border-b pb-1 mb-2 text-primary uppercase italic">{p.name}</p>
+        <div className="space-y-1">
+          <p>{xLabel}: <span className="font-bold">{p.x.toFixed(1)}{xUnit}</span></p>
+          <p>{yLabel}: <span className="font-bold">{p.y.toFixed(1)}{yUnit}</span></p>
         </div>
       </div>
     )
@@ -82,13 +82,9 @@ export function TacticalQuadrantChart({
   labels
 }: TacticalQuadrantChartProps) {
   
-  // 데이터 가시 범위 계산 (배경색이 잘리거나 안 보이는 현상 방지)
+  // 축의 가시 범위를 명시적으로 계산 (데이터 + 여백)
   const maxX = Math.max(...data.map(d => d.x), avgX * 1.5, 10) * 1.1;
   const maxY = Math.max(...data.map(d => d.y), avgY * 1.5, 10) * 1.1;
-
-  // 배경 영역을 위한 충분히 큰 값
-  const farX = maxX * 2;
-  const farY = maxY * 2;
 
   return (
     <Card className="border-2 shadow-xl overflow-hidden">
@@ -102,41 +98,41 @@ export function TacticalQuadrantChart({
             <ScatterChart margin={{ top: 40, right: 60, bottom: 60, left: 60 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               
-              {/* 4분면 배경색 - 데이터가 어느 범위에 있든 항상 보이도록 avgX/avgY 기준으로 영역 분할 */}
+              {/* 4분면 배경색 - 계산된 maxX, maxY 범위 내에서 꽉 채움 */}
               {/* TR: High X, High Y */}
               <ReferenceArea 
-                x1={avgX} x2={farX} 
-                y1={avgY} y2={farY} 
-                fill="#4bc0c0" fillOpacity={0.12}
+                x1={avgX} x2={maxX} 
+                y1={avgY} y2={maxY} 
+                fill="#4bc0c0" fillOpacity={0.15}
               >
-                {labels?.tr && <Label value={labels.tr} position="insideTopRight" offset={15} className="fill-emerald-800 font-black text-[11px] uppercase italic tracking-tighter" />}
+                {labels?.tr && <Label value={labels.tr} position="insideTopRight" offset={20} style={{ fill: '#065f46', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase' }} />}
               </ReferenceArea>
 
               {/* TL: Low X, High Y */}
               <ReferenceArea 
                 x1={0} x2={avgX} 
-                y1={avgY} y2={farY} 
-                fill="#4bc0c0" fillOpacity={0.06}
+                y1={avgY} y2={maxY} 
+                fill="#4bc0c0" fillOpacity={0.08}
               >
-                {labels?.tl && <Label value={labels.tl} position="insideTopLeft" offset={15} className="fill-teal-800 font-black text-[11px] uppercase italic tracking-tighter" />}
+                {labels?.tl && <Label value={labels.tl} position="insideTopLeft" offset={20} style={{ fill: '#0f766e', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase' }} />}
               </ReferenceArea>
 
               {/* BR: High X, Low Y */}
               <ReferenceArea 
-                x1={avgX} x2={farX} 
+                x1={avgX} x2={maxX} 
                 y1={0} y2={avgY} 
-                fill="#94a3b8" fillOpacity={0.08}
+                fill="#94a3b8" fillOpacity={0.1}
               >
-                {labels?.br && <Label value={labels.br} position="insideBottomRight" offset={15} className="fill-slate-700 font-black text-[11px] uppercase italic tracking-tighter" />}
+                {labels?.br && <Label value={labels.br} position="insideBottomRight" offset={20} style={{ fill: '#334155', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase' }} />}
               </ReferenceArea>
 
               {/* BL: Low X, Low Y */}
               <ReferenceArea 
                 x1={0} x2={avgX} 
                 y1={0} y2={avgY} 
-                fill="#6366f1" fillOpacity={0.05}
+                fill="#6366f1" fillOpacity={0.06}
               >
-                {labels?.bl && <Label value={labels.bl} position="insideBottomLeft" offset={15} className="fill-indigo-800 font-black text-[11px] uppercase italic tracking-tighter" />}
+                {labels?.bl && <Label value={labels.bl} position="insideBottomLeft" offset={20} style={{ fill: '#3730a3', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase' }} />}
               </ReferenceArea>
 
               <XAxis 
@@ -169,9 +165,9 @@ export function TacticalQuadrantChart({
                   <Cell 
                     key={`cell-${index}`} 
                     fill={entry.name === selectedTeamName ? selectedColor : (entry.color || "#94a3b8")}
-                    fillOpacity={entry.name === selectedTeamName ? 1 : 0.6}
-                    stroke={entry.name === selectedTeamName ? 'black' : 'none'}
-                    strokeWidth={entry.name === selectedTeamName ? 1.5 : 0}
+                    fillOpacity={entry.name === selectedTeamName ? 1 : 0.7}
+                    stroke={entry.name === selectedTeamName ? '#000' : 'none'}
+                    strokeWidth={entry.name === selectedTeamName ? 2 : 0}
                   />
                 ))}
                 <LabelList 
@@ -189,10 +185,8 @@ export function TacticalQuadrantChart({
                         fill={isSelected ? selectedColor : "hsl(var(--muted-foreground))"}
                         style={{ 
                           fontSize: '11px', 
-                          fontWeight: isSelected ? '600' : '500', // 너무 굵지 않게 조정
-                          paintOrder: 'stroke',
-                          stroke: 'white',
-                          strokeWidth: 2
+                          fontWeight: isSelected ? '600' : '500',
+                          opacity: isSelected ? 1 : 0.8
                         }}
                       >
                         {value}
