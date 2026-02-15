@@ -12,7 +12,9 @@ import {
   Legend,
   ResponsiveContainer,
   TooltipProps,
-  CartesianGrid
+  CartesianGrid,
+  ReferenceLine,
+  Label
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import type { PressureDataPoint, Team } from "@/lib/types"
@@ -92,29 +94,34 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
       const hVal = Number(d[homeTeam.name]);
       const aVal = Number(d[awayTeam.name]);
       
-      // SPP는 낮을수록 시각적으로 상단 (reversed 축).
-      // 리드하지 않는 구간은 상단 선에 밀착시켜 하단 노출 차단
+      // SPP reversed: hVal < aVal means home is leading (higher up)
       return {
         ...d,
         [homeTeam.name]: hVal,
         [awayTeam.name]: aVal,
-        homeLead: hVal <= aVal ? [hVal, aVal] : [aVal, aVal],
-        awayLead: aVal < hVal ? [aVal, hVal] : [hVal, hVal],
+        homeLead: hVal < aVal ? [aVal, hVal] : [hVal, hVal],
+        awayLead: aVal < hVal ? [hVal, aVal] : [aVal, aVal],
       };
     });
   }, [data, homeTeam, awayTeam]);
+
+  const quarterBoundaries = [
+    { x: 4, label: 'Q1 | Q2' },
+    { x: 9, label: 'Q2 | Q3' },
+    { x: 14, label: 'Q3 | Q4' }
+  ];
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>{isMatchTrend ? 'Pressure Battle Trend (경기별 SPP 추이)' : 'Pressure Battle (3분 단위 SPP 추이)'}</CardTitle>
         <CardDescription>
-          시각적으로 상단(높은 압박 강도)에 위치한 팀의 색상으로 격차가 표시됩니다.
+          시각적으로 상단(높은 압박 강도)에 위치한 팀의 색상으로 격차가 표시됩니다. {!isMatchTrend && '15분 단위로 쿼터가 구분됩니다.'}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={height}>
-          <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <ComposedChart data={chartData} margin={{ top: 30, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
             <XAxis 
               type="number"
@@ -127,6 +134,19 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
             
+            {!isMatchTrend && quarterBoundaries.map((b, i) => (
+              <ReferenceLine 
+                key={i} 
+                x={b.x} 
+                stroke="hsl(var(--foreground))" 
+                strokeDasharray="5 5" 
+                strokeWidth={1}
+                opacity={0.5}
+              >
+                <Label value={b.label} position="top" offset={10} style={{ fontSize: '10px', fontWeight: 'bold', fill: 'hsl(var(--muted-foreground))' }} />
+              </ReferenceLine>
+            ))}
+
             <Area
               type="linear"
               dataKey="homeLead"
@@ -155,9 +175,9 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               stroke={homeTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { key, cx, cy } = props;
-                if (props.payload.isIntersection) return null;
-                return <circle key={key} cx={cx} cy={cy} r={6} fill={homeTeam.color} />;
+                const { cx, cy, payload } = props;
+                if (payload.isIntersection) return null;
+                return <circle key={`dot-home-p-${cx}-${cy}`} cx={cx} cy={cy} r={6} fill={homeTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
             />
@@ -167,9 +187,9 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               stroke={awayTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { key, cx, cy } = props;
-                if (props.payload.isIntersection) return null;
-                return <circle key={key} cx={cx} cy={cy} r={6} fill={awayTeam.color} />;
+                const { cx, cy, payload } = props;
+                if (payload.isIntersection) return null;
+                return <circle key={`dot-away-p-${cx}-${cy}`} cx={cx} cy={cy} r={6} fill={awayTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
             />

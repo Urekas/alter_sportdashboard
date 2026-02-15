@@ -12,7 +12,9 @@ import {
   CartesianGrid,
   ComposedChart,
   Line,
-  Area
+  Area,
+  ReferenceLine,
+  Label
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import type { AttackThreatDataPoint, Team } from "@/lib/types"
@@ -67,7 +69,6 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
       const diff1 = v1_1 - v1_2;
       const diff2 = v2_1 - v2_2;
 
-      // 두 선이 교차하는 지점 계산 (격차의 부호가 바뀌는 지점)
       if (diff1 * diff2 < 0) {
         const t = Math.abs(diff1) / (Math.abs(diff1) + Math.abs(diff2));
         const intersectV = v1_1 + t * (v2_1 - v1_1);
@@ -90,24 +91,29 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
         ...d,
         [homeTeam.name]: hVal,
         [awayTeam.name]: aVal,
-        // 리드하는 구간에서만 음영 생성, 리드당하는 구간은 상단 선에 밀착시켜 아래쪽 노출 방지
-        homeLead: hVal >= aVal ? [aVal, hVal] : [hVal, hVal],
+        homeLead: hVal > aVal ? [aVal, hVal] : [hVal, hVal],
         awayLead: aVal > hVal ? [hVal, aVal] : [aVal, aVal],
       };
     });
   }, [data, homeTeam, awayTeam]);
+
+  const quarterBoundaries = [
+    { x: 2, label: 'Q1 | Q2' },
+    { x: 5, label: 'Q2 | Q3' },
+    { x: 8, label: 'Q3 | Q4' }
+  ];
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>{isMatchTrend ? 'Attack Threat Trend (경기별 추이)' : 'Attack Threat Trend (5분 단위)'}</CardTitle>
         <CardDescription>
-          상단에 위치한 팀의 색상으로 격차가 표시됩니다. 교차 지점에서 음영이 전환됩니다.
+          상단에 위치한 팀의 색상으로 격차가 표시됩니다. {!isMatchTrend && '15분 단위로 쿼터가 구분됩니다.'}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={350}>
-          <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <ComposedChart data={chartData} margin={{ top: 30, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
             <XAxis 
               type="number"
@@ -120,6 +126,19 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
             
+            {!isMatchTrend && quarterBoundaries.map((b, i) => (
+              <ReferenceLine 
+                key={i} 
+                x={b.x} 
+                stroke="hsl(var(--foreground))" 
+                strokeDasharray="5 5" 
+                strokeWidth={1}
+                opacity={0.5}
+              >
+                <Label value={b.label} position="top" offset={10} style={{ fontSize: '10px', fontWeight: 'bold', fill: 'hsl(var(--muted-foreground))' }} />
+              </ReferenceLine>
+            ))}
+
             <Area
               type="linear"
               dataKey="homeLead"
@@ -148,9 +167,9 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               stroke={homeTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { key, cx, cy } = props;
-                if (props.payload.isIntersection) return null;
-                return <circle key={key} cx={cx} cy={cy} r={6} fill={homeTeam.color} />;
+                const { cx, cy, payload } = props;
+                if (payload.isIntersection) return null;
+                return <circle key={`dot-home-${cx}-${cy}`} cx={cx} cy={cy} r={6} fill={homeTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
             />
@@ -160,9 +179,9 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               stroke={awayTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { key, cx, cy } = props;
-                if (props.payload.isIntersection) return null;
-                return <circle key={key} cx={cx} cy={cy} r={6} fill={awayTeam.color} />;
+                const { cx, cy, payload } = props;
+                if (payload.isIntersection) return null;
+                return <circle key={`dot-away-${cx}-${cy}`} cx={cx} cy={cy} r={6} fill={awayTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
             />
