@@ -67,7 +67,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
       const diff1 = v1_1 - v1_2;
       const diff2 = v2_1 - v2_2;
 
-      // 두 선이 교차하는 경우 (격차의 부호가 바뀌는 경우)
+      // 두 선이 교차하는 지점 계산 (격차의 부호가 바뀌는 지점)
       if (diff1 * diff2 < 0) {
         const t = Math.abs(diff1) / (Math.abs(diff1) + Math.abs(diff2));
         const intersectV = v1_1 + t * (v2_1 - v1_1);
@@ -86,13 +86,13 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
       const hVal = Number(d[homeTeam.name]);
       const aVal = Number(d[awayTeam.name]);
       
-      // 리드하지 않는 구간의 음영은 상단 선에 밀착시켜 아래쪽으로 새지 않게 함
       return {
         ...d,
         [homeTeam.name]: hVal,
         [awayTeam.name]: aVal,
-        homeLead: hVal >= aVal ? [aVal, hVal] : [aVal, aVal],
-        awayLead: aVal > hVal ? [hVal, aVal] : [hVal, hVal],
+        // 리드하는 구간에서만 음영 생성, 리드당하는 구간은 상단 선에 밀착시켜 아래쪽 노출 방지
+        homeLead: hVal >= aVal ? [aVal, hVal] : [hVal, hVal],
+        awayLead: aVal > hVal ? [hVal, aVal] : [aVal, aVal],
       };
     });
   }, [data, homeTeam, awayTeam]);
@@ -148,8 +148,9 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               stroke={homeTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { key, ...rest } = props;
-                return props.payload.isIntersection ? null : <circle key={key} {...rest} r={6} fill={homeTeam.color} />;
+                const { key, cx, cy } = props;
+                if (props.payload.isIntersection) return null;
+                return <circle key={key} cx={cx} cy={cy} r={6} fill={homeTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
             />
@@ -159,8 +160,9 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               stroke={awayTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { key, ...rest } = props;
-                return props.payload.isIntersection ? null : <circle key={key} {...rest} r={6} fill={awayTeam.color} />;
+                const { key, cx, cy } = props;
+                if (props.payload.isIntersection) return null;
+                return <circle key={key} cx={cx} cy={cy} r={6} fill={awayTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
             />

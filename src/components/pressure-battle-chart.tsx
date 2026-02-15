@@ -92,8 +92,8 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
       const hVal = Number(d[homeTeam.name]);
       const aVal = Number(d[awayTeam.name]);
       
-      // SPP는 낮을수록 시각적으로 상단 (reversed 축). 
-      // 리드하지 않는 구간의 음영은 상단 선에 밀착시켜 번짐 방지
+      // SPP는 낮을수록 시각적으로 상단 (reversed 축).
+      // 리드하지 않는 구간은 상단 선에 밀착시켜 하단 노출 차단
       return {
         ...d,
         [homeTeam.name]: hVal,
@@ -155,8 +155,9 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               stroke={homeTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { key, ...rest } = props;
-                return props.payload.isIntersection ? null : <circle key={key} {...rest} r={6} fill={homeTeam.color} />;
+                const { key, cx, cy } = props;
+                if (props.payload.isIntersection) return null;
+                return <circle key={key} cx={cx} cy={cy} r={6} fill={homeTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
             />
@@ -166,8 +167,9 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               stroke={awayTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { key, ...rest } = props;
-                return props.payload.isIntersection ? null : <circle key={key} {...rest} r={6} fill={awayTeam.color} />;
+                const { key, cx, cy } = props;
+                if (props.payload.isIntersection) return null;
+                return <circle key={key} cx={cx} cy={cy} r={6} fill={awayTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
             />
