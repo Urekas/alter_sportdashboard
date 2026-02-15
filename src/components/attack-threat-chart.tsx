@@ -53,7 +53,16 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
   const isMatchTrend = data.some(d => d.interval.startsWith('M'));
 
   const chartData = useMemo(() => {
-    const withX = data.map((d, i) => ({ ...d, x: i }));
+    // 0분 포인트 추가 (단일 경기 모드에서만)
+    let baseData = [...data];
+    if (!isMatchTrend) {
+      baseData = [
+        { interval: "0'", [homeTeam.name]: 0, [awayTeam.name]: 0 },
+        ...data
+      ];
+    }
+
+    const withX = baseData.map((d, i) => ({ ...d, x: i }));
     const result = [];
     
     for (let i = 0; i < withX.length - 1; i++) {
@@ -86,21 +95,24 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
     return result.map(d => {
       const hVal = Number(d[homeTeam.name]);
       const aVal = Number(d[awayTeam.name]);
+      const homeIsLeading = hVal >= aVal;
+      const awayIsLeading = aVal > hVal;
       
       return {
         ...d,
         [homeTeam.name]: hVal,
         [awayTeam.name]: aVal,
-        homeLead: hVal > aVal ? [aVal, hVal] : [hVal, hVal],
-        awayLead: aVal > hVal ? [hVal, aVal] : [aVal, aVal],
+        homeLead: [aVal, hVal], // 항상 두 값 사이를 칠하되, homeLead는 홈이 높을 때 색상 적용
+        awayLead: [hVal, aVal], // awayLead는 어웨이가 높을 때 색상 적용
+        activeLeadColor: homeIsLeading ? homeTeam.color : awayTeam.color
       };
     });
-  }, [data, homeTeam, awayTeam]);
+  }, [data, homeTeam, awayTeam, isMatchTrend]);
 
   const quarterBoundaries = [
-    { x: 2, label: 'Q1 | Q2' },
-    { x: 5, label: 'Q2 | Q3' },
-    { x: 8, label: 'Q3 | Q4' }
+    { x: 3, label: 'Q1 | Q2' },
+    { x: 6, label: 'Q2 | Q3' },
+    { x: 9, label: 'Q3 | Q4' }
   ];
 
   return (
@@ -118,9 +130,9 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
             <XAxis 
               type="number"
               dataKey="x"
-              domain={[0, data.length - 1]}
-              ticks={data.map((_, i) => i)}
-              tickFormatter={(val) => data[val]?.interval || ""}
+              domain={[0, 'dataMax']}
+              ticks={chartData.filter(d => !d.isIntersection).map(d => d.x)}
+              tickFormatter={(val) => chartData.find(d => d.x === val)?.interval || ""}
             />
             <YAxis label={{ value: '공격 위협도', angle: -90, position: 'insideLeft' }} allowDecimals={false} />
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
@@ -148,6 +160,9 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               legendType="none"
               tooltipType="none"
               connectNulls
+              // 홈이 리드할 때만 색이 보이도록 mask/clip 하는 대신 
+              // 리드하지 않을 때는 값을 수렴시켜서 면적을 0으로 만듦
+              baseValue="dataMin" 
             />
 
             <Area
@@ -167,9 +182,9 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               stroke={homeTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { cx, cy, payload } = props;
+                const { key, cx, cy, payload } = props;
                 if (payload.isIntersection) return null;
-                return <circle key={`dot-home-${cx}-${cy}`} cx={cx} cy={cy} r={6} fill={homeTeam.color} />;
+                return <circle key={key} cx={cx} cy={cy} r={6} fill={homeTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
             />
@@ -179,9 +194,9 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               stroke={awayTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { cx, cy, payload } = props;
+                const { key, cx, cy, payload } = props;
                 if (payload.isIntersection) return null;
-                return <circle key={`dot-away-${cx}-${cy}`} cx={cx} cy={cy} r={6} fill={awayTeam.color} />;
+                return <circle key={key} cx={cx} cy={cy} r={6} fill={awayTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
             />

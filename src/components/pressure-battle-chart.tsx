@@ -53,14 +53,21 @@ const CustomTooltip = ({ active, payload, homeTeam, awayTeam }: TooltipProps<Val
 export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: PressureBattleChartProps) {
   const isMatchTrend = data.some(d => d.interval.startsWith('M'));
 
-  const maxY = useMemo(() => {
-    const vals = data.flatMap(d => [Number(d[homeTeam.name]), Number(d[awayTeam.name])]).filter(v => v > 0);
-    const maxVal = vals.length > 0 ? Math.max(...vals) : 15;
-    return Math.ceil(maxVal * 1.3);
-  }, [data, homeTeam, awayTeam]);
-
   const chartData = useMemo(() => {
-    const withX = data.map((d, i) => ({ ...d, x: i }));
+    // 0분 포인트 추가 (단일 경기 모드에서만)
+    let baseData = [...data];
+    if (!isMatchTrend && data.length > 0) {
+      baseData = [
+        { 
+          interval: "0'", 
+          [homeTeam.name]: data[0][homeTeam.name], 
+          [awayTeam.name]: data[0][awayTeam.name] 
+        },
+        ...data
+      ];
+    }
+
+    const withX = baseData.map((d, i) => ({ ...d, x: i }));
     const result = [];
     
     for (let i = 0; i < withX.length - 1; i++) {
@@ -93,22 +100,29 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
     return result.map(d => {
       const hVal = Number(d[homeTeam.name]);
       const aVal = Number(d[awayTeam.name]);
+      const homeIsLeading = hVal <= aVal; // SPP는 낮을수록 리드
       
-      // SPP reversed: hVal < aVal means home is leading (higher up)
       return {
         ...d,
         [homeTeam.name]: hVal,
         [awayTeam.name]: aVal,
-        homeLead: hVal < aVal ? [aVal, hVal] : [hVal, hVal],
-        awayLead: aVal < hVal ? [hVal, aVal] : [aVal, aVal],
+        homeLead: [aVal, hVal],
+        awayLead: [hVal, aVal],
+        activeLeadColor: homeIsLeading ? homeTeam.color : awayTeam.color
       };
     });
-  }, [data, homeTeam, awayTeam]);
+  }, [data, homeTeam, awayTeam, isMatchTrend]);
+
+  const maxY = useMemo(() => {
+    const vals = chartData.flatMap(d => [Number(d[homeTeam.name]), Number(d[awayTeam.name])]).filter(v => v > 0);
+    const maxVal = vals.length > 0 ? Math.max(...vals) : 15;
+    return Math.ceil(maxVal * 1.3);
+  }, [chartData, homeTeam, awayTeam]);
 
   const quarterBoundaries = [
-    { x: 4, label: 'Q1 | Q2' },
-    { x: 9, label: 'Q2 | Q3' },
-    { x: 14, label: 'Q3 | Q4' }
+    { x: 5, label: 'Q1 | Q2' },
+    { x: 10, label: 'Q2 | Q3' },
+    { x: 15, label: 'Q3 | Q4' }
   ];
 
   return (
@@ -126,9 +140,9 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
             <XAxis 
               type="number"
               dataKey="x"
-              domain={[0, data.length - 1]}
-              ticks={data.map((_, i) => i)}
-              tickFormatter={(val) => data[val]?.interval || ""}
+              domain={[0, 'dataMax']}
+              ticks={chartData.filter(d => !d.isIntersection).map(d => d.x)}
+              tickFormatter={(val) => chartData.find(d => d.x === val)?.interval || ""}
             />
             <YAxis reversed domain={[0, maxY]} label={{ value: 'SPP (s)', angle: -90, position: 'insideLeft' }} />
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
@@ -175,9 +189,9 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               stroke={homeTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { cx, cy, payload } = props;
+                const { key, cx, cy, payload } = props;
                 if (payload.isIntersection) return null;
-                return <circle key={`dot-home-p-${cx}-${cy}`} cx={cx} cy={cy} r={6} fill={homeTeam.color} />;
+                return <circle key={key} cx={cx} cy={cy} r={6} fill={homeTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
             />
@@ -187,9 +201,9 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               stroke={awayTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { cx, cy, payload } = props;
+                const { key, cx, cy, payload } = props;
                 if (payload.isIntersection) return null;
-                return <circle key={`dot-away-p-${cx}-${cy}`} cx={cx} cy={cy} r={6} fill={awayTeam.color} />;
+                return <circle key={key} cx={cx} cy={cy} r={6} fill={awayTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
             />
