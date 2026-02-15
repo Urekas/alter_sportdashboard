@@ -1,9 +1,9 @@
 
 "use client"
 
-import React, { useState, useRef, useEffect } from "react"
-import { Upload, FileDown, TrendingDown, Target, Activity, ShieldCheck, Sword, Shield, Settings2, Trophy } from "lucide-react"
-import type { MatchData } from "@/lib/types"
+import React, { useState, useRef, useEffect, useMemo } from "react"
+import { Upload, FileDown, TrendingDown, Target, Activity, ShieldCheck, Sword, Shield, Settings2, Trophy, Users } from "lucide-react"
+import type { MatchData, MatchEvent } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
@@ -19,9 +19,15 @@ import { MatchTrajectoryChart } from "./match-trajectory-chart"
 import { parseXMLData, parseCSVData, createMatchDataFromUpload } from "@/lib/parser"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export function Dashboard() {
   const [matchData, setMatchData] = useState<MatchData | null>(null)
+  const [parsedEvents, setParsedEvents] = useState<MatchEvent[]>([])
+  const [detectedTeams, setDetectedTeams] = useState<string[]>([])
+  const [homeTeamName, setHomeTeamName] = useState("")
+  const [awayTeamName, setAwayTeamName] = useState("")
+  
   const [tournamentName, setTournamentName] = useState("")
   const [matchName, setMatchName] = useState("")
   const [homeColor, setHomeColor] = useState("#0066ff") 
@@ -29,28 +35,31 @@ export function Dashboard() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
+  // 데이터 재계산 로직: 팀 선택, 색상, 이름 변경 시 즉시 반영
   useEffect(() => {
-    if (matchData) {
-      setMatchData(prev => prev ? {
-        ...prev,
-        tournamentName: tournamentName || prev.tournamentName,
-        matchName: matchName || prev.matchName,
-        homeTeam: { ...prev.homeTeam, color: homeColor },
-        awayTeam: { ...prev.awayTeam, color: awayColor }
-      } : null);
+    if (parsedEvents.length > 0 && homeTeamName && awayTeamName) {
+      const newData = createMatchDataFromUpload(
+        parsedEvents,
+        homeTeamName,
+        awayTeamName,
+        homeColor,
+        awayColor,
+        tournamentName,
+        matchName
+      );
+      setMatchData(newData);
     }
-  }, [homeColor, awayColor, tournamentName, matchName]);
+  }, [parsedEvents, homeTeamName, awayTeamName, homeColor, awayColor, tournamentName, matchName]);
 
   const handleLoadMockData = () => {
-    const data = {
-      ...mockMatchData,
-      tournamentName: tournamentName || "데모 대회",
-      matchName: "Korea vs Netherlands (Demo)",
-      homeTeam: { ...mockMatchData.homeTeam, color: homeColor },
-      awayTeam: { ...mockMatchData.awayTeam, color: awayColor }
-    };
-    setMatchData(data)
-    toast({ title: "데모 데이터 로드됨" })
+    setParsedEvents(mockMatchData.events);
+    const uniqueTeams = Array.from(new Set(mockMatchData.events.map(e => e.team)));
+    setDetectedTeams(uniqueTeams);
+    setHomeTeamName(mockMatchData.homeTeam.name);
+    setAwayTeamName(mockMatchData.awayTeam.name);
+    setTournamentName("데모 대회");
+    setMatchName("Korea vs Netherlands (Demo)");
+    toast({ title: "데모 데이터 로드됨" });
   }
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,18 +80,16 @@ export function Dashboard() {
           const parsed = file.name.endsWith('.xml') ? parseXMLData(content) : parseCSVData(content);
           if (parsed.events.length === 0) throw new Error("분석 가능한 데이터가 없습니다.");
           
+          setParsedEvents(parsed.events);
+          const uniqueTeams = Array.from(new Set(parsed.events.map(e => e.team)));
+          setDetectedTeams(uniqueTeams);
+          
+          // 초기 팀 설정
+          setHomeTeamName(parsed.teams.home);
+          setAwayTeamName(parsed.teams.away);
           setMatchName(detectedMatchName);
-          const newData = createMatchDataFromUpload(
-            parsed.events, 
-            parsed.teams.home, 
-            parsed.teams.away, 
-            homeColor, 
-            awayColor,
-            tournamentName,
-            detectedMatchName
-          );
-          setMatchData(newData);
-          toast({ title: "분석 완료", description: `${parsed.teams.home} vs ${parsed.teams.away}` });
+          
+          toast({ title: "분석 완료", description: `${parsed.teams.home} vs ${parsed.teams.away} 데이터 로드됨` });
         } catch (error: any) {
           toast({ title: "오류 발생", description: error.message, variant: "destructive" });
         }
@@ -93,48 +100,83 @@ export function Dashboard() {
 
   return (
     <div className="p-4 md:p-6 lg:p-8">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 print-hidden gap-4">
+      <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 print-hidden gap-4">
         <div>
           <h1 className="text-4xl font-bold text-primary italic tracking-tight font-headline">Field Focus</h1>
           <p className="text-muted-foreground mt-1">Advanced Hockey Performance Analytics</p>
         </div>
         
-        <div className="flex flex-wrap items-center gap-4 bg-card p-3 rounded-lg border shadow-sm">
+        <div className="flex flex-wrap items-center gap-4 bg-card p-3 rounded-lg border shadow-sm w-full xl:w-auto">
+          {/* 대회/경기 정보 */}
           <div className="flex items-center gap-3 border-r pr-4">
             <Trophy className="h-4 w-4 text-muted-foreground" />
             <div className="flex flex-col gap-1">
-              <Label htmlFor="tournament-input" className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">대회 이름</Label>
-              <Input 
-                id="tournament-input"
-                placeholder="대회 이름 입력"
-                value={tournamentName}
-                onChange={(e) => setTournamentName(e.target.value)}
-                className="h-8 text-xs w-48"
-              />
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">대회/경기 정보</Label>
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="대회 이름"
+                  value={tournamentName}
+                  onChange={(e) => setTournamentName(e.target.value)}
+                  className="h-8 text-xs w-32"
+                />
+                <Input 
+                  placeholder="경기 이름"
+                  value={matchName}
+                  onChange={(e) => setMatchName(e.target.value)}
+                  className="h-8 text-xs w-32"
+                />
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 border-r pr-4">
-            <Settings2 className="h-4 w-4 text-muted-foreground" />
+          {/* 팀 선택 및 색상 */}
+          <div className="flex items-center gap-4 border-r pr-4">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            
+            {/* 홈팀 설정 */}
             <div className="flex flex-col gap-1">
-              <Label htmlFor="home-color" className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">홈팀 색상</Label>
-              <Input 
-                id="home-color"
-                type="color" 
-                value={homeColor} 
-                onChange={(e) => setHomeColor(e.target.value)}
-                className="w-12 h-8 p-1 cursor-pointer bg-transparent border-none"
-              />
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">홈팀 설정</Label>
+              <div className="flex items-center gap-2">
+                <Select value={homeTeamName} onValueChange={setHomeTeamName}>
+                  <SelectTrigger className="h-8 w-32 text-xs">
+                    <SelectValue placeholder="홈팀 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {detectedTeams.map(team => (
+                      <SelectItem key={team} value={team}>{team}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input 
+                  type="color" 
+                  value={homeColor} 
+                  onChange={(e) => setHomeColor(e.target.value)}
+                  className="w-8 h-8 p-0.5 cursor-pointer bg-transparent border-none"
+                />
+              </div>
             </div>
+
+            {/* 어웨이팀 설정 */}
             <div className="flex flex-col gap-1">
-              <Label htmlFor="away-color" className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">어웨이팀 색상</Label>
-              <Input 
-                id="away-color"
-                type="color" 
-                value={awayColor} 
-                onChange={(e) => setAwayColor(e.target.value)}
-                className="w-12 h-8 p-1 cursor-pointer bg-transparent border-none"
-              />
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">어웨이팀 설정</Label>
+              <div className="flex items-center gap-2">
+                <Select value={awayTeamName} onValueChange={setAwayTeamName}>
+                  <SelectTrigger className="h-8 w-32 text-xs">
+                    <SelectValue placeholder="어웨이팀 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {detectedTeams.map(team => (
+                      <SelectItem key={team} value={team}>{team}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input 
+                  type="color" 
+                  value={awayColor} 
+                  onChange={(e) => setAwayColor(e.target.value)}
+                  className="w-8 h-8 p-0.5 cursor-pointer bg-transparent border-none"
+                />
+              </div>
             </div>
           </div>
 
@@ -145,7 +187,7 @@ export function Dashboard() {
             </Button>
             {matchData && (
               <Button variant="default" onClick={() => window.print()} className="shadow-sm bg-emerald-600 hover:bg-emerald-700 h-9">
-                <FileDown className="mr-2 h-4 w-4" /> PDF 리포트 다운로드
+                <FileDown className="mr-2 h-4 w-4" /> PDF 리포트
               </Button>
             )}
             {!matchData && (
