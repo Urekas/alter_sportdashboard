@@ -39,7 +39,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
   const matches = useMemo(() => {
     if (!rawMatches) return [];
-    // Sort client-side to avoid index requirements
     return [...rawMatches].sort((a, b) => {
       const timeA = a.uploadedAt?.seconds || 0;
       const timeB = b.uploadedAt?.seconds || 0;
@@ -102,7 +101,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       } as TeamMatchStats;
     };
 
-    // 2. Global Tournament Averages
+    // 2. Global Tournament Averages (대회 전체 평균)
     const getGlobalAvgStats = (): TeamMatchStats => {
       let totalCount = matches.length * 2;
       const sum = { 
@@ -150,25 +149,22 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
     const teamMatches = matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam);
 
-    // 3. Match-based Trajectory Points
+    // 3. Match-based Trajectory Points (버그 수정: 우리 팀이 홈/어웨이 어디든 우리 데이터 매핑)
     const allMatchesPoints = teamMatches.map(m => {
       const isHome = m.homeTeam.name === currentTeam;
-      const hStats = m.matchStats.home;
-      const aStats = m.matchStats.away;
+      const myStats = isHome ? m.matchStats.home : m.matchStats.away;
       
       return {
-        homeX: hStats.attackPossession,
-        homeY: hStats.timePerCE === 0 ? 450 : Math.min(450, hStats.timePerCE),
-        homeRawTime: hStats.timePerCE,
-        awayX: aStats.attackPossession,
-        awayY: aStats.timePerCE === 0 ? 450 : Math.min(450, aStats.timePerCE),
-        awayRawTime: aStats.timePerCE
+        homeX: myStats.attackPossession,
+        homeY: myStats.timePerCE === 0 ? 450 : Math.min(450, myStats.timePerCE),
+        homeRawTime: myStats.timePerCE
       };
     });
 
     const mockMatch: MatchData = {
-      homeTeam: { name: currentTeam, color: 'hsl(var(--chart-1))' },
-      awayTeam: { name: 'Tournament Avg', color: 'hsl(var(--chart-2))' },
+      // 형님 요청대로 색상 스왑: 우리 팀 = 빨강, 대회 평균 = 파랑
+      homeTeam: { name: currentTeam, color: 'hsl(var(--chart-2))' }, 
+      awayTeam: { name: '대회 전체 평균', color: 'hsl(var(--chart-1))' },
       events: [],
       pressureData: teamMatches.map((m, i) => {
         const isHome = m.homeTeam.name === currentTeam;
@@ -196,22 +192,22 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     return { mockMatch, allTeams, currentTeam, allMatchesPoints };
   }, [matches, selectedTeamName]);
 
-  if (loading) return <div className="py-20 text-center">Loading tournament data...</div>;
-  if (matches.length === 0) return <div className="py-20 text-center text-muted-foreground">No matches found. Upload data and save to DB first.</div>;
+  if (loading) return <div className="py-20 text-center">대회 데이터를 불러오는 중...</div>;
+  if (matches.length === 0) return <div className="py-20 text-center text-muted-foreground">데이터가 없습니다. 분석할 경기를 업로드하고 DB에 저장해 주세요.</div>;
 
   return (
     <div className="space-y-12 pb-20">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b-4 border-primary pb-4 gap-4">
         <div>
           <h1 className="text-4xl font-black italic text-primary uppercase tracking-tighter">Tournament Report</h1>
-          <p className="text-muted-foreground font-bold text-lg">{selectedTeamName || analysisData?.currentTeam} Performance Analysis</p>
+          <p className="text-muted-foreground font-bold text-lg">{selectedTeamName || analysisData?.currentTeam} 성과 분석</p>
         </div>
         <div className="flex items-center gap-4 bg-card p-3 rounded-lg border shadow-sm w-full md:w-auto">
           <div className="flex flex-col gap-1">
-            <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Select Team</Label>
+            <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">분석 대상 팀 선택</Label>
             <Select value={selectedTeamName || (analysisData?.currentTeam || "")} onValueChange={setSelectedTeamName}>
               <SelectTrigger className="h-10 w-56 font-bold text-sm">
-                <SelectValue placeholder="Select Team" />
+                <SelectValue placeholder="팀 선택" />
               </SelectTrigger>
               <SelectContent>
                 {analysisData?.allTeams.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
@@ -219,7 +215,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             </Select>
           </div>
           <Button variant="default" onClick={() => window.print()} className="h-10 bg-emerald-600 hover:bg-emerald-700 font-bold">
-            <FileDown className="h-4 w-4 mr-2" /> PDF Download
+            <FileDown className="h-4 w-4 mr-2" /> PDF 다운로드
           </Button>
         </div>
       </div>
@@ -230,7 +226,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
              <Card className="lg:col-span-1 border-2">
                 <CardHeader className="bg-muted/10 border-b">
                   <CardTitle className="text-xl font-black flex items-center gap-2">
-                    <Database className="h-5 w-5 text-primary" /> Matches Analysed
+                    <Database className="h-5 w-5 text-primary" /> 분석 대상 경기 ({matches.filter(m => m.homeTeam.name === analysisData.currentTeam || m.awayTeam.name === analysisData.currentTeam).length})
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 space-y-2 max-h-[450px] overflow-auto">
@@ -246,7 +242,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
              <div className="lg:col-span-2 space-y-6">
                 <div className="flex items-center gap-2 text-2xl font-black text-primary border-b-2 pb-1">
-                   <Activity className="h-6 w-6" /> Tournament Performance Comparison
+                   <Activity className="h-6 w-6" /> 대회 평균 대비 지표 (Selected vs Global Avg)
                 </div>
                 <BasicMatchStats data={analysisData.mockMatch} />
              </div>
@@ -254,18 +250,18 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
           <div className="page-break space-y-8">
             <div className="flex items-center gap-2 text-2xl font-black text-primary border-b-2 pb-1">
-              <TrendingUp className="h-6 w-6" /> Match-by-Match Trends
+              <TrendingUp className="h-6 w-6" /> 경기별 트렌드 (Match-by-Match)
             </div>
             <div className="grid grid-cols-1 gap-8">
               <AttackThreatChart 
                 data={analysisData.mockMatch.attackThreatData} 
-                homeTeam={{ name: analysisData.currentTeam, color: 'hsl(var(--chart-1))' }} 
-                awayTeam={{ name: 'Opponent', color: 'hsl(var(--chart-2))' }} 
+                homeTeam={analysisData.mockMatch.homeTeam} 
+                awayTeam={{ name: '상대 팀', color: 'hsl(var(--chart-5))' }} 
               />
               <PressureBattleChart 
                 data={analysisData.mockMatch.pressureData} 
-                homeTeam={{ name: analysisData.currentTeam, color: 'hsl(var(--chart-1))' }} 
-                awayTeam={{ name: 'Opponent', color: 'hsl(var(--chart-2))' }} 
+                homeTeam={analysisData.mockMatch.homeTeam} 
+                awayTeam={{ name: '상대 팀', color: 'hsl(var(--chart-5))' }} 
                 height={300} 
               />
             </div>
@@ -273,7 +269,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
           <div className="page-break">
             <div className="flex items-center gap-2 text-2xl font-black text-primary border-b-2 pb-1 mb-8">
-              <Target className="h-6 w-6" /> Tournament Strategic Trajectory
+              <Target className="h-6 w-6" /> 대회 전술적 궤적 흐름
             </div>
             <MatchTrajectoryChart 
               data={analysisData.mockMatch} 
