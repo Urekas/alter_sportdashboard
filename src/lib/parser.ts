@@ -80,10 +80,11 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     let ungroupedText = "";
 
     for (let i = 0; i < labels.length; i++) {
-      const group = (labels[i].getElementsByTagName("group")[0]?.textContent || "").trim();
+      const group = (labels[i].getElementsByTagName("group")[ group.length ? 0 : 0 ]?.textContent || "").trim();
+      const groupText = labels[i].getElementsByTagName("group")[0]?.textContent || "";
       const text = (labels[i].getElementsByTagName("text")[0]?.textContent || "").trim();
-      if (/지역|Location|Zone/i.test(group)) locLabel = text;
-      else if (/결과|Result|Outcome/i.test(group)) resultLabel = text;
+      if (/지역|Location|Zone/i.test(groupText)) locLabel = text;
+      else if (/결과|Result|Outcome/i.test(groupText)) resultLabel = text;
       else ungroupedText += text + " ";
       if (!detectedTeams) detectedTeams = detectRealTeamNames(text);
     }
@@ -121,10 +122,12 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
 };
 
 export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { home: string, away: string } } => {
-  const lines = csvText.split(/\r?\n/).filter(line => line.trim());
+  // \r?\n 정규표현식을 사용하여 Unix(LF)와 Windows(CRLF) 줄바꿈을 모두 지원하며 빈 줄을 제거합니다.
+  const lines = csvText.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
   if (lines.length < 2) return { events: [], teams: { home: "", away: "" } };
 
   const splitCSVLine = (line: string) => {
+    // 쉼표로 구분하되 따옴표 안의 쉼표는 무시하는 정규표현식
     return line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(item => item.replace(/^"|"$/g, '').trim());
   };
 
@@ -214,14 +217,12 @@ export const createMatchDataFromUpload = (
   };
 
   const calculateTeamStats = (team: string, opponent: string, targetEvents: MatchEvent[]): TeamMatchStats => {
-    const allEvents = targetEvents;
-    const myEvents = allEvents.filter(e => e.team === team);
-    const oppEvents = allEvents.filter(e => e.team === opponent);
+    const myEvents = targetEvents.filter(e => e.team === team);
+    const oppEvents = targetEvents.filter(e => e.team === opponent);
 
     const teamTime = myEvents.filter(e => e.code.trim() === `${team} TEAM`).reduce((acc, e) => acc + e.duration, 0);
     const attTime = myEvents.filter(e => e.code.trim() === `${team} ATT`).reduce((acc, e) => acc + e.duration, 0);
-    const buildUpTime = Math.max(0, teamTime - attTime); 
-
+    
     const oppTeamTime = oppEvents.filter(e => e.code.trim() === `${opponent} TEAM`).reduce((acc, e) => acc + e.duration, 0);
     const oppAttTime = oppEvents.filter(e => e.code.trim() === `${opponent} ATT`).reduce((acc, e) => acc + e.duration, 0);
     const oppBuildUpTime = Math.max(0, oppTeamTime - oppAttTime);
@@ -252,7 +253,6 @@ export const createMatchDataFromUpload = (
     const buildAttempts = myEvents.filter(e => e.code.trim() === `${team} TEAM` && mapZone(e.locationLabel || e.code).zoneBand <= 50).length;
     const build25Ratio = buildAttempts > 0 ? (a25Count / buildAttempts) * 100 : 0;
 
-    // 득점 로직 최신화: [팀명] 득점 코드를 전체 득점으로, [팀명] 페널티코너+GOAL라벨을 PC득점으로 분류
     const totalGoals = myEvents.filter(e => e.code.includes(`${team} 득점`)).length;
     const pcGoals = myEvents.filter(e => 
       e.code.includes(`${team} 페널티코너`) && 
