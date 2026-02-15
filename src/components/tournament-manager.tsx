@@ -1,9 +1,9 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
-import { Trophy, Database, Trash2, Edit3, Save, X, Plus } from "lucide-react"
+import React, { useState, useMemo, useRef } from "react"
+import { Trophy, Database, Trash2, Edit3, Save, X, Plus, ChevronRight, FileUp, RefreshCw, ArrowLeft } from "lucide-react"
 import { TournamentService } from "@/lib/tournament-service"
-import type { Tournament, MatchData } from "@/lib/types"
+import type { Tournament, MatchData, MatchEvent } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label"
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, query } from "firebase/firestore"
+import { parseXMLData, parseCSVData, createMatchDataFromUpload } from "@/lib/parser"
 
 export function TournamentManager() {
   const db = useFirestore()
@@ -23,6 +24,11 @@ export function TournamentManager() {
   const [isNewDialogOpen, setIsNewDialogOpen] = useState(false)
   const [newName, setNewName] = useState("")
 
+  // 특정 대회의 경기 관리 상태
+  const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null)
+  const [replaceMatchId, setReplaceMatchId] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   // 대회 및 경기 데이터 구독
   const tourneyQuery = useMemoFirebase(() => db ? query(collection(db, 'tournaments')) : null, [db]);
   const matchesQuery = useMemoFirebase(() => db ? query(collection(db, 'matches')) : null, [db]);
@@ -30,19 +36,19 @@ export function TournamentManager() {
   const { data: rawTournaments, isLoading: loadingTourneys } = useCollection<Tournament>(tourneyQuery);
   const { data: rawMatches } = useCollection<MatchData>(matchesQuery);
 
-  // 클라이언트 사이드 정렬 및 데이터 가공
   const tournaments = useMemo(() => {
     if (!rawTournaments) return [];
-    
     return [...rawTournaments].map(t => {
       const matchCount = rawMatches?.filter(m => m.tournamentId === t.id).length || 0;
       return { ...t, matchCount };
-    }).sort((a, b) => {
-      const timeA = a.createdAt?.seconds || 0;
-      const timeB = b.createdAt?.seconds || 0;
-      return timeB - timeA; // 최신순
-    });
+    }).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
   }, [rawTournaments, rawMatches]);
+
+  const currentTournamentMatches = useMemo(() => {
+    if (!selectedTournament || !rawMatches) return [];
+    return rawMatches.filter(m => m.tournamentId === selectedTournament.id)
+      .sort((a, b) => (a.uploadedAt?.seconds || 0) - (b.uploadedAt?.seconds || 0));
+  }, [selectedTournament, rawMatches]);
 
   const handleCreate = async () => {
     if (!newName.trim()) return
@@ -67,7 +73,7 @@ export function TournamentManager() {
     }
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteTournament = async (id: string) => {
     if (!confirm("이 대회를 삭제하시겠습니까? 대회에 포함된 모든 경기 정보가 사라집니다.")) return
     try {
       await TournamentService.deleteTournament(id)
@@ -77,16 +83,154 @@ export function TournamentManager() {
     }
   }
 
+  const handleDeleteMatch = async (id: string) => {
+    if (!confirm("이 경기를 삭제하시겠습니까?")) return
+    try {
+      await TournamentService.deleteMatch(id)
+      toast({ title: "경기 삭제 완료" })
+    } catch (e: any) {
+      toast({ title: "삭제 실패", description: e.message, variant: "destructive" })
+    }
+  }
+
+  const handleReplaceFile = (matchId: string) => {
+    setReplaceMatchId(matchId);
+    fileInputRef.current?.click();
+  }
+
+  const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!replaceMatchId || !event.target.files || !event.target.files[0]) return;
+    
+    const file = event.target.files[0];
+    const matchName = file.name.replace(/\.[^/.]+$/, "");
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+      try {
+        const ab = e.target?.result as ArrayBuffer;
+        let content = new TextDecoder('utf-8').decode(ab);
+        if ((content.match(/\ufffd/g) || []).length > 5) content = new TextDecoder('euc-kr').decode(ab);
+
+        const parsed = file.name.endsWith('.xml') ? parseXMLData(content) : parseCSVData(content);
+        if (parsed.events.length === 0) throw new Error("분석 가능한 데이터가 없습니다.");
+
+        // 기존 매치 정보를 바탕으로 새로운 매치 데이터 생성
+        // 기존 팀 컬러와 대회 정보를 최대한 유지하기 위해 현재 매치 정보를 가져옴
+        const oldMatch = rawMatches?.find(m => m.id === replaceMatchId);
+        
+        const updatedData = createMatchDataFromUpload(
+          parsed.events,
+          parsed.teams.home,
+          parsed.teams.away,
+          oldMatch?.homeTeam.color || "#0066ff",
+          oldMatch?.awayTeam.color || "#ef4444",
+          selectedTournament?.name,
+          matchName
+        );
+
+        await TournamentService.updateMatchData(replaceMatchId, updatedData);
+        toast({ title: "데이터 교체 완료", description: `"${matchName}" 데이터로 업데이트되었습니다.` });
+        setReplaceMatchId(null);
+      } catch (err: any) {
+        toast({ title: "교체 실패", description: err.message, variant: "destructive" });
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    event.target.value = ''; // 초기화
+  }
+
+  if (selectedTournament) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => setSelectedTournament(null)}>
+            <ArrowLeft className="h-6 w-6" />
+          </Button>
+          <div>
+            <h2 className="text-3xl font-black italic text-primary uppercase tracking-tighter">{selectedTournament.name} - Match Management</h2>
+            <p className="text-muted-foreground font-bold">경기 목록 조회 및 데이터 교체</p>
+          </div>
+        </div>
+
+        <input type="file" ref={fileInputRef} onChange={onFileChange} className="hidden" accept=".xml,.csv" />
+
+        <Card className="border-2 shadow-xl">
+          <CardHeader className="bg-muted/10 border-b flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Database className="h-5 w-5 text-primary" /> 등록된 경기 ({currentTournamentMatches.length})
+              </CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+             <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/20">
+                    <TableHead className="pl-6 font-black uppercase text-xs">Match Name</TableHead>
+                    <TableHead className="text-center font-black uppercase text-xs">Score</TableHead>
+                    <TableHead className="text-center font-black uppercase text-xs">Uploaded At</TableHead>
+                    <TableHead className="text-right pr-6 font-black uppercase text-xs">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {currentTournamentMatches.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-20 text-muted-foreground italic">등록된 경기가 없습니다.</TableCell>
+                    </TableRow>
+                  ) : (
+                    currentTournamentMatches.map((m, idx) => (
+                      <TableRow key={m.id || idx} className="hover:bg-muted/5">
+                        <TableCell className="pl-6">
+                          <p className="font-bold text-base">{m.matchName}</p>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase">{m.homeTeam.name} vs {m.awayTeam.name}</p>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="font-black text-primary bg-primary/10 px-3 py-1 rounded-full text-sm">
+                            {(m.matchStats.home.goals.field + m.matchStats.home.goals.pc)} : {(m.matchStats.away.goals.field + m.matchStats.away.goals.pc)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center text-xs text-muted-foreground font-medium">
+                          {m.uploadedAt?.seconds ? new Date(m.uploadedAt.seconds * 1000).toLocaleString() : '-'}
+                        </TableCell>
+                        <TableCell className="text-right pr-6 space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 text-xs font-bold border-emerald-600 text-emerald-600 hover:bg-emerald-50"
+                            onClick={() => handleReplaceFile(m.id!)}
+                          >
+                            <RefreshCw className="h-3 w-3 mr-1" /> 데이터 교체
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDeleteMatch(m.id!)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+             </Table>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-black italic text-primary uppercase">Tournament Management</h2>
-          <p className="text-muted-foreground font-bold">대회 목록 관리 및 데이터 현황</p>
+          <h2 className="text-3xl font-black italic text-primary uppercase tracking-tighter">Tournament Master</h2>
+          <p className="text-muted-foreground font-bold">대회 목록 및 통합 관리</p>
         </div>
         <Dialog open={isNewDialogOpen} onOpenChange={setIsNewDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="shadow-lg"><Plus className="mr-2 h-4 w-4" /> 새 대회 추가</Button>
+            <Button className="shadow-lg h-11 px-6 font-bold"><Plus className="mr-2 h-5 w-5" /> 새 대회 추가</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -104,48 +248,47 @@ export function TournamentManager() {
               </div>
             </div>
             <DialogFooter>
-              <Button onClick={handleCreate}>생성하기</Button>
+              <Button onClick={handleCreate} className="font-bold">생성하기</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
 
-      <Card className="border-2">
+      <Card className="border-2 shadow-xl">
         <CardHeader className="bg-muted/10 border-b">
           <CardTitle className="text-lg flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-primary" /> 등록된 대회 목록
+            <Trophy className="h-5 w-5 text-primary" /> 관리 중인 대회 목록 ({tournaments.length})
           </CardTitle>
-          <CardDescription>총 {tournaments.length}개의 대회가 관리되고 있습니다.</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/20">
-                <TableHead className="w-[40%] pl-6">대회 명칭</TableHead>
-                <TableHead className="text-center">등록 경기 수</TableHead>
-                <TableHead className="text-center">생성 일시</TableHead>
-                <TableHead className="text-right pr-6">관리 액션</TableHead>
+                <TableHead className="w-[40%] pl-6 font-black uppercase text-xs">Tournament Name</TableHead>
+                <TableHead className="text-center font-black uppercase text-xs">Stats</TableHead>
+                <TableHead className="text-center font-black uppercase text-xs">Created At</TableHead>
+                <TableHead className="text-right pr-6 font-black uppercase text-xs">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loadingTourneys ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-10 text-muted-foreground italic">데이터를 불러오는 중...</TableCell>
+                  <TableCell colSpan={4} className="text-center py-20 text-muted-foreground italic">데이터 로딩 중...</TableCell>
                 </TableRow>
               ) : tournaments.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-10 text-muted-foreground italic">등록된 대회가 없습니다.</TableCell>
+                  <TableCell colSpan={4} className="text-center py-20 text-muted-foreground italic">등록된 대회가 없습니다.</TableCell>
                 </TableRow>
               ) : (
                 tournaments.map((t) => (
-                  <TableRow key={t.id} className="hover:bg-muted/5 transition-colors">
+                  <TableRow key={t.id} className="hover:bg-muted/5 transition-all group cursor-pointer" onClick={() => setSelectedTournament(t)}>
                     <TableCell className="pl-6">
                       {editingId === t.id ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                           <Input 
                             value={editName} 
                             onChange={(e) => setEditName(e.target.value)} 
-                            className="h-8 text-sm"
+                            className="h-8 text-sm font-bold"
                             onKeyDown={(e) => e.key === 'Enter' && handleUpdate(t.id)}
                             autoFocus
                           />
@@ -153,22 +296,25 @@ export function TournamentManager() {
                           <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setEditingId(null)}><X className="h-4 w-4" /></Button>
                         </div>
                       ) : (
-                        <span className="font-bold text-base">{t.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-lg tracking-tight">{t.name}</span>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all" />
+                        </div>
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full text-primary font-black text-xs">
-                        <Database className="h-3 w-3" /> {t.matchCount} Matches
+                      <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 rounded-full text-primary font-black text-xs uppercase">
+                        <Database className="h-3.5 w-3.5" /> {t.matchCount} Matches
                       </div>
                     </TableCell>
-                    <TableCell className="text-center text-xs text-muted-foreground">
-                      {t.createdAt?.seconds ? new Date(t.createdAt.seconds * 1000).toLocaleString() : 'N/A'}
+                    <TableCell className="text-center text-xs text-muted-foreground font-medium">
+                      {t.createdAt?.seconds ? new Date(t.createdAt.seconds * 1000).toLocaleDateString() : '-'}
                     </TableCell>
-                    <TableCell className="text-right pr-6 space-x-1">
+                    <TableCell className="text-right pr-6 space-x-1" onClick={(e) => e.stopPropagation()}>
                       <Button 
                         size="icon" 
                         variant="ghost" 
-                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        className="h-9 w-9 text-muted-foreground hover:text-primary"
                         onClick={() => {
                           setEditingId(t.id)
                           setEditName(t.name)
@@ -179,8 +325,8 @@ export function TournamentManager() {
                       <Button 
                         size="icon" 
                         variant="ghost" 
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        onClick={() => handleDelete(t.id)}
+                        className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleDeleteTournament(t.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

@@ -14,7 +14,8 @@ import {
   deleteDoc, 
   updateDoc,
   serverTimestamp,
-  getCountFromServer
+  getCountFromServer,
+  setDoc
 } from 'firebase/firestore';
 import type { MatchData, Tournament } from './types';
 
@@ -43,7 +44,7 @@ export const TournamentService = {
     await updateDoc(docRef, { name });
   },
 
-  // 대회 목록 가져오기 (인덱스 에러 방지를 위해 orderBy 제거)
+  // 대회 목록 가져오기
   async getTournaments(): Promise<Tournament[]> {
     try {
       const q = query(collection(db, TOURNAMENTS_COL));
@@ -69,7 +70,6 @@ export const TournamentService = {
   // 특정 대회에 경기 데이터 추가
   async addMatchToTournament(tournamentId: string, matchData: MatchData) {
     try {
-      // 얕은 복사를 통해 업로드 시 불필요한 필드 제거
       const { id, ...dataToSave } = matchData;
       await addDoc(collection(db, MATCHES_COL), {
         ...dataToSave,
@@ -82,7 +82,22 @@ export const TournamentService = {
     }
   },
 
-  // 특정 대회의 모든 경기 가져오기 (인덱스 에러 방지를 위해 orderBy 제거)
+  // 기존 경기 데이터 교체 (Update)
+  async updateMatchData(matchId: string, matchData: MatchData) {
+    try {
+      const { id, ...dataToSave } = matchData;
+      const docRef = doc(db, MATCHES_COL, matchId);
+      await updateDoc(docRef, {
+        ...dataToSave,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error("Error updating match data:", error);
+      throw error;
+    }
+  },
+
+  // 특정 대회의 모든 경기 가져오기
   async getMatchesByTournament(tournamentId: string): Promise<MatchData[]> {
     try {
       const q = query(
