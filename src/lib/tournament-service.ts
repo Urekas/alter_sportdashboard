@@ -14,7 +14,9 @@ import {
   doc, 
   deleteDoc, 
   orderBy,
-  serverTimestamp 
+  updateDoc,
+  serverTimestamp,
+  getCountFromServer
 } from 'firebase/firestore';
 import type { MatchData, Tournament } from './types';
 
@@ -32,11 +34,24 @@ export const TournamentService = {
     return docRef.id;
   },
 
+  // 대회 수정 (이름 변경 등)
+  async updateTournament(id: string, name: string) {
+    const docRef = doc(db, TOURNAMENTS_COL, id);
+    await updateDoc(docRef, { name });
+  },
+
   // 대회 목록 가져오기
   async getTournaments(): Promise<Tournament[]> {
     const q = query(collection(db, TOURNAMENTS_COL), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tournament));
+  },
+
+  // 특정 대회의 경기 수 가져오기
+  async getMatchCount(tournamentId: string): Promise<number> {
+    const q = query(collection(db, MATCHES_COL), where('tournamentId', '==', tournamentId));
+    const snapshot = await getCountFromServer(q);
+    return snapshot.data().count;
   },
 
   // 특정 대회에 경기 데이터 추가

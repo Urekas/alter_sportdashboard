@@ -4,7 +4,7 @@
 import React, { useState, useRef, useEffect } from "react"
 import { 
   Upload, FileDown, TrendingDown, Target, Activity, ShieldCheck, 
-  Sword, Shield, Trophy, Users, BookOpen, Info, Save, Database, Trash2, Plus
+  Sword, Shield, Trophy, Users, BookOpen, Info, Save, Database, Trash2, Plus, Settings
 } from "lucide-react"
 import type { MatchData, MatchEvent, Tournament } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
@@ -20,6 +20,7 @@ import { QuarterlyStatsTable } from "./quarterly-stats-table"
 import { BuildUpEfficiencyChart } from "./build-up-efficiency-chart"
 import { MatchTrajectoryChart } from "./match-trajectory-chart"
 import { TournamentDashboard } from "./tournament-dashboard"
+import { TournamentManager } from "./tournament-manager"
 import { parseXMLData, parseCSVData, createMatchDataFromUpload } from "@/lib/parser"
 import { TournamentService } from "@/lib/tournament-service"
 import { Input } from "@/components/ui/input"
@@ -29,7 +30,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export function Dashboard() {
-  const [viewMode, setViewMode] = useState<'single' | 'tournament'>('single')
+  const [viewMode, setViewMode] = useState<'single' | 'tournament' | 'manage'>('single')
   const [matchData, setMatchData] = useState<MatchData | null>(null)
   const [parsedEvents, setParsedEvents] = useState<MatchEvent[]>([])
   const [detectedTeams, setDetectedTeams] = useState<string[]>([])
@@ -60,7 +61,7 @@ export function Dashboard() {
 
   useEffect(() => {
     fetchTournaments();
-  }, [])
+  }, [viewMode]) // 탭 전환 시마다 목록 갱신
 
   useEffect(() => {
     if (parsedEvents.length > 0 && homeTeamName && awayTeamName) {
@@ -180,6 +181,14 @@ export function Dashboard() {
             >
               대회 누적 분석
             </Button>
+            <Button 
+              variant={viewMode === 'manage' ? 'default' : 'ghost'} 
+              size="sm" 
+              onClick={() => setViewMode('manage')}
+              className="h-7 text-xs font-bold"
+            >
+              대회 관리
+            </Button>
           </div>
         </div>
         
@@ -227,7 +236,7 @@ export function Dashboard() {
             </div>
           </div>
 
-          {viewMode === 'single' && (
+          {(viewMode === 'single' || viewMode === 'manage') && (
             <>
               <div className="flex items-center gap-4 border-r pr-4">
                 <Users className="h-4 w-4 text-muted-foreground" />
@@ -291,7 +300,9 @@ export function Dashboard() {
       </header>
 
       <main className="printable-area">
-        {viewMode === 'tournament' ? (
+        {viewMode === 'manage' ? (
+          <TournamentManager />
+        ) : viewMode === 'tournament' ? (
           <TournamentDashboard tournamentId={activeTournamentId} />
         ) : !matchData ? (
           <div className="py-20 text-center bg-card rounded-xl border-2 border-dashed border-muted-foreground/25">
