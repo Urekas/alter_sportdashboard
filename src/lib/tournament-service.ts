@@ -16,7 +16,8 @@ import {
   orderBy,
   updateDoc,
   serverTimestamp,
-  getCountFromServer
+  getCountFromServer,
+  Timestamp
 } from 'firebase/firestore';
 import type { MatchData, Tournament } from './types';
 
@@ -26,12 +27,17 @@ const MATCHES_COL = 'matches';
 export const TournamentService = {
   // 대회 생성
   async createTournament(name: string, startDate: string) {
-    const docRef = await addDoc(collection(db, TOURNAMENTS_COL), {
-      name,
-      startDate,
-      createdAt: serverTimestamp(),
-    });
-    return docRef.id;
+    try {
+      const docRef = await addDoc(collection(db, TOURNAMENTS_COL), {
+        name,
+        startDate,
+        createdAt: serverTimestamp(),
+      });
+      return docRef.id;
+    } catch (error: any) {
+      console.error("Error in createTournament:", error);
+      throw error;
+    }
   },
 
   // 대회 수정 (이름 변경 등)
@@ -42,37 +48,56 @@ export const TournamentService = {
 
   // 대회 목록 가져오기
   async getTournaments(): Promise<Tournament[]> {
-    const q = query(collection(db, TOURNAMENTS_COL), orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tournament));
+    try {
+      const q = query(collection(db, TOURNAMENTS_COL), orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tournament));
+    } catch (error) {
+      console.error("Error fetching tournaments:", error);
+      return [];
+    }
   },
 
   // 특정 대회의 경기 수 가져오기
   async getMatchCount(tournamentId: string): Promise<number> {
-    const q = query(collection(db, MATCHES_COL), where('tournamentId', '==', tournamentId));
-    const snapshot = await getCountFromServer(q);
-    return snapshot.data().count;
+    try {
+      const q = query(collection(db, MATCHES_COL), where('tournamentId', '==', tournamentId));
+      const snapshot = await getCountFromServer(q);
+      return snapshot.data().count;
+    } catch (error) {
+      return 0;
+    }
   },
 
   // 특정 대회에 경기 데이터 추가
   async addMatchToTournament(tournamentId: string, matchData: MatchData) {
-    const docRef = await addDoc(collection(db, MATCHES_COL), {
-      ...matchData,
-      tournamentId,
-      uploadedAt: serverTimestamp(),
-    });
-    return docRef.id;
+    try {
+      const docRef = await addDoc(collection(db, MATCHES_COL), {
+        ...matchData,
+        tournamentId,
+        uploadedAt: serverTimestamp(),
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error("Error adding match to tournament:", error);
+      throw error;
+    }
   },
 
   // 특정 대회의 모든 경기 가져오기
   async getMatchesByTournament(tournamentId: string): Promise<MatchData[]> {
-    const q = query(
-      collection(db, MATCHES_COL), 
-      where('tournamentId', '==', tournamentId),
-      orderBy('uploadedAt', 'asc')
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MatchData));
+    try {
+      const q = query(
+        collection(db, MATCHES_COL), 
+        where('tournamentId', '==', tournamentId),
+        orderBy('uploadedAt', 'asc')
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MatchData));
+    } catch (error) {
+      console.error("Error fetching matches:", error);
+      return [];
+    }
   },
 
   // 경기 삭제
