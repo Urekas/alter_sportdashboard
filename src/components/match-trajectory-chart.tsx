@@ -48,7 +48,7 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
     const totalVisualY = totalRawTime === 0 ? 450 : Math.min(450, totalRawTime);
 
     const total = [{
-      name: team.name, // "Total" 대신 팀명(나라이름) 표시
+      name: team.name, 
       x: totalRawX,
       y: totalVisualY,
       rawTime: totalRawTime,
@@ -93,7 +93,6 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
             <ScatterChart margin={{ top: 60, right: 80, bottom: 80, left: 60 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
               
-              {/* 사분면 배경 및 텍스트 라벨 */}
               <ReferenceArea x1={50} x2={100} y1={0} y2={100} fill="#4bc0c0" fillOpacity={0.15}>
                 <Label value="Efficient Dominance" position="insideTopRight" offset={20} className="fill-emerald-700 font-black text-xs uppercase tracking-tighter" />
                 <Label value="(고효율 지배)" position="insideTopRight" offset={35} className="fill-emerald-700 font-bold text-[10px]" />
@@ -143,15 +142,13 @@ export function MatchTrajectoryChart({ data }: MatchTrajectoryChartProps) {
               <ReferenceLine x={50} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={2} opacity={0.4} />
               <ReferenceLine y={100} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={2} opacity={0.4} />
 
-              {/* 쿼터별 데이터 포인트 (선명하게) */}
-              <Scatter name={homeTeam.name} data={homeData.trajectory} fill={homeTeam.color} line={{ stroke: homeTeam.color, strokeWidth: 5 }} shape="circle">
+              <Scatter name={homeTeam.name} data={homeData.trajectory} fill={homeTeam.color} line={{ stroke: homeTeam.color, strokeWidth: 5, strokeDasharray: '10 6' }} shape="circle">
                 <LabelList dataKey="name" position="top" offset={20} style={{ fill: homeTeam.color, fontSize: 16, fontWeight: '900' }} />
               </Scatter>
               <Scatter name={awayTeam.name} data={awayData.trajectory} fill={awayTeam.color} line={{ stroke: awayTeam.color, strokeWidth: 5, strokeDasharray: '10 6' }} shape="square">
                 <LabelList dataKey="name" position="bottom" offset={20} style={{ fill: awayTeam.color, fontSize: 16, fontWeight: '900' }} />
               </Scatter>
 
-              {/* Total 데이터 포인트 (팀명 표시, 아주 희미하게 배경처럼) */}
               <Scatter name={`${homeTeam.name} Total`} data={homeData.total} fill={homeTeam.color} fillOpacity={0.1} stroke={homeTeam.color} strokeOpacity={0.15} shape="circle">
                 <LabelList dataKey="name" position="top" offset={45} style={{ fill: homeTeam.color, fontSize: 28, fontWeight: '950', opacity: 0.1 }} />
               </Scatter>
