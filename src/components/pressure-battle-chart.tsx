@@ -134,6 +134,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               stroke="none"
               legendType="none"
               tooltipType="none"
+              connectNulls
             />
 
             <Area
@@ -144,6 +145,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               stroke="none"
               legendType="none"
               tooltipType="none"
+              connectNulls
             />
 
             <Line 
@@ -151,7 +153,10 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               dataKey={homeTeam.name} 
               stroke={homeTeam.color} 
               strokeWidth={3} 
-              dot={(props: any) => props.payload.isIntersection ? null : <circle {...props} r={6} fill={homeTeam.color} />}
+              dot={(props: any) => {
+                const { key, ...rest } = props;
+                return props.payload.isIntersection ? null : <circle key={key} {...rest} r={6} fill={homeTeam.color} />;
+              }}
               activeDot={{ r: 8 }} 
             />
             <Line 
@@ -159,7 +164,10 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               dataKey={awayTeam.name} 
               stroke={awayTeam.color} 
               strokeWidth={3} 
-              dot={(props: any) => props.payload.isIntersection ? null : <circle {...props} r={6} fill={awayTeam.color} />}
+              dot={(props: any) => {
+                const { key, ...rest } = props;
+                return props.payload.isIntersection ? null : <circle key={key} {...rest} r={6} fill={awayTeam.color} />;
+              }}
               activeDot={{ r: 8 }} 
             />
           </ComposedChart>
