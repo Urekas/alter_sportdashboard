@@ -59,16 +59,15 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
       const hVal = Number(d[homeTeam.name]);
       const aVal = Number(d[awayTeam.name]);
       
-      // SPP는 축이 반전되어 있으므로 수치가 낮을수록 시각적으로 위에 있음
-      // 시각적으로 위에 있는 팀의 색상으로 격차를 채우기 위해 리드하지 않는 구간은 null 처리
+      // SPP는 수치가 낮을수록 시각적으로 위에 있음 (reversed 축)
+      // homeLead: 홈팀이 위에 있음 (hVal <= aVal)
       return {
         ...d,
         [homeTeam.name]: hVal,
         [awayTeam.name]: aVal,
-        // 홈팀이 시각적으로 우세(위에 있음)할 때: hVal <= aVal
-        homeLead: hVal <= aVal ? [hVal, aVal] : null,
-        // 상대팀이 시각적으로 우세(위에 있음)할 때: aVal < hVal
-        awayLead: aVal < hVal ? [aVal, hVal] : null,
+        // 구간별로 시각적으로 상단에 위치한 팀의 색상을 적용하기 위해 높이가 0인 지점과 교차하며 연속성 유지
+        homeLead: hVal <= aVal ? [hVal, aVal] : [hVal, hVal],
+        awayLead: aVal < hVal ? [aVal, hVal] : [aVal, aVal],
       };
     });
   }, [data, homeTeam, awayTeam]);
@@ -97,11 +96,11 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               type="monotone"
               dataKey="homeLead"
               fill={homeTeam.color}
-              fillOpacity={0.2}
+              fillOpacity={0.3}
               stroke="none"
               legendType="none"
               tooltipType="none"
-              connectNulls={false}
+              connectNulls={true}
             />
 
             {/* 상대팀 우세 구간 음영 */}
@@ -109,11 +108,11 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               type="monotone"
               dataKey="awayLead"
               fill={awayTeam.color}
-              fillOpacity={0.2}
+              fillOpacity={0.3}
               stroke="none"
               legendType="none"
               tooltipType="none"
-              connectNulls={false}
+              connectNulls={true}
             />
 
             <Line 

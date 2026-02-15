@@ -52,13 +52,14 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
       const hVal = Number(current[homeTeam.name]);
       const aVal = Number(current[awayTeam.name]);
       
-      // 음영이 선을 벗어나지 않도록 리드하는 팀의 구간만 범위를 지정하고 나머지는 null 처리
       return {
         ...current,
         [homeTeam.name]: hVal,
         [awayTeam.name]: aVal,
-        homeLead: hVal >= aVal ? [aVal, hVal] : null,
-        awayLead: aVal > hVal ? [hVal, aVal] : null,
+        // 홈팀이 위에 있을 때만 면적을 가지고, 아니면 두 값을 같게 하여 높이를 0으로 만듦 (연속성 유지)
+        homeLead: hVal >= aVal ? [aVal, hVal] : [hVal, hVal],
+        // 어웨이팀이 위에 있을 때만 면적을 가짐
+        awayLead: aVal > hVal ? [hVal, aVal] : [aVal, aVal],
       };
     });
   }, [data, homeTeam, awayTeam]);
@@ -82,28 +83,28 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend />
             
-            {/* 홈팀 우세 구간 음영 */}
+            {/* 홈팀 우세 구간 음영: 홈팀 선 색상 사용 */}
             <Area
               type="monotone"
               dataKey="homeLead"
               fill={homeTeam.color}
-              fillOpacity={0.2}
+              fillOpacity={0.3}
               stroke="none"
               legendType="none"
               tooltipType="none"
-              connectNulls={false}
+              connectNulls={true}
             />
 
-            {/* 상대팀 우세 구간 음영 */}
+            {/* 상대팀 우세 구간 음영: 상대팀 선 색상 사용 */}
             <Area
               type="monotone"
               dataKey="awayLead"
               fill={awayTeam.color}
-              fillOpacity={0.2}
+              fillOpacity={0.3}
               stroke="none"
               legendType="none"
               tooltipType="none"
-              connectNulls={false}
+              connectNulls={true}
             />
 
             <Line 
