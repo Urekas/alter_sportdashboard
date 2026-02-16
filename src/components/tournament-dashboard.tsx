@@ -151,7 +151,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         let relevantMatches = matches;
         if (teamName) relevantMatches = matches.filter(m => m.homeTeam.name === teamName || m.awayTeam.name === teamName);
         
-        // teamName이 없으면 대회 전체 모든 팀의 모든 쿼터 데이터를 평균냄
         const count = teamName ? (relevantMatches.length || 1) : (matches.length * 2 || 1);
         const sums = { field: 0, pc: 0, shots: 0, pcs: 0, circle: 0, a25: 0, poss: 0, att: 0, bup: 0, pcSucc: 0, spp: 0, ceTime: 0 };
 
@@ -196,10 +195,11 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       pressureData: matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam).map((m, i) => {
         const isHome = m.homeTeam.name === currentTeam;
         const oppName = isHome ? m.awayTeam.name : m.homeTeam.name;
+        const oppSpp = isHome ? m.matchStats.away.spp : m.matchStats.home.spp;
         return { 
           interval: `M${String(i + 1).padStart(2, '0')} vs ${oppName}`, 
           [currentTeam]: isHome ? m.matchStats.home.spp : m.matchStats.away.spp, 
-          "대회 전체 평균": globalAvg.spp 
+          "대회 전체 평균": oppSpp 
         };
       }),
       circleEntries: [],
@@ -207,10 +207,11 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         const isHome = m.homeTeam.name === currentTeam;
         const oppName = isHome ? m.awayTeam.name : m.homeTeam.name;
         const my = isHome ? m.matchStats.home : m.matchStats.away;
+        const opp = isHome ? m.matchStats.away : m.matchStats.home;
         return { 
           interval: `M${String(i + 1).padStart(2, '0')} vs ${oppName}`, 
           [currentTeam]: my.shots + my.pcs, 
-          "대회 전체 평균": globalAvg.shots + globalAvg.pcs 
+          "대회 전체 평균": opp.shots + opp.pcs 
         };
       }),
       build25Ratio: { home: currentTeamStats.avgBuildUp, away: globalAvg.build25 },
@@ -349,6 +350,32 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2"><Shield className="h-6 w-6" /> 수비 및 압박</div>
         <PressureBattleChart data={analysisData.mockMatch.pressureData} homeTeam={analysisData.mockMatch.homeTeam} awayTeam={analysisData.mockMatch.awayTeam} />
         <PressureAnalysisMap events={analysisData.mockMatch.events} homeTeam={analysisData.mockMatch.homeTeam} awayTeam={analysisData.mockMatch.awayTeam} awayHeader="상대팀 평균 압박" matchCount={analysisData.teamMatches.length} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <TacticalQuadrantChart 
+            title="수비 복원력" 
+            description="상대 25y 진입 대비 서클 진입 허용 비율" 
+            data={analysisData.quadrantData.defensiveResilience} 
+            xAxisLabel="상대 A25 허용 (평균)" 
+            yAxisLabel="상대 CE 허용 (평균)" 
+            avgX={analysisData.globalAvg.allowed25} 
+            avgY={analysisData.globalAvg.allowedCircle} 
+            selectedTeamName={analysisData.currentTeam} 
+            selectedColor={selectedTeamColor} 
+            labels={{ tr: "Vulnerable", tl: "Weak Core", br: "Solid Core", bl: "Elite Defense" }} 
+          />
+          <TacticalQuadrantChart 
+            title="서클 수비 효율" 
+            description="상대 서클 진입 대비 위협 허용 비율" 
+            data={analysisData.quadrantData.circleDefense} 
+            xAxisLabel="상대 CE 허용 (평균)" 
+            yAxisLabel="상대 위협 허용 (평균)" 
+            avgX={analysisData.globalAvg.allowedCircle} 
+            avgY={analysisData.globalAvg.allowedThreat} 
+            selectedTeamName={analysisData.currentTeam} 
+            selectedColor={selectedTeamColor} 
+            labels={{ tr: "Open Circle", tl: "Weak Perimeter", br: "Solid Defense", bl: "Elite Defense" }} 
+          />
+        </div>
       </div>
     </div>
   )
