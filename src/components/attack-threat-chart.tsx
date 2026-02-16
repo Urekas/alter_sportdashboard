@@ -53,7 +53,6 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
   const isMatchTrend = data.some(d => d.interval.startsWith('M'));
 
   const chartData = useMemo(() => {
-    // 0분 포인트 추가 (단일 경기 모드에서만)
     let baseData = [...data];
     if (!isMatchTrend) {
       baseData = [
@@ -100,7 +99,6 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
         ...d,
         [homeTeam.name]: hVal,
         [awayTeam.name]: aVal,
-        // 리드하는 팀의 음영만 표시하기 위해 리드하지 않는 구간은 두 선을 겹침(높이 0)
         homeLead: hVal >= aVal ? [aVal, hVal] : [hVal, hVal],
         awayLead: aVal > hVal ? [hVal, aVal] : [aVal, aVal],
       };
@@ -123,7 +121,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={350}>
-          <ComposedChart data={chartData} margin={{ top: 30, right: 30, left: 20, bottom: 5 }}>
+          <ComposedChart data={chartData} margin={{ top: 30, right: 30, left: 20, bottom: isMatchTrend ? 50 : 5 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
             <XAxis 
               type="number"
@@ -131,10 +129,12 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               domain={[0, 'dataMax']}
               ticks={chartData.filter(d => !d.isIntersection).map(d => d.x)}
               tickFormatter={(val) => chartData.find(d => d.x === val)?.interval || ""}
+              tick={{ fontSize: 10 }}
+              height={isMatchTrend ? 60 : 30}
             />
             <YAxis label={{ value: '공격 위협도', angle: -90, position: 'insideLeft' }} allowDecimals={false} />
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
-            <Legend />
+            <Legend verticalAlign="top" height={36} />
             
             {!isMatchTrend && quarterBoundaries.map((b, i) => (
               <ReferenceLine 
@@ -177,8 +177,8 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               stroke={homeTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { key, cx, cy } = props;
-                if (props.payload.isIntersection) return null;
+                const { key, cx, cy, payload } = props;
+                if (payload.isIntersection) return null;
                 return <circle key={key} cx={cx} cy={cy} r={6} fill={homeTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
@@ -189,8 +189,8 @@ export function AttackThreatChart({ data, homeTeam, awayTeam }: AttackThreatChar
               stroke={awayTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { key, cx, cy } = props;
-                if (props.payload.isIntersection) return null;
+                const { key, cx, cy, payload } = props;
+                if (payload.isIntersection) return null;
                 return <circle key={key} cx={cx} cy={cy} r={6} fill={awayTeam.color} />;
               }}
               activeDot={{ r: 8 }} 

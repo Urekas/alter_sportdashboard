@@ -173,7 +173,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               sums.spp += (my.spp || 0);
               sums.ceTime += (my.timePerCE || 0);
             } else {
-              // Global (Home + Away from all matches)
               [qStats.home, qStats.away].forEach(side => {
                 sums.field += (side.goals?.field || 0);
                 sums.pc += (side.goals?.pc || 0);
@@ -213,8 +212,9 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       events: [],
       pressureData: matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam).map((m, i) => {
         const isHome = m.homeTeam.name === currentTeam;
+        const opponent = isHome ? m.awayTeam.name : m.homeTeam.name;
         return {
-          interval: `M${String(i + 1).padStart(2, '0')}`,
+          interval: `M${String(i + 1).padStart(2, '0')} vs ${opponent}`,
           [currentTeam]: isHome ? m.matchStats.home.spp : m.matchStats.away.spp,
           "상대 팀": isHome ? m.matchStats.away.spp : m.matchStats.home.spp
         };
@@ -222,8 +222,9 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       circleEntries: [],
       attackThreatData: matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam).map((m, i) => {
         const isHome = m.homeTeam.name === currentTeam;
+        const opponent = isHome ? m.awayTeam.name : m.homeTeam.name;
         return {
-          interval: `M${String(i + 1).padStart(2, '0')}`,
+          interval: `M${String(i + 1).padStart(2, '0')} vs ${opponent}`,
           [currentTeam]: isHome ? m.matchStats.home.shots + m.matchStats.home.pcs : m.matchStats.away.shots + m.matchStats.away.pcs,
           "상대 팀": isHome ? m.matchStats.away.shots + m.matchStats.away.pcs : m.matchStats.home.shots + m.matchStats.home.pcs
         };

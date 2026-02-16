@@ -54,7 +54,6 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
   const isMatchTrend = data.some(d => d.interval.startsWith('M'));
 
   const chartData = useMemo(() => {
-    // 0분 포인트 추가 (단일 경기 모드에서만)
     let baseData = [...data];
     if (!isMatchTrend && data.length > 0) {
       baseData = [
@@ -100,13 +99,12 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
     return result.map(d => {
       const hVal = Number(d[homeTeam.name]);
       const aVal = Number(d[awayTeam.name]);
-      const homeIsLeading = hVal <= aVal; // SPP는 낮을수록 리드(위에 위치)
+      const homeIsLeading = hVal <= aVal; 
       
       return {
         ...d,
         [homeTeam.name]: hVal,
         [awayTeam.name]: aVal,
-        // 시각적으로 위에 있는 팀의 음영만 표시하기 위해 나머지는 겹침
         homeLead: homeIsLeading ? [aVal, hVal] : [hVal, hVal],
         awayLead: !homeIsLeading ? [hVal, aVal] : [aVal, aVal],
       };
@@ -135,7 +133,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={height}>
-          <ComposedChart data={chartData} margin={{ top: 30, right: 30, left: 20, bottom: 5 }}>
+          <ComposedChart data={chartData} margin={{ top: 30, right: 30, left: 20, bottom: isMatchTrend ? 50 : 5 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
             <XAxis 
               type="number"
@@ -143,10 +141,12 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               domain={[0, 'dataMax']}
               ticks={chartData.filter(d => !d.isIntersection).map(d => d.x)}
               tickFormatter={(val) => chartData.find(d => d.x === val)?.interval || ""}
+              tick={{ fontSize: 10 }}
+              height={isMatchTrend ? 60 : 30}
             />
             <YAxis reversed domain={[0, maxY]} label={{ value: 'SPP (s)', angle: -90, position: 'insideLeft' }} />
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
-            <Legend />
+            <Legend verticalAlign="top" height={36} />
             
             {!isMatchTrend && quarterBoundaries.map((b, i) => (
               <ReferenceLine 
@@ -189,8 +189,8 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               stroke={homeTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { key, cx, cy } = props;
-                if (props.payload.isIntersection) return null;
+                const { key, cx, cy, payload } = props;
+                if (payload.isIntersection) return null;
                 return <circle key={key} cx={cx} cy={cy} r={6} fill={homeTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
@@ -201,8 +201,8 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               stroke={awayTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { key, cx, cy } = props;
-                if (props.payload.isIntersection) return null;
+                const { key, cx, cy, payload } = props;
+                if (payload.isIntersection) return null;
                 return <circle key={key} cx={cx} cy={cy} r={6} fill={awayTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
