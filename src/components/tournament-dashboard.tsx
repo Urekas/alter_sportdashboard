@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { Trophy, Activity, Target, Shield, Sword, FileDown, TrendingUp, Grid3X3, Loader2, BrainCircuit, Info } from "lucide-react"
+import { Trophy, Activity, Target, Shield, Sword, FileDown, TrendingUp, Grid3X3, Loader2, BrainCircuit } from "lucide-react"
 import type { MatchData, Tournament } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -33,8 +33,8 @@ const getTeamColor = (name: string, index: number): string => {
 
 export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) {
   const [selectedTeamName, setSelectedTeamName] = useState("")
-  const [selectedTeamColor, setSelectedTeamColor] = useState("#ef4444")
-  const [opponentColor, setOpponentColor] = useState("#f59e0b")
+  const [selectedTeamColor, setSelectedTeamColor] = useState("#0066ff")
+  const [opponentColor, setOpponentColor] = useState("#ef4444")
   const [aiAnalysis, setAiAnalysis] = useState<MatchAnalysisOutput | null>(null)
   const [isAiLoading, setIsAiLoading] = useState(false)
   const { toast } = useToast()
@@ -49,7 +49,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
   const matches = useMemo(() => {
     if (!rawMatches) return [];
-    return [...rawMatches].sort((a, b) => (a.uploadedAt?.seconds || 0) - (b.uploadedAt?.seconds || 0));
+    return [...rawMatches].sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
   }, [rawMatches]);
 
   const analysisData = useMemo(() => {
@@ -212,7 +212,12 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       pressureData: matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam).map((m, i) => {
         const isHome = m.homeTeam.name === currentTeam;
         const oppName = isHome ? m.awayTeam.name : m.homeTeam.name;
-        return { interval: `M${String(i + 1).padStart(2, '0')} vs ${oppName}`, [currentTeam]: isHome ? m.matchStats.home.spp : m.matchStats.away.spp, "상대팀": currentOppAvg.spp };
+        // 상대팀 SPP를 해당 경기의 실제 상대팀 수치로 변경
+        return { 
+          interval: `M${String(i + 1).padStart(2, '0')} vs ${oppName}`, 
+          [currentTeam]: isHome ? m.matchStats.home.spp : m.matchStats.away.spp, 
+          "상대팀": isHome ? m.matchStats.away.spp : m.matchStats.home.spp 
+        };
       }),
       circleEntries: [],
       attackThreatData: matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam).map((m, i) => {
@@ -220,7 +225,12 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         const oppName = isHome ? m.awayTeam.name : m.homeTeam.name;
         const my = isHome ? m.matchStats.home : m.matchStats.away;
         const opp = isHome ? m.matchStats.away : m.matchStats.home;
-        return { interval: `M${String(i + 1).padStart(2, '0')} vs ${oppName}`, [currentTeam]: my.shots + my.pcs, "상대팀": opp.shots + opp.pcs };
+        // 상대팀 위협 수치를 해당 경기의 실제 상대팀 수치로 변경
+        return { 
+          interval: `M${String(i + 1).padStart(2, '0')} vs ${oppName}`, 
+          [currentTeam]: my.shots + my.pcs, 
+          "상대팀": opp.shots + opp.pcs 
+        };
       }),
       build25Ratio: { home: currentTeamStats.avgBuildUp, away: currentOppAvg.build25Ratio },
       spp: { home: currentTeamStats.avgSPP, away: currentOppAvg.spp },
@@ -307,11 +317,11 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               <SelectContent>{analysisData.allTeams.map(name => <SelectItem key={name} value={name}>{name}</SelectItem>)}</SelectContent>
             </Select>
             <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-lg border">
-              <Label className="text-[10px] font-bold uppercase text-muted-foreground">분석 팀</Label>
+              <Label className="text-[10px] font-bold uppercase text-muted-foreground">분석 팀 색상</Label>
               <Input type="color" value={selectedTeamColor} onChange={(e) => setSelectedTeamColor(e.target.value)} className="w-8 h-8 p-0 border-none bg-transparent" />
             </div>
             <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-lg border">
-              <Label className="text-[10px] font-bold uppercase text-muted-foreground">상대 팀</Label>
+              <Label className="text-[10px] font-bold uppercase text-muted-foreground">상대 팀 색상</Label>
               <Input type="color" value={opponentColor} onChange={(e) => setOpponentColor(e.target.value)} className="w-8 h-8 p-0 border-none bg-transparent" />
             </div>
           </div>
@@ -327,10 +337,10 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       <div className="page-break space-y-8">
         <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2"><Activity className="h-6 w-6" /> 대회 종합 성과</div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatsCard title="평균 득점" value={analysisData.mockMatch.matchStats.home.goals.field + analysisData.mockMatch.matchStats.home.goals.pc} />
-          <StatsCard title="평균 SPP" value={analysisData.mockMatch.matchStats.home.spp} isTime />
-          <StatsCard title="평균 공격 점유율" value={analysisData.mockMatch.matchStats.home.attackPossession} isPercentage />
-          <StatsCard title="평균 CE당 시간" value={analysisData.mockMatch.matchStats.home.timePerCE} isTime />
+          <StatsCard title="득점" value={analysisData.mockMatch.matchStats.home.goals.field + analysisData.mockMatch.matchStats.home.goals.pc} />
+          <StatsCard title="SPP" value={analysisData.mockMatch.matchStats.home.spp} isTime />
+          <StatsCard title="공격 점유율" value={analysisData.mockMatch.matchStats.home.attackPossession} isPercentage />
+          <StatsCard title="CE당 시간" value={analysisData.mockMatch.matchStats.home.timePerCE} isTime />
         </div>
         <BasicMatchStats data={analysisData.mockMatch} />
       </div>
