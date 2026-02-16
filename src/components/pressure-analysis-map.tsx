@@ -24,72 +24,63 @@ type ZoneStat = {
 /**
  * 압박 분석 지도 컴포넌트
  * 
- * [로직 정의 - 형님 에디션]
- * - 압박 시도(Count): 해당 진영에서의 모든 경합 (상대 에러 + 압박하는 팀의 파울)
- * - 압박 성공(Success): 압박 시도 - 압박하는 팀의 파울 (즉, 순수하게 상대의 실책을 유도한 상황)
+ * [형님 철칙 - 압박 공식]
+ * - 압박 시도 = (상대 턴오버 @ 75,100) + (상대 파울 @ 75,100) + (본인 파울 @ 25,50)
+ * - 압박 성공 = 압박 시도 - (본인 파울 @ 25,50)
+ * 
+ * [지도 배치]
+ * - 최상단: R (Right)
+ * - 중간: C (Center)
+ * - 최하단: L (Left)
  */
 export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awayHeader, matchCount = 1 }: PressureAnalysisMapProps) {
   const isTournament = matchCount > 1;
 
   const zoneStats = useMemo(() => {
-    const calculateStats = (isHome: boolean) => {
+    const calculateStats = (isHomeMap: boolean) => {
       const zones: ZoneStat[] = Array(6).fill(null).map(() => ({ count: 0, success: 0, rate: 0 }));
 
-      const myTeam = isHome ? homeTeam.name : awayTeam.name;
-      const oppTeam = isHome ? awayTeam.name : homeTeam.name;
+      const myTeam = isHomeMap ? homeTeam.name : awayTeam.name;
+      const oppTeam = isHomeMap ? awayTeam.name : homeTeam.name;
 
+      // 형님이 정의하신 라벨별 구역 매핑
+      // 인덱스: 0=25L, 1=25C, 2=25R, 3=50L, 4=50C, 5=50R
       const mapping = [
-        { oppZone: 100, oppLane: 'Right', myZone: 25, myLane: 'Left' },   
-        { oppZone: 100, oppLane: 'Center', myZone: 25, myLane: 'Center' }, 
-        { oppZone: 100, oppLane: 'Left', myZone: 25, myLane: 'Right' },  
-        { oppZone: 75, oppLane: 'Right', myZone: 50, myLane: 'Left' },    
-        { oppZone: 75, oppLane: 'Center', myZone: 50, myLane: 'Center' },  
-        { oppZone: 75, oppLane: 'Left', myZone: 50, myLane: 'Right' }     
+        { label: "25L", oppZone: 100, oppLane: 'Right',  myZone: 25, myLane: 'Left',   y: 36.66 },
+        { label: "25C", oppZone: 100, oppLane: 'Center', myZone: 25, myLane: 'Center', y: 18.33 },
+        { label: "25R", oppZone: 100, oppLane: 'Left',   myZone: 25, myLane: 'Right',  y: 0 },
+        { label: "50L", oppZone: 75,  oppLane: 'Right',  myZone: 50, myLane: 'Left',   y: 36.66 },
+        { label: "50C", oppZone: 75,  oppLane: 'Center', myZone: 50, myLane: 'Center', y: 18.33 },
+        { label: "50R", oppZone: 75,  oppLane: 'Left',   myZone: 50, myLane: 'Right',  y: 0 },
       ];
 
       events.forEach(e => {
         const zoneInfo = mapZone(e.locationLabel || e.code);
         
-        const isOppError = e.team === oppTeam && (e.type === 'turnover' || e.type === 'foul');
-        const isMyError = e.team === myTeam && (e.type === 'turnover' || e.type === 'foul');
-        const isMyFoul = e.team === myTeam && e.type === 'foul';
-        const isOppFoul = e.team === oppTeam && e.type === 'foul';
-
         mapping.forEach((m, idx) => {
-          if (isHome) {
-            // [우리의 상대 진영 압박]
-            if (zoneInfo.zoneBand === m.oppZone && zoneInfo.lane === m.oppLane) {
-              if (isOppError || isMyFoul) {
-                zones[idx].count++; // 전체 시도 (상대 실수 + 우리의 파울)
-              }
-              if (isOppError) {
-                zones[idx].success++; // 우리의 압박 성공 (상대 실수)
-              }
-            }
-          } else {
-            // [상대의 압박 (우리의 피압박)]
-            if (zoneInfo.zoneBand === m.myZone && zoneInfo.lane === m.myLane) {
-              if (isMyError || isOppFoul) {
-                zones[idx].count++; // 상대의 전체 시도 (우리 실수 + 상대의 파울)
-              }
-              if (isMyError) {
-                zones[idx].success++; // 상대의 압박 성공 (우리 실수)
-              }
-            }
+          // 시도 조건 1: 원정팀(상대) 턴오버 & 해당 구역(75/100)
+          const isOppTurnoverInZone = e.team === oppTeam && e.type === 'turnover' && zoneInfo.zoneBand === m.oppZone && zoneInfo.lane === m.oppLane;
+          // 시도 조건 2: 원정팀(상대) 파울 & 해당 구역(75/100)
+          const isOppFoulInZone = e.team === oppTeam && e.type === 'foul' && zoneInfo.zoneBand === m.oppZone && zoneInfo.lane === m.oppLane;
+          // 시도 조건 3: 홈팀(본인) 파울 & 해당 구역(25/50)
+          const isMyFoulInZone = e.team === myTeam && e.type === 'foul' && zoneInfo.zoneBand === m.myZone && zoneInfo.lane === m.myLane;
+
+          if (isOppTurnoverInZone || isOppFoulInZone || isMyFoulInZone) {
+            zones[idx].count++;
+          }
+          if (isOppTurnoverInZone || isOppFoulInZone) {
+            zones[idx].success++;
           }
         });
       });
-
-      const totalCount = zones.reduce((acc, z) => acc + z.count, 0);
-      const totalSuccess = zones.reduce((acc, z) => acc + z.success, 0);
 
       return {
         zones: zones.map(z => ({
           ...z,
           rate: z.count > 0 ? (z.success / z.count) * 100 : 0
         })),
-        totalCount,
-        totalSuccess
+        totalCount: zones.reduce((acc, z) => acc + z.count, 0),
+        totalSuccess: zones.reduce((acc, z) => acc + z.success, 0)
       };
     };
 
@@ -101,8 +92,10 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
   }, [events, homeTeam, awayTeam]);
 
   const renderHalfPitch = (teamData: { zones: ZoneStat[], totalCount: number, totalSuccess: number }, team: Team, isHome: boolean, globalMaxCount: number) => {
+    // 렌더링 시 사용할 매핑 (Y 좌표 순서: R(0), C(18.33), L(36.66))
     const labels = ["25L", "25C", "25R", "50L", "50C", "50R"];
-    
+    const yCoordinates = [36.66, 18.33, 0, 36.66, 18.33, 0]; // 0=25L, 1=25C, 2=25R, 3=50L, 4=50C, 5=50R
+
     const formatNum = (val: number) => {
       return isTournament 
         ? (val / matchCount).toFixed(1) 
@@ -157,9 +150,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
             </g>
 
             {teamData.zones.map((stat, i) => {
-              const xIdx = Math.floor(i / 3); 
-              const yIdx = i % 3; 
-
+              const xIdx = Math.floor(i / 3); // 0 for 25y, 1 for 50y
               let rectX = 0;
               if (goalOnRight) {
                 rectX = xIdx === 0 ? 22.85 : 0;
@@ -167,7 +158,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
                 rectX = xIdx === 0 ? 0 : 22.85;
               }
 
-              const rectY = yIdx * 18.33;
+              const rectY = yCoordinates[i];
               const intensity = stat.count > 0 ? (stat.count / globalMaxCount) * 0.45 + 0.1 : 0;
 
               return (

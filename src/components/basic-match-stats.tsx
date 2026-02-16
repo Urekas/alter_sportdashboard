@@ -33,23 +33,23 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
 
   const stats = [
     { 
-      label: "평균 득점 (PC / 전체득점)", 
+      label: "득점 (PC / 전체득점)", 
       h: `${formatValue(matchStats.home.goals.pc).toFixed(1)} / ${(formatValue(matchStats.home.goals.field) + formatValue(matchStats.home.goals.pc)).toFixed(1)}`, 
       a: `${formatValue(matchStats.away.goals.pc).toFixed(1)} / ${(formatValue(matchStats.away.goals.field) + formatValue(matchStats.away.goals.pc)).toFixed(1)}`,
       hVal: formatValue(matchStats.home.goals.field) + formatValue(matchStats.home.goals.pc),
       aVal: formatValue(matchStats.away.goals.field) + formatValue(matchStats.away.goals.pc)
     },
-    { label: "평균 슈팅", h: formatValue(matchStats.home.shots), a: formatValue(matchStats.away.shots), isFloat: true },
-    { label: "평균 페널티코너 (PC)", h: formatValue(matchStats.home.pcs), a: formatValue(matchStats.away.pcs), isFloat: true },
-    { label: "평균 PC 성공률 (%)", h: formatValue(matchStats.home.pcSuccessRate), a: formatValue(matchStats.away.pcSuccessRate), isFloat: true },
-    { label: "평균 서클 진입 (CE)", h: formatValue(matchStats.home.circleEntries), a: formatValue(matchStats.away.circleEntries), isFloat: true },
-    { label: "평균 25y 진입 (A25)", h: formatValue(matchStats.home.twentyFiveEntries), a: formatValue(matchStats.away.twentyFiveEntries), isFloat: true },
-    { label: "평균 빌드업 성공률 (%)", h: formatValue(matchStats.home.build25Ratio), a: formatValue(matchStats.away.build25Ratio), isFloat: true },
-    { label: "평균 SPP (압박 지수, s)", h: formatValue(matchStats.home.spp), a: formatValue(matchStats.away.spp), isFloat: true, lowerIsBetter: true },
-    { label: "평균 전체 점유율 (%)", h: formatValue(matchStats.home.possession), a: formatValue(matchStats.away.possession), isFloat: true },
-    { label: "평균 공격 점유율 (%)", h: formatValue(matchStats.home.attackPossession), a: formatValue(matchStats.away.attackPossession), isFloat: true },
+    { label: "슈팅", h: formatValue(matchStats.home.shots), a: formatValue(matchStats.away.shots), isFloat: true },
+    { label: "페널티코너 (PC)", h: formatValue(matchStats.home.pcs), a: formatValue(matchStats.away.pcs), isFloat: true },
+    { label: "PC 성공률 (%)", h: formatValue(matchStats.home.pcSuccessRate), a: formatValue(matchStats.away.pcSuccessRate), isFloat: true },
+    { label: "서클 진입 (CE)", h: formatValue(matchStats.home.circleEntries), a: formatValue(matchStats.away.circleEntries), isFloat: true },
+    { label: "25y 진입 (A25)", h: formatValue(matchStats.home.twentyFiveEntries), a: formatValue(matchStats.away.twentyFiveEntries), isFloat: true },
+    { label: "빌드업 성공률 (%)", h: formatValue(matchStats.home.build25Ratio), a: formatValue(matchStats.away.build25Ratio), isFloat: true },
+    { label: "SPP (압박 지수, s)", h: formatValue(matchStats.home.spp), a: formatValue(matchStats.away.spp), isFloat: true, lowerIsBetter: true },
+    { label: "전체 점유율 (%)", h: formatValue(matchStats.home.possession), a: formatValue(matchStats.away.possession), isFloat: true },
+    { label: "공격 점유율 (%)", h: formatValue(matchStats.home.attackPossession), a: formatValue(matchStats.away.attackPossession), isFloat: true },
     { label: "빌드업 정체 비율 (%)", h: formatValue(matchStats.home.buildUpStagnation), a: formatValue(matchStats.away.buildUpStagnation), isFloat: true },
-    { label: " CE 1회당 시간 (s)", h: formatValue(matchStats.home.timePerCE), a: formatValue(matchStats.away.timePerCE), isFloat: true, lowerIsBetter: true },
+    { label: "CE 1회당 시간 (s)", h: formatValue(matchStats.home.timePerCE), a: formatValue(matchStats.away.timePerCE), isFloat: true, lowerIsBetter: true },
   ]
 
   return (

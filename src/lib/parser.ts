@@ -200,7 +200,7 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const shotCount = myEvents.filter(e => e.code.trim() === `${team} 슈팅`).length;
     const ceCount = myEvents.filter(e => e.code.trim() === `${team} 슈팅서클 진입`).length;
     const pcEvents = myEvents.filter(e => e.code.trim() === `${team} 페널티코너`);
-    const a25Count = myEvents.filter(e => e.code.trim() === `${team} 25야드 진입`).length;
+    const a25Count = myEvents.filter(e => e.code.trim() === `${team} A25 START`).length;
     const goalEvents = myEvents.filter(e => e.code.trim() === `${team} 득점`);
 
     // [형님 철칙] 빌드업 정체 비율 = (TEAM 시간 - ATT 시간) / TEAM 시간 * 100
