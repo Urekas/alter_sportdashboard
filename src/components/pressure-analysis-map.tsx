@@ -28,9 +28,6 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
     const calculateStats = (isHome: boolean) => {
       const zones: ZoneStat[] = Array(6).fill(null).map(() => ({ count: 0, success: 0, rate: 0 }));
 
-      // 형님 철칙: homeTeam.name(선택된 팀)을 기준으로 우리와 상대를 구분
-      // awayTeam.name이 "대회 전체 평균"이어도 e.team !== homeTeam.name으로 상대를 잡음
-      
       const mapping = [
         { oppZone: 100, oppLane: 'Left', myZone: 25, myLane: 'Left' },
         { oppZone: 100, oppLane: 'Center', myZone: 25, myLane: 'Center' },
@@ -42,36 +39,24 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
 
       events.forEach(e => {
         const zoneInfo = mapZone(e.locationLabel || e.code);
-        
         const isMyTeam = e.team === homeTeam.name;
-        const isOppTeam = e.team !== homeTeam.name; // 핵심: 우리 아니면 다 적이다
+        const isOppTeam = e.team !== homeTeam.name;
 
         const isOppError = isOppTeam && (e.type === 'turnover' || e.type === 'foul');
         const isMyFoul = isMyTeam && e.type === 'foul';
-        
         const isMyError = isMyTeam && (e.type === 'turnover' || e.type === 'foul');
         const isOppFoul = isOppTeam && e.type === 'foul';
 
         mapping.forEach((m, idx) => {
           if (isHome) {
-            // [홈팀의 상대 진영 압박]
             if (zoneInfo.zoneBand === m.oppZone && zoneInfo.lane === m.oppLane) {
-              if (isOppError || isMyFoul) {
-                zones[idx].count++; // 전체 시도 (상대 실수 + 우리의 파울)
-              }
-              if (isOppError) {
-                zones[idx].success++; // 우리의 압박 성공 (상대 실수)
-              }
+              if (isOppError || isMyFoul) zones[idx].count++;
+              if (isOppError) zones[idx].success++;
             }
           } else {
-            // [상대팀의 우리 진영 압박]
             if (zoneInfo.zoneBand === m.myZone && zoneInfo.lane === m.myLane) {
-              if (isMyError || isOppFoul) {
-                zones[idx].count++; // 상대의 전체 시도 (우리 실수 + 상대의 파울)
-              }
-              if (isMyError) {
-                zones[idx].success++; // 상대의 압박 성공 (우리 실수)
-              }
+              if (isMyError || isOppFoul) zones[idx].count++;
+              if (isMyError) zones[idx].success++;
             }
           }
         });
@@ -96,15 +81,8 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
 
   const renderHalfPitch = (teamData: { zones: ZoneStat[], totalCount: number, totalSuccess: number }, team: Team, isHome: boolean, globalMaxCount: number) => {
     const labels = ["25L", "25C", "25R", "50L", "50C", "50R"];
-    
-    const formatNum = (val: number) => {
-      return isTournament ? (val / matchCount).toFixed(1) : Math.round(val).toString();
-    };
-    
-    const avgCountFormatted = formatNum(teamData.totalCount);
-    const avgSuccessFormatted = formatNum(teamData.totalSuccess);
+    const formatNum = (val: number) => isTournament ? (val / matchCount).toFixed(1) : Math.round(val).toString();
     const totalRate = teamData.totalCount > 0 ? (teamData.totalSuccess / teamData.totalCount * 100).toFixed(1) : "0.0";
-    
     const headerTitle = isHome ? `${team.name} 압박` : (awayHeader || `${team.name} 압박`);
 
     return (
@@ -112,7 +90,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
         <div className="flex flex-col items-center justify-center p-2 rounded-t-lg border-b-2" style={{ backgroundColor: `${team.color}15`, borderColor: team.color }}>
           <h3 className="text-sm font-black uppercase tracking-tighter" style={{ color: team.color }}>{headerTitle}</h3>
           <p className="text-[10px] font-bold mt-1 uppercase tracking-tight">
-            {isTournament ? '평균' : '합계'} 시도: <span className="text-primary">{avgCountFormatted}</span> | 성공: <span className="text-emerald-600">{avgSuccessFormatted}</span> ({totalRate}%)
+            {isTournament ? '평균' : '합계'} 시도: <span className="text-primary">{formatNum(teamData.totalCount)}</span> | 성공: <span className="text-emerald-600">{formatNum(teamData.totalSuccess)}</span> ({totalRate}%)
           </p>
         </div>
         <div className="relative aspect-[45.7/55] bg-green-50/50 rounded-b-lg overflow-hidden border border-muted shadow-inner">
@@ -121,13 +99,17 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
               <rect x="0" y="0" width="45.7" height="55" />
               {isHome ? (
                 <>
-                  <path d="M 45.7,12.87 A 14.63,14.63 0 0,0 31.07,27.5 A 14.63,14.63 0 0,0 45.7,42.13" />
-                  <rect x="45.7" y="25.67" width="1.2" height="3.66" />
+                  <path d={`M 45.7,${27.5 - 14.63} A 14.63,14.63 0 0,0 31.07,27.5 A 14.63,14.63 0 0,0 45.7,${27.5 + 14.63}`} />
+                  <path d={`M 45.7,${27.5 - 19.63} A 19.63,19.63 0 0,0 26.07,27.5 A 19.63,19.63 0 0,0 45.7,${27.5 + 19.63}`} strokeDasharray="1,1" />
+                  <circle cx={45.7 - 6.47} cy={27.5} r="0.5" fill="black" stroke="none" />
+                  <rect x="45.7" y={27.5 - 1.83} width="1.2" height="3.66" />
                 </>
               ) : (
                 <>
-                  <path d="M 0,12.87 A 14.63,14.63 0 0,1 14.63,27.5 A 14.63,14.63 0 0,1 0,42.13" />
-                  <rect x="-1.2" y="25.67" width="1.2" height="3.66" />
+                  <path d={`M 0,${27.5 - 14.63} A 14.63,14.63 0 0,1 14.63,27.5 A 14.63,14.63 0 0,1 0,${27.5 + 14.63}`} />
+                  <path d={`M 0,${27.5 - 19.63} A 19.63,19.63 0 0,1 19.63,27.5 A 19.63,19.63 0 0,1 0,${27.5 + 19.63}`} strokeDasharray="1,1" />
+                  <circle cx={6.47} cy={27.5} r="0.5" fill="black" stroke="none" />
+                  <rect x="-1.2" y={27.5 - 1.83} width="1.2" height="3.66" />
                 </>
               )}
               <line x1="0" y1="18.33" x2="45.7" y2="18.33" strokeDasharray="1,1" />
