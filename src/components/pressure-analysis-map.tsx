@@ -29,6 +29,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
       const myTeam = isHome ? homeTeam.name : awayTeam.name;
       const oppTeam = isHome ? awayTeam.name : homeTeam.name;
 
+      // 0-2: 25y band (L, C, R), 3-5: 50y band (L, C, R)
       const mapping = [
         { oppZone: 100, oppLane: 'Right', myZone: 25, myLane: 'Left' },   // 0: 25L
         { oppZone: 100, oppLane: 'Center', myZone: 25, myLane: 'Center' }, // 1: 25C
@@ -93,55 +94,83 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
           </p>
         </div>
         <div className="relative aspect-[45.7/55] bg-green-50/50 rounded-b-lg overflow-hidden border border-muted shadow-inner">
-          <svg viewBox="-2 0 49.7 55" className="w-full h-full overflow-visible">
-            <g stroke="#000" strokeWidth="0.25" fill="none" opacity="0.4">
+          <svg viewBox="0 0 45.7 55" className="w-full h-full overflow-visible">
+            {/* 필드 배경 및 라인 */}
+            <g stroke="#000" strokeWidth="0.3" fill="none" opacity="0.4">
               <rect x="0" y="0" width="45.7" height="55" />
               {isHome ? (
+                // 홈 팀 시점: 골대가 오른쪽 (x=45.7)
                 <>
-                  <line x1="45.7" y1="0" x2="45.7" y2="55" /> 
                   <path d={`M 45.7,${27.5 - 14.63} A 14.63,14.63 0 0,0 31.07,27.5 A 14.63,14.63 0 0,0 45.7,${27.5 + 14.63}`} />
                   <path d={`M 45.7,${27.5 - 19.63} A 19.63,19.63 0 0,0 26.07,27.5 A 19.63,19.63 0 0,0 45.7,${27.5 + 19.63}`} strokeDasharray="1,1" />
-                  <circle cx={45.7 - 6.47} cy={27.5} r="0.3" fill="black" stroke="none" />
-                  <rect x="45.7" y={27.5 - 1.83} width="1.2" height="3.66" />
+                  <circle cx={45.7 - 6.47} cy={27.5} r="0.5" fill="black" stroke="none" />
+                  <line x1="45.7" y1={27.5 - 1.83} x2="46.9" y2={27.5 - 1.83} />
+                  <line x1="45.7" y1={27.5 + 1.83} x2="46.9" y2={27.5 + 1.83} />
+                  <line x1="46.9" y1={27.5 - 1.83} x2="46.9" y2={27.5 + 1.83} />
                 </>
               ) : (
+                // 어웨이 팀 시점: 골대가 왼쪽 (x=0)
                 <>
-                  <line x1="0" y1="0" x2="0" y2="55" />
                   <path d={`M 0,${27.5 - 14.63} A 14.63,14.63 0 0,1 14.63,27.5 A 14.63,14.63 0 0,1 0,${27.5 + 14.63}`} />
                   <path d={`M 0,${27.5 - 19.63} A 19.63,19.63 0 0,1 19.63,27.5 A 19.63,19.63 0 0,1 0,${27.5 + 19.63}`} strokeDasharray="1,1" />
-                  <circle cx={6.47} cy={27.5} r="0.3" fill="black" stroke="none" />
-                  <rect x="-1.2" y={27.5 - 1.83} width="1.2" height="3.66" />
+                  <circle cx={6.47} cy={27.5} r="0.5" fill="black" stroke="none" />
+                  <line x1="0" y1={27.5 - 1.83} x2="-1.2" y2={27.5 - 1.83} />
+                  <line x1="0" y1={27.5 + 1.83} x2="-1.2" y2={27.5 + 1.83} />
+                  <line x1="-1.2" y1={27.5 - 1.83} x2="-1.2" y2={27.5 + 1.83} />
                 </>
               )}
+              {/* 공통 구분선 */}
               <line x1="0" y1="18.33" x2="45.7" y2="18.33" strokeDasharray="1,1" />
               <line x1="0" y1="36.66" x2="45.7" y2="36.66" strokeDasharray="1,1" />
               <line x1="22.85" y1="0" x2="22.85" y2="55" strokeDasharray="1,1" />
             </g>
 
+            {/* 구역 히트맵 및 데이터 */}
             {teamData.zones.map((stat, i) => {
-              const xIdx = Math.floor(i / 3); 
-              let yIdx = i % 3; 
+              const xIdx = Math.floor(i / 3); // 0: 25y band, 1: 50y band
+              let yIdx = i % 3; // 0: L, 1: C, 2: R
 
-              // 미러링 로직: isHome이면 25y가 오른쪽(xIdx=1), 아니면 왼쪽(xIdx=0)
-              let rectX = isHome ? (xIdx === 0 ? 22.85 : 0) : (xIdx === 0 ? 0 : 22.85);
-              
-              // lane 반전 (어웨이팀 시점)
-              if (!isHome) {
-                if (yIdx === 0) yIdx = 2; // L -> 하단
-                else if (yIdx === 2) yIdx = 0; // R -> 상단
+              // 가로 위치 결정 (반전 반영)
+              // isHome이면 25y(xIdx=0)는 오른쪽(22.85~45.7), 50y(xIdx=1)는 왼쪽(0~22.85)
+              let rectX = 0;
+              if (isHome) {
+                rectX = xIdx === 0 ? 22.85 : 0;
+              } else {
+                rectX = xIdx === 0 ? 0 : 22.85;
               }
 
-              const rectY = yIdx * 18.33;
+              // 세로 위치 결정 (어웨이팀 시점 lane 반전)
+              let actualYIdx = yIdx;
+              if (!isHome) {
+                if (yIdx === 0) actualYIdx = 2; // Left -> 하단
+                else if (yIdx === 2) actualYIdx = 0; // Right -> 상단
+              }
+              const rectY = actualYIdx * 18.33;
+
               const intensity = stat.count > 0 ? (stat.count / globalMaxCount) * 0.45 + 0.1 : 0;
 
               return (
                 <g key={i}>
-                  <rect x={rectX} y={rectY} width="22.85" height="18.33" fill={team.color} fillOpacity={intensity} />
-                  <text x={rectX + 11.42} y={rectY + 18.33/2} textAnchor="middle" dominantBaseline="middle" className="fill-foreground" style={{ fontSize: '2.8px' }}>
-                    <text x={rectX + 11.42} y={rectY + 18.33/2 - 5} textAnchor="middle" fontWeight="black" style={{ fontSize: '2.8px' }}>{labels[i]}</text>
-                    <tspan x={rectX + 11.42} dy="0" fontWeight="bold">{(stat.count / matchCount).toFixed(1)}</tspan>
-                    <tspan x={rectX + 11.42} dy="3.5" fontWeight="bold" fill="#059669">{(stat.success / matchCount).toFixed(1)}</tspan>
-                    <tspan x={rectX + 11.42} dy="3.5" fontSize="1.8px" fontWeight="normal" opacity="0.8">{stat.rate.toFixed(0)}%</tspan>
+                  <rect 
+                    x={rectX} 
+                    y={rectY} 
+                    width="22.85" 
+                    height="18.33" 
+                    fill={team.color} 
+                    fillOpacity={intensity} 
+                  />
+                  <text 
+                    x={rectX + 11.42} 
+                    y={rectY + 9.16} 
+                    textAnchor="middle" 
+                    dominantBaseline="middle" 
+                    className="fill-foreground font-bold"
+                    style={{ fontSize: '3px' }}
+                  >
+                    <tspan x={rectX + 11.42} dy="-4" fontSize="2px" fontWeight="black" fillOpacity="0.6">{labels[i]}</tspan>
+                    <tspan x={rectX + 11.42} dy="4" fontWeight="black" fontSize="4px">{(stat.count / matchCount).toFixed(1)}</tspan>
+                    <tspan x={rectX + 11.42} dy="4" fontWeight="black" fontSize="3px" fill="#059669">{(stat.success / matchCount).toFixed(1)}</tspan>
+                    <tspan x={rectX + 11.42} dy="3" fontSize="2.2px" fontWeight="normal" opacity="0.8">({stat.rate.toFixed(0)}%)</tspan>
                   </text>
                 </g>
               );
