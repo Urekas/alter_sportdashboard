@@ -1,4 +1,3 @@
-
 "use client"
 
 import React from "react"
@@ -67,7 +66,6 @@ export function TacticalQuadrantChart({
     return null
   }
 
-  // 데이터 도메인 계산
   const allX = data.map(d => d.x).concat(avgX)
   const allY = data.map(d => d.y).concat(avgY)
   const minX = Math.floor(Math.min(...allX) * 0.8)
@@ -108,10 +106,7 @@ export function TacticalQuadrantChart({
               <ZAxis type="number" dataKey="z" range={[100, 400]} />
               <Tooltip content={<CustomTooltip />} />
               
-              {/* 4분면 영역 배경 */}
               <ReferenceArea x1={reversedX ? maxX : avgX} x2={reversedX ? avgX : maxX} y1={reversedY ? minY : avgY} y2={reversedY ? avgY : maxY} fill="hsl(var(--primary))" fillOpacity={0.05} />
-              
-              {/* 평균선 */}
               <ReferenceLine x={avgX} stroke="hsl(var(--foreground))" strokeDasharray="3 3" opacity={0.5} />
               <ReferenceLine y={avgY} stroke="hsl(var(--foreground))" strokeDasharray="3 3" opacity={0.5} />
 
@@ -128,7 +123,6 @@ export function TacticalQuadrantChart({
                 <LabelList dataKey="name" position="top" style={{ fontSize: '9px', fontWeight: 'bold' }} />
               </Scatter>
 
-              {/* 4분면 라벨 */}
               <text x="95%" y="10%" textAnchor="end" className="fill-muted-foreground font-bold italic" style={{ fontSize: '10px', opacity: 0.4 }}>{labels.tr}</text>
               <text x="5%" y="10%" textAnchor="start" className="fill-muted-foreground font-bold italic" style={{ fontSize: '10px', opacity: 0.4 }}>{labels.tl}</text>
               <text x="95%" y="90%" textAnchor="end" className="fill-muted-foreground font-bold italic" style={{ fontSize: '10px', opacity: 0.4 }}>{labels.br}</text>

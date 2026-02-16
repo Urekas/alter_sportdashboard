@@ -1,5 +1,4 @@
-
-import type { MatchEvent, MatchData, TeamMatchStats, QuarterStats, CircleEntry } from './types';
+import type { MatchEvent, MatchData, TeamMatchStats } from './types';
 
 export const detectRealTeamNames = (text: string): { home: string, away: string } | null => {
   const pattern = /([가-힣A-Za-z]+)\s*(\d+)?\s*-\s*([가-힣A-Za-z]+)\s*(\d+)?/;
@@ -17,13 +16,11 @@ export const extractTeamName = (code: string, detectedTeams: { home: string, awa
   if (detectedTeams) {
     const homeUpper = detectedTeams.home.toUpperCase().trim();
     const awayUpper = detectedTeams.away.toUpperCase().trim();
-    
     if (upperCode.includes(homeUpper)) return detectedTeams.home.trim();
     if (upperCode.includes(awayUpper)) return detectedTeams.away.trim();
     if (upperCode.includes("HOME")) return detectedTeams.home.trim();
     if (upperCode.includes("AWAY")) return detectedTeams.away.trim();
   }
-  
   return "Unknown";
 };
 
@@ -35,9 +32,7 @@ export const mapZone = (locStr: string): { x: number, y: number, lane: 'Left' | 
 
   let zoneBand = 50;
   const zoneMatch = text.match(/(\d+)/);
-  if (zoneMatch) {
-    zoneBand = parseInt(zoneMatch[1]);
-  }
+  if (zoneMatch) zoneBand = parseInt(zoneMatch[1]);
 
   let x = 45.7;
   if (zoneBand === 25) x = 11.5;
@@ -58,7 +53,6 @@ export const detectQuarter = (ungroupedText: string, startTime: number): string 
   if (text.includes('2쿼터') || text.includes('2Q')) return 'Q2';
   if (text.includes('3쿼터') || text.includes('3Q')) return 'Q3';
   if (text.includes('4쿼터') || text.includes('4Q')) return 'Q4';
-  
   if (startTime >= 2700) return "Q4";
   if (startTime >= 1800) return "Q3";
   if (startTime >= 900) return "Q2";
@@ -111,30 +105,16 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     });
   });
 
-  return { 
-    events, 
-    teams: { 
-      home: detectedTeams?.home.trim() || "Home", 
-      away: detectedTeams?.away.trim() || "Away" 
-    } 
-  };
+  return { events, teams: { home: detectedTeams?.home.trim() || "Home", away: detectedTeams?.away.trim() || "Away" } };
 };
 
 export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { home: string, away: string } } => {
   const lines = csvText.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
   if (lines.length < 2) return { events: [], teams: { home: "", away: "" } };
 
-  const splitCSVLine = (line: string) => {
-    return line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(item => item.replace(/^"|"$/g, '').trim());
-  };
-
+  const splitCSVLine = (line: string) => line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(item => item.replace(/^"|"$/g, '').trim());
   const headers = splitCSVLine(lines[0]);
-  const getColIdx = (colNames: string[]) => {
-    const idx = headers.findIndex(h => 
-      colNames.some(name => h.toLowerCase().replace(/\s/g, '').includes(name.toLowerCase().replace(/\s/g, '')))
-    );
-    return idx;
-  };
+  const getColIdx = (colNames: string[]) => headers.findIndex(h => colNames.some(name => h.toLowerCase().replace(/\s/g, '').includes(name.toLowerCase().replace(/\s/g, ''))));
 
   const idxMap = {
     code: getColIdx(["Code", "Row"]),
@@ -154,7 +134,6 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
     const code = idxMap.code > -1 ? row[idxMap.code] : "";
     const ungrouped = idxMap.ungrouped > -1 ? row[idxMap.ungrouped] : "";
     if (!detectedTeams) detectedTeams = detectRealTeamNames(ungrouped + code);
-    
     const team = extractTeamName(code, detectedTeams).trim();
     if (team === "Unknown") continue;
 
@@ -180,29 +159,13 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
     });
   }
 
-  return { 
-    events, 
-    teams: { 
-      home: detectedTeams?.home.trim() || "Home", 
-      away: detectedTeams?.away.trim() || "Away" 
-    } 
-  };
+  return { events, teams: { home: detectedTeams?.home.trim() || "Home", away: detectedTeams?.away.trim() || "Away" } };
 };
 
-export const createMatchDataFromUpload = (
-  events: MatchEvent[], 
-  homeName: string, 
-  awayName: string, 
-  homeColor: string, 
-  awayColor: string,
-  tournamentName?: string,
-  matchName?: string
-): MatchData => {
+export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string, awayName: string, homeColor: string, awayColor: string, tournamentName?: string, matchName?: string): MatchData => {
   const homeTeam = { name: homeName.trim(), color: homeColor }; 
   const awayTeam = { name: awayName.trim(), color: awayColor }; 
-
   const quartersList = ['Q1', 'Q2', 'Q3', 'Q4'];
-  
   const qMap = quartersList.map((q, idx) => {
     const qEvents = events.filter(e => e.quarter === q);
     if (qEvents.length === 0) return { q, min: idx * 900, max: (idx + 1) * 900, duration: 900 };
@@ -221,130 +184,65 @@ export const createMatchDataFromUpload = (
   const calculateTeamStats = (team: string, opponent: string, targetEvents: MatchEvent[]): TeamMatchStats => {
     const myEvents = targetEvents.filter(e => e.team === team);
     const oppEvents = targetEvents.filter(e => e.team === opponent);
-
     const teamTime = myEvents.filter(e => e.code.toUpperCase().includes('TEAM')).reduce((acc, e) => acc + e.duration, 0);
     const attTime = myEvents.filter(e => e.code.toUpperCase().includes('ATT')).reduce((acc, e) => acc + e.duration, 0);
-    
     const oppTeamTime = oppEvents.filter(e => e.code.toUpperCase().includes('TEAM')).reduce((acc, e) => acc + e.duration, 0);
     const oppAttTime = oppEvents.filter(e => e.code.toUpperCase().includes('ATT')).reduce((acc, e) => acc + e.duration, 0);
     const oppBuildUpTime = Math.max(0, oppTeamTime - oppAttTime);
-
     const shotCount = myEvents.filter(e => e.code.toUpperCase().includes('슈팅') || e.code.toUpperCase().includes('SHOT')).length;
     const ceCount = myEvents.filter(e => e.code.toUpperCase().includes('진입') || e.code.toUpperCase().includes('CE')).length;
-    
     const pcEvents = myEvents.filter(e => e.code.toUpperCase().includes('페널티코너') || e.code.toUpperCase().includes('PC'));
-    const pcCount = pcEvents.length;
-    
     const a25Count = myEvents.filter(e => e.code.toUpperCase().includes('A25')).length;
 
-    const getZoneCount = (evts: MatchEvent[], types: string[], zones: number[]) => {
-      return evts.filter(e => {
-        const zone = mapZone(e.locationLabel || e.code).zoneBand;
-        const isTargetType = types.some(t => e.type === t || e.code.toUpperCase().includes(t.toUpperCase()));
-        return isTargetType && zones.includes(zone);
-      }).length;
-    };
+    const getZoneCount = (evts: MatchEvent[], types: string[], zones: number[]) => evts.filter(e => {
+      const zone = mapZone(e.locationLabel || e.code).zoneBand;
+      const isTargetType = types.some(t => e.type === t || e.code.toUpperCase().includes(t.toUpperCase()));
+      return isTargetType && zones.includes(zone);
+    }).length;
 
-    const press_attempts = getZoneCount(oppEvents, ["turnover", "foul"], [75, 100]) + 
-                          getZoneCount(myEvents, ["foul"], [25, 50]);
-
+    const press_attempts = getZoneCount(oppEvents, ["turnover", "foul"], [75, 100]) + getZoneCount(myEvents, ["foul"], [25, 50]);
     const press_success = getZoneCount(oppEvents, ["turnover", "foul"], [75, 100]);
-
     const spp = press_attempts > 0 ? oppBuildUpTime / press_attempts : 0;
     const timePerCE = ceCount > 0 ? teamTime / ceCount : 0;
-    const totalPossession = teamTime + oppTeamTime;
-    const totalATT = attTime + oppAttTime;
-
     const buildAttempts = myEvents.filter(e => e.code.toUpperCase().includes('TEAM') && mapZone(e.locationLabel || e.code).zoneBand <= 50).length;
     const build25Ratio = buildAttempts > 0 ? (a25Count / buildAttempts) * 100 : 0;
-
-    const totalGoals = myEvents.filter(e => e.code.toUpperCase().includes('득점') || e.code.toUpperCase().includes('GOAL')).length;
-    
     const pcGoals = pcEvents.filter(e => e.resultLabel.toUpperCase().includes('GOAL')).length;
-    const fieldGoals = Math.max(0, totalGoals - pcGoals);
-
-    const buildUpPossession = teamTime > 0 ? (Math.max(0, teamTime - attTime) / teamTime) * 100 : 0;
-    const pcSuccessRate = pcCount > 0 ? (pcGoals / pcCount) * 100 : 0;
 
     return {
-      goals: { field: fieldGoals, pc: pcGoals },
-      shots: shotCount,
-      pcs: pcCount,
-      circleEntries: ceCount,
-      twentyFiveEntries: a25Count,
-      possession: totalPossession > 0 ? (teamTime / totalPossession) * 100 : 0,
-      attackPossession: totalATT > 0 ? (attTime / totalATT) * 100 : 0,
-      buildUpPossession: parseFloat(buildUpPossession.toFixed(1)),
-      pcSuccessRate: parseFloat(pcSuccessRate.toFixed(1)),
-      spp: parseFloat(spp.toFixed(1)),
-      allowedSpp: 0, 
-      build25Ratio: Math.min(100, build25Ratio),
-      avgAttackDuration: 0,
-      timePerCE: parseFloat(timePerCE.toFixed(1)),
-      pressAttempts: press_attempts,
-      pressSuccess: press_success
+      goals: { field: Math.max(0, myEvents.filter(e => e.code.toUpperCase().includes('득점') || e.code.toUpperCase().includes('GOAL')).length - pcGoals), pc: pcGoals },
+      shots: shotCount, pcs: pcEvents.length, circleEntries: ceCount, twentyFiveEntries: a25Count,
+      possession: (teamTime + oppTeamTime) > 0 ? (teamTime / (teamTime + oppTeamTime)) * 100 : 0,
+      attackPossession: (attTime + oppAttTime) > 0 ? (attTime / (attTime + oppAttTime)) * 100 : 0,
+      buildUpPossession: teamTime > 0 ? (Math.max(0, teamTime - attTime) / teamTime) * 100 : 0,
+      pcSuccessRate: pcEvents.length > 0 ? (pcGoals / pcEvents.length) * 100 : 0,
+      spp: parseFloat(spp.toFixed(1)), allowedSpp: 0, build25Ratio: Math.min(100, build25Ratio), avgAttackDuration: 0,
+      timePerCE: parseFloat(timePerCE.toFixed(1)), pressAttempts: press_attempts, pressSuccess: press_success
     };
   };
 
-  const homeStats = calculateTeamStats(homeName, awayName, events);
-  const awayStats = calculateTeamStats(awayName, homeName, events);
-
   return {
-    tournamentName,
-    matchName,
-    homeTeam,
-    awayTeam,
-    events,
+    tournamentName, matchName, homeTeam, awayTeam, events,
     pressureData: Array(20).fill(0).map((_, i) => {
-      const normStart = (i * 180);
-      const normEnd = ((i + 1) * 180);
-      const periodEvents = events.filter(e => {
-        const nTime = getNormalizedTime(e);
-        return nTime >= normStart && nTime < normEnd;
-      });
-      const hS = calculateTeamStats(homeName, awayName, periodEvents);
-      const aS = calculateTeamStats(awayName, homeName, periodEvents);
-      return {
-        interval: `${(i + 1) * 3}'`,
-        [homeName]: hS.spp,
-        [awayName]: aS.spp,
-      };
+      const start = i * 180, end = (i + 1) * 180;
+      const pEvents = events.filter(e => { const nt = getNormalizedTime(e); return nt >= start && nt < end; });
+      return { interval: `${(i + 1) * 3}'`, [homeName]: calculateTeamStats(homeName, awayName, pEvents).spp, [awayName]: calculateTeamStats(awayName, homeName, pEvents).spp };
     }),
     circleEntries: events.filter(e => e.code.toUpperCase().includes('진입')).map(e => {
       const res = e.resultLabel.toUpperCase();
-      const isSuccess = res.includes('PC') || res.includes('SHOT') || res.includes('득점') || res.includes('슈팅') || res.includes('GOAL');
-      return {
-        team: e.team,
-        channel: /좌|LEFT/i.test(e.locationLabel) ? 'Left' : /우|RIGHT/i.test(e.locationLabel) ? 'Right' : 'Center',
-        outcome: isSuccess ? 'Shot On Target' : 'No Shot'
-      };
+      const isS = res.includes('PC') || res.includes('SHOT') || res.includes('득점') || res.includes('슈팅') || res.includes('GOAL');
+      return { team: e.team, channel: /좌|LEFT/i.test(e.locationLabel) ? 'Left' : /우|RIGHT/i.test(e.locationLabel) ? 'Right' : 'Center', outcome: isS ? 'Shot On Target' : 'No Shot' };
     }),
     attackThreatData: Array(12).fill(0).map((_, i) => {
-      const normStart = i * 300;
-      const normEnd = (i + 1) * 300;
-      return {
-        interval: `${(i + 1) * 5}'`,
-        [homeName]: events.filter(e => {
-          const nTime = getNormalizedTime(e);
-          const c = e.code.toUpperCase();
-          return e.team === homeName && nTime >= normStart && nTime < normEnd &&
-          (c.includes('슈팅') || c.includes('SHOT') || c.includes('페널티코너') || c.includes('PC'));
-        }).length,
-        [awayName]: events.filter(e => {
-          const nTime = getNormalizedTime(e);
-          const c = e.code.toUpperCase();
-          return e.team === awayName && nTime >= normStart && nTime < normEnd &&
-          (c.includes('슈팅') || c.includes('SHOT') || c.includes('페널티코너') || c.includes('PC'));
-        }).length,
-      };
+      const s = i * 300, e_ = (i + 1) * 300;
+      const filterT = (t: string) => events.filter(e => {
+        const nt = getNormalizedTime(e); const c = e.code.toUpperCase();
+        return e.team === t && nt >= s && nt < e_ && (c.includes('슈팅') || c.includes('SHOT') || c.includes('페널티코너') || c.includes('PC'));
+      }).length;
+      return { interval: `${(i + 1) * 5}'`, [homeName]: filterT(homeName), [awayName]: filterT(awayName) };
     }),
-    build25Ratio: { home: homeStats.build25Ratio, away: awayStats.build25Ratio },
-    spp: { home: homeStats.spp, away: awayStats.spp },
-    matchStats: { home: homeStats, away: awayStats },
-    quarterlyStats: quartersList.map(q => ({
-      quarter: q,
-      home: calculateTeamStats(homeName, awayName, events.filter(e => e.quarter === q)),
-      away: calculateTeamStats(awayName, homeName, events.filter(e => e.quarter === q))
-    }))
+    build25Ratio: { home: calculateTeamStats(homeName, awayName, events).build25Ratio, away: calculateTeamStats(awayName, homeName, events).build25Ratio },
+    spp: { home: calculateTeamStats(homeName, awayName, events).spp, away: calculateTeamStats(awayName, homeName, events).spp },
+    matchStats: { home: calculateTeamStats(homeName, awayName, events), away: calculateTeamStats(awayName, homeName, events) },
+    quarterlyStats: quartersList.map(q => ({ quarter: q, home: calculateTeamStats(homeName, awayName, events.filter(e => e.quarter === q)), away: calculateTeamStats(awayName, homeName, events.filter(e => e.quarter === q)) }))
   };
 };
