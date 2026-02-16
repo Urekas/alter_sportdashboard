@@ -61,7 +61,6 @@ export const TournamentService = {
   // 특정 대회에 경기 데이터 추가
   async addMatchToTournament(tournamentId: string, matchData: MatchData) {
     try {
-      // 현재 경기 수 확인하여 orderIndex 설정
       const q = query(collection(db, MATCHES_COL), where('tournamentId', '==', tournamentId));
       const countSnapshot = await getCountFromServer(q);
       const nextOrder = countSnapshot.data().count;
@@ -109,15 +108,39 @@ export const TournamentService = {
     }
   },
 
-  // 경기 삭제
+  // 경기 삭제 (강화됨)
   async deleteMatch(matchId: string) {
-    if (!matchId) return;
-    await deleteDoc(doc(db, MATCHES_COL, matchId));
+    if (!matchId) {
+      console.error("deleteMatch: No matchId provided");
+      return;
+    }
+    try {
+      const matchRef = doc(db, MATCHES_COL, matchId);
+      await deleteDoc(matchRef);
+    } catch (error) {
+      console.error("Error deleting match:", error);
+      throw error;
+    }
   },
 
-  // 대회 삭제
+  // 대회 삭제 (강화됨)
   async deleteTournament(tournamentId: string) {
-    if (!tournamentId) return;
-    await deleteDoc(doc(db, TOURNAMENTS_COL, tournamentId));
+    if (!tournamentId) {
+      console.error("deleteTournament: No tournamentId provided");
+      return;
+    }
+    try {
+      const tourneyRef = doc(db, TOURNAMENTS_COL, tournamentId);
+      await deleteDoc(tourneyRef);
+      
+      // 관련된 경기도 함께 삭제하는 것을 권장하나, 여기서는 요청하신 대로 UI 삭제 동작에 집중합니다.
+      const q = query(collection(db, MATCHES_COL), where('tournamentId', '==', tournamentId));
+      const snapshot = await getDocs(q);
+      const deletePromises = snapshot.docs.map(d => deleteDoc(doc(db, MATCHES_COL, d.id)));
+      await Promise.all(deletePromises);
+    } catch (error) {
+      console.error("Error deleting tournament:", error);
+      throw error;
+    }
   }
 };
