@@ -407,13 +407,13 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             
             <div className="mt-8 space-y-4">
               <div className="flex items-center gap-2 text-2xl font-black text-primary border-b-2 pb-1">
-                <MapIcon className="h-6 w-6" /> 대회 통합 압박 및 탈압박 분석 (Tournament Pressure Map)
+                <MapIcon className="h-6 w-6" /> 대회 통합 압박 분석 (Tournament Pressure Map)
               </div>
               <PressureAnalysisMap 
                 events={aggregatedEvents} 
                 homeTeam={{ name: analysisData.currentTeam, color: selectedTeamColor }} 
                 awayTeam={{ name: '상대팀 평균', color: opponentColor }} 
-                awayHeader="탈압박 분석 (상대 압박 대응)"
+                awayHeader="상대팀 평균 압박"
                 matchCount={matchCount}
               />
             </div>

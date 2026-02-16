@@ -22,19 +22,11 @@ type ZoneStat = {
 };
 
 /**
- * 압박 및 피압박 분석 지도 컴포넌트
+ * 압박 분석 지도 컴포넌트
  * 
  * [로직 정의 - 형님 에디션]
- * - 압박 시도(Count): 해당 진영에서의 모든 경합 (에러 상황 + 압박하는 팀의 파울)
+ * - 압박 시도(Count): 해당 진영에서의 모든 경합 (상대 에러 + 압박하는 팀의 파울)
  * - 압박 성공(Success): 압박 시도 - 압박하는 팀의 파울 (즉, 순수하게 상대의 실책을 유도한 상황)
- * 
- * [좌측: 우리 팀의 상대 진영 압박]
- * - 시도: 상대 진영(75, 100)에서의 (상대 에러 + 우리의 파울)
- * - 성공: 상대 에러 (우리가 압박을 잘해서 상대가 실수함)
- * 
- * [우측: 우리 팀의 피압박 상황]
- * - 시도: 우리 진영(25, 50)에서의 (우리 에러 + 상대의 파울)
- * - 상대 성공: 우리 에러 (상대가 압박을 잘해서 우리가 실수함)
  */
 export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awayHeader, matchCount = 1 }: PressureAnalysisMapProps) {
   const isTournament = matchCount > 1;
@@ -75,7 +67,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
               }
             }
           } else {
-            // [우리의 피압박 분석 (상대 압박)]
+            // [상대의 압박 (우리의 피압박)]
             if (zoneInfo.zoneBand === m.myZone && zoneInfo.lane === m.myLane) {
               if (isMyError || isOppFoul) {
                 zones[idx].count++; // 상대의 전체 시도 (우리 실수 + 상대의 파울)
@@ -110,7 +102,6 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
 
   const renderHalfPitch = (teamData: { zones: ZoneStat[], totalCount: number, totalSuccess: number }, team: Team, isHome: boolean, globalMaxCount: number) => {
     const labels = ["25L", "25C", "25R", "50L", "50C", "50R"];
-    const isDePressing = !isHome && !!awayHeader;
     
     const formatNum = (val: number) => {
       return isTournament 
@@ -122,10 +113,8 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
     const avgSuccessFormatted = formatNum(teamData.totalSuccess);
     const totalRate = teamData.totalCount > 0 ? (teamData.totalSuccess / teamData.totalCount * 100).toFixed(1) : "0.0";
     
-    const headerTitle = isHome ? `${team.name} 상대 진영 압박` : (awayHeader || `${team.name} 피압박 (상대 압박 성공)`);
+    const headerTitle = isHome ? `${team.name} 압박` : (awayHeader || `${team.name} 압박`);
 
-    // 단일 경기 분석 (matchCount === 1) -> 지금 그대로 (홈 우측, 어웨이 좌측)
-    // 대회 누적 분석 (matchCount > 1) -> 요청대로 반전 (홈 좌측, 어웨이 우측)
     let goalOnRight = false;
     if (isTournament) {
       goalOnRight = !isHome; 
@@ -140,7 +129,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
             {headerTitle}
           </h3>
           <p className="text-[10px] font-bold mt-1 uppercase tracking-tight">
-            {isTournament ? '경기당 평균' : '합계'} 시도: <span className="text-primary">{avgCountFormatted}</span>회 | {isDePressing ? '상대 성공' : '성공'}: <span className="text-emerald-600">{avgSuccessFormatted}</span>회 ({totalRate}%)
+            {isTournament ? '경기당 평균' : '합계'} 시도: <span className="text-primary">{avgCountFormatted}</span>회 | 성공: <span className="text-emerald-600">{avgSuccessFormatted}</span>회 ({totalRate}%)
           </p>
         </div>
         <div className="relative aspect-[45.7/55] bg-green-50/50 rounded-b-lg overflow-hidden border border-muted shadow-inner">
@@ -200,7 +189,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
                   >
                     <tspan x={rectX + 11.42} dy="-4" fontSize="2.5px" fontWeight="black" fillOpacity="0.6">{labels[i]}</tspan>
                     <tspan x={rectX + 11.42} dy="4.5" fontWeight="black" fontSize="4px">{formatNum(stat.count)}</tspan>
-                    <tspan x={rectX + 11.42} dy="4" fontWeight="black" fontSize="3.2px" fill="#059669">{isDePressing ? '상대성공' : '성공'}: {formatNum(stat.success)}</tspan>
+                    <tspan x={rectX + 11.42} dy="4" fontWeight="black" fontSize="3.2px" fill="#059669">성공: {formatNum(stat.success)}</tspan>
                     <tspan x={rectX + 11.42} dy="3" fontSize="2.2px" fontWeight="normal" opacity="0.8">({stat.rate.toFixed(0)}%)</tspan>
                   </text>
                 </g>
@@ -217,7 +206,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
       <CardHeader className={isCompact ? "py-2 px-4" : ""}>
         <CardTitle className={isCompact ? "text-lg" : ""}>Pressure Analysis</CardTitle>
         <CardDescription className={isCompact ? "text-[10px]" : ""}>
-          {isTournament ? `대회 ${matchCount}경기 평균 수치.` : '경기 데이터 실제 수치.'} 압박 시도 대비 순수 성공(상대 실책 유도) 비율 분석.
+          압박 시도 대비 순수 성공(상대 실책 유도) 비율 분석. {isTournament ? `대회 ${matchCount}경기 평균 수치.` : '경기 데이터 실제 수치.'}
         </CardDescription>
       </CardHeader>
       <CardContent className={isCompact ? "p-2 md:p-4" : "p-4 md:p-6"}>
