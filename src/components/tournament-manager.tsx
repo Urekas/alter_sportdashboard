@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, query } from "firebase/firestore"
@@ -55,9 +56,9 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
   }, [selectedTournament, rawMatches]);
 
   const handleCreate = async () => {
-    if (!newName.trim()) return
+    if (!newName.trim() || !db) return
     try {
-      await TournamentService.createTournament(newName, new Date().toISOString())
+      await TournamentService.createTournament(db, newName, new Date().toISOString())
       setNewName("")
       setIsNewDialogOpen(false)
       toast({ title: "새 대회 생성 완료" })
@@ -67,9 +68,9 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
   }
 
   const handleUpdateTournament = async (id: string) => {
-    if (!editName.trim()) return
+    if (!editName.trim() || !db) return
     try {
-      await TournamentService.updateTournament(id, editName)
+      await TournamentService.updateTournament(db, id, editName)
       setEditingId(null)
       toast({ title: "대회 이름 수정 완료" })
     } catch (e: any) {
@@ -77,40 +78,30 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
     }
   }
 
-  const handleDeleteTournament = async (e: React.MouseEvent, id: string) => {
-    e.preventDefault();
-    e.stopPropagation(); 
-    if (!id) return;
-    
-    if (window.confirm("이 대회를 정말 삭제하시겠습니까? 대회에 포함된 모든 경기 정보가 함께 삭제됩니다.")) {
-      try {
-        await TournamentService.deleteTournament(id)
-        toast({ title: "대회 삭제 완료" })
-      } catch (err: any) {
-        toast({ title: "삭제 실패", description: err.message, variant: "destructive" })
-      }
+  const handleDeleteTournament = async (id: string) => {
+    if (!id || !db) return;
+    try {
+      await TournamentService.deleteTournament(db, id)
+      toast({ title: "대회 삭제 완료" })
+    } catch (err: any) {
+      toast({ title: "삭제 실패", description: err.message, variant: "destructive" })
     }
   }
 
-  const handleDeleteMatch = async (e: React.MouseEvent, id: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!id) return;
-
-    if (window.confirm("이 경기를 정말 삭제하시겠습니까?")) {
-      try {
-        await TournamentService.deleteMatch(id)
-        toast({ title: "경기 삭제 완료" })
-      } catch (err: any) {
-        toast({ title: "삭제 실패", description: err.message, variant: "destructive" })
-      }
+  const handleDeleteMatch = async (id: string) => {
+    if (!id || !db) return;
+    try {
+      await TournamentService.deleteMatch(db, id)
+      toast({ title: "경기 삭제 완료" })
+    } catch (err: any) {
+      toast({ title: "삭제 실패", description: err.message, variant: "destructive" })
     }
   }
 
   const handleUpdateMatchName = async (matchId: string) => {
-    if (!editMatchName.trim()) return
+    if (!editMatchName.trim() || !db) return
     try {
-      await TournamentService.updateMatchName(matchId, editMatchName)
+      await TournamentService.updateMatchName(db, matchId, editMatchName)
       setEditingMatchId(null)
       toast({ title: "경기 이름 수정 완료" })
     } catch (e: any) {
@@ -119,6 +110,7 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
   }
 
   const handleMoveOrder = async (matchId: string, currentOrder: number, direction: 'up' | 'down') => {
+    if (!db) return;
     const targetOrder = direction === 'up' ? currentOrder - 1 : currentOrder + 1;
     if (targetOrder < 0 || targetOrder >= currentTournamentMatches.length) return;
 
@@ -126,8 +118,8 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
     if (!swapMatch || !swapMatch.id) return;
 
     try {
-      await TournamentService.updateMatchOrder(matchId, targetOrder);
-      await TournamentService.updateMatchOrder(swapMatch.id, currentOrder);
+      await TournamentService.updateMatchOrder(db, matchId, targetOrder);
+      await TournamentService.updateMatchOrder(db, swapMatch.id, currentOrder);
       toast({ title: "순서 변경 완료" });
     } catch (e: any) {
       toast({ title: "순서 변경 실패", description: e.message, variant: "destructive" });
@@ -142,7 +134,7 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
   }
 
   const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!replaceMatchId || !event.target.files || !event.target.files[0]) return;
+    if (!replaceMatchId || !event.target.files || !event.target.files[0] || !db) return;
     const file = event.target.files[0];
     const matchName = file.name.replace(/\.[^/.]+$/, "");
     const reader = new FileReader();
@@ -162,7 +154,7 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
           selectedTournament?.name,
           matchName
         );
-        await TournamentService.updateMatchData(replaceMatchId, updatedData);
+        await TournamentService.updateMatchData(db, replaceMatchId, updatedData);
         toast({ title: "데이터 교체 완료" });
         setReplaceMatchId(null);
       } catch (err: any) {
@@ -224,7 +216,22 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
                         <TableCell className="text-center"><span className="font-black text-primary bg-primary/10 px-3 py-1 rounded-full text-sm">{(m.matchStats.home.goals.field + m.matchStats.home.goals.pc)} : {(m.matchStats.away.goals.field + m.matchStats.away.goals.pc)}</span></TableCell>
                         <TableCell className="text-right pr-6 space-x-2" onClick={(e) => e.stopPropagation()}>
                           <Button variant="outline" size="sm" className="h-8 text-xs font-bold border-emerald-600 text-emerald-600 hover:bg-emerald-50" onClick={(e) => handleReplaceFile(e, m.id!)}><RefreshCw className="h-3 w-3 mr-1" /> 교체</Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={(e) => handleDeleteMatch(e, m.id!)}><Trash2 className="h-4 w-4" /></Button>
+                          
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>경기를 삭제하시겠습니까?</AlertDialogTitle>
+                                <AlertDialogDescription>이 작업은 되돌릴 수 없습니다. 해당 경기 데이터가 영구적으로 삭제됩니다.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>취소</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteMatch(m.id!)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">삭제</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </TableCell>
                       </TableRow>
                     ))
@@ -280,7 +287,22 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
                     <TableCell className="text-center text-xs text-muted-foreground font-medium">{t.createdAt?.seconds ? new Date(t.createdAt.seconds * 1000).toLocaleDateString() : '-'}</TableCell>
                     <TableCell className="text-right pr-6 space-x-1" onClick={(e) => e.stopPropagation()}>
                       <Button size="icon" variant="ghost" className="h-9 w-9 text-muted-foreground hover:text-primary" onClick={(e) => { e.stopPropagation(); setEditingId(t.id); setEditName(t.name); }}><Edit3 className="h-4 w-4" /></Button>
-                      <Button size="icon" variant="ghost" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={(e) => handleDeleteTournament(e, t.id)}><Trash2 className="h-4 w-4" /></Button>
+                      
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="icon" variant="ghost" className="h-9 w-9 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>대회를 삭제하시겠습니까?</AlertDialogTitle>
+                            <AlertDialogDescription>이 작업은 되돌릴 수 없습니다. 대회와 포함된 모든 경기 데이터가 영구적으로 삭제됩니다.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>취소</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteTournament(t.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">삭제</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </TableCell>
                   </TableRow>
                 ))

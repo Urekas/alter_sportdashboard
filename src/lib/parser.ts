@@ -208,9 +208,7 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
       return isTargetType && zones.includes(zone);
     }).length;
 
-    // 압박 시도: 상대 진영 유도 실책 + 우리 진영 상대 파울
     const press_attempts = getZoneCount(oppEvents, ["turnover", "foul"], [75, 100]) + getZoneCount(myEvents, ["foul"], [25, 50]);
-    // 압박 성공: 상대 진영 유도 실책만 (우리 파울 제외)
     const press_success = getZoneCount(oppEvents, ["turnover", "foul"], [75, 100]);
     
     const spp = press_attempts > 0 ? oppBuildUpTime / press_attempts : 0;
