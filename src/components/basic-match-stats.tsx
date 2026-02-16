@@ -34,10 +34,10 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
   const stats = [
     { 
       label: "평균 득점 (PC / 전체득점)", 
-      h: `${matchStats.home.goals.pc.toFixed(1)} / ${(matchStats.home.goals.field + matchStats.home.goals.pc).toFixed(1)}`, 
-      a: `${matchStats.away.goals.pc.toFixed(1)} / ${(matchStats.away.goals.field + matchStats.away.goals.pc).toFixed(1)}`,
-      hVal: matchStats.home.goals.field + matchStats.home.goals.pc,
-      aVal: matchStats.away.goals.field + matchStats.away.goals.pc
+      h: `${formatValue(matchStats.home.goals.pc).toFixed(1)} / ${(formatValue(matchStats.home.goals.field) + formatValue(matchStats.home.goals.pc)).toFixed(1)}`, 
+      a: `${formatValue(matchStats.away.goals.pc).toFixed(1)} / ${(formatValue(matchStats.away.goals.field) + formatValue(matchStats.away.goals.pc)).toFixed(1)}`,
+      hVal: formatValue(matchStats.home.goals.field) + formatValue(matchStats.home.goals.pc),
+      aVal: formatValue(matchStats.away.goals.field) + formatValue(matchStats.away.goals.pc)
     },
     { label: "평균 슈팅", h: formatValue(matchStats.home.shots), a: formatValue(matchStats.away.shots), isFloat: true },
     { label: "평균 페널티코너 (PC)", h: formatValue(matchStats.home.pcs), a: formatValue(matchStats.away.pcs), isFloat: true },
@@ -54,15 +54,15 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
     <Card>
       <CardHeader>
         <CardTitle>종합 통계 비교</CardTitle>
-        <CardDescription>{homeTeam.name}의 성과를 대회 전체 평균과 비교합니다.</CardDescription>
+        <CardDescription>{homeTeam.name}의 성과를 비교 대상과 대조합니다.</CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>분석 항목</TableHead>
-              <TableHead className="text-center font-bold" style={{ color: 'hsl(var(--chart-1))' }}>{homeTeam.name} 평균</TableHead>
-              <TableHead className="text-center font-bold" style={{ color: 'hsl(var(--chart-2))' }}>{awayTeam.name}</TableHead>
+              <TableHead className="text-center font-bold" style={{ color: homeTeam.color }}>{homeTeam.name}</TableHead>
+              <TableHead className="text-center font-bold" style={{ color: awayTeam.color }}>{awayTeam.name}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -76,13 +76,13 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
                   <TableCell className="font-medium">{s.label}</TableCell>
                   <TableCell 
                     className="text-center" 
-                    style={winnerClass === "home-win" ? { color: 'hsl(var(--chart-1))', fontWeight: 'bold' } : {}}
+                    style={winnerClass === "home-win" ? { color: homeTeam.color, fontWeight: 'bold' } : {}}
                   >
                     {s.isFloat ? Number(s.h).toFixed(1) : s.h}
                   </TableCell>
                   <TableCell 
                     className="text-center"
-                    style={winnerClass === "away-win" ? { color: 'hsl(var(--chart-2))', fontWeight: 'bold' } : {}}
+                    style={winnerClass === "away-win" ? { color: awayTeam.color, fontWeight: 'bold' } : {}}
                   >
                     {s.isFloat ? Number(s.a).toFixed(1) : s.a}
                   </TableCell>
