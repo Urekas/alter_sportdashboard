@@ -41,6 +41,7 @@ export const TournamentService = {
 
   // 대회 수정
   async updateTournament(id: string, name: string) {
+    if (!id) return;
     const docRef = doc(db, TOURNAMENTS_COL, id);
     await updateDoc(docRef, { name });
   },
@@ -80,12 +81,14 @@ export const TournamentService = {
 
   // 경기 이름 수정
   async updateMatchName(matchId: string, matchName: string) {
+    if (!matchId) return;
     const docRef = doc(db, MATCHES_COL, matchId);
     await updateDoc(docRef, { matchName });
   },
 
   // 경기 순서 업데이트
   async updateMatchOrder(matchId: string, newOrder: number) {
+    if (!matchId) return;
     const docRef = doc(db, MATCHES_COL, matchId);
     await updateDoc(docRef, { orderIndex: newOrder });
   },
@@ -93,6 +96,7 @@ export const TournamentService = {
   // 기존 경기 데이터 교체
   async updateMatchData(matchId: string, matchData: MatchData) {
     try {
+      if (!matchId) return;
       const { id, uploadedAt, ...dataToSave } = matchData;
       const docRef = doc(db, MATCHES_COL, matchId);
       await updateDoc(docRef, {
@@ -107,11 +111,13 @@ export const TournamentService = {
 
   // 경기 삭제
   async deleteMatch(matchId: string) {
+    if (!matchId) return;
     await deleteDoc(doc(db, MATCHES_COL, matchId));
   },
 
   // 대회 삭제
   async deleteTournament(tournamentId: string) {
+    if (!tournamentId) return;
     await deleteDoc(doc(db, TOURNAMENTS_COL, tournamentId));
   }
 };

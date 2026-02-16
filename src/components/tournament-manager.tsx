@@ -111,27 +111,30 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
     }
   }
 
-  const handleDeleteTournament = async (id: string) => {
-    if (!confirm("이 대회를 삭제하시겠습니까? 대회에 포함된 모든 경기 정보가 사라집니다.")) return
+  const handleDeleteTournament = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation(); // 행 클릭 이벤트 전파 차단
+    if (!window.confirm("이 대회를 삭제하시겠습니까? 대회에 포함된 모든 경기 정보가 사라집니다.")) return
     try {
       await TournamentService.deleteTournament(id)
       toast({ title: "대회 삭제 완료" })
-    } catch (e: any) {
-      toast({ title: "삭제 실패", description: e.message, variant: "destructive" })
+    } catch (err: any) {
+      toast({ title: "삭제 실패", description: err.message, variant: "destructive" })
     }
   }
 
-  const handleDeleteMatch = async (id: string) => {
-    if (!confirm("이 경기를 삭제하시겠습니까?")) return
+  const handleDeleteMatch = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!window.confirm("이 경기를 삭제하시겠습니까?")) return
     try {
       await TournamentService.deleteMatch(id)
       toast({ title: "경기 삭제 완료" })
-    } catch (e: any) {
-      toast({ title: "삭제 실패", description: e.message, variant: "destructive" })
+    } catch (err: any) {
+      toast({ title: "삭제 실패", description: err.message, variant: "destructive" })
     }
   }
 
-  const handleReplaceFile = (matchId: string) => {
+  const handleReplaceFile = (e: React.MouseEvent, matchId: string) => {
+    e.stopPropagation();
     setReplaceMatchId(matchId);
     fileInputRef.current?.click();
   }
@@ -219,7 +222,7 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
                             <Button 
                               size="icon" variant="ghost" className="h-6 w-6" 
                               disabled={idx === 0}
-                              onClick={() => handleMoveOrder(m.id!, idx, 'up')}
+                              onClick={(e) => { e.stopPropagation(); handleMoveOrder(m.id!, idx, 'up'); }}
                             >
                               <ArrowUp className="h-3 w-3" />
                             </Button>
@@ -227,7 +230,7 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
                             <Button 
                               size="icon" variant="ghost" className="h-6 w-6" 
                               disabled={idx === currentTournamentMatches.length - 1}
-                              onClick={() => handleMoveOrder(m.id!, idx, 'down')}
+                              onClick={(e) => { e.stopPropagation(); handleMoveOrder(m.id!, idx, 'down'); }}
                             >
                               <ArrowDown className="h-3 w-3" />
                             </Button>
@@ -235,7 +238,7 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
                         </TableCell>
                         <TableCell className="pl-6">
                           {editingMatchId === m.id ? (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                               <Input 
                                 value={editMatchName} 
                                 onChange={(e) => setEditMatchName(e.target.value)} 
@@ -259,7 +262,8 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
                               </div>
                               <Button 
                                 size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover:opacity-100"
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   setEditingMatchId(m.id!)
                                   setEditMatchName(m.matchName || "")
                                 }}
@@ -279,7 +283,7 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
                             variant="outline" 
                             size="sm" 
                             className="h-8 text-xs font-bold border-emerald-600 text-emerald-600 hover:bg-emerald-50"
-                            onClick={() => handleReplaceFile(m.id!)}
+                            onClick={(e) => handleReplaceFile(e, m.id!)}
                           >
                             <RefreshCw className="h-3 w-3 mr-1" /> 교체
                           </Button>
@@ -287,7 +291,7 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
                             variant="ghost" 
                             size="icon" 
                             className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDeleteMatch(m.id!)}
+                            onClick={(e) => handleDeleteMatch(e, m.id!)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -397,7 +401,8 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
                         size="icon" 
                         variant="ghost" 
                         className="h-9 w-9 text-muted-foreground hover:text-primary"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setEditingId(t.id)
                           setEditName(t.name)
                         }}
@@ -408,7 +413,7 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
                         size="icon" 
                         variant="ghost" 
                         className="h-9 w-9 text-muted-foreground hover:text-destructive"
-                        onClick={() => handleDeleteTournament(t.id)}
+                        onClick={(e) => handleDeleteTournament(e, t.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
