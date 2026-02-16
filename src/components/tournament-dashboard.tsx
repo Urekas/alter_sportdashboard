@@ -20,7 +20,6 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase"
 import { collection, query, where } from "firebase/firestore"
-import { analyzeMatch, type MatchAnalysisOutput } from "@/ai/flows/match-analysis-flow"
 
 interface TournamentDashboardProps {
   tournamentId: string
@@ -35,8 +34,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
   const [selectedTeamName, setSelectedTeamName] = useState("")
   const [selectedTeamColor, setSelectedTeamColor] = useState("#0066ff")
   const [opponentColor, setOpponentColor] = useState("#ef4444")
-  const [aiAnalysis, setAiAnalysis] = useState<MatchAnalysisOutput | null>(null)
-  const [isAiLoading, setIsAiLoading] = useState(false)
   const { toast } = useToast()
   const db = useFirestore()
 
@@ -104,8 +101,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     const globalAvg = {
       goals: gSums.goals / globalCount, shots: gSums.shots / globalCount, pcs: gSums.pcs / globalCount,
       pcSuccess: gSums.pcSucc / globalCount, circle: gSums.circle / globalCount, entry25: gSums.a25 / globalCount,
-      possession: gSums.poss / globalCount, attPoss: gSums.att / globalCount, stagnation: gSums.bup / globalCount,
-      spp: gSums.spp / globalCount, timeCE: gSums.ceTime / globalCount, build25: gSums.b25 / globalCount,
+      possession: gSums.poss / globalCount, attPoss: gSums.att / globalCount, buildUpStagnation: gSums.bup / globalCount,
+      spp: gSums.spp / globalCount, timePerCE: gSums.ceTime / globalCount, build25Ratio: gSums.b25 / globalCount,
       threat: (gSums.shots + gSums.pcs) / globalCount, allowed25: gSums.a25 / globalCount, allowedCircle: gSums.circle / globalCount, allowedThreat: (gSums.shots + gSums.pcs) / globalCount
     };
 
@@ -125,11 +122,11 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         const opp = isHome ? m.matchStats.away : m.matchStats.home;
         return { interval: `M${String(i + 1).padStart(2, '0')} vs ${isHome ? m.awayTeam.name : m.homeTeam.name}`, [currentTeam]: my.shots + my.pcs, "대회 전체 평균": opp.shots + opp.pcs };
       }),
-      build25Ratio: { home: currentTeamStats.avgBuildUp, away: globalAvg.build25 },
+      build25Ratio: { home: currentTeamStats.avgBuildUp, away: globalAvg.build25Ratio },
       spp: { home: currentTeamStats.avgSPP, away: globalAvg.spp },
       matchStats: {
         home: { goals: { field: currentTeamStats.avgFieldGoals, pc: currentTeamStats.avgPCGoals }, shots: currentTeamStats.avgShots, pcs: currentTeamStats.avgPCs, pcSuccessRate: currentTeamStats.avgPCSuccess, circleEntries: currentTeamStats.avgCircle, twentyFiveEntries: currentTeamStats.avg25y, possession: currentTeamStats.avgPoss, attackPossession: currentTeamStats.avgAttPoss, buildUpStagnation: currentTeamStats.avgBuildUpStagnation, spp: currentTeamStats.avgSPP, timePerCE: currentTeamStats.avgTimeCE, build25Ratio: currentTeamStats.avgBuildUp } as any,
-        away: { goals: { field: globalAvg.goals - globalAvg.pcSuccess/100*globalAvg.pcs, pc: globalAvg.pcSuccess/100*globalAvg.pcs }, shots: globalAvg.shots, pcs: globalAvg.pcs, pcSuccessRate: globalAvg.pcSuccess, circleEntries: globalAvg.circle, twentyFiveEntries: globalAvg.entry25, possession: globalAvg.possession, attackPossession: globalAvg.attPoss, buildUpStagnation: globalAvg.stagnation, spp: globalAvg.spp, timePerCE: globalAvg.timeCE, build25Ratio: globalAvg.build25 } as any
+        away: { goals: { field: globalAvg.goals - globalAvg.pcSuccess/100*globalAvg.pcs, pc: globalAvg.pcSuccess/100*globalAvg.pcs }, shots: globalAvg.shots, pcs: globalAvg.pcs, pcSuccessRate: globalAvg.pcSuccess, circleEntries: globalAvg.circle, twentyFiveEntries: globalAvg.entry25, possession: globalAvg.possession, attackPossession: globalAvg.attPoss, buildUpStagnation: globalAvg.buildUpStagnation, spp: globalAvg.spp, timePerCE: globalAvg.timePerCE, build25Ratio: globalAvg.build25Ratio } as any
       },
       quarterlyStats: ['Q1', 'Q2', 'Q3', 'Q4'].map(q => ({ quarter: q, home: currentTeamStats as any, away: globalAvg as any }))
     };
@@ -159,7 +156,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
           </div>
         </div>
         <div className="flex gap-3 print-hidden">
-          <Button variant="outline" className="border-primary text-primary font-bold h-11" onClick={() => toast({ title: "준비 중입니다." })}><BrainCircuit className="h-5 w-5 mr-2" /> AI 전술 분석</Button>
           <Button variant="default" className="bg-emerald-600 hover:bg-emerald-700 h-11 px-6 font-bold" onClick={() => window.print()}><FileDown className="mr-2 h-5 w-5" /> PDF 저장</Button>
         </div>
       </div>

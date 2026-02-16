@@ -199,9 +199,8 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const pcEvents = myEvents.filter(e => e.code.toUpperCase().includes('페널티코너') || e.code.toUpperCase().includes('PC'));
     const a25Count = myEvents.filter(e => e.code.toUpperCase().includes('A25')).length;
 
-    const ownHalfTime = myTeamEvents.filter(e => mapZone(e.locationLabel || e.code).zoneBand <= 50).reduce((acc, e) => acc + e.duration, 0);
-    const oppHalfTime = myTeamEvents.filter(e => mapZone(e.locationLabel || e.code).zoneBand > 50).reduce((acc, e) => acc + e.duration, 0);
-    const buildUpStagnation = teamTime > 0 ? ((oppHalfTime - ownHalfTime) / teamTime) * 100 : 0;
+    // 형님 철칙: 빌드업 정체 비율 = (TEAM 시간 - ATT 시간) / TEAM 시간 * 100
+    const buildUpStagnation = teamTime > 0 ? ((teamTime - attTime) / teamTime) * 100 : 0;
 
     const getZoneCount = (evts: MatchEvent[], types: string[], zones: number[]) => evts.filter(e => {
       const zone = mapZone(e.locationLabel || e.code).zoneBand;
@@ -209,8 +208,11 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
       return isTargetType && zones.includes(zone);
     }).length;
 
+    // 압박 시도: 상대 진영 유도 실책 + 우리 진영 상대 파울
     const press_attempts = getZoneCount(oppEvents, ["turnover", "foul"], [75, 100]) + getZoneCount(myEvents, ["foul"], [25, 50]);
+    // 압박 성공: 상대 진영 유도 실책만 (우리 파울 제외)
     const press_success = getZoneCount(oppEvents, ["turnover", "foul"], [75, 100]);
+    
     const spp = press_attempts > 0 ? oppBuildUpTime / press_attempts : 0;
     const timePerCE = ceCount > 0 ? teamTime / ceCount : 0;
     const buildAttempts = myEvents.filter(e => e.code.toUpperCase().includes('TEAM') && mapZone(e.locationLabel || e.code).zoneBand <= 50).length;
@@ -234,7 +236,9 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     pressureData: Array(20).fill(0).map((_, i) => {
       const start = i * 180, end = (i + 1) * 180;
       const pEvents = events.filter(e => { const nt = getNormalizedTime(e); return nt >= start && nt < end; });
-      return { interval: `${(i + 1) * 3}'`, [homeName]: calculateTeamStats(homeName, awayName, pEvents).spp, [awayName]: calculateTeamStats(awayName, homeName, pEvents).spp };
+      const hStats = calculateTeamStats(homeName, awayName, pEvents);
+      const aStats = calculateTeamStats(awayName, homeName, pEvents);
+      return { interval: `${(i + 1) * 3}'`, [homeName]: hStats.spp, [awayName]: aStats.spp };
     }),
     circleEntries: events.filter(e => e.code.toUpperCase().includes('진입')).map(e => {
       const res = e.resultLabel.toUpperCase();

@@ -82,7 +82,7 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
     e.stopPropagation(); 
     if (!id) return;
     
-    if (window.confirm("이 대회를 삭제하시겠습니까? 대회에 포함된 모든 경기 정보가 사라집니다.")) {
+    if (window.confirm("이 대회를 정말 삭제하시겠습니까? 대회에 포함된 모든 경기 정보가 함께 삭제됩니다.")) {
       try {
         await TournamentService.deleteTournament(id)
         toast({ title: "대회 삭제 완료" })
@@ -97,7 +97,7 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
     e.stopPropagation();
     if (!id) return;
 
-    if (window.confirm("이 경기를 삭제하시겠습니까?")) {
+    if (window.confirm("이 경기를 정말 삭제하시겠습니까?")) {
       try {
         await TournamentService.deleteMatch(id)
         toast({ title: "경기 삭제 완료" })
@@ -135,6 +135,7 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
   }
 
   const handleReplaceFile = (e: React.MouseEvent, matchId: string) => {
+    e.preventDefault();
     e.stopPropagation();
     setReplaceMatchId(matchId);
     fileInputRef.current?.click();
@@ -221,7 +222,7 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
                           )}
                         </TableCell>
                         <TableCell className="text-center"><span className="font-black text-primary bg-primary/10 px-3 py-1 rounded-full text-sm">{(m.matchStats.home.goals.field + m.matchStats.home.goals.pc)} : {(m.matchStats.away.goals.field + m.matchStats.away.goals.pc)}</span></TableCell>
-                        <TableCell className="text-right pr-6 space-x-2">
+                        <TableCell className="text-right pr-6 space-x-2" onClick={(e) => e.stopPropagation()}>
                           <Button variant="outline" size="sm" className="h-8 text-xs font-bold border-emerald-600 text-emerald-600 hover:bg-emerald-50" onClick={(e) => handleReplaceFile(e, m.id!)}><RefreshCw className="h-3 w-3 mr-1" /> 교체</Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={(e) => handleDeleteMatch(e, m.id!)}><Trash2 className="h-4 w-4" /></Button>
                         </TableCell>

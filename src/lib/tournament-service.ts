@@ -108,12 +108,9 @@ export const TournamentService = {
     }
   },
 
-  // 경기 삭제 (강화됨)
+  // 경기 삭제
   async deleteMatch(matchId: string) {
-    if (!matchId) {
-      console.error("deleteMatch: No matchId provided");
-      return;
-    }
+    if (!matchId) return;
     try {
       const matchRef = doc(db, MATCHES_COL, matchId);
       await deleteDoc(matchRef);
@@ -123,17 +120,15 @@ export const TournamentService = {
     }
   },
 
-  // 대회 삭제 (강화됨)
+  // 대회 삭제
   async deleteTournament(tournamentId: string) {
-    if (!tournamentId) {
-      console.error("deleteTournament: No tournamentId provided");
-      return;
-    }
+    if (!tournamentId) return;
     try {
+      // 1. 대회 문서 삭제
       const tourneyRef = doc(db, TOURNAMENTS_COL, tournamentId);
       await deleteDoc(tourneyRef);
       
-      // 관련된 경기도 함께 삭제하는 것을 권장하나, 여기서는 요청하신 대로 UI 삭제 동작에 집중합니다.
+      // 2. 관련된 모든 경기 데이터 삭제
       const q = query(collection(db, MATCHES_COL), where('tournamentId', '==', tournamentId));
       const snapshot = await getDocs(q);
       const deletePromises = snapshot.docs.map(d => deleteDoc(doc(db, MATCHES_COL, d.id)));
