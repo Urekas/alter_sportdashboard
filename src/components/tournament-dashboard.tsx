@@ -1,8 +1,7 @@
-
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { Trophy, Activity, Target, Shield, Sword, Trash2, FileDown, Database, TrendingUp, Grid3X3, ArrowRight, Table as TableIcon, Map as MapIcon } from "lucide-react"
+import { Trophy, Activity, Target, Shield, Sword, Trash2, FileDown, Database, TrendingUp, Grid3X3, ArrowRight, Table as TableIcon, Map as MapIcon, BrainCircuit, Loader2, Sparkles, ShieldCheck, TrendingDown, Info } from "lucide-react"
 import type { MatchData, TeamMatchStats, Tournament, QuarterStats } from "@/lib/types"
 import { TournamentService } from "@/lib/tournament-service"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -20,6 +19,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase"
 import { collection, query, where } from "firebase/firestore"
+import { analyzeMatch, type MatchAnalysisOutput } from "@/ai/flows/match-analysis-flow"
 
 interface TournamentDashboardProps {
   tournamentId: string
@@ -37,6 +37,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
   const [selectedTeamName, setSelectedTeamName] = useState("")
   const [selectedTeamColor, setSelectedTeamColor] = useState("#ef4444")
   const [opponentColor, setOpponentColor] = useState("#f59e0b")
+  const [aiAnalysis, setAiAnalysis] = useState<MatchAnalysisOutput | null>(null)
+  const [isAiLoading, setIsAiLoading] = useState(false)
   const { toast } = useToast()
   const db = useFirestore()
 
@@ -285,6 +287,30 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     };
   }, [matches, selectedTeamName, selectedTeamColor, opponentColor]);
 
+  const handleAiAnalysis = async () => {
+    if (!analysisData) return;
+    setIsAiLoading(true);
+    try {
+      const result = await analyzeMatch({
+        type: 'tournament',
+        matchName: `${analysisData.currentTeam} 대회 누적 분석`,
+        homeTeam: { name: analysisData.currentTeam },
+        awayTeam: { name: '대회 평균' },
+        stats: {
+          tournamentAvg: analysisData.globalAvg,
+          teamAvg: analysisData.mockMatch.matchStats.home,
+          matchTrends: analysisData.mockMatch.attackThreatData
+        }
+      });
+      setAiAnalysis(result);
+      toast({ title: "AI 대회 전술 분석 완료" });
+    } catch (e: any) {
+      toast({ title: "AI 분석 실패", description: e.message, variant: "destructive" });
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
   const aggregatedEvents = useMemo(() => {
     if (!analysisData?.teamMatches) return [];
     const currentTeam = analysisData.currentTeam;
@@ -337,11 +363,81 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             <Input type="color" value={opponentColor} onChange={(e) => setOpponentColor(e.target.value)} className="w-16 h-10 p-1 cursor-pointer" />
           </div>
 
-          <Button variant="default" onClick={() => window.print()} className="h-10 bg-emerald-600 hover:bg-emerald-700 font-bold mt-auto">
-            <FileDown className="h-4 w-4 mr-2" /> PDF 다운로드
-          </Button>
+          <div className="flex gap-2 mt-auto">
+            <Button 
+              variant="outline" 
+              onClick={handleAiAnalysis} 
+              disabled={isAiLoading}
+              className="h-10 border-primary text-primary font-bold"
+            >
+              {isAiLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <BrainCircuit className="h-4 w-4 mr-2" />}
+              AI 대회 총평 생성
+            </Button>
+            <Button variant="default" onClick={() => window.print()} className="h-10 bg-emerald-600 hover:bg-emerald-700 font-bold">
+              <FileDown className="h-4 w-4 mr-2" /> PDF 다운로드
+            </Button>
+          </div>
         </div>
       </div>
+
+      {aiAnalysis && (
+        <div className="page-break space-y-6">
+          <div className="flex items-center gap-2 text-2xl font-black text-primary border-b-2 pb-1">
+            <Sparkles className="h-6 w-6" /> AI 대회 통합 전술 리포트 (Cumulative Tactical Insight)
+          </div>
+          <Card className="border-4 border-primary/20 shadow-2xl bg-primary/5">
+            <CardContent className="pt-8 space-y-8">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div className="lg:col-span-8 space-y-6">
+                  <div>
+                    <h3 className="text-xl font-black mb-3 text-primary flex items-center gap-2 italic uppercase">
+                      <Info className="h-6 w-6" /> Tournament Summary
+                    </h3>
+                    <p className="text-lg leading-relaxed font-semibold italic">"{aiAnalysis.summary}"</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                      <h4 className="font-black text-emerald-600 flex items-center gap-2 uppercase tracking-tighter">
+                        <ShieldCheck className="h-5 w-5" /> Key Strategic Strengths
+                      </h4>
+                      <ul className="space-y-2">
+                        {[...aiAnalysis.tacticalAnalysis, ...aiAnalysis.strengths].map((item, i) => (
+                          <li key={i} className="flex gap-2 text-sm font-bold bg-emerald-50 p-2 rounded-lg border border-emerald-100">
+                            <span className="text-emerald-500">•</span> {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="space-y-4">
+                      <h4 className="font-black text-amber-600 flex items-center gap-2 uppercase tracking-tighter">
+                        <TrendingDown className="h-5 w-5" /> Areas for Tactical Growth
+                      </h4>
+                      <ul className="space-y-2">
+                        {aiAnalysis.weaknesses.map((item, i) => (
+                          <li key={i} className="flex gap-2 text-sm font-bold bg-amber-50 p-2 rounded-lg border border-amber-100">
+                            <span className="text-amber-500">•</span> {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                <div className="lg:col-span-4 flex items-center justify-center border-l-2 pl-8 border-primary/10">
+                  <div className="text-center space-y-4">
+                    <div className="inline-block p-4 rounded-full bg-primary/10 mb-2">
+                      <BrainCircuit className="h-12 w-12 text-primary" />
+                    </div>
+                    <h4 className="font-black text-primary uppercase tracking-widest text-sm">Final Tactical Verdict</h4>
+                    <p className="text-2xl font-black italic text-foreground leading-tight">
+                      "{aiAnalysis.verdict}"
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {analysisData && (
         <div className="space-y-16">

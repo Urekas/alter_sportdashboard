@@ -1,10 +1,9 @@
-
 "use client"
 
 import React, { useState, useRef, useEffect } from "react"
 import { 
   Upload, FileDown, TrendingDown, Target, Activity, ShieldCheck, 
-  Sword, Shield, Trophy, Users, BookOpen, Info, Save, Database, Trash2, Plus, Settings
+  Sword, Shield, Trophy, Users, BookOpen, Info, Save, Database, Trash2, Plus, Settings, BrainCircuit, Loader2, Sparkles
 } from "lucide-react"
 import type { MatchData, MatchEvent, Tournament } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
@@ -27,6 +26,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
+import { analyzeMatch, type MatchAnalysisOutput } from "@/ai/flows/match-analysis-flow"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export function Dashboard() {
   const [viewMode, setViewMode] = useState<'single' | 'tournament' | 'manage'>('single')
@@ -45,6 +46,9 @@ export function Dashboard() {
   const [activeTournamentId, setActiveTournamentId] = useState<string>("")
   const [isNewTournamentDialogOpen, setIsNewTournamentDialogOpen] = useState(false)
   const [newTournamentName, setNewTournamentName] = useState("")
+
+  const [aiAnalysis, setAiAnalysis] = useState<MatchAnalysisOutput | null>(null)
+  const [isAiLoading, setIsAiLoading] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
@@ -74,8 +78,32 @@ export function Dashboard() {
         matchName
       );
       setMatchData(newData);
+      setAiAnalysis(null); // 새로운 데이터가 오면 AI 분석 리셋
     }
   }, [parsedEvents, homeTeamName, awayTeamName, homeColor, awayColor, tournamentName, matchName]);
+
+  const handleAiAnalysis = async () => {
+    if (!matchData) return;
+    setIsAiLoading(true);
+    try {
+      const result = await analyzeMatch({
+        type: 'single',
+        matchName: matchData.matchName,
+        homeTeam: { name: matchData.homeTeam.name },
+        awayTeam: { name: matchData.awayTeam.name },
+        stats: {
+          overall: matchData.matchStats,
+          quarterly: matchData.quarterlyStats
+        }
+      });
+      setAiAnalysis(result);
+      toast({ title: "AI 전술 분석 완료" });
+    } catch (e: any) {
+      toast({ title: "AI 분석 실패", description: e.message, variant: "destructive" });
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
 
   const handleCreateTournament = async () => {
     if (!newTournamentName.trim()) {
@@ -172,6 +200,7 @@ export function Dashboard() {
     setMatchName(data.matchName || "");
     setMatchData(data);
     setViewMode('single');
+    setAiAnalysis(null);
     toast({ title: "경기 데이터 로드 완료", description: `"${data.matchName}" 분석을 시작합니다.` });
   }
 
@@ -338,9 +367,25 @@ export function Dashboard() {
                   <h2 className="text-xl font-bold text-muted-foreground uppercase tracking-widest">{matchData.tournamentName || "Tournament Report"}</h2>
                   <h1 className="text-4xl font-black italic tracking-tighter text-foreground mt-1 font-headline">{matchData.matchName || "Match Performance Analysis"}</h1>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-muted-foreground">REPORT DATE</p>
-                  <p className="text-lg font-bold">{new Date().toLocaleDateString()}</p>
+                <div className="text-right flex flex-col items-end gap-2">
+                  <div className="flex flex-col items-end">
+                    <p className="text-sm font-bold text-muted-foreground">REPORT DATE</p>
+                    <p className="text-lg font-bold">{new Date().toLocaleDateString()}</p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="print-hidden border-primary text-primary font-bold h-9"
+                    onClick={handleAiAnalysis}
+                    disabled={isAiLoading}
+                  >
+                    {isAiLoading ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <BrainCircuit className="h-4 w-4 mr-2" />
+                    )}
+                    AI 전술 분석 실행
+                  </Button>
                 </div>
               </div>
             </div>
@@ -364,6 +409,51 @@ export function Dashboard() {
               </div>
               <BasicMatchStats data={matchData} />
             </div>
+
+            {aiAnalysis && (
+              <div className="page-break space-y-6">
+                <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+                  <Sparkles className="h-6 w-6" /> AI 전술 분석 리포트 (Tactical Insight)
+                </div>
+                <Card className="border-2 border-primary/20 shadow-lg bg-primary/5">
+                  <CardContent className="pt-6 space-y-6">
+                    <div>
+                      <h3 className="text-lg font-bold mb-2 text-primary flex items-center gap-2">
+                        <Info className="h-5 w-5" /> 분석 요약
+                      </h3>
+                      <p className="leading-relaxed font-medium">{aiAnalysis.summary}</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <h4 className="font-bold text-emerald-600 flex items-center gap-2">
+                          <ShieldCheck className="h-4 w-4" /> 주요 전술 포인트 & 강점
+                        </h4>
+                        <ul className="list-disc pl-5 space-y-1 text-sm">
+                          {[...aiAnalysis.tacticalAnalysis, ...aiAnalysis.strengths].map((item, i) => (
+                            <li key={i}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="space-y-3">
+                        <h4 className="font-bold text-amber-600 flex items-center gap-2">
+                          <TrendingDown className="h-4 w-4" /> 개선 필요 사항
+                        </h4>
+                        <ul className="list-disc pl-5 space-y-1 text-sm">
+                          {aiAnalysis.weaknesses.map((item, i) => (
+                            <li key={i}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                    <div className="border-t pt-4">
+                      <p className="text-center font-black italic text-lg text-primary">
+                        " {aiAnalysis.verdict} "
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             <div className="page-break space-y-8">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
@@ -403,7 +493,7 @@ export function Dashboard() {
 
             <div className="page-break space-y-6 break-inside-avoid">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                <Shield className="h-6 w-6" /> 압박 및 수비 분석 (Pressure & Defense)
+                <Shield className="h-6 w-6" /> 압박 분석 (Pressure Analysis)
               </div>
               <div className="flex flex-col gap-6">
                 <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} height={260} />
