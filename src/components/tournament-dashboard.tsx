@@ -124,43 +124,25 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     const teamStatsList = allTeams.map(name => getTeamAverages(name));
     const globalCount = teamStatsList.length || 1;
     
-    const myMatches = matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam);
-    const oppCount = myMatches.length || 1;
-    const oppSum = { field: 0, pc: 0, shots: 0, pcs: 0, ce: 0, a25: 0, poss: 0, att: 0, bup: 0, pcSucc: 0, spp: 0, tce: 0, b25: 0 };
-    
-    myMatches.forEach(m => {
-      const opp = m.homeTeam.name === currentTeam ? m.matchStats.away : m.matchStats.home;
-      oppSum.field += (opp.goals?.field || 0); oppSum.pc += (opp.goals?.pc || 0); oppSum.shots += (opp.shots || 0); oppSum.pcs += (opp.pcs || 0);
-      oppSum.ce += (opp.circleEntries || 0); oppSum.a25 += (opp.twentyFiveEntries || 0); oppSum.poss += (opp.possession || 0);
-      oppSum.att += (opp.attackPossession || 0); oppSum.bup += (opp.buildUpStagnation || 0); oppSum.pcSucc += (opp.pcSuccessRate || 0);
-      oppSum.spp += (opp.spp || 0); oppSum.tce += (opp.timePerCE || 0); oppSum.b25 += (opp.build25Ratio || 0);
-    });
-
-    const currentOppAvg = {
-      fieldGoals: parseFloat((oppSum.field / oppCount).toFixed(1)),
-      pcGoals: parseFloat((oppSum.pc / oppCount).toFixed(1)),
-      shots: parseFloat((oppSum.shots / oppCount).toFixed(1)),
-      pcs: parseFloat((oppSum.pcs / oppCount).toFixed(1)),
-      circleEntries: parseFloat((oppSum.ce / oppCount).toFixed(1)),
-      twentyFiveEntries: parseFloat((oppSum.a25 / oppCount).toFixed(1)),
-      possession: parseFloat((oppSum.poss / oppCount).toFixed(1)),
-      attackPossession: parseFloat((oppSum.att / oppCount).toFixed(1)),
-      buildUpStagnation: parseFloat((oppSum.bup / oppCount).toFixed(1)),
-      pcSuccessRate: parseFloat((oppSum.pcSucc / oppCount).toFixed(1)),
-      spp: parseFloat((oppSum.spp / oppCount).toFixed(1)),
-      timePerCE: parseFloat((oppSum.tce / oppCount).toFixed(1)),
-      build25Ratio: parseFloat((oppSum.b25 / oppCount).toFixed(1))
-    };
-
     const globalAvg = {
-      entry25: parseFloat((teamStatsList.reduce((a, b) => a + b.avg25y, 0) / globalCount).toFixed(1)),
+      goals: parseFloat((teamStatsList.reduce((a, b) => a + b.avgGoals, 0) / globalCount).toFixed(1)),
+      fieldGoals: parseFloat((teamStatsList.reduce((a, b) => a + b.avgFieldGoals, 0) / globalCount).toFixed(1)),
+      pcGoals: parseFloat((teamStatsList.reduce((a, b) => a + b.avgPCGoals, 0) / globalCount).toFixed(1)),
+      shots: parseFloat((teamStatsList.reduce((a, b) => a + b.avgShots, 0) / globalCount).toFixed(1)),
+      pcs: parseFloat((teamStatsList.reduce((a, b) => a + b.avgPCs, 0) / globalCount).toFixed(1)),
+      pcSuccess: parseFloat((teamStatsList.reduce((a, b) => a + b.avgPCSuccess, 0) / globalCount).toFixed(1)),
       circle: parseFloat((teamStatsList.reduce((a, b) => a + b.avgCircle, 0) / globalCount).toFixed(1)),
+      entry25: parseFloat((teamStatsList.reduce((a, b) => a + b.avg25y, 0) / globalCount).toFixed(1)),
+      possession: parseFloat((teamStatsList.reduce((a, b) => a + b.avgPoss, 0) / globalCount).toFixed(1)),
+      attPoss: parseFloat((teamStatsList.reduce((a, b) => a + b.avgAttPoss, 0) / globalCount).toFixed(1)),
+      stagnation: parseFloat((teamStatsList.reduce((a, b) => a + b.avgBuildUpStagnation, 0) / globalCount).toFixed(1)),
+      spp: parseFloat((teamStatsList.reduce((a, b) => a + b.avgSPP, 0) / globalCount).toFixed(1)),
+      timeCE: parseFloat((teamStatsList.reduce((a, b) => a + b.avgTimeCE, 0) / globalCount).toFixed(1)),
+      build25: parseFloat((teamStatsList.reduce((a, b) => a + b.avgBuildUp, 0) / globalCount).toFixed(1)),
       threat: parseFloat((teamStatsList.reduce((a, b) => a + b.avgThreat, 0) / globalCount).toFixed(1)),
       allowed25: parseFloat((teamStatsList.reduce((a, b) => a + b.avgAllowed25, 0) / globalCount).toFixed(1)),
       allowedCircle: parseFloat((teamStatsList.reduce((a, b) => a + b.avgAllowedCircle, 0) / globalCount).toFixed(1)),
       allowedThreat: parseFloat((teamStatsList.reduce((a, b) => a + b.avgAllowedThreat, 0) / globalCount).toFixed(1)),
-      spp: parseFloat((teamStatsList.reduce((a, b) => a + b.avgSPP, 0) / globalCount).toFixed(1)),
-      attPoss: parseFloat((teamStatsList.reduce((a, b) => a + b.avgAttPoss, 0) / globalCount).toFixed(1)),
     };
 
     const getQuarterlyAverages = (teamName: string | null) => {
@@ -168,6 +150,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       return quarters.map(q => {
         let relevantMatches = matches;
         if (teamName) relevantMatches = matches.filter(m => m.homeTeam.name === teamName || m.awayTeam.name === teamName);
+        
+        // teamName이 없으면 대회 전체 모든 팀의 모든 쿼터 데이터를 평균냄
         const count = teamName ? (relevantMatches.length || 1) : (matches.length * 2 || 1);
         const sums = { field: 0, pc: 0, shots: 0, pcs: 0, circle: 0, a25: 0, poss: 0, att: 0, bup: 0, pcSucc: 0, spp: 0, ceTime: 0 };
 
@@ -207,16 +191,15 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
     const mockMatch: MatchData = {
       homeTeam: { name: currentTeam, color: selectedTeamColor },
-      awayTeam: { name: '상대팀', color: opponentColor },
+      awayTeam: { name: '대회 전체 평균', color: opponentColor },
       events: matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam).flatMap(m => m.events),
       pressureData: matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam).map((m, i) => {
         const isHome = m.homeTeam.name === currentTeam;
         const oppName = isHome ? m.awayTeam.name : m.homeTeam.name;
-        // 상대팀 SPP를 해당 경기의 실제 상대팀 수치로 변경
         return { 
           interval: `M${String(i + 1).padStart(2, '0')} vs ${oppName}`, 
           [currentTeam]: isHome ? m.matchStats.home.spp : m.matchStats.away.spp, 
-          "상대팀": isHome ? m.matchStats.away.spp : m.matchStats.home.spp 
+          "대회 전체 평균": globalAvg.spp 
         };
       }),
       circleEntries: [],
@@ -224,16 +207,14 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         const isHome = m.homeTeam.name === currentTeam;
         const oppName = isHome ? m.awayTeam.name : m.homeTeam.name;
         const my = isHome ? m.matchStats.home : m.matchStats.away;
-        const opp = isHome ? m.matchStats.away : m.matchStats.home;
-        // 상대팀 위협 수치를 해당 경기의 실제 상대팀 수치로 변경
         return { 
           interval: `M${String(i + 1).padStart(2, '0')} vs ${oppName}`, 
           [currentTeam]: my.shots + my.pcs, 
-          "상대팀": opp.shots + opp.pcs 
+          "대회 전체 평균": globalAvg.shots + globalAvg.pcs 
         };
       }),
-      build25Ratio: { home: currentTeamStats.avgBuildUp, away: currentOppAvg.build25Ratio },
-      spp: { home: currentTeamStats.avgSPP, away: currentOppAvg.spp },
+      build25Ratio: { home: currentTeamStats.avgBuildUp, away: globalAvg.build25 },
+      spp: { home: currentTeamStats.avgSPP, away: globalAvg.spp },
       matchStats: { 
         home: { 
           goals: { field: currentTeamStats.avgFieldGoals, pc: currentTeamStats.avgPCGoals }, 
@@ -250,18 +231,18 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
           build25Ratio: currentTeamStats.avgBuildUp
         } as any, 
         away: { 
-          goals: { field: currentOppAvg.fieldGoals, pc: currentOppAvg.pcGoals }, 
-          shots: currentOppAvg.shots, 
-          pcs: currentOppAvg.pcs, 
-          pcSuccessRate: currentOppAvg.pcSuccessRate, 
-          circleEntries: currentOppAvg.circleEntries, 
-          twentyFiveEntries: currentOppAvg.twentyFiveEntries, 
-          possession: currentOppAvg.possession, 
-          attackPossession: currentOppAvg.attackPossession, 
-          buildUpStagnation: currentOppAvg.buildUpStagnation, 
-          spp: currentOppAvg.spp, 
-          timePerCE: currentOppAvg.timePerCE, 
-          build25Ratio: currentOppAvg.build25Ratio 
+          goals: { field: globalAvg.fieldGoals, pc: globalAvg.pcGoals }, 
+          shots: globalAvg.shots, 
+          pcs: globalAvg.pcs, 
+          pcSuccessRate: globalAvg.pcSuccess, 
+          circleEntries: globalAvg.circle, 
+          twentyFiveEntries: globalAvg.entry25, 
+          possession: globalAvg.possession, 
+          attackPossession: globalAvg.attPoss, 
+          buildUpStagnation: globalAvg.stagnation, 
+          spp: globalAvg.spp, 
+          timePerCE: globalAvg.timeCE, 
+          build25Ratio: globalAvg.build25 
         } as any
       },
       quarterlyStats: ['Q1', 'Q2', 'Q3', 'Q4'].map((q, i) => ({ quarter: q, home: teamQAvgs[i], away: globalQAvgs[i] }))
@@ -291,7 +272,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       const result = await analyzeMatch({ 
         type: 'tournament', 
         homeTeam: { name: analysisData.currentTeam }, 
-        awayTeam: { name: '상대팀' }, 
+        awayTeam: { name: '대회 전체 평균' }, 
         stats: JSON.parse(JSON.stringify(analysisData.mockMatch)) 
       });
       setAiAnalysis(result);
@@ -321,7 +302,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               <Input type="color" value={selectedTeamColor} onChange={(e) => setSelectedTeamColor(e.target.value)} className="w-8 h-8 p-0 border-none bg-transparent" />
             </div>
             <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-lg border">
-              <Label className="text-[10px] font-bold uppercase text-muted-foreground">상대 팀 색상</Label>
+              <Label className="text-[10px] font-bold uppercase text-muted-foreground">대조군(평균) 색상</Label>
               <Input type="color" value={opponentColor} onChange={(e) => setOpponentColor(e.target.value)} className="w-8 h-8 p-0 border-none bg-transparent" />
             </div>
           </div>
@@ -335,18 +316,18 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       </div>
 
       <div className="page-break space-y-8">
-        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2"><Activity className="h-6 w-6" /> 대회 종합 성과</div>
+        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2"><Activity className="h-6 w-6" /> 대회 종합 성과 (vs 대회 전체 평균)</div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatsCard title="득점" value={analysisData.mockMatch.matchStats.home.goals.field + analysisData.mockMatch.matchStats.home.goals.pc} />
-          <StatsCard title="SPP" value={analysisData.mockMatch.matchStats.home.spp} isTime />
-          <StatsCard title="공격 점유율" value={analysisData.mockMatch.matchStats.home.attackPossession} isPercentage />
-          <StatsCard title="CE당 시간" value={analysisData.mockMatch.matchStats.home.timePerCE} isTime />
+          <StatsCard title="SPP" value={analysisData.mockMatch.matchStats.home.spp} isTime icon={<TrendingUp className="h-4 w-4" />} />
+          <StatsCard title="공격 점유율" value={analysisData.mockMatch.matchStats.home.attackPossession} isPercentage icon={<Sword className="h-4 w-4" />} />
+          <StatsCard title="CE당 시간" value={analysisData.mockMatch.matchStats.home.timePerCE} isTime icon={<Activity className="h-4 w-4" />} />
         </div>
         <BasicMatchStats data={analysisData.mockMatch} />
       </div>
 
       <div className="page-break space-y-8">
-        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2"><Grid3X3 className="h-6 w-6" /> 쿼터별 상세</div>
+        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2"><Grid3X3 className="h-6 w-6" /> 쿼터별 상세 (vs 대회 전체 평균)</div>
         <QuarterlyStatsTable data={analysisData.mockMatch} />
       </div>
 
@@ -360,7 +341,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       </div>
 
       <div className="page-break space-y-8">
-        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2"><TrendingUp className="h-6 w-6" /> 공격 궤적</div>
+        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2"><TrendingUp className="h-6 w-6" /> 공격 궤적 (vs 대회 전체 평균)</div>
         <MatchTrajectoryChart data={analysisData.mockMatch} isTournamentView={true} allMatchesPoints={analysisData.allMatchesPoints} />
       </div>
 
