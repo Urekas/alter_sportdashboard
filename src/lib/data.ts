@@ -1,3 +1,4 @@
+
 import type { MatchData, TeamMatchStats, AttackThreatDataPoint, MatchEvent, CircleEntry, PressureDataPoint, QuarterStats } from './types';
 
 const HOME_TEAM = { name: 'Korea', color: 'hsl(var(--chart-1))' };
@@ -73,6 +74,8 @@ function generateTeamMatchStats(): TeamMatchStats {
         twentyFiveEntries: 25 + Math.floor(Math.random() * 15),
         possession: 45 + Math.random() * 10,
         attackPossession: 45 + Math.random() * 10,
+        buildUpPossession: 30 + Math.random() * 20, // 빌드업 비중 추가
+        pcSuccessRate: 15 + Math.random() * 30,    // PC 성공률 추가
         spp: 8 + Math.random() * 4,
         allowedSpp: 10 + Math.random() * 5,
         build25Ratio: 50 + Math.random() * 20,

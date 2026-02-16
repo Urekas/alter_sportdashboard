@@ -1,7 +1,7 @@
 
 import type { MatchEvent, MatchData, TeamMatchStats, QuarterStats, CircleEntry } from './types';
 
-const detectRealTeamNames = (text: string): { home: string, away: string } | null => {
+export const detectRealTeamNames = (text: string): { home: string, away: string } | null => {
   const pattern = /([가-힣A-Za-z]+)\s*(\d+)?\s*-\s*([가-힣A-Za-z]+)\s*(\d+)?/;
   const match = text.match(pattern);
   if (match) {
@@ -10,7 +10,7 @@ const detectRealTeamNames = (text: string): { home: string, away: string } | nul
   return null;
 };
 
-const extractTeamName = (code: string, detectedTeams: { home: string, away: string } | null): string => {
+export const extractTeamName = (code: string, detectedTeams: { home: string, away: string } | null): string => {
   if (!code) return "Unknown";
   const upperCode = code.toUpperCase();
   
@@ -52,7 +52,7 @@ export const mapZone = (locStr: string): { x: number, y: number, lane: 'Left' | 
   return { x, y, lane, zoneBand };
 };
 
-const detectQuarter = (ungroupedText: string, startTime: number): string => {
+export const detectQuarter = (ungroupedText: string, startTime: number): string => {
   const text = ungroupedText.toUpperCase();
   if (text.includes('1쿼터') || text.includes('1Q')) return 'Q1';
   if (text.includes('2쿼터') || text.includes('2Q')) return 'Q2';
@@ -222,17 +222,20 @@ export const createMatchDataFromUpload = (
     const myEvents = targetEvents.filter(e => e.team === team);
     const oppEvents = targetEvents.filter(e => e.team === opponent);
 
-    const teamTime = myEvents.filter(e => e.code.trim() === `${team} TEAM`).reduce((acc, e) => acc + e.duration, 0);
-    const attTime = myEvents.filter(e => e.code.trim() === `${team} ATT`).reduce((acc, e) => acc + e.duration, 0);
+    const teamTime = myEvents.filter(e => e.code.toUpperCase().includes('TEAM')).reduce((acc, e) => acc + e.duration, 0);
+    const attTime = myEvents.filter(e => e.code.toUpperCase().includes('ATT')).reduce((acc, e) => acc + e.duration, 0);
     
-    const oppTeamTime = oppEvents.filter(e => e.code.trim() === `${opponent} TEAM`).reduce((acc, e) => acc + e.duration, 0);
-    const oppAttTime = oppEvents.filter(e => e.code.trim() === `${opponent} ATT`).reduce((acc, e) => acc + e.duration, 0);
+    const oppTeamTime = oppEvents.filter(e => e.code.toUpperCase().includes('TEAM')).reduce((acc, e) => acc + e.duration, 0);
+    const oppAttTime = oppEvents.filter(e => e.code.toUpperCase().includes('ATT')).reduce((acc, e) => acc + e.duration, 0);
     const oppBuildUpTime = Math.max(0, oppTeamTime - oppAttTime);
 
-    const shotCount = myEvents.filter(e => e.code.trim() === `${team} 슈팅`).length;
-    const ceCount = myEvents.filter(e => e.code.trim() === `${team} 슈팅서클 진입`).length;
-    const pcCount = myEvents.filter(e => e.code.trim() === `${team} 페널티코너`).length;
-    const a25Count = myEvents.filter(e => e.code.trim() === `${team} A25 START`).length;
+    const shotCount = myEvents.filter(e => e.code.toUpperCase().includes('슈팅') || e.code.toUpperCase().includes('SHOT')).length;
+    const ceCount = myEvents.filter(e => e.code.toUpperCase().includes('진입') || e.code.toUpperCase().includes('CE')).length;
+    
+    const pcEvents = myEvents.filter(e => e.code.toUpperCase().includes('페널티코너') || e.code.toUpperCase().includes('PC'));
+    const pcCount = pcEvents.length;
+    
+    const a25Count = myEvents.filter(e => e.code.toUpperCase().includes('A25')).length;
 
     const getZoneCount = (evts: MatchEvent[], types: string[], zones: number[]) => {
       return evts.filter(e => {
@@ -252,19 +255,15 @@ export const createMatchDataFromUpload = (
     const totalPossession = teamTime + oppTeamTime;
     const totalATT = attTime + oppAttTime;
 
-    const buildAttempts = myEvents.filter(e => e.code.trim() === `${team} TEAM` && mapZone(e.locationLabel || e.code).zoneBand <= 50).length;
+    const buildAttempts = myEvents.filter(e => e.code.toUpperCase().includes('TEAM') && mapZone(e.locationLabel || e.code).zoneBand <= 50).length;
     const build25Ratio = buildAttempts > 0 ? (a25Count / buildAttempts) * 100 : 0;
 
-    const totalGoals = myEvents.filter(e => e.code.includes(`${team} 득점`)).length;
-    const pcGoals = myEvents.filter(e => 
-      e.code.includes(`${team} 페널티코너`) && 
-      (e.resultLabel.toUpperCase().includes('GOAL') || e.resultLabel.includes('득점'))
-    ).length;
+    const totalGoals = myEvents.filter(e => e.code.toUpperCase().includes('득점') || e.code.toUpperCase().includes('GOAL')).length;
+    
+    const pcGoals = pcEvents.filter(e => e.resultLabel.toUpperCase().includes('GOAL')).length;
     const fieldGoals = Math.max(0, totalGoals - pcGoals);
 
-    // 빌드업 점유 비중: (TEAM 시간 - ATT 시간) / TEAM 시간
-    const buildUpPossession = teamTime > 0 ? ((teamTime - attTime) / teamTime) * 100 : 0;
-    // PC 성공률: PC 득점 / 전체 PC 횟수
+    const buildUpPossession = teamTime > 0 ? (Math.max(0, teamTime - attTime) / teamTime) * 100 : 0;
     const pcSuccessRate = pcCount > 0 ? (pcGoals / pcCount) * 100 : 0;
 
     return {
@@ -311,7 +310,7 @@ export const createMatchDataFromUpload = (
         [awayName]: aS.spp,
       };
     }),
-    circleEntries: events.filter(e => e.code.trim() === `${e.team} 슈팅서클 진입`).map(e => {
+    circleEntries: events.filter(e => e.code.toUpperCase().includes('진입')).map(e => {
       const res = e.resultLabel.toUpperCase();
       const isSuccess = res.includes('PC') || res.includes('SHOT') || res.includes('득점') || res.includes('슈팅') || res.includes('GOAL');
       return {
@@ -327,13 +326,15 @@ export const createMatchDataFromUpload = (
         interval: `${(i + 1) * 5}'`,
         [homeName]: events.filter(e => {
           const nTime = getNormalizedTime(e);
+          const c = e.code.toUpperCase();
           return e.team === homeName && nTime >= normStart && nTime < normEnd &&
-          (e.code.trim() === `${homeName} 슈팅` || e.code.trim() === `${homeName} 페널티코너`);
+          (c.includes('슈팅') || c.includes('SHOT') || c.includes('페널티코너') || c.includes('PC'));
         }).length,
         [awayName]: events.filter(e => {
           const nTime = getNormalizedTime(e);
+          const c = e.code.toUpperCase();
           return e.team === awayName && nTime >= normStart && nTime < normEnd &&
-          (e.code.trim() === `${awayName} 슈팅` || e.code.trim() === `${awayName} 페널티코너`);
+          (c.includes('슈팅') || c.includes('SHOT') || c.includes('페널티코너') || c.includes('PC'));
         }).length,
       };
     }),

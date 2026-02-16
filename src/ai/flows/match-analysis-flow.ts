@@ -43,10 +43,11 @@ const analysisPrompt = ai.definePrompt({
 
 다음 가이드라인을 따라 분석 리포트를 작성하세요:
 1. SPP(압박 지수)가 낮을수록 공격적인 압박이 좋았음을 의미합니다.
-2. 빌드업 성공률(Build25 Ratio)과 서클 진입 효율(CE Time)의 상관관계를 분석하세요.
-3. 쿼터별 통계 변화가 있다면 체력이나 전술 변화 측면에서 언급하세요.
-4. 분석은 {{homeTeam.name}} 팀 중심으로 작성하세요.
-5. 전문적이면서도 코칭스태프가 이해하기 쉬운 용어를 사용하세요.`,
+2. 빌드업 우리진영 고립도(Build-up Half Isolation)는 볼을 소유했을 때 수비 진영에 머문 비중입니다. 이 수치가 높으면 전진이 더디거나 안정적인 빌드업을 지향하는 것으로 해석하세요.
+3. 빌드업 성공률(Build25 Ratio)과 서클 진입 효율(CE Time)의 상관관계를 분석하세요.
+4. PC 성공률을 통해 세트피스 효율성을 평가하세요.
+5. 분석은 {{homeTeam.name}} 팀 중심으로 작성하세요.
+6. 전문적이면서도 코칭스태프가 이해하기 쉬운 용어를 사용하세요.`,
 });
 
 export async function analyzeMatch(input: MatchAnalysisInput): Promise<MatchAnalysisOutput> {

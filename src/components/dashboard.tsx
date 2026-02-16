@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from "react"
 import { 
   Upload, FileDown, TrendingDown, Target, Activity, ShieldCheck, 
-  Sword, Shield, Trophy, Users, BookOpen, Info, Save, Database, Trash2, Plus, Settings, BrainCircuit, Loader2, Sparkles
+  Sword, Shield, Trophy, Users, Save, Plus, BrainCircuit, Loader2, Sparkles, Info
 } from "lucide-react"
 import type { MatchData, MatchEvent, Tournament } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
@@ -27,7 +27,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { analyzeMatch, type MatchAnalysisOutput } from "@/ai/flows/match-analysis-flow"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 
 export function Dashboard() {
   const [viewMode, setViewMode] = useState<'single' | 'tournament' | 'manage'>('single')
@@ -78,7 +78,7 @@ export function Dashboard() {
         matchName
       );
       setMatchData(newData);
-      setAiAnalysis(null); // 새로운 데이터가 오면 AI 분석 리셋
+      setAiAnalysis(null);
     }
   }, [parsedEvents, homeTeamName, awayTeamName, homeColor, awayColor, tournamentName, matchName]);
 
@@ -91,10 +91,7 @@ export function Dashboard() {
         matchName: matchData.matchName,
         homeTeam: { name: matchData.homeTeam.name },
         awayTeam: { name: matchData.awayTeam.name },
-        stats: {
-          overall: matchData.matchStats,
-          quarterly: matchData.quarterlyStats
-        }
+        stats: matchData // 전체 데이터를 넘겨서 시각화 지표까지 분석 가능하게 함
       });
       setAiAnalysis(result);
       toast({ title: "AI 전술 분석 완료" });
@@ -116,9 +113,8 @@ export function Dashboard() {
       setActiveTournamentId(id);
       setIsNewTournamentDialogOpen(false);
       setNewTournamentName("");
-      toast({ title: "대회 생성 완료", description: `"${newTournamentName}" 대회가 생성되었습니다.` });
+      toast({ title: "대회 생성 완료" });
     } catch (e: any) {
-      console.error("Tournament creation error:", e);
       toast({ title: "대회 생성 실패", description: e.message, variant: "destructive" });
     }
   }
@@ -134,12 +130,8 @@ export function Dashboard() {
     }
     try {
       await TournamentService.addMatchToTournament(activeTournamentId, matchData);
-      toast({ 
-        title: "경기 데이터 저장 완료", 
-        description: "대회 DB에 성공적으로 기록되었습니다.",
-      });
+      toast({ title: "저장 완료" });
     } catch (e: any) {
-      console.error("Save to DB error:", e);
       toast({ title: "저장 실패", description: e.message, variant: "destructive" });
     }
   }
@@ -165,23 +157,15 @@ export function Dashboard() {
         try {
           const ab = e.target?.result as ArrayBuffer;
           let content = new TextDecoder('utf-8').decode(ab);
-          const replacementCharCount = (content.match(/\ufffd/g) || []).length;
-          if (replacementCharCount > 5) {
-            content = new TextDecoder('euc-kr').decode(ab);
-          }
+          if ((content.match(/\ufffd/g) || []).length > 5) content = new TextDecoder('euc-kr').decode(ab);
 
           const parsed = file.name.endsWith('.xml') ? parseXMLData(content) : parseCSVData(content);
-          if (parsed.events.length === 0) throw new Error("분석 가능한 데이터가 없습니다.");
-          
           setParsedEvents(parsed.events);
-          const uniqueTeams = Array.from(new Set(parsed.events.map(e => e.team.trim()))).filter(Boolean).sort();
-          setDetectedTeams(uniqueTeams);
-          
+          setDetectedTeams(Array.from(new Set(parsed.events.map(e => e.team.trim()))).filter(Boolean).sort());
           setHomeTeamName(parsed.teams.home);
           setAwayTeamName(parsed.teams.away);
           setMatchName(detectedMatchName);
-          
-          toast({ title: "분석 완료", description: `${parsed.teams.home} vs ${parsed.teams.away} 데이터 로드됨` });
+          toast({ title: "데이터 로드 완료" });
         } catch (error: any) {
           toast({ title: "오류 발생", description: error.message, variant: "destructive" });
         }
@@ -191,17 +175,9 @@ export function Dashboard() {
   }
 
   const handleViewMatchFromDB = (data: MatchData) => {
-    setParsedEvents([]); 
-    setHomeTeamName(data.homeTeam.name);
-    setAwayTeamName(data.awayTeam.name);
-    setHomeColor(data.homeTeam.color);
-    setAwayColor(data.awayTeam.color);
-    setTournamentName(data.tournamentName || "");
-    setMatchName(data.matchName || "");
     setMatchData(data);
     setViewMode('single');
     setAiAnalysis(null);
-    toast({ title: "경기 데이터 로드 완료", description: `"${data.matchName}" 분석을 시작합니다.` });
   }
 
   return (
@@ -210,134 +186,64 @@ export function Dashboard() {
         <div>
           <h1 className="text-4xl font-bold text-primary italic tracking-tight font-headline">Field Focus</h1>
           <div className="flex gap-4 mt-1">
-            <Button 
-              variant={viewMode === 'single' ? 'default' : 'ghost'} 
-              size="sm" 
-              onClick={() => setViewMode('single')}
-              className="h-7 text-xs font-bold"
-            >
-              경기별 분석
-            </Button>
-            <Button 
-              variant={viewMode === 'tournament' ? 'default' : 'ghost'} 
-              size="sm" 
-              onClick={() => setViewMode('tournament')}
-              className="h-7 text-xs font-bold"
-            >
-              대회 누적 분석
-            </Button>
-            <Button 
-              variant={viewMode === 'manage' ? 'default' : 'ghost'} 
-              size="sm" 
-              onClick={() => setViewMode('manage')}
-              className="h-7 text-xs font-bold"
-            >
-              대회 관리
-            </Button>
+            {['single', 'tournament', 'manage'].map((mode) => (
+              <Button 
+                key={mode}
+                variant={viewMode === mode ? 'default' : 'ghost'} 
+                size="sm" 
+                onClick={() => setViewMode(mode as any)}
+                className="h-7 text-xs font-bold"
+              >
+                {mode === 'single' ? '경기별 분석' : mode === 'tournament' ? '대회 누적 분석' : '대회 관리'}
+              </Button>
+            ))}
           </div>
         </div>
         
         <div className="flex flex-wrap items-center gap-4 bg-card p-3 rounded-lg border shadow-sm w-full xl:w-auto">
           <div className="flex items-center gap-3 border-r pr-4">
             <Trophy className="h-4 w-4 text-muted-foreground" />
-            <div className="flex flex-col gap-1">
-              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">대회 선택/생성</Label>
-              <div className="flex gap-2">
-                <Select value={activeTournamentId} onValueChange={setActiveTournamentId}>
-                  <SelectTrigger className="h-8 w-40 text-xs">
-                    <SelectValue placeholder="대회 선택" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tournaments.map(t => (
-                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Dialog open={isNewTournamentDialogOpen} onOpenChange={setIsNewTournamentDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="icon" variant="outline" className="h-8 w-8"><Plus className="h-4 w-4" /></Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>새 대회 생성</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4 space-y-4">
-                      <div className="space-y-2">
-                        <Label>대회 이름</Label>
-                        <Input 
-                          value={newTournamentName} 
-                          onChange={(e) => setNewTournamentName(e.target.value)} 
-                          placeholder="예: 2024 파리 올림픽"
-                          onKeyDown={(e) => e.key === 'Enter' && handleCreateTournament()}
-                        />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button onClick={handleCreateTournament}>대회 생성</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </div>
+            <Select value={activeTournamentId} onValueChange={setActiveTournamentId}>
+              <SelectTrigger className="h-8 w-40 text-xs">
+                <SelectValue placeholder="대회 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                {tournaments.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setIsNewTournamentDialogOpen(true)}><Plus className="h-4 w-4" /></Button>
           </div>
 
-          {(viewMode === 'single' || viewMode === 'manage') && (
+          {viewMode !== 'tournament' && (
             <>
               <div className="flex items-center gap-4 border-r pr-4">
-                <Users className="h-4 w-4 text-muted-foreground" />
                 <div className="flex flex-col gap-1">
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">홈팀 설정</Label>
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">홈 / 어웨이 설정</Label>
                   <div className="flex items-center gap-2">
                     <Select value={homeTeamName} onValueChange={setHomeTeamName}>
-                      <SelectTrigger className="h-8 w-32 text-xs">
-                        <SelectValue placeholder="홈팀 선택" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {detectedTeams.map((team, i) => (
-                          <SelectItem key={`home-${team}-${i}`} value={team}>{team}</SelectItem>
-                        ))}
-                      </SelectContent>
+                      <SelectTrigger className="h-8 w-28 text-xs"><SelectValue placeholder="홈" /></SelectTrigger>
+                      <SelectContent>{detectedTeams.map(t => <SelectItem key={`h-${t}`} value={t}>{t}</SelectItem>)}</SelectContent>
                     </Select>
-                    <Input type="color" value={homeColor} onChange={(e) => setHomeColor(e.target.value)} className="w-8 h-8 p-0.5 cursor-pointer bg-transparent border-none" />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">어웨이팀 설정</Label>
-                  <div className="flex items-center gap-2">
+                    <Input type="color" value={homeColor} onChange={(e) => setHomeColor(e.target.value)} className="w-6 h-6 p-0 border-none bg-transparent" />
                     <Select value={awayTeamName} onValueChange={setAwayTeamName}>
-                      <SelectTrigger className="h-8 w-32 text-xs">
-                        <SelectValue placeholder="어웨이팀 선택" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {detectedTeams.map((team, i) => (
-                          <SelectItem key={`away-${team}-${i}`} value={team}>{team}</SelectItem>
-                        ))}
-                      </SelectContent>
+                      <SelectTrigger className="h-8 w-28 text-xs"><SelectValue placeholder="어웨이" /></SelectTrigger>
+                      <SelectContent>{detectedTeams.map(t => <SelectItem key={`a-${t}`} value={t}>{t}</SelectItem>)}</SelectContent>
                     </Select>
-                    <Input type="color" value={awayColor} onChange={(e) => setAwayColor(e.target.value)} className="w-8 h-8 p-0.5 cursor-pointer bg-transparent border-none" />
+                    <Input type="color" value={awayColor} onChange={(e) => setAwayColor(e.target.value)} className="w-6 h-6 p-0 border-none bg-transparent" />
                   </div>
                 </div>
               </div>
 
               <div className="flex gap-2">
                 <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xml,.csv" className="hidden" />
-                <Button onClick={() => fileInputRef.current?.click()} className="shadow-md h-9">
-                  <Upload className="mr-2 h-4 w-4" /> 데이터 업로드
-                </Button>
+                <Button onClick={() => fileInputRef.current?.click()} className="h-9"><Upload className="mr-2 h-4 w-4" /> 업로드</Button>
                 {matchData && (
                   <>
-                    <Button variant="outline" onClick={handleSaveToDB} className="h-9 border-primary text-primary hover:bg-primary/5">
-                      <Save className="mr-2 h-4 w-4" /> 대회 DB 저장
-                    </Button>
-                    <Button variant="default" onClick={() => window.print()} className="shadow-sm bg-emerald-600 hover:bg-emerald-700 h-9">
-                      <FileDown className="mr-2 h-4 w-4" /> PDF 리포트
-                    </Button>
+                    <Button variant="outline" onClick={handleSaveToDB} className="h-9 border-primary text-primary hover:bg-primary/5"><Save className="mr-2 h-4 w-4" /> 저장</Button>
+                    <Button variant="default" onClick={() => window.print()} className="bg-emerald-600 hover:bg-emerald-700 h-9"><FileDown className="mr-2 h-4 w-4" /> PDF</Button>
                   </>
                 )}
-                {!matchData && (
-                  <Button variant="outline" onClick={handleLoadMockData} className="h-9">데모</Button>
-                )}
+                {!matchData && <Button variant="outline" onClick={handleLoadMockData} className="h-9">데모</Button>}
               </div>
             </>
           )}
@@ -361,48 +267,30 @@ export function Dashboard() {
           </div>
         ) : (
           <div className="space-y-12">
-            <div className="border-b-4 border-primary pb-4 mb-8">
-              <div className="flex justify-between items-end">
-                <div>
-                  <h2 className="text-xl font-bold text-muted-foreground uppercase tracking-widest">{matchData.tournamentName || "Tournament Report"}</h2>
-                  <h1 className="text-4xl font-black italic tracking-tighter text-foreground mt-1 font-headline">{matchData.matchName || "Match Performance Analysis"}</h1>
-                </div>
-                <div className="text-right flex flex-col items-end gap-2">
-                  <div className="flex flex-col items-end">
-                    <p className="text-sm font-bold text-muted-foreground">REPORT DATE</p>
-                    <p className="text-lg font-bold">{new Date().toLocaleDateString()}</p>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="print-hidden border-primary text-primary font-bold h-9"
-                    onClick={handleAiAnalysis}
-                    disabled={isAiLoading}
-                  >
-                    {isAiLoading ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <BrainCircuit className="h-4 w-4 mr-2" />
-                    )}
-                    AI 전술 분석 실행
-                  </Button>
-                </div>
+            <div className="border-b-4 border-primary pb-4 mb-8 flex justify-between items-end">
+              <div>
+                <h2 className="text-xl font-bold text-muted-foreground uppercase tracking-widest">{matchData.tournamentName || "Tournament Report"}</h2>
+                <h1 className="text-4xl font-black italic tracking-tighter text-foreground mt-1 font-headline">{matchData.matchName || "Match Performance Analysis"}</h1>
               </div>
+              <Button variant="outline" size="sm" className="print-hidden border-primary text-primary font-bold h-9" onClick={handleAiAnalysis} disabled={isAiLoading}>
+                {isAiLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <BrainCircuit className="h-4 w-4 mr-2" />}
+                AI 전술 분석 실행
+              </Button>
             </div>
 
             <div className="page-break space-y-8">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {[matchData.homeTeam, matchData.awayTeam].map((team, i) => (
-                  <div key={`${team.name}-${i}`} className="space-y-3">
+                  <div key={team.name} className="space-y-3">
                     <div className="flex items-center gap-2 font-bold text-xl" style={{ color: team.color }}>
                       <div className="w-4 h-4 rounded-full" style={{ backgroundColor: team.color }} />
                       {team.name} ({i === 0 ? '홈' : '어웨이'})
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <StatsCard title="SPP (압박 지수)" value={i === 0 ? matchData.matchStats.home.spp : matchData.matchStats.away.spp} isTime icon={<TrendingDown className="text-emerald-500 h-4 w-4" />} />
-                      <StatsCard title="빌드업 성공률" value={i === 0 ? matchData.matchStats.home.build25Ratio : matchData.matchStats.away.build25Ratio} isPercentage icon={<ShieldCheck className="text-primary/60 h-4 w-4" />} />
-                      <StatsCard title="공격 점유율" value={i === 0 ? matchData.matchStats.home.attackPossession : matchData.matchStats.away.attackPossession} isPercentage icon={<Target className="text-primary/60 h-4 w-4" />} />
-                      <StatsCard title="CE 소요 시간" value={i === 0 ? matchData.matchStats.home.timePerCE : matchData.matchStats.away.timePerCE} isTime icon={<Activity className="text-primary/60 h-4 w-4" />} />
+                      <StatsCard title="SPP (압박 지수)" value={i === 0 ? matchData.matchStats.home.spp : matchData.matchStats.away.spp} isTime icon={<TrendingDown className="h-4 w-4" />} />
+                      <StatsCard title="빌드업 고립도" value={i === 0 ? matchData.matchStats.home.buildUpPossession : matchData.matchStats.away.buildUpPossession} isPercentage icon={<ShieldCheck className="h-4 w-4" />} />
+                      <StatsCard title="공격 점유율" value={i === 0 ? matchData.matchStats.home.attackPossession : matchData.matchStats.away.attackPossession} isPercentage icon={<Target className="h-4 w-4" />} />
+                      <StatsCard title="CE 소요 시간" value={i === 0 ? matchData.matchStats.home.timePerCE : matchData.matchStats.away.timePerCE} isTime icon={<Activity className="h-4 w-4" />} />
                     </div>
                   </div>
                 ))}
@@ -410,99 +298,94 @@ export function Dashboard() {
               <BasicMatchStats data={matchData} />
             </div>
 
-            {aiAnalysis && (
-              <div className="page-break space-y-6">
-                <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                  <Sparkles className="h-6 w-6" /> AI 전술 분석 리포트 (Tactical Insight)
-                </div>
-                <Card className="border-2 border-primary/20 shadow-lg bg-primary/5">
-                  <CardContent className="pt-6 space-y-6">
-                    <div>
-                      <h3 className="text-lg font-bold mb-2 text-primary flex items-center gap-2">
-                        <Info className="h-5 w-5" /> 분석 요약
-                      </h3>
-                      <p className="leading-relaxed font-medium">{aiAnalysis.summary}</p>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-3">
-                        <h4 className="font-bold text-emerald-600 flex items-center gap-2">
-                          <ShieldCheck className="h-4 w-4" /> 주요 전술 포인트 & 강점
-                        </h4>
-                        <ul className="list-disc pl-5 space-y-1 text-sm">
-                          {[...aiAnalysis.tacticalAnalysis, ...aiAnalysis.strengths].map((item, i) => (
-                            <li key={i}>{item}</li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div className="space-y-3">
-                        <h4 className="font-bold text-amber-600 flex items-center gap-2">
-                          <TrendingDown className="h-4 w-4" /> 개선 필요 사항
-                        </h4>
-                        <ul className="list-disc pl-5 space-y-1 text-sm">
-                          {aiAnalysis.weaknesses.map((item, i) => (
-                            <li key={i}>{item}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                    <div className="border-t pt-4">
-                      <p className="text-center font-black italic text-lg text-primary">
-                        " {aiAnalysis.verdict} "
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
             <div className="page-break space-y-8">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                <Activity className="h-6 w-6" /> 쿼터별 상세 데이터 (Quarterly Analysis)
+                <Activity className="h-6 w-6" /> 쿼터별 상세 데이터
               </div>
               <QuarterlyStatsTable data={matchData} />
             </div>
 
             <div className="page-break space-y-8">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                <Sword className="h-6 w-6" /> 공격 성능 분석 (Attack Analysis)
+                <Sword className="h-6 w-6" /> 공격 성능 분석
               </div>
               <AttackThreatChart data={matchData.attackThreatData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
               <BuildUpEfficiencyChart data={matchData} />
             </div>
 
-            <div className="page-break space-y-8 break-inside-avoid">
+            <div className="page-break space-y-8">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                <Target className="h-6 w-6" /> 서클 진입 및 공격 궤적 분석 (Circle Entry & Trajectory)
+                <Target className="h-6 w-6" /> 공격 궤적 및 서클 진입 분석
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:grid-cols-2">
-                <CircleEntryAnalysis 
-                  teamName={matchData.homeTeam.name} 
-                  entries={matchData.circleEntries.filter(e => e.team === matchData.homeTeam.name)} 
-                  teamColor={matchData.homeTeam.color}
-                />
-                <CircleEntryAnalysis 
-                  teamName={matchData.awayTeam.name} 
-                  entries={matchData.circleEntries.filter(e => e.team === matchData.awayTeam.name)} 
-                  teamColor={matchData.awayTeam.color}
-                />
-              </div>
-              <div className="mt-6">
-                <MatchTrajectoryChart data={matchData} />
+              <MatchTrajectoryChart data={matchData} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <CircleEntryAnalysis teamName={matchData.homeTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.homeTeam.name)} teamColor={matchData.homeTeam.color} />
+                <CircleEntryAnalysis teamName={matchData.awayTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.awayTeam.name)} teamColor={matchData.awayTeam.color} />
               </div>
             </div>
 
-            <div className="page-break space-y-6 break-inside-avoid">
+            <div className="page-break space-y-8">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                <Shield className="h-6 w-6" /> 압박 분석 (Pressure Analysis)
+                <Shield className="h-6 w-6" /> 압박 분석
               </div>
-              <div className="flex flex-col gap-6">
-                <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} height={260} />
-                <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} isCompact matchCount={1} />
-              </div>
+              <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
+              <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
             </div>
+
+            {/* AI 분석 리포트 - 최하단으로 이동 */}
+            {aiAnalysis && (
+              <div className="page-break space-y-6 pt-12 border-t-4 border-primary">
+                <div className="flex items-center gap-2 text-3xl font-black text-primary uppercase italic">
+                  <Sparkles className="h-8 w-8" /> AI Tactical Analysis Report
+                </div>
+                <Card className="border-2 border-primary/20 shadow-2xl bg-primary/5">
+                  <CardContent className="pt-8 space-y-8">
+                    <div>
+                      <h3 className="text-xl font-bold mb-3 text-primary flex items-center gap-2">
+                        <Info className="h-6 w-6" /> 경기 전술 요약
+                      </h3>
+                      <p className="text-lg leading-relaxed font-medium">{aiAnalysis.summary}</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="bg-white/50 p-4 rounded-lg border border-primary/10">
+                        <h4 className="font-bold text-primary mb-2 flex items-center gap-2"><Sword className="h-4 w-4" /> 공격 위협 및 궤적</h4>
+                        <p className="text-sm leading-relaxed">{aiAnalysis.visualAnalysis.attackTrend}</p>
+                        <p className="text-sm leading-relaxed mt-2 italic text-muted-foreground">{aiAnalysis.visualAnalysis.trajectory}</p>
+                      </div>
+                      <div className="bg-white/50 p-4 rounded-lg border border-primary/10">
+                        <h4 className="font-bold text-primary mb-2 flex items-center gap-2"><Shield className="h-4 w-4" /> 압박 및 수비 대응</h4>
+                        <p className="text-sm leading-relaxed">{aiAnalysis.visualAnalysis.pressureMap}</p>
+                      </div>
+                      <div className="bg-white/50 p-4 rounded-lg border border-primary/10">
+                        <h4 className="font-bold text-primary mb-2 flex items-center gap-2"><Target className="h-4 w-4" /> 주요 전술 비교</h4>
+                        <ul className="list-disc pl-5 space-y-1 text-xs">
+                          {aiAnalysis.tacticalComparison.map((item, i) => <li key={i}>{item}</li>)}
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="border-t-2 border-primary/20 pt-6 text-center">
+                      <p className="text-2xl font-black italic text-primary">" {aiAnalysis.verdict} "</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
         )}
       </main>
+
+      <Dialog open={isNewTournamentDialogOpen} onOpenChange={setIsNewTournamentDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>새 대회 생성</DialogTitle></DialogHeader>
+          <div className="py-4 space-y-4">
+            <Label>대회 이름</Label>
+            <Input value={newTournamentName} onChange={(e) => setNewTournamentName(e.target.value)} placeholder="예: 2024 파리 올림픽" onKeyDown={(e) => e.key === 'Enter' && handleCreateTournament()} />
+          </div>
+          <DialogFooter><Button onClick={handleCreateTournament}>생성</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

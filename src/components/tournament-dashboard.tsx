@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useMemo } from "react"
@@ -96,7 +95,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         sum.circle += (my.circleEntries || 0);
         sum.entry25 += (my.twentyFiveEntries || 0);
         sum.possession += (my.possession || 0);
-        sum.attPoss += (my.attackPossession || 0);
+        sum.attPoss += (my.attPossession || 0);
         sum.buildUpPoss += (my.buildUpPossession || 0);
         sum.pcSuccess += (my.pcSuccessRate || 0);
         sum.spp += (my.spp || 0);
@@ -225,7 +224,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     const mockMatch: MatchData = {
       homeTeam: { name: currentTeam, color: selectedTeamColor },
       awayTeam: { name: '대회 전체 평균', color: opponentColor },
-      events: [],
+      events: matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam).flatMap(m => m.events),
       pressureData: matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam).map((m, i) => {
         const isHome = m.homeTeam.name === currentTeam;
         const opponent = isHome ? m.awayTeam.name : m.homeTeam.name;
@@ -293,6 +292,16 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       pressEfficiency: teamStatsList.map(t => ({ name: t.name, x: t.avgSPP, y: t.avgAttPoss, z: 200, color: t.color }))
     };
 
+    const allMatchesPoints = matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam).map(m => {
+      const isHome = m.homeTeam.name === currentTeam;
+      const my = isHome ? m.matchStats.home : m.matchStats.away;
+      return {
+        homeX: my.attackPossession,
+        homeY: my.timePerCE === 0 ? 450 : Math.min(450, my.timePerCE),
+        homeRawTime: my.timePerCE
+      };
+    });
+
     return { 
       mockMatch, 
       allTeams, 
@@ -300,7 +309,208 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       teamStatsList, 
       globalAvg, 
       quadrantData, 
+      allMatchesPoints,
       teamMatches: matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam) 
     };
   }, [matches, selectedTeamName, selectedTeamColor, opponentColor]);
-// ... 후략
+
+  const handleAiAnalysis = async () => {
+    if (!analysisData) return;
+    setIsAiLoading(true);
+    try {
+      const result = await analyzeMatch({
+        type: 'tournament', // 대회 누적 분석 (해당 팀 집중)
+        homeTeam: { name: analysisData.currentTeam },
+        awayTeam: { name: '대회 평균' },
+        stats: analysisData.mockMatch
+      });
+      setAiAnalysis(result);
+      toast({ title: "AI 대회 전술 분석 완료" });
+    } catch (e: any) {
+      toast({ title: "AI 분석 실패", description: e.message, variant: "destructive" });
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  if (loading) return <div className="py-20 text-center">대회 데이터를 불러오는 중...</div>;
+  if (!analysisData) return <div className="py-20 text-center">대회에 등록된 경기가 없습니다. 경기 관리 탭에서 경기를 추가해 주세요.</div>;
+
+  return (
+    <div className="space-y-12">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b-4 border-primary pb-6">
+        <div>
+          <h2 className="text-xl font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+            <Trophy className="h-5 w-5" /> Tournament Cumulative Report
+          </h2>
+          <div className="flex items-center gap-4 mt-2">
+            <Select value={selectedTeamName || analysisData.allTeams[0]} onValueChange={setSelectedTeamName}>
+              <SelectTrigger className="w-64 h-12 text-xl font-black italic">
+                <SelectValue placeholder="분석 팀 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                {analysisData.allTeams.map(name => <SelectItem key={name} value={name}>{name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-lg border">
+              <Label className="text-[10px] font-bold uppercase text-muted-foreground">테마 컬러</Label>
+              <Input type="color" value={selectedTeamColor} onChange={(e) => setSelectedTeamColor(e.target.value)} className="w-8 h-8 p-0 border-none bg-transparent" />
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-3 print-hidden">
+          <Button variant="outline" className="border-primary text-primary font-bold h-11" onClick={handleAiAnalysis} disabled={isAiLoading}>
+            {isAiLoading ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <BrainCircuit className="h-5 w-5 mr-2" />}
+            AI 대회 전술 분석
+          </Button>
+          <Button variant="default" className="bg-emerald-600 hover:bg-emerald-700 h-11 px-6 font-bold" onClick={() => window.print()}>
+            <FileDown className="mr-2 h-5 w-5" /> PDF 리포트 저장
+          </Button>
+        </div>
+      </div>
+
+      <div className="page-break space-y-8">
+        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+          <Activity className="h-6 w-6" /> 대회 종합 성과
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatsCard title="평균 득점" value={analysisData.mockMatch.matchStats.home.avgGoals} />
+          <StatsCard title="평균 SPP" value={analysisData.mockMatch.matchStats.home.avgSPP} isTime />
+          <StatsCard title="평균 공격 점유율" value={analysisData.mockMatch.matchStats.home.avgAttPoss} isPercentage />
+          <StatsCard title="평균 CE당 시간" value={analysisData.mockMatch.matchStats.home.avgTimeCE} isTime />
+        </div>
+        <BasicMatchStats data={analysisData.mockMatch} />
+      </div>
+
+      <div className="page-break space-y-8">
+        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+          <Grid3X3 className="h-6 w-6" /> 쿼터별 평균 추이
+        </div>
+        <QuarterlyStatsTable data={analysisData.mockMatch} />
+      </div>
+
+      <div className="page-break space-y-8">
+        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+          <Sword className="h-6 w-6" /> 공격 성과 분석
+        </div>
+        <AttackThreatChart data={analysisData.mockMatch.attackThreatData} homeTeam={analysisData.mockMatch.homeTeam} awayTeam={analysisData.mockMatch.awayTeam} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <TacticalQuadrantChart 
+            title="공격 생성 효율"
+            description="25y 진입 대비 서클 진입 생성 능력"
+            data={analysisData.quadrantData.attackEfficiency}
+            xAxisLabel="Avg 25y Entries"
+            yAxisLabel="Avg Circle Entries"
+            avgX={analysisData.globalAvg.entry25}
+            avgY={analysisData.globalAvg.circle}
+            selectedTeamName={analysisData.currentTeam}
+            selectedColor={selectedTeamColor}
+            labels={{ tr: "High Activity", tl: "Efficient Entry", br: "Inefficient", bl: "Low Activity" }}
+          />
+          <TacticalQuadrantChart 
+            title="피니싱 효율"
+            description="서클 진입 대비 공격 위협(슈팅+PC) 생성 능력"
+            data={analysisData.quadrantData.finishingEfficiency}
+            xAxisLabel="Avg Circle Entries"
+            yAxisLabel="Avg Threat (Shot+PC)"
+            avgX={analysisData.globalAvg.circle}
+            avgY={analysisData.globalAvg.threat}
+            selectedTeamName={analysisData.currentTeam}
+            selectedColor={selectedTeamColor}
+            labels={{ tr: "Dominant Attack", tl: "High Finishing", br: "Poor Finishing", bl: "Low Threat" }}
+          />
+        </div>
+      </div>
+
+      <div className="page-break space-y-8">
+        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+          <TrendingUp className="h-6 w-6" /> 공격 궤적 분석
+        </div>
+        <MatchTrajectoryChart data={analysisData.mockMatch} isTournamentView={true} allMatchesPoints={analysisData.allMatchesPoints} />
+      </div>
+
+      <div className="page-break space-y-8">
+        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+          <Shield className="h-6 w-6" /> 수비 및 압박 분석
+        </div>
+        <PressureBattleChart data={analysisData.mockMatch.pressureData} homeTeam={analysisData.mockMatch.homeTeam} awayTeam={analysisData.mockMatch.awayTeam} />
+        <PressureAnalysisMap 
+          events={analysisData.mockMatch.events} 
+          homeTeam={analysisData.mockMatch.homeTeam} 
+          awayTeam={{ name: '상대팀', color: opponentColor }} 
+          awayHeader="상대팀 평균 압박"
+          matchCount={analysisData.teamMatches.length}
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <TacticalQuadrantChart 
+            title="수비 복원력"
+            description="상대 25y 진입 허용 대비 서클 진입 억제 능력"
+            data={analysisData.quadrantData.defensiveResilience}
+            xAxisLabel="Allowed 25y Entries"
+            yAxisLabel="Allowed Circle Entries"
+            avgX={analysisData.globalAvg.allowed25}
+            avgY={analysisData.globalAvg.allowedCircle}
+            selectedTeamName={analysisData.currentTeam}
+            selectedColor={selectedTeamColor}
+            reversedX reversedY
+            labels={{ tr: "Vulnerable", tl: "Circle Defense", br: "High Press", bl: "Resilient Defense" }}
+          />
+          <TacticalQuadrantChart 
+            title="압박 효율성"
+            description="압박 강도(SPP) 대비 공격 점유 확보 능력"
+            data={analysisData.quadrantData.pressEfficiency}
+            xAxisLabel="Avg SPP (s)"
+            yAxisLabel="Avg Attack Possession (%)"
+            avgX={analysisData.globalAvg.spp}
+            avgY={analysisData.globalAvg.attPoss}
+            selectedTeamName={analysisData.currentTeam}
+            selectedColor={selectedTeamColor}
+            reversedX
+            labels={{ tr: "Aggressive & Efficient", tl: "Counter Attack", br: "Inefficient Press", bl: "Passive" }}
+          />
+        </div>
+      </div>
+
+      {/* AI 분석 리포트 - 최하단 배치 */}
+      {aiAnalysis && (
+        <div className="page-break space-y-6 pt-12 border-t-4 border-primary">
+          <div className="flex items-center gap-2 text-3xl font-black text-primary uppercase italic">
+            <Sparkles className="h-8 w-8" /> AI Tournament Performance Report
+          </div>
+          <Card className="border-2 border-primary/20 shadow-2xl bg-primary/5">
+            <CardContent className="pt-8 space-y-8">
+              <div>
+                <h3 className="text-xl font-bold mb-3 text-primary flex items-center gap-2">
+                  <Info className="h-6 w-6" /> 대회 누적 전술 총평
+                </h3>
+                <p className="text-lg leading-relaxed font-medium">{aiAnalysis.summary}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white/50 p-4 rounded-lg border border-primary/10">
+                  <h4 className="font-bold text-primary mb-2 flex items-center gap-2"><Sword className="h-4 w-4" /> 공격 전술 성향</h4>
+                  <p className="text-sm leading-relaxed">{aiAnalysis.visualAnalysis.attackTrend}</p>
+                  <p className="text-sm leading-relaxed mt-2 italic text-muted-foreground">{aiAnalysis.visualAnalysis.trajectory}</p>
+                </div>
+                <div className="bg-white/50 p-4 rounded-lg border border-primary/10">
+                  <h4 className="font-bold text-primary mb-2 flex items-center gap-2"><Shield className="h-4 w-4" /> 수비 및 압박 효율</h4>
+                  <p className="text-sm leading-relaxed">{aiAnalysis.visualAnalysis.pressureMap}</p>
+                </div>
+                <div className="bg-white/50 p-4 rounded-lg border border-primary/10">
+                  <h4 className="font-bold text-primary mb-2 flex items-center gap-2"><Target className="h-4 w-4" /> 핵심 전술 리포트</h4>
+                  <ul className="list-disc pl-5 space-y-1 text-xs">
+                    {aiAnalysis.tacticalComparison.map((item, i) => <li key={i}>{item}</li>)}
+                  </ul>
+                </div>
+              </div>
+
+              <div className="border-t-2 border-primary/20 pt-6 text-center">
+                <p className="text-2xl font-black italic text-primary">" {aiAnalysis.verdict} "</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -10,59 +10,32 @@ import {
   ZAxis,
   Tooltip,
   ResponsiveContainer,
+  LabelList,
   ReferenceLine,
   ReferenceArea,
   Label,
-  Cell,
-  LabelList,
-  CartesianGrid
+  Cell
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-
-interface QuadrantPoint {
-  name: string
-  x: number
-  y: number
-  z: number
-  color?: string
-}
 
 interface TacticalQuadrantChartProps {
   title: string
   description: string
-  data: QuadrantPoint[]
+  data: any[]
   xAxisLabel: string
   yAxisLabel: string
   avgX: number
   avgY: number
-  selectedTeamName: string
-  selectedColor: string
-  xUnit?: string
-  yUnit?: string
-  reversedY?: boolean
+  selectedTeamName?: string
+  selectedColor?: string
   reversedX?: boolean
-  labels?: {
-    tr: string; // Top-Right
-    tl: string; // Top-Left
-    br: string; // Bottom-Right
-    bl: string; // Bottom-Left
+  reversedY?: boolean
+  labels: {
+    tr: string
+    tl: string
+    br: string
+    bl: string
   }
-}
-
-const CustomTooltip = ({ active, payload, xLabel, yLabel, xUnit, yUnit }: any) => {
-  if (active && payload && payload.length) {
-    const p = payload[0].payload
-    return (
-      <div className="bg-card p-3 border-2 rounded-lg shadow-xl text-xs">
-        <p className="font-bold border-b pb-1 mb-2 text-primary uppercase italic">{p.name}</p>
-        <div className="space-y-1">
-          <p>{xLabel}: <span className="font-bold">{p.x.toFixed(1)}{xUnit}</span></p>
-          <p>{yLabel}: <span className="font-bold">{p.y.toFixed(1)}{yUnit}</span></p>
-        </div>
-      </div>
-    )
-  }
-  return null
 }
 
 export function TacticalQuadrantChart({
@@ -75,128 +48,91 @@ export function TacticalQuadrantChart({
   avgY,
   selectedTeamName,
   selectedColor,
-  xUnit = "",
-  yUnit = "",
-  reversedY = false,
-  reversedX = false,
+  reversedX,
+  reversedY,
   labels
 }: TacticalQuadrantChartProps) {
   
-  // 축의 가시 범위를 명시적으로 계산 (데이터 + 여백)하여 정수로 올림 처리
-  const maxX = Math.ceil(Math.max(...data.map(d => d.x), avgX * 1.5, 10) * 1.1);
-  const maxY = Math.ceil(Math.max(...data.map(d => d.y), avgY * 1.5, 10) * 1.1);
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const p = payload[0].payload
+      return (
+        <div className="bg-card p-2 border rounded shadow-lg text-xs">
+          <p className="font-bold border-b mb-1" style={{ color: p.color }}>{p.name}</p>
+          <p>{xAxisLabel}: <span className="font-bold">{p.x.toFixed(1)}</span></p>
+          <p>{yAxisLabel}: <span className="font-bold">{p.y.toFixed(1)}</span></p>
+        </div>
+      )
+    }
+    return null
+  }
+
+  // 데이터 도메인 계산
+  const allX = data.map(d => d.x).concat(avgX)
+  const allY = data.map(d => d.y).concat(avgY)
+  const minX = Math.floor(Math.min(...allX) * 0.8)
+  const maxX = Math.ceil(Math.max(...allX) * 1.2)
+  const minY = Math.floor(Math.min(...allY) * 0.8)
+  const maxY = Math.ceil(Math.max(...allY) * 1.2)
 
   return (
-    <Card className="border-2 shadow-xl overflow-hidden">
-      <CardHeader className="bg-muted/10 pb-4 border-b">
-        <CardTitle className="text-2xl font-black italic text-primary uppercase tracking-tighter">{title}</CardTitle>
-        <CardDescription className="text-sm font-bold text-muted-foreground uppercase">{description}</CardDescription>
+    <Card className="w-full">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg font-bold">{title}</CardTitle>
+        <CardDescription className="text-[10px] leading-tight">{description}</CardDescription>
       </CardHeader>
-      <CardContent className="pt-8">
-        <div className="h-[650px] w-full">
+      <CardContent>
+        <div className="h-[300px] w-full mt-4">
           <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ top: 40, right: 60, bottom: 60, left: 60 }}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-              
-              {/* 4분면 배경색 - 계산된 maxX, maxY 범위 내에서 꽉 채움 */}
-              {/* TR: High X, High Y */}
-              <ReferenceArea 
-                x1={avgX} x2={maxX} 
-                y1={avgY} y2={maxY} 
-                fill="#4bc0c0" fillOpacity={0.15}
-              >
-                {labels?.tr && <Label value={labels.tr} position="insideTopRight" offset={20} style={{ fill: '#065f46', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase' }} />}
-              </ReferenceArea>
-
-              {/* TL: Low X, High Y */}
-              <ReferenceArea 
-                x1={0} x2={avgX} 
-                y1={avgY} y2={maxY} 
-                fill="#4bc0c0" fillOpacity={0.08}
-              >
-                {labels?.tl && <Label value={labels.tl} position="insideTopLeft" offset={20} style={{ fill: '#0f766e', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase' }} />}
-              </ReferenceArea>
-
-              {/* BR: High X, Low Y */}
-              <ReferenceArea 
-                x1={avgX} x2={maxX} 
-                y1={0} y2={avgY} 
-                fill="#94a3b8" fillOpacity={0.1}
-              >
-                {labels?.br && <Label value={labels.br} position="insideBottomRight" offset={20} style={{ fill: '#334155', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase' }} />}
-              </ReferenceArea>
-
-              {/* BL: Low X, Low Y */}
-              <ReferenceArea 
-                x1={0} x2={avgX} 
-                y1={0} y2={avgY} 
-                fill="#6366f1" fillOpacity={0.06}
-              >
-                {labels?.bl && <Label value={labels.bl} position="insideBottomLeft" offset={20} style={{ fill: '#3730a3', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase' }} />}
-              </ReferenceArea>
-
+            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
               <XAxis 
                 type="number" 
                 dataKey="x" 
                 name={xAxisLabel} 
+                domain={[minX, maxX]} 
                 reversed={reversedX}
-                domain={[0, maxX]}
-                allowDecimals={false}
-                tick={{ fontSize: 12, fontWeight: 'bold' }}
+                tick={{ fontSize: 10 }}
               >
-                <Label value={`${xAxisLabel} ➝`} position="bottom" offset={30} className="fill-foreground text-xs font-black uppercase tracking-widest" />
+                <Label value={xAxisLabel} position="bottom" offset={0} style={{ fontSize: '10px', fill: 'hsl(var(--muted-foreground))' }} />
               </XAxis>
               <YAxis 
                 type="number" 
                 dataKey="y" 
                 name={yAxisLabel} 
+                domain={[minY, maxY]} 
                 reversed={reversedY}
-                domain={[0, maxY]}
-                allowDecimals={false}
-                tick={{ fontSize: 12, fontWeight: 'bold' }}
-                label={{ value: `${yAxisLabel} (↑ High / ↓ Low)`, angle: -90, position: 'insideLeft', className: "fill-foreground text-xs font-black uppercase tracking-widest" }}
-              />
-              <ZAxis type="number" dataKey="z" range={[400, 1000]} />
-              <Tooltip content={<CustomTooltip xLabel={xAxisLabel} yLabel={yAxisLabel} xUnit={xUnit} yUnit={yUnit} />} />
+                tick={{ fontSize: 10 }}
+              >
+                <Label value={yAxisLabel} angle={-90} position="insideLeft" style={{ fontSize: '10px', fill: 'hsl(var(--muted-foreground))' }} />
+              </YAxis>
+              <ZAxis type="number" dataKey="z" range={[100, 400]} />
+              <Tooltip content={<CustomTooltip />} />
               
-              <ReferenceLine x={avgX} stroke="hsl(var(--foreground))" strokeDasharray="3 3" strokeWidth={1} opacity={0.3} />
-              <ReferenceLine y={avgY} stroke="hsl(var(--foreground))" strokeDasharray="3 3" strokeWidth={1} opacity={0.3} />
+              {/* 4분면 영역 배경 */}
+              <ReferenceArea x1={reversedX ? maxX : avgX} x2={reversedX ? avgX : maxX} y1={reversedY ? minY : avgY} y2={reversedY ? avgY : maxY} fill="hsl(var(--primary))" fillOpacity={0.05} />
+              
+              {/* 평균선 */}
+              <ReferenceLine x={avgX} stroke="hsl(var(--foreground))" strokeDasharray="3 3" opacity={0.5} />
+              <ReferenceLine y={avgY} stroke="hsl(var(--foreground))" strokeDasharray="3 3" opacity={0.5} />
 
-              <Scatter data={data} shape="circle">
+              <Scatter name="Teams" data={data}>
                 {data.map((entry, index) => (
                   <Cell 
                     key={`cell-${index}`} 
-                    fill={entry.name === selectedTeamName ? selectedColor : (entry.color || "#94a3b8")}
-                    fillOpacity={entry.name === selectedTeamName ? 1 : 0.7}
-                    stroke={entry.name === selectedTeamName ? '#000' : 'none'}
-                    strokeWidth={entry.name === selectedTeamName ? 2 : 0}
+                    fill={entry.name === selectedTeamName ? (selectedColor || entry.color) : entry.color} 
+                    fillOpacity={entry.name === selectedTeamName ? 1 : 0.6}
+                    stroke={entry.name === selectedTeamName ? "black" : "none"}
+                    strokeWidth={2}
                   />
                 ))}
-                <LabelList 
-                  dataKey="name" 
-                  position="top" 
-                  offset={10} 
-                  content={(props: any) => {
-                    const { x, y, value } = props;
-                    const isSelected = value === selectedTeamName;
-                    return (
-                      <text 
-                        x={x} 
-                        y={y - 12} 
-                        textAnchor="middle" 
-                        fill={isSelected ? selectedColor : "hsl(var(--muted-foreground))"}
-                        style={{ 
-                          fontSize: '11px', 
-                          fontWeight: isSelected ? '600' : '500',
-                          opacity: isSelected ? 1 : 0.8
-                        }}
-                      >
-                        {value}
-                      </text>
-                    );
-                  }}
-                />
+                <LabelList dataKey="name" position="top" style={{ fontSize: '9px', fontWeight: 'bold' }} />
               </Scatter>
+
+              {/* 4분면 라벨 */}
+              <text x="95%" y="10%" textAnchor="end" className="fill-muted-foreground font-bold italic" style={{ fontSize: '10px', opacity: 0.4 }}>{labels.tr}</text>
+              <text x="5%" y="10%" textAnchor="start" className="fill-muted-foreground font-bold italic" style={{ fontSize: '10px', opacity: 0.4 }}>{labels.tl}</text>
+              <text x="95%" y="90%" textAnchor="end" className="fill-muted-foreground font-bold italic" style={{ fontSize: '10px', opacity: 0.4 }}>{labels.br}</text>
+              <text x="5%" y="90%" textAnchor="start" className="fill-muted-foreground font-bold italic" style={{ fontSize: '10px', opacity: 0.4 }}>{labels.bl}</text>
             </ScatterChart>
           </ResponsiveContainer>
         </div>
