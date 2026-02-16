@@ -22,15 +22,19 @@ type ZoneStat = {
 };
 
 /**
- * 압박 및 탈압박 분석 지도 컴포넌트
+ * 압박 및 피압박 분석 지도 컴포넌트
  * 
- * [공격적 압박 - Left]
- * - 시도(Count): 상대 진영(75, 100)에서의 (상대 에러 + 우리 파울)
- * - 성공(Success): 상대 에러 (클린한 탈취)
+ * [로직 정의 - 형님 에디션]
+ * - 압박 시도(Count): 해당 진영에서의 모든 경합 (에러 상황 + 압박하는 팀의 파울)
+ * - 압박 성공(Success): 압박 시도 - 압박하는 팀의 파울 (즉, 순수하게 상대의 실책을 유도한 상황)
  * 
- * [탈압박 분석 - Right] (피압박 대응)
- * - 시도(Count): 우리 진영(25, 50)에서의 (상대 에러 + 우리 에러/파울) -> '피압박 상황 총량'
- * - 탈출(Success): 상대 에러 -> '피압박 상황에서 우리가 소유권을 지키거나 상대 실수를 유도해 탈출한 횟수'
+ * [좌측: 우리 팀의 상대 진영 압박]
+ * - 시도: 상대 진영(75, 100)에서의 (상대 에러 + 우리의 파울)
+ * - 성공: 상대 에러 (우리가 압박을 잘해서 상대가 실수함)
+ * 
+ * [우측: 우리 팀의 피압박 상황]
+ * - 시도: 우리 진영(25, 50)에서의 (우리 에러 + 상대의 파울)
+ * - 상대 성공: 우리 에러 (상대가 압박을 잘해서 우리가 실수함)
  */
 export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awayHeader, matchCount = 1 }: PressureAnalysisMapProps) {
   const isTournament = matchCount > 1;
@@ -42,46 +46,42 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
       const myTeam = isHome ? homeTeam.name : awayTeam.name;
       const oppTeam = isHome ? awayTeam.name : homeTeam.name;
 
-      // 0-2: 25y band (L, C, R), 3-5: 50y band (L, C, R)
       const mapping = [
-        { oppZone: 100, oppLane: 'Right', myZone: 25, myLane: 'Left' },   // 0: 25L
-        { oppZone: 100, oppLane: 'Center', myZone: 25, myLane: 'Center' }, // 1: 25C
-        { oppZone: 100, oppLane: 'Left', myZone: 25, myLane: 'Right' },  // 2: 25R
-        { oppZone: 75, oppLane: 'Right', myZone: 50, myLane: 'Left' },    // 3: 50L
-        { oppZone: 75, oppLane: 'Center', myZone: 50, myLane: 'Center' },  // 4: 50C
-        { oppZone: 75, oppLane: 'Left', myZone: 50, myLane: 'Right' }     // 5: 50R
+        { oppZone: 100, oppLane: 'Right', myZone: 25, myLane: 'Left' },   
+        { oppZone: 100, oppLane: 'Center', myZone: 25, myLane: 'Center' }, 
+        { oppZone: 100, oppLane: 'Left', myZone: 25, myLane: 'Right' },  
+        { oppZone: 75, oppLane: 'Right', myZone: 50, myLane: 'Left' },    
+        { oppZone: 75, oppLane: 'Center', myZone: 50, myLane: 'Center' },  
+        { oppZone: 75, oppLane: 'Left', myZone: 50, myLane: 'Right' }     
       ];
 
       events.forEach(e => {
         const zoneInfo = mapZone(e.locationLabel || e.code);
         
-        // 에러 상황 정의
         const isOppError = e.team === oppTeam && (e.type === 'turnover' || e.type === 'foul');
         const isMyError = e.team === myTeam && (e.type === 'turnover' || e.type === 'foul');
+        const isMyFoul = e.team === myTeam && e.type === 'foul';
+        const isOppFoul = e.team === oppTeam && e.type === 'foul';
 
         mapping.forEach((m, idx) => {
           if (isHome) {
-            // [압박 시도] 상대방의 75, 100 구역에서 발생한 상황
+            // [우리의 상대 진영 압박]
             if (zoneInfo.zoneBand === m.oppZone && zoneInfo.lane === m.oppLane) {
-              if (isOppError) {
-                zones[idx].count++;
-                zones[idx].success++; // 우리가 압박해서 뺏음
+              if (isOppError || isMyFoul) {
+                zones[idx].count++; // 전체 시도 (상대 실수 + 우리의 파울)
               }
-              if (e.team === myTeam && e.type === 'foul') {
-                zones[idx].count++; // 우리가 압박하다 파울함
+              if (isOppError) {
+                zones[idx].success++; // 우리의 압박 성공 (상대 실수)
               }
             }
           } else {
-            // [탈압박/피압박 대응] 우리 진영 25, 50 구역에서 발생한 상황
+            // [우리의 피압박 분석 (상대 압박)]
             if (zoneInfo.zoneBand === m.myZone && zoneInfo.lane === m.myLane) {
-              if (isOppError) {
-                // 상대가 우리 진영에서 압박/공격하다 실수함 -> 우리가 탈출함
-                zones[idx].count++;
-                zones[idx].success++; 
+              if (isMyError || isOppFoul) {
+                zones[idx].count++; // 상대의 전체 시도 (우리 실수 + 상대의 파울)
               }
               if (isMyError) {
-                // 우리가 우리 진영에서 압박당해 실수함 -> 탈출 실패
-                zones[idx].count++;
+                zones[idx].success++; // 상대의 압박 성공 (우리 실수)
               }
             }
           }
@@ -122,13 +122,12 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
     const avgSuccessFormatted = formatNum(teamData.totalSuccess);
     const totalRate = teamData.totalCount > 0 ? (teamData.totalSuccess / teamData.totalCount * 100).toFixed(1) : "0.0";
     
-    const headerTitle = isHome ? `${team.name} 상대 진영 압박` : (awayHeader || `${team.name} 피압박 대응`);
+    const headerTitle = isHome ? `${team.name} 상대 진영 압박` : (awayHeader || `${team.name} 피압박 (상대 압박 성공)`);
 
-    // 대회 모드일 때만 반전 레이아웃 적용 (홈: 좌측 골대, 어웨이: 우측 골대)
-    const shouldUseReversedLayout = isTournament;
+    // 단일 경기 분석 (matchCount === 1) -> 지금 그대로 (홈 우측, 어웨이 좌측)
+    // 대회 누적 분석 (matchCount > 1) -> 요청대로 반전 (홈 좌측, 어웨이 우측)
     let goalOnRight = false;
-    
-    if (shouldUseReversedLayout) {
+    if (isTournament) {
       goalOnRight = !isHome; 
     } else {
       goalOnRight = isHome;  
@@ -141,7 +140,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
             {headerTitle}
           </h3>
           <p className="text-[10px] font-bold mt-1 uppercase tracking-tight">
-            {isTournament ? '경기당 평균' : '합계'} {isDePressing ? '피압박' : '압박'}: <span className="text-primary">{avgCountFormatted}</span>회 | {isDePressing ? '피압박 실패/탈출' : '성공'}: <span className="text-emerald-600">{avgSuccessFormatted}</span>회 ({totalRate}%)
+            {isTournament ? '경기당 평균' : '합계'} 시도: <span className="text-primary">{avgCountFormatted}</span>회 | {isDePressing ? '상대 성공' : '성공'}: <span className="text-emerald-600">{avgSuccessFormatted}</span>회 ({totalRate}%)
           </p>
         </div>
         <div className="relative aspect-[45.7/55] bg-green-50/50 rounded-b-lg overflow-hidden border border-muted shadow-inner">
@@ -200,9 +199,9 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
                     className="fill-foreground font-bold"
                   >
                     <tspan x={rectX + 11.42} dy="-4" fontSize="2.5px" fontWeight="black" fillOpacity="0.6">{labels[i]}</tspan>
-                    <tspan x={rectX + 11.42} dy="4.5" fontWeight="black" fontSize="4.5px">{formatNum(stat.count)}</tspan>
-                    <tspan x={rectX + 11.42} dy="4" fontWeight="black" fontSize="3.5px" fill="#059669">{isDePressing ? '탈출' : '성공'}: {formatNum(stat.success)}</tspan>
-                    <tspan x={rectX + 11.42} dy="3" fontSize="2.5px" fontWeight="normal" opacity="0.8">({stat.rate.toFixed(0)}%)</tspan>
+                    <tspan x={rectX + 11.42} dy="4.5" fontWeight="black" fontSize="4px">{formatNum(stat.count)}</tspan>
+                    <tspan x={rectX + 11.42} dy="4" fontWeight="black" fontSize="3.2px" fill="#059669">{isDePressing ? '상대성공' : '성공'}: {formatNum(stat.success)}</tspan>
+                    <tspan x={rectX + 11.42} dy="3" fontSize="2.2px" fontWeight="normal" opacity="0.8">({stat.rate.toFixed(0)}%)</tspan>
                   </text>
                 </g>
               );
@@ -216,9 +215,9 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
   return (
     <Card className="lg:col-span-3">
       <CardHeader className={isCompact ? "py-2 px-4" : ""}>
-        <CardTitle className={isCompact ? "text-lg" : ""}>Pressure & De-pressing Analysis</CardTitle>
+        <CardTitle className={isCompact ? "text-lg" : ""}>Pressure Analysis</CardTitle>
         <CardDescription className={isCompact ? "text-[10px]" : ""}>
-          {isTournament ? `대회 ${matchCount}경기 평균 수치.` : '경기 데이터 실제 수치.'} 공격적 압박(좌)과 피압박 상황에서의 탈출(우) 성공률 분석.
+          {isTournament ? `대회 ${matchCount}경기 평균 수치.` : '경기 데이터 실제 수치.'} 압박 시도 대비 순수 성공(상대 실책 유도) 비율 분석.
         </CardDescription>
       </CardHeader>
       <CardContent className={isCompact ? "p-2 md:p-4" : "p-4 md:p-6"}>
