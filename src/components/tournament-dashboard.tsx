@@ -274,7 +274,15 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       pressEfficiency: teamStatsList.map(t => ({ name: t.name, x: t.avgSPP, y: t.avgAttPoss, z: 200, color: t.color }))
     };
 
-    return { mockMatch, allTeams, currentTeam, teamStatsList, globalAvg, quadrantData, teamMatches: matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam) };
+    return { 
+      mockMatch, 
+      allTeams, 
+      currentTeam, 
+      teamStatsList, 
+      globalAvg, 
+      quadrantData, 
+      teamMatches: matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam) 
+    };
   }, [matches, selectedTeamName, selectedTeamColor, opponentColor]);
 
   const aggregatedEvents = useMemo(() => {
@@ -296,6 +304,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     homeY: m.homeTeam.name === analysisData.currentTeam ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE,
     homeRawTime: m.homeTeam.name === analysisData.currentTeam ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE,
   })) || [];
+
+  const matchCount = analysisData?.teamMatches.length || 1;
 
   return (
     <div className="space-y-12 pb-20">
@@ -404,6 +414,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                 homeTeam={{ name: analysisData.currentTeam, color: selectedTeamColor }} 
                 awayTeam={{ name: '상대팀 평균', color: opponentColor }} 
                 awayHeader="탈압박 분석 (상대 압박 대응)"
+                matchCount={matchCount}
               />
             </div>
           </div>
