@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useMemo } from "react"
@@ -13,6 +14,7 @@ import { TacticalQuadrantChart } from "./tactical-quadrant-charts"
 import { MatchTrajectoryChart } from "./match-trajectory-chart"
 import { QuarterlyStatsTable } from "./quarterly-stats-table"
 import { PressureAnalysisMap } from "./pressure-analysis-map"
+import { StatsCard } from "./stats-card"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
@@ -178,7 +180,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               sums.circle += (my.circleEntries || 0);
               sums.a25 += (my.twentyFiveEntries || 0);
               sums.poss += (my.possession || 0);
-              sums.att += (my.attackPossession || 0);
+              sums.att += (my.attPossession || 0);
               sums.bup += (my.buildUpPossession || 0);
               sums.pcSucc += (my.pcSuccessRate || 0);
               sums.spp += (my.spp || 0);
@@ -192,7 +194,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                 sums.circle += (side.circleEntries || 0);
                 sums.a25 += (side.twentyFiveEntries || 0);
                 sums.poss += (side.possession || 0);
-                sums.att += (side.attackPossession || 0);
+                sums.att += (side.attPossession || 0);
                 sums.bup += (side.buildUpPossession || 0);
                 sums.pcSucc += (side.pcSuccessRate || 0);
                 sums.spp += (side.spp || 0);
@@ -319,10 +321,10 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     setIsAiLoading(true);
     try {
       const result = await analyzeMatch({
-        type: 'tournament', // 대회 누적 분석 (해당 팀 집중)
+        type: 'tournament',
         homeTeam: { name: analysisData.currentTeam },
         awayTeam: { name: '대회 평균' },
-        stats: analysisData.mockMatch
+        stats: JSON.parse(JSON.stringify(analysisData.mockMatch))
       });
       setAiAnalysis(result);
       toast({ title: "AI 대회 전술 분석 완료" });
@@ -471,7 +473,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         </div>
       </div>
 
-      {/* AI 분석 리포트 - 최하단 배치 */}
       {aiAnalysis && (
         <div className="page-break space-y-6 pt-12 border-t-4 border-primary">
           <div className="flex items-center gap-2 text-3xl font-black text-primary uppercase italic">
@@ -489,17 +490,17 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white/50 p-4 rounded-lg border border-primary/10">
                   <h4 className="font-bold text-primary mb-2 flex items-center gap-2"><Sword className="h-4 w-4" /> 공격 전술 성향</h4>
-                  <p className="text-sm leading-relaxed">{aiAnalysis.visualAnalysis.attackTrend}</p>
-                  <p className="text-sm leading-relaxed mt-2 italic text-muted-foreground">{aiAnalysis.visualAnalysis.trajectory}</p>
+                  <p className="text-sm leading-relaxed">{aiAnalysis.visualAnalysis?.attackTrend || "분석 대기 중"}</p>
+                  <p className="text-sm leading-relaxed mt-2 italic text-muted-foreground">{aiAnalysis.visualAnalysis?.trajectory || ""}</p>
                 </div>
                 <div className="bg-white/50 p-4 rounded-lg border border-primary/10">
                   <h4 className="font-bold text-primary mb-2 flex items-center gap-2"><Shield className="h-4 w-4" /> 수비 및 압박 효율</h4>
-                  <p className="text-sm leading-relaxed">{aiAnalysis.visualAnalysis.pressureMap}</p>
+                  <p className="text-sm leading-relaxed">{aiAnalysis.visualAnalysis?.pressureMap || "분석 대기 중"}</p>
                 </div>
                 <div className="bg-white/50 p-4 rounded-lg border border-primary/10">
                   <h4 className="font-bold text-primary mb-2 flex items-center gap-2"><Target className="h-4 w-4" /> 핵심 전술 리포트</h4>
                   <ul className="list-disc pl-5 space-y-1 text-xs">
-                    {aiAnalysis.tacticalComparison.map((item, i) => <li key={i}>{item}</li>)}
+                    {aiAnalysis.tacticalComparison?.map((item, i) => <li key={i}>{item}</li>)}
                   </ul>
                 </div>
               </div>
