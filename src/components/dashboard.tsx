@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useRef, useEffect } from "react"
@@ -91,7 +92,7 @@ export function Dashboard() {
         matchName: matchData.matchName,
         homeTeam: { name: matchData.homeTeam.name },
         awayTeam: { name: matchData.awayTeam.name },
-        stats: matchData // 전체 데이터를 넘겨서 시각화 지표까지 분석 가능하게 함
+        stats: matchData 
       });
       setAiAnalysis(result);
       toast({ title: "AI 전술 분석 완료" });
@@ -288,7 +289,7 @@ export function Dashboard() {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <StatsCard title="SPP (압박 지수)" value={i === 0 ? matchData.matchStats.home.spp : matchData.matchStats.away.spp} isTime icon={<TrendingDown className="h-4 w-4" />} />
-                      <StatsCard title="빌드업 고립도" value={i === 0 ? matchData.matchStats.home.buildUpPossession : matchData.matchStats.away.buildUpPossession} isPercentage icon={<ShieldCheck className="h-4 w-4" />} />
+                      <StatsCard title="빌드업 정체 비율" value={i === 0 ? matchData.matchStats.home.buildUpStagnation : matchData.matchStats.away.buildUpStagnation} isPercentage icon={<ShieldCheck className="h-4 w-4" />} />
                       <StatsCard title="공격 점유율" value={i === 0 ? matchData.matchStats.home.attackPossession : matchData.matchStats.away.attackPossession} isPercentage icon={<Target className="h-4 w-4" />} />
                       <StatsCard title="CE 소요 시간" value={i === 0 ? matchData.matchStats.home.timePerCE : matchData.matchStats.away.timePerCE} isTime icon={<Activity className="h-4 w-4" />} />
                     </div>
@@ -331,47 +332,6 @@ export function Dashboard() {
               <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
               <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
             </div>
-
-            {/* AI 분석 리포트 - 최하단으로 이동 */}
-            {aiAnalysis && (
-              <div className="page-break space-y-6 pt-12 border-t-4 border-primary">
-                <div className="flex items-center gap-2 text-3xl font-black text-primary uppercase italic">
-                  <Sparkles className="h-8 w-8" /> AI Tactical Analysis Report
-                </div>
-                <Card className="border-2 border-primary/20 shadow-2xl bg-primary/5">
-                  <CardContent className="pt-8 space-y-8">
-                    <div>
-                      <h3 className="text-xl font-bold mb-3 text-primary flex items-center gap-2">
-                        <Info className="h-6 w-6" /> 경기 전술 요약
-                      </h3>
-                      <p className="text-lg leading-relaxed font-medium">{aiAnalysis.summary}</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="bg-white/50 p-4 rounded-lg border border-primary/10">
-                        <h4 className="font-bold text-primary mb-2 flex items-center gap-2"><Sword className="h-4 w-4" /> 공격 위협 및 궤적</h4>
-                        <p className="text-sm leading-relaxed">{aiAnalysis.visualAnalysis.attackTrend}</p>
-                        <p className="text-sm leading-relaxed mt-2 italic text-muted-foreground">{aiAnalysis.visualAnalysis.trajectory}</p>
-                      </div>
-                      <div className="bg-white/50 p-4 rounded-lg border border-primary/10">
-                        <h4 className="font-bold text-primary mb-2 flex items-center gap-2"><Shield className="h-4 w-4" /> 압박 및 수비 대응</h4>
-                        <p className="text-sm leading-relaxed">{aiAnalysis.visualAnalysis.pressureMap}</p>
-                      </div>
-                      <div className="bg-white/50 p-4 rounded-lg border border-primary/10">
-                        <h4 className="font-bold text-primary mb-2 flex items-center gap-2"><Target className="h-4 w-4" /> 주요 전술 비교</h4>
-                        <ul className="list-disc pl-5 space-y-1 text-xs">
-                          {aiAnalysis.tacticalComparison.map((item, i) => <li key={i}>{item}</li>)}
-                        </ul>
-                      </div>
-                    </div>
-
-                    <div className="border-t-2 border-primary/20 pt-6 text-center">
-                      <p className="text-2xl font-black italic text-primary">" {aiAnalysis.verdict} "</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
           </div>
         )}
       </main>

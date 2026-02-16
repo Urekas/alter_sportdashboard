@@ -171,7 +171,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
             {renderStatRows("25y 진입 (A25)", "twentyFiveEntries")}
             {renderStatRows("전체 점유율 (%)", "possession", 1)}
             {renderStatRows("공격 점유율 (%)", "attackPossession", 1)}
-            {renderStatRows("빌드업 점유 비중 (%)", "buildUpPossession", 1)}
+            {renderStatRows("빌드업 정체 비율 (%)", "buildUpStagnation", 1)}
             {renderStatRows("평균 SPP (s)", "spp", 1, true)}
             {renderStatRows("CE당 소요시간 (s)", "timePerCE", 1, true)}
           </TableBody>

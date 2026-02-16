@@ -29,8 +29,8 @@ export interface TeamMatchStats {
   twentyFiveEntries: number;
   possession: number;
   attackPossession: number;
-  buildUpPossession: number; // 새 지표: 빌드업 점유 비중
-  pcSuccessRate: number;     // 새 지표: PC 성공률
+  buildUpStagnation: number; // 빌드업 정체 비율 (상대진영 - 우리진영) / 전체
+  pcSuccessRate: number;
   allowedSpp: number;
   avgAttackDuration: number;
   timePerCE: number;

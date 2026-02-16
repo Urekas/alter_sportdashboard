@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useMemo } from "react"
@@ -66,7 +67,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       
       const sum = { 
         goals: 0, fieldGoals: 0, pcGoals: 0, shots: 0, pcs: 0, circle: 0, entry25: 0, 
-        possession: 0, attPoss: 0, buildUpPoss: 0, pcSuccess: 0, spp: 0, timeCE: 0, buildUp: 0,
+        possession: 0, attPoss: 0, buildUpStagnation: 0, pcSuccess: 0, spp: 0, timeCE: 0, buildUp: 0,
         allowed25: 0, allowedCircle: 0, allowedShots: 0, allowedPC: 0 
       };
 
@@ -84,7 +85,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         sum.entry25 += (my.twentyFiveEntries || 0);
         sum.possession += (my.possession || 0);
         sum.attPoss += (my.attackPossession || 0);
-        sum.buildUpPoss += (my.buildUpPossession || 0);
+        sum.buildUpStagnation += (my.buildUpStagnation || 0);
         sum.pcSuccess += (my.pcSuccessRate || 0);
         sum.spp += (my.spp || 0);
         sum.timeCE += (my.timePerCE || 0);
@@ -109,7 +110,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         avg25y: parseFloat((sum.entry25 / count).toFixed(1)),
         avgPoss: parseFloat((sum.possession / count).toFixed(1)),
         avgAttPoss: parseFloat((sum.attPoss / count).toFixed(1)),
-        avgBuildUpPoss: parseFloat((sum.buildUpPoss / count).toFixed(1)),
+        avgBuildUpStagnation: parseFloat((sum.buildUpStagnation / count).toFixed(1)),
         avgSPP: parseFloat((sum.spp / count).toFixed(1)),
         avgTimeCE: parseFloat((sum.timeCE / count).toFixed(1)),
         avgBuildUp: parseFloat((sum.buildUp / count).toFixed(1)),
@@ -123,7 +124,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     const teamStatsList = allTeams.map(name => getTeamAverages(name));
     const globalCount = teamStatsList.length || 1;
     
-    // 선택된 팀의 경기들에서의 상대팀들 평균 데이터 추출 로직
     const myMatches = matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam);
     const oppCount = myMatches.length || 1;
     const oppSum = { field: 0, pc: 0, shots: 0, pcs: 0, ce: 0, a25: 0, poss: 0, att: 0, bup: 0, pcSucc: 0, spp: 0, tce: 0, b25: 0 };
@@ -132,7 +132,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       const opp = m.homeTeam.name === currentTeam ? m.matchStats.away : m.matchStats.home;
       oppSum.field += (opp.goals?.field || 0); oppSum.pc += (opp.goals?.pc || 0); oppSum.shots += (opp.shots || 0); oppSum.pcs += (opp.pcs || 0);
       oppSum.ce += (opp.circleEntries || 0); oppSum.a25 += (opp.twentyFiveEntries || 0); oppSum.poss += (opp.possession || 0);
-      oppSum.att += (opp.attackPossession || 0); oppSum.bup += (opp.buildUpPossession || 0); oppSum.pcSucc += (opp.pcSuccessRate || 0);
+      oppSum.att += (opp.attackPossession || 0); oppSum.bup += (opp.buildUpStagnation || 0); oppSum.pcSucc += (opp.pcSuccessRate || 0);
       oppSum.spp += (opp.spp || 0); oppSum.tce += (opp.timePerCE || 0); oppSum.b25 += (opp.build25Ratio || 0);
     });
 
@@ -145,7 +145,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       twentyFiveEntries: parseFloat((oppSum.a25 / oppCount).toFixed(1)),
       possession: parseFloat((oppSum.poss / oppCount).toFixed(1)),
       attackPossession: parseFloat((oppSum.att / oppCount).toFixed(1)),
-      buildUpPossession: parseFloat((oppSum.bup / oppCount).toFixed(1)),
+      buildUpStagnation: parseFloat((oppSum.bup / oppCount).toFixed(1)),
       pcSuccessRate: parseFloat((oppSum.pcSucc / oppCount).toFixed(1)),
       spp: parseFloat((oppSum.spp / oppCount).toFixed(1)),
       timePerCE: parseFloat((oppSum.tce / oppCount).toFixed(1)),
@@ -178,7 +178,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             sideList.forEach(side => {
               sums.field += (side.goals?.field || 0); sums.pc += (side.goals?.pc || 0); sums.shots += (side.shots || 0); sums.pcs += (side.pcs || 0);
               sums.circle += (side.circleEntries || 0); sums.a25 += (side.twentyFiveEntries || 0); sums.poss += (side.possession || 0);
-              sums.att += (side.attackPossession || 0); sums.bup += (side.buildUpPossession || 0); sums.pcSucc += (side.pcSuccessRate || 0);
+              sums.att += (side.attackPossession || 0); sums.bup += (side.buildUpStagnation || 0); sums.pcSucc += (side.pcSuccessRate || 0);
               sums.spp += (side.spp || 0); sums.ceTime += (side.timePerCE || 0);
             });
           }
@@ -193,7 +193,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
           twentyFiveEntries: parseFloat((sums.a25 / count).toFixed(1)),
           possession: parseFloat((sums.poss / count).toFixed(1)),
           attackPossession: parseFloat((sums.att / count).toFixed(1)),
-          buildUpPossession: parseFloat((sums.bup / count).toFixed(1)),
+          buildUpStagnation: parseFloat((sums.bup / count).toFixed(1)),
           spp: parseFloat((sums.spp / count).toFixed(1)),
           timePerCE: parseFloat((sums.ceTime / count).toFixed(1))
         } as any;
@@ -211,14 +211,16 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       events: matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam).flatMap(m => m.events),
       pressureData: matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam).map((m, i) => {
         const isHome = m.homeTeam.name === currentTeam;
-        return { interval: `M${String(i + 1).padStart(2, '0')}`, [currentTeam]: isHome ? m.matchStats.home.spp : m.matchStats.away.spp, "상대팀": currentOppAvg.spp };
+        const oppName = isHome ? m.awayTeam.name : m.homeTeam.name;
+        return { interval: `M${String(i + 1).padStart(2, '0')} vs ${oppName}`, [currentTeam]: isHome ? m.matchStats.home.spp : m.matchStats.away.spp, "상대팀": currentOppAvg.spp };
       }),
       circleEntries: [],
       attackThreatData: matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam).map((m, i) => {
         const isHome = m.homeTeam.name === currentTeam;
+        const oppName = isHome ? m.awayTeam.name : m.homeTeam.name;
         const my = isHome ? m.matchStats.home : m.matchStats.away;
         const opp = isHome ? m.matchStats.away : m.matchStats.home;
-        return { interval: `M${String(i + 1).padStart(2, '0')}`, [currentTeam]: my.shots + my.pcs, "상대팀": opp.shots + opp.pcs };
+        return { interval: `M${String(i + 1).padStart(2, '0')} vs ${oppName}`, [currentTeam]: my.shots + my.pcs, "상대팀": opp.shots + opp.pcs };
       }),
       build25Ratio: { home: currentTeamStats.avgBuildUp, away: currentOppAvg.build25Ratio },
       spp: { home: currentTeamStats.avgSPP, away: currentOppAvg.spp },
@@ -232,7 +234,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
           twentyFiveEntries: currentTeamStats.avg25y,
           possession: currentTeamStats.avgPoss,
           attackPossession: currentTeamStats.avgAttPoss,
-          buildUpPossession: currentTeamStats.avgBuildUpPoss,
+          buildUpStagnation: currentTeamStats.avgBuildUpStagnation,
           spp: currentTeamStats.avgSPP,
           timePerCE: currentTeamStats.avgTimeCE,
           build25Ratio: currentTeamStats.avgBuildUp
@@ -246,7 +248,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
           twentyFiveEntries: currentOppAvg.twentyFiveEntries, 
           possession: currentOppAvg.possession, 
           attackPossession: currentOppAvg.attackPossession, 
-          buildUpPossession: currentOppAvg.buildUpPossession, 
+          buildUpStagnation: currentOppAvg.buildUpStagnation, 
           spp: currentOppAvg.spp, 
           timePerCE: currentOppAvg.timePerCE, 
           build25Ratio: currentOppAvg.build25Ratio 
@@ -357,18 +359,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         <PressureBattleChart data={analysisData.mockMatch.pressureData} homeTeam={analysisData.mockMatch.homeTeam} awayTeam={analysisData.mockMatch.awayTeam} />
         <PressureAnalysisMap events={analysisData.mockMatch.events} homeTeam={analysisData.mockMatch.homeTeam} awayTeam={analysisData.mockMatch.awayTeam} awayHeader="상대팀 평균 압박" matchCount={analysisData.teamMatches.length} />
       </div>
-
-      {aiAnalysis && (
-        <div className="page-break space-y-6 pt-12 border-t-4 border-primary">
-          <div className="flex items-center gap-2 text-3xl font-black text-primary uppercase italic"><Info className="h-8 w-8" /> AI Tactical Analysis Report</div>
-          <Card className="border-2 border-primary/20 shadow-2xl bg-primary/5">
-            <CardContent className="pt-8 space-y-8">
-              <div><h3 className="text-xl font-bold mb-3 text-primary flex items-center gap-2">전술 총평</h3><p className="text-lg leading-relaxed font-medium">{aiAnalysis.summary}</p></div>
-              <div className="border-t-2 border-primary/20 pt-6 text-center"><p className="text-2xl font-black italic text-primary">" {aiAnalysis.verdict} "</p></div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </div>
   )
 }

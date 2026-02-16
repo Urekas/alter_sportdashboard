@@ -48,7 +48,7 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
     { label: "평균 SPP (압박 지수, s)", h: formatValue(matchStats.home.spp), a: formatValue(matchStats.away.spp), isFloat: true, lowerIsBetter: true },
     { label: "평균 전체 점유율 (%)", h: formatValue(matchStats.home.possession), a: formatValue(matchStats.away.possession), isFloat: true },
     { label: "평균 공격 점유율 (%)", h: formatValue(matchStats.home.attackPossession), a: formatValue(matchStats.away.attackPossession), isFloat: true },
-    { label: "평균 빌드업 우리진영 고립도 (%)", h: formatValue(matchStats.home.buildUpPossession), a: formatValue(matchStats.away.buildUpPossession), isFloat: true },
+    { label: "빌드업 정체 비율 (%)", h: formatValue(matchStats.home.buildUpStagnation), a: formatValue(matchStats.away.buildUpStagnation), isFloat: true },
     { label: "평균 CE 1회당 시간 (s)", h: formatValue(matchStats.home.timePerCE), a: formatValue(matchStats.away.timePerCE), isFloat: true, lowerIsBetter: true },
   ]
 

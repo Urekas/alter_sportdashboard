@@ -1,3 +1,4 @@
+
 import type { MatchEvent, MatchData, TeamMatchStats } from './types';
 
 export const detectRealTeamNames = (text: string): { home: string, away: string } | null => {
@@ -184,15 +185,23 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
   const calculateTeamStats = (team: string, opponent: string, targetEvents: MatchEvent[]): TeamMatchStats => {
     const myEvents = targetEvents.filter(e => e.team === team);
     const oppEvents = targetEvents.filter(e => e.team === opponent);
-    const teamTime = myEvents.filter(e => e.code.toUpperCase().includes('TEAM')).reduce((acc, e) => acc + e.duration, 0);
+    
+    const myTeamEvents = myEvents.filter(e => e.code.toUpperCase().includes('TEAM'));
+    const teamTime = myTeamEvents.reduce((acc, e) => acc + e.duration, 0);
     const attTime = myEvents.filter(e => e.code.toUpperCase().includes('ATT')).reduce((acc, e) => acc + e.duration, 0);
+    
     const oppTeamTime = oppEvents.filter(e => e.code.toUpperCase().includes('TEAM')).reduce((acc, e) => acc + e.duration, 0);
     const oppAttTime = oppEvents.filter(e => e.code.toUpperCase().includes('ATT')).reduce((acc, e) => acc + e.duration, 0);
     const oppBuildUpTime = Math.max(0, oppTeamTime - oppAttTime);
+    
     const shotCount = myEvents.filter(e => e.code.toUpperCase().includes('슈팅') || e.code.toUpperCase().includes('SHOT')).length;
     const ceCount = myEvents.filter(e => e.code.toUpperCase().includes('진입') || e.code.toUpperCase().includes('CE')).length;
     const pcEvents = myEvents.filter(e => e.code.toUpperCase().includes('페널티코너') || e.code.toUpperCase().includes('PC'));
     const a25Count = myEvents.filter(e => e.code.toUpperCase().includes('A25')).length;
+
+    const ownHalfTime = myTeamEvents.filter(e => mapZone(e.locationLabel || e.code).zoneBand <= 50).reduce((acc, e) => acc + e.duration, 0);
+    const oppHalfTime = myTeamEvents.filter(e => mapZone(e.locationLabel || e.code).zoneBand > 50).reduce((acc, e) => acc + e.duration, 0);
+    const buildUpStagnation = teamTime > 0 ? ((oppHalfTime - ownHalfTime) / teamTime) * 100 : 0;
 
     const getZoneCount = (evts: MatchEvent[], types: string[], zones: number[]) => evts.filter(e => {
       const zone = mapZone(e.locationLabel || e.code).zoneBand;
@@ -213,7 +222,7 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
       shots: shotCount, pcs: pcEvents.length, circleEntries: ceCount, twentyFiveEntries: a25Count,
       possession: (teamTime + oppTeamTime) > 0 ? (teamTime / (teamTime + oppTeamTime)) * 100 : 0,
       attackPossession: (attTime + oppAttTime) > 0 ? (attTime / (attTime + oppAttTime)) * 100 : 0,
-      buildUpPossession: teamTime > 0 ? (Math.max(0, teamTime - attTime) / teamTime) * 100 : 0,
+      buildUpStagnation: buildUpStagnation,
       pcSuccessRate: pcEvents.length > 0 ? (pcGoals / pcEvents.length) * 100 : 0,
       spp: parseFloat(spp.toFixed(1)), allowedSpp: 0, build25Ratio: Math.min(100, build25Ratio), avgAttackDuration: 0,
       timePerCE: parseFloat(timePerCE.toFixed(1)), pressAttempts: press_attempts, pressSuccess: press_success
