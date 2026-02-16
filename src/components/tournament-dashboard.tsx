@@ -107,6 +107,42 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       };
     };
 
+    // 쿼터별 평균 계산 함수 (형님 요청 사항 해결)
+    const getQuarterlyAverages = (teamName: string | null, quarter: string) => {
+      const targetMatches = teamName 
+        ? matches.filter(m => m.homeTeam.name === teamName || m.awayTeam.name === teamName)
+        : matches;
+      
+      const statsList = targetMatches.flatMap(m => {
+        const qStat = m.quarterlyStats?.find(qs => qs.quarter === quarter);
+        if (!qStat) return [];
+        if (teamName) {
+          const isHome = m.homeTeam.name === teamName;
+          return [isHome ? qStat.home : qStat.away];
+        } else {
+          return [qStat.home, qStat.away];
+        }
+      });
+
+      const count = statsList.length || 1;
+      const sum = statsList.reduce((acc, s) => {
+        acc.fGoals += (s.goals?.field || 0); acc.pGoals += (s.goals?.pc || 0);
+        acc.shots += (s.shots || 0); acc.pcs += (s.pcs || 0); acc.circle += (s.circleEntries || 0);
+        acc.entry25 += (s.twentyFiveEntries || 0); acc.poss += (s.possession || 0); acc.att += (s.attackPossession || 0);
+        acc.bup += (s.buildUpStagnation || 0); acc.pcSucc += (s.pcSuccessRate || 0); acc.spp += (s.spp || 0);
+        acc.ceTime += (s.timePerCE || 0); acc.b25 += (s.build25Ratio || 0);
+        return acc;
+      }, { fGoals: 0, pGoals: 0, shots: 0, pcs: 0, circle: 0, entry25: 0, poss: 0, att: 0, bup: 0, pcSucc: 0, spp: 0, ceTime: 0, b25: 0 });
+
+      return {
+        goals: { field: sum.fGoals / count, pc: sum.pGoals / count },
+        shots: sum.shots / count, pcs: sum.pcs / count, pcSuccessRate: sum.pcSucc / count,
+        circleEntries: sum.circle / count, twentyFiveEntries: sum.entry25 / count, possession: sum.poss / count,
+        attackPossession: sum.att / count, buildUpStagnation: sum.bup / count,
+        spp: sum.spp / count, timePerCE: sum.ceTime / count, build25Ratio: sum.b25 / count
+      };
+    };
+
     const currentTeamStats = getTeamAverages(currentTeam);
     const teamMatches = matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam);
 
@@ -132,7 +168,12 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       build25Ratio: { home: currentTeamStats.build25Ratio, away: globalAvg.build25Ratio },
       spp: { home: currentTeamStats.spp, away: globalAvg.spp },
       matchStats: { home: currentTeamStats as any, away: globalAvg as any },
-      quarterlyStats: ['Q1', 'Q2', 'Q3', 'Q4'].map(q => ({ quarter: q, home: currentTeamStats as any, away: globalAvg as any }))
+      // 쿼터별 데이터 바인딩 (수정 완료)
+      quarterlyStats: ['Q1', 'Q2', 'Q3', 'Q4'].map(q => ({
+        quarter: q,
+        home: getQuarterlyAverages(currentTeam, q) as any,
+        away: getQuarterlyAverages(null, q) as any
+      }))
     };
 
     const teamStatsList = allTeams.map(name => getTeamAverages(name));
