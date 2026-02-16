@@ -1,123 +1,179 @@
 
 "use client"
 
-import React, { useMemo } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { mapZone } from "@/lib/parser"
+import React, { useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import type { MatchEvent, Team } from "@/lib/types";
+import { mapZone } from "@/lib/parser";
 
 interface PressureAnalysisMapProps {
-  events: any[]
-  homeTeam: { name: string; color: string }
-  awayTeam: { name: string; color: string }
-  awayHeader?: string
-  matchCount?: number
+  events: MatchEvent[];
+  homeTeam: Team;
+  awayTeam: Team;
+  isCompact?: boolean;
+  awayHeader?: string;
+  matchCount?: number;
 }
 
-interface ZoneStat {
-  attempt: number
-  success: number
-  rate: number
-}
+type ZoneStat = {
+  count: number;
+  success: number;
+  rate: number;
+};
 
-export function PressureAnalysisMap({ events, homeTeam, awayTeam, awayHeader, matchCount = 1 }: PressureAnalysisMapProps) {
-  const calculatePressureStats = (target: string, opponent: string) => {
-    const stats: Record<string, ZoneStat> = {
-      "25L": { attempt: 0, success: 0, rate: 0 },
-      "25C": { attempt: 0, success: 0, rate: 0 },
-      "25R": { attempt: 0, success: 0, rate: 0 },
-      "50L": { attempt: 0, success: 0, rate: 0 },
-      "50C": { attempt: 0, success: 0, rate: 0 },
-      "50R": { attempt: 0, success: 0, rate: 0 },
-    };
+export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awayHeader, matchCount = 1 }: PressureAnalysisMapProps) {
+  const isTournament = matchCount > 1;
 
-    const getEvents = (team: string, type: string, zone: number, lane: string) => {
-      return events.filter(e => {
-        const z = mapZone(e.locationLabel || e.code);
-        return e.team === team && e.type === type && z.zoneBand === zone && z.lane === lane;
-      }).length;
-    };
+  const zoneStats = useMemo(() => {
+    const calculateStats = (isHome: boolean) => {
+      const zones: ZoneStat[] = Array(6).fill(null).map(() => ({ count: 0, success: 0, rate: 0 }));
 
-    // 안정적인 이전 매핑 방식 복구
-    const zones = [
-      { id: "25L", zone: 100, lane: "Left", myFoulZone: 25, myFoulLane: "Left" },
-      { id: "25C", zone: 100, lane: "Center", myFoulZone: 25, myFoulLane: "Center" },
-      { id: "25R", zone: 100, lane: "Right", myFoulZone: 25, myFoulLane: "Right" },
-      { id: "50L", zone: 75, lane: "Left", myFoulZone: 50, myFoulLane: "Left" },
-      { id: "50C", zone: 75, lane: "Center", myFoulZone: 50, myFoulLane: "Center" },
-      { id: "50R", zone: 75, lane: "Right", myFoulZone: 50, myFoulLane: "Right" },
-    ];
-
-    zones.forEach(z => {
-      const oppTO = getEvents(opponent, "turnover", z.zone, z.lane);
-      const oppFoul = getEvents(opponent, "foul", z.zone, z.lane);
-      const myFoul = getEvents(target, "foul", z.myFoulZone, z.myFoulLane);
-
-      stats[z.id].attempt = oppTO + oppFoul + myFoul;
-      stats[z.id].success = oppTO + oppFoul;
-      stats[z.id].rate = stats[z.id].attempt > 0 ? Math.round((stats[z.id].success / stats[z.id].attempt) * 100) : 0;
+      // 형님 철칙: homeTeam.name(선택된 팀)을 기준으로 우리와 상대를 구분
+      // awayTeam.name이 "대회 전체 평균"이어도 e.team !== homeTeam.name으로 상대를 잡음
       
-      // 평균치 계산
-      stats[z.id].attempt = parseFloat((stats[z.id].attempt / matchCount).toFixed(1));
-      stats[z.id].success = parseFloat((stats[z.id].success / matchCount).toFixed(1));
-    });
+      const mapping = [
+        { oppZone: 100, oppLane: 'Left', myZone: 25, myLane: 'Left' },
+        { oppZone: 100, oppLane: 'Center', myZone: 25, myLane: 'Center' },
+        { oppZone: 100, oppLane: 'Right', myZone: 25, myLane: 'Right' },
+        { oppZone: 75, oppLane: 'Left', myZone: 50, myLane: 'Left' },
+        { oppZone: 75, oppLane: 'Center', myZone: 50, myLane: 'Center' },
+        { oppZone: 75, oppLane: 'Right', myZone: 50, myLane: 'Right' }
+      ];
 
-    return stats;
+      events.forEach(e => {
+        const zoneInfo = mapZone(e.locationLabel || e.code);
+        
+        const isMyTeam = e.team === homeTeam.name;
+        const isOppTeam = e.team !== homeTeam.name; // 핵심: 우리 아니면 다 적이다
+
+        const isOppError = isOppTeam && (e.type === 'turnover' || e.type === 'foul');
+        const isMyFoul = isMyTeam && e.type === 'foul';
+        
+        const isMyError = isMyTeam && (e.type === 'turnover' || e.type === 'foul');
+        const isOppFoul = isOppTeam && e.type === 'foul';
+
+        mapping.forEach((m, idx) => {
+          if (isHome) {
+            // [홈팀의 상대 진영 압박]
+            if (zoneInfo.zoneBand === m.oppZone && zoneInfo.lane === m.oppLane) {
+              if (isOppError || isMyFoul) {
+                zones[idx].count++; // 전체 시도 (상대 실수 + 우리의 파울)
+              }
+              if (isOppError) {
+                zones[idx].success++; // 우리의 압박 성공 (상대 실수)
+              }
+            }
+          } else {
+            // [상대팀의 우리 진영 압박]
+            if (zoneInfo.zoneBand === m.myZone && zoneInfo.lane === m.myLane) {
+              if (isMyError || isOppFoul) {
+                zones[idx].count++; // 상대의 전체 시도 (우리 실수 + 상대의 파울)
+              }
+              if (isMyError) {
+                zones[idx].success++; // 상대의 압박 성공 (우리 실수)
+              }
+            }
+          }
+        });
+      });
+
+      return {
+        zones: zones.map(z => ({
+          ...z,
+          rate: z.count > 0 ? (z.success / z.count) * 100 : 0
+        })),
+        totalCount: zones.reduce((acc, z) => acc + z.count, 0),
+        totalSuccess: zones.reduce((acc, z) => acc + z.success, 0)
+      };
+    };
+
+    const homeData = calculateStats(true);
+    const awayData = calculateStats(false);
+    const globalMaxCount = Math.max(...homeData.zones.map(s => s.count), ...awayData.zones.map(s => s.count), 1);
+
+    return { home: homeData, away: awayData, globalMaxCount };
+  }, [events, homeTeam.name]);
+
+  const renderHalfPitch = (teamData: { zones: ZoneStat[], totalCount: number, totalSuccess: number }, team: Team, isHome: boolean, globalMaxCount: number) => {
+    const labels = ["25L", "25C", "25R", "50L", "50C", "50R"];
+    
+    const formatNum = (val: number) => {
+      return isTournament ? (val / matchCount).toFixed(1) : Math.round(val).toString();
+    };
+    
+    const avgCountFormatted = formatNum(teamData.totalCount);
+    const avgSuccessFormatted = formatNum(teamData.totalSuccess);
+    const totalRate = teamData.totalCount > 0 ? (teamData.totalSuccess / teamData.totalCount * 100).toFixed(1) : "0.0";
+    
+    const headerTitle = isHome ? `${team.name} 압박` : (awayHeader || `${team.name} 압박`);
+
+    return (
+      <div className="flex flex-col gap-1">
+        <div className="flex flex-col items-center justify-center p-2 rounded-t-lg border-b-2" style={{ backgroundColor: `${team.color}15`, borderColor: team.color }}>
+          <h3 className="text-sm font-black uppercase tracking-tighter" style={{ color: team.color }}>{headerTitle}</h3>
+          <p className="text-[10px] font-bold mt-1 uppercase tracking-tight">
+            {isTournament ? '평균' : '합계'} 시도: <span className="text-primary">{avgCountFormatted}</span> | 성공: <span className="text-emerald-600">{avgSuccessFormatted}</span> ({totalRate}%)
+          </p>
+        </div>
+        <div className="relative aspect-[45.7/55] bg-green-50/50 rounded-b-lg overflow-hidden border border-muted shadow-inner">
+          <svg viewBox="0 0 45.7 55" className="w-full h-full overflow-visible">
+            <g stroke="#000" strokeWidth="0.3" fill="none" opacity="0.4">
+              <rect x="0" y="0" width="45.7" height="55" />
+              {isHome ? (
+                <>
+                  <path d="M 45.7,12.87 A 14.63,14.63 0 0,0 31.07,27.5 A 14.63,14.63 0 0,0 45.7,42.13" />
+                  <rect x="45.7" y="25.67" width="1.2" height="3.66" />
+                </>
+              ) : (
+                <>
+                  <path d="M 0,12.87 A 14.63,14.63 0 0,1 14.63,27.5 A 14.63,14.63 0 0,1 0,42.13" />
+                  <rect x="-1.2" y="25.67" width="1.2" height="3.66" />
+                </>
+              )}
+              <line x1="0" y1="18.33" x2="45.7" y2="18.33" strokeDasharray="1,1" />
+              <line x1="0" y1="36.66" x2="45.7" y2="36.66" strokeDasharray="1,1" />
+              <line x1="22.85" y1="0" x2="22.85" y2="55" strokeDasharray="1,1" />
+            </g>
+
+            {teamData.zones.map((stat, i) => {
+              const xIdx = Math.floor(i / 3);
+              const yIdx = i % 3;
+              const rectX = isHome ? (xIdx === 0 ? 22.85 : 0) : (xIdx === 0 ? 0 : 22.85);
+              const rectY = yIdx * 18.33;
+              const intensity = stat.count > 0 ? (stat.count / globalMaxCount) * 0.45 + 0.1 : 0;
+
+              return (
+                <g key={i}>
+                  <rect x={rectX} y={rectY} width="22.85" height="18.33" fill={team.color} fillOpacity={intensity} />
+                  <text x={rectX + 11.42} y={rectY + 9.16} textAnchor="middle" dominantBaseline="middle" className="fill-foreground font-bold">
+                    <tspan x={rectX + 11.42} dy="-4" fontSize="2.5px" fontWeight="black" fillOpacity="0.6">{labels[i]}</tspan>
+                    <tspan x={rectX + 11.42} dy="4.5" fontWeight="black" fontSize="4px">{formatNum(stat.count)}</tspan>
+                    <tspan x={rectX + 11.42} dy="4" fontWeight="black" fontSize="3.2px" fill="#059669">S: {formatNum(stat.success)}</tspan>
+                    <tspan x={rectX + 11.42} dy="3" fontSize="2.2px" fontWeight="normal" opacity="0.8">({stat.rate.toFixed(0)}%)</tspan>
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+      </div>
+    );
   };
 
-  const homeStats = useMemo(() => calculatePressureStats(homeTeam.name, awayTeam.name), [events, homeTeam, awayTeam, matchCount]);
-  const awayStats = useMemo(() => calculatePressureStats(awayTeam.name, homeTeam.name), [events, homeTeam, awayTeam, matchCount]);
-
-  const renderPitch = (teamStats: Record<string, ZoneStat>, teamName: string, color: string) => (
-    <div className="flex flex-col items-center">
-      <h3 className="text-sm font-bold mb-2 uppercase tracking-tight" style={{ color }}>{teamName} 압박 효율</h3>
-      <div className="relative w-full max-w-sm aspect-[50/35] bg-emerald-800/10 border-2 border-emerald-900/20 rounded-lg overflow-hidden flex">
-        {/* 25y Zone */}
-        <div className="w-1/2 h-full border-r border-dashed border-emerald-900/30 grid grid-rows-3">
-          {["25L", "25C", "25R"].map(zone => (
-            <div key={zone} className="border-b last:border-b-0 border-emerald-900/10 flex flex-col items-center justify-center p-1 text-[10px]">
-              <span className="font-bold opacity-40">{zone}</span>
-              <div className="flex flex-col items-center leading-tight">
-                <span className="font-black text-primary">{teamStats[zone].attempt} <span className="text-[8px] font-normal opacity-60">시도</span></span>
-                <span className="font-black text-emerald-600">{teamStats[zone].success} <span className="text-[8px] font-normal opacity-60">성공</span></span>
-                <span className="mt-1 px-2 py-0.5 bg-primary/10 rounded-full font-bold text-primary">{teamStats[zone].rate}%</span>
-              </div>
-            </div>
-          ))}
-        </div>
-        {/* 50y Zone */}
-        <div className="w-1/2 h-full grid grid-rows-3">
-          {["50L", "50C", "50R"].map(zone => (
-            <div key={zone} className="border-b last:border-b-0 border-emerald-900/10 flex flex-col items-center justify-center p-1 text-[10px]">
-              <span className="font-bold opacity-40">{zone}</span>
-              <div className="flex flex-col items-center leading-tight">
-                <span className="font-black text-primary">{teamStats[zone].attempt} <span className="text-[8px] font-normal opacity-60">시도</span></span>
-                <span className="font-black text-emerald-600">{teamStats[zone].success} <span className="text-[8px] font-normal opacity-60">성공</span></span>
-                <span className="mt-1 px-2 py-0.5 bg-primary/10 rounded-full font-bold text-primary">{teamStats[zone].rate}%</span>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-5 font-black text-4xl italic">PRESS</div>
-      </div>
-      <div className="mt-2 text-[10px] font-bold text-muted-foreground uppercase flex gap-4">
-        <span>TOP: L (Left)</span>
-        <span>BOTTOM: R (Right)</span>
-      </div>
-    </div>
-  );
-
   return (
-    <Card className="border-2">
-      <CardHeader className="pb-2">
-        <CardTitle>Pressure Analysis Map (압박 분석 지도)</CardTitle>
-        <CardDescription className="text-xs">
-          시도: (상대 실책 @75,100) + (본인 파울 @25,50) | 성공: 시도 - 본인 파울
+    <Card className="lg:col-span-3">
+      <CardHeader className={isCompact ? "py-2 px-4" : ""}>
+        <CardTitle className={isCompact ? "text-lg" : ""}>Pressure Analysis</CardTitle>
+        <CardDescription className={isCompact ? "text-[10px]" : ""}>
+          압박 시도 대비 성공(상대 실책 유도) 비율. {isTournament ? `대회 ${matchCount}경기 평균.` : '경기 실제 수치.'}
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8 p-6">
-        {renderPitch(homeStats, homeTeam.name, homeTeam.color)}
-        {renderPitch(awayStats, awayHeader || awayTeam.name, awayTeam.color)}
+      <CardContent className={isCompact ? "p-2" : "p-4"}>
+        <div className="grid grid-cols-2 gap-4">
+          {renderHalfPitch(zoneStats.home, homeTeam, true, zoneStats.globalMaxCount)}
+          {renderHalfPitch(zoneStats.away, awayTeam, false, zoneStats.globalMaxCount)}
+        </div>
       </CardContent>
     </Card>
-  )
+  );
 }

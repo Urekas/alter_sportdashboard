@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { Trophy, Activity, Grid3X3, Loader2, FileDown, Sword, Shield, TrendingUp } from "lucide-react"
+import { Trophy, Activity, Grid3X3, FileDown, Sword, Shield, TrendingUp } from "lucide-react"
 import type { MatchData, TeamMatchStats } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -58,7 +58,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     const teamColorMap = new Map<string, string>();
     allTeams.forEach((name, idx) => teamColorMap.set(name, getTeamColor(name, idx)));
 
-    // [형님 철칙] 대회 전체 평균 계산 (대조군)
+    // 대회 전체 평균 계산 (대조군)
     const globalCount = (matches.length * 2) || 1;
     const gSums = matches.reduce((acc, m) => {
       [m.matchStats.home, m.matchStats.away].forEach(s => {
@@ -71,15 +71,12 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     }, { goals: 0, shots: 0, pcs: 0, circle: 0, a25: 0, poss: 0, att: 0, bup: 0, pcSucc: 0, spp: 0, ceTime: 0, b25: 0 });
 
     const globalAvg = {
-      goals: { field: (gSums.goals / globalCount) * 0.7, pc: (gSums.goals / globalCount) * 0.3 },
+      goals: { field: gSums.goals / globalCount * 0.7, pc: gSums.goals / globalCount * 0.3 },
       shots: gSums.shots / globalCount, pcs: gSums.pcs / globalCount,
       pcSuccessRate: gSums.pcSucc / globalCount, circleEntries: gSums.circle / globalCount, twentyFiveEntries: gSums.a25 / globalCount,
       possession: gSums.poss / globalCount, attackPossession: gSums.att / globalCount, buildUpStagnation: gSums.bup / globalCount,
       spp: gSums.spp / globalCount, timePerCE: gSums.ceTime / globalCount, build25Ratio: gSums.b25 / globalCount,
-      allowedSpp: gSums.spp / globalCount, 
-      threat: (gSums.shots + gSums.pcs) / globalCount,
-      allowedThreat: (gSums.shots + gSums.pcs) / globalCount,
-      avgAttackDuration: 0, pressAttempts: 0, pressSuccess: 0
+      threat: (gSums.shots + gSums.pcs) / globalCount, allowedThreat: (gSums.shots + gSums.pcs) / globalCount
     };
 
     const getTeamAverages = (teamName: string) => {
@@ -106,8 +103,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         attackPossession: sum.attPoss / count, buildUpStagnation: sum.buildUpStagnation / count,
         spp: sum.spp / count, timePerCE: sum.timeCE / count, build25Ratio: sum.buildUp / count,
         allowed25: sum.allowed25 / count, allowedCircle: sum.allowedCircle / count,
-        allowedThreat: (sum.allowedShots + sum.allowedPC) / count, threat: (sum.shots + sum.pcs) / count,
-        allowedSpp: 0, avgAttackDuration: 0, pressAttempts: 0, pressSuccess: 0
+        allowedThreat: (sum.allowedShots + sum.allowedPC) / count, threat: (sum.shots + sum.pcs) / count
       };
     };
 
@@ -123,7 +119,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         const oppName = isHome ? m.awayTeam.name : m.homeTeam.name;
         const mySpp = isHome ? m.matchStats.home.spp : m.matchStats.away.spp;
         const oppSpp = isHome ? m.matchStats.away.spp : m.matchStats.home.spp;
-        return { interval: `M${String(i + 1).padStart(2, '0')} vs ${oppName}`, [currentTeam]: mySpp, "대회 전체 평균": oppSpp };
+        return { interval: `M${i+1} vs ${oppName}`, [currentTeam]: mySpp, "대회 전체 평균": oppSpp };
       }),
       circleEntries: [],
       attackThreatData: teamMatches.map((m, i) => {
@@ -131,14 +127,11 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         const oppName = isHome ? m.awayTeam.name : m.homeTeam.name;
         const my = isHome ? m.matchStats.home : m.matchStats.away;
         const opp = isHome ? m.matchStats.away : m.matchStats.home;
-        return { interval: `M${String(i + 1).padStart(2, '0')} vs ${oppName}`, [currentTeam]: my.shots + my.pcs, "대회 전체 평균": opp.shots + opp.pcs };
+        return { interval: `M${i+1} vs ${oppName}`, [currentTeam]: my.shots + my.pcs, "대회 전체 평균": opp.shots + opp.pcs };
       }),
       build25Ratio: { home: currentTeamStats.build25Ratio, away: globalAvg.build25Ratio },
       spp: { home: currentTeamStats.spp, away: globalAvg.spp },
-      matchStats: {
-        home: currentTeamStats as any,
-        away: globalAvg as any
-      },
+      matchStats: { home: currentTeamStats as any, away: globalAvg as any },
       quarterlyStats: ['Q1', 'Q2', 'Q3', 'Q4'].map(q => ({ quarter: q, home: currentTeamStats as any, away: globalAvg as any }))
     };
 
@@ -171,7 +164,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               <Input type="color" value={selectedTeamColor} onChange={(e) => setSelectedTeamColor(e.target.value)} className="w-8 h-8 p-0 border-none bg-transparent" />
             </div>
             <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-lg border">
-              <Label className="text-[10px] font-bold uppercase">대회 전체 평균</Label>
+              <Label className="text-[10px] font-bold uppercase">대회 평균</Label>
               <Input type="color" value={opponentColor} onChange={(e) => setOpponentColor(e.target.value)} className="w-8 h-8 p-0 border-none bg-transparent" />
             </div>
           </div>
@@ -207,10 +200,10 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       <div className="page-break space-y-8">
         <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2"><Shield className="h-6 w-6" /> 수비 및 압박</div>
         <PressureBattleChart data={analysisData.mockMatch.pressureData} homeTeam={analysisData.mockMatch.homeTeam} awayTeam={analysisData.mockMatch.awayTeam} />
-        <PressureAnalysisMap events={analysisData.mockMatch.events} homeTeam={analysisData.mockMatch.homeTeam} awayTeam={analysisData.mockMatch.awayTeam} awayHeader="상대팀 평균 압박" matchCount={analysisData.teamMatches.length} />
+        <PressureAnalysisMap events={analysisData.mockMatch.events} homeTeam={analysisData.mockMatch.homeTeam} awayTeam={analysisData.mockMatch.awayTeam} awayHeader="대회 상대팀 평균 압박" matchCount={analysisData.teamMatches.length} />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <TacticalQuadrantChart title="수비 복원력" description="상대 25y 진입 대비 서클 진입 허용 비율" data={analysisData.quadrantData.defensiveResilience} xAxisLabel="상대 A25 허용 (평균)" yAxisLabel="상대 CE 허용 (평균)" avgX={analysisData.globalAvg.twentyFiveEntries} avgY={analysisData.globalAvg.circleEntries} selectedTeamName={analysisData.currentTeam} selectedColor={selectedTeamColor} labels={{ tr: "Vulnerable", tl: "Weak Core", br: "Solid Core", bl: "Elite Defense" }} />
-          <TacticalQuadrantChart title="서클 수비 효율" description="상대 서클 진입 대비 위협 허용 비율" data={analysisData.quadrantData.circleDefense} xAxisLabel="상대 CE 허용 (평균)" yAxisLabel="상대 위협 허용 (평균)" avgX={analysisData.globalAvg.circleEntries} avgY={analysisData.globalAvg.allowedThreat} selectedTeamName={analysisData.currentTeam} selectedColor={selectedTeamColor} labels={{ tr: "Open Circle", tl: "Weak Perimeter", br: "Solid Defense", bl: "Elite Defense" }} />
+          <TacticalQuadrantChart title="수비 복원력" description="상대 25y 진입 대비 서클 진입 허용" data={analysisData.quadrantData.defensiveResilience} xAxisLabel="상대 A25 허용" yAxisLabel="상대 CE 허용" avgX={analysisData.globalAvg.twentyFiveEntries} avgY={analysisData.globalAvg.circleEntries} selectedTeamName={analysisData.currentTeam} selectedColor={selectedTeamColor} labels={{ tr: "Vulnerable", tl: "Weak Core", br: "Solid Core", bl: "Elite Defense" }} />
+          <TacticalQuadrantChart title="서클 수비 효율" description="상대 서클 진입 대비 위협 허용" data={analysisData.quadrantData.circleDefense} xAxisLabel="상대 CE 허용" yAxisLabel="상대 위협 허용" avgX={analysisData.globalAvg.circleEntries} avgY={analysisData.globalAvg.allowedThreat} selectedTeamName={analysisData.currentTeam} selectedColor={selectedTeamColor} labels={{ tr: "Open Circle", tl: "Weak Perimeter", br: "Solid Defense", bl: "Elite Defense" }} />
         </div>
       </div>
     </div>
