@@ -37,37 +37,28 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, awayHeader, ma
       }).length;
     };
 
-    // 홈팀 기준 공식 적용 (형님의 철칙)
-    // 25L: 상대 TO 우_100 + 상대 파울 우_100 + 본인 파울 좌_25
-    stats["25L"].attempt = getEvents(opponent, "turnover", 100, "Right") + getEvents(opponent, "foul", 100, "Right") + getEvents(target, "foul", 25, "Left");
-    stats["25L"].success = stats["25L"].attempt - getEvents(target, "foul", 25, "Left");
+    // 안정적인 이전 매핑 방식 복구
+    const zones = [
+      { id: "25L", zone: 100, lane: "Left", myFoulZone: 25, myFoulLane: "Left" },
+      { id: "25C", zone: 100, lane: "Center", myFoulZone: 25, myFoulLane: "Center" },
+      { id: "25R", zone: 100, lane: "Right", myFoulZone: 25, myFoulLane: "Right" },
+      { id: "50L", zone: 75, lane: "Left", myFoulZone: 50, myFoulLane: "Left" },
+      { id: "50C", zone: 75, lane: "Center", myFoulZone: 50, myFoulLane: "Center" },
+      { id: "50R", zone: 75, lane: "Right", myFoulZone: 50, myFoulLane: "Right" },
+    ];
 
-    // 25C: 상대 TO 중_100 + 상대 파울 중_100 + 본인 파울 중_25
-    stats["25C"].attempt = getEvents(opponent, "turnover", 100, "Center") + getEvents(opponent, "foul", 100, "Center") + getEvents(target, "foul", 25, "Center");
-    stats["25C"].success = stats["25C"].attempt - getEvents(target, "foul", 25, "Center");
+    zones.forEach(z => {
+      const oppTO = getEvents(opponent, "turnover", z.zone, z.lane);
+      const oppFoul = getEvents(opponent, "foul", z.zone, z.lane);
+      const myFoul = getEvents(target, "foul", z.myFoulZone, z.myFoulLane);
 
-    // 25R: 상대 TO 좌_100 + 상대 파울 좌_100 + 본인 파울 우_25
-    stats["25R"].attempt = getEvents(opponent, "turnover", 100, "Left") + getEvents(opponent, "foul", 100, "Left") + getEvents(target, "foul", 25, "Right");
-    stats["25R"].success = stats["25R"].attempt - getEvents(target, "foul", 25, "Right");
-
-    // 50L: 상대 TO 우_75 + 상대 파울 우_75 + 본인 파울 좌_50
-    stats["50L"].attempt = getEvents(opponent, "turnover", 75, "Right") + getEvents(opponent, "foul", 75, "Right") + getEvents(target, "foul", 50, "Left");
-    stats["50L"].success = stats["50L"].attempt - getEvents(target, "foul", 50, "Left");
-
-    // 50C: 상대 TO 중_75 + 상대 파울 중_75 + 본인 파울 중_50
-    stats["50C"].attempt = getEvents(opponent, "turnover", 75, "Center") + getEvents(opponent, "foul", 75, "Center") + getEvents(target, "foul", 50, "Center");
-    stats["50C"].success = stats["50C"].attempt - getEvents(target, "foul", 50, "Center");
-
-    // 50R: 상대 TO 좌_75 + 상대 파울 좌_75 + 본인 파울 우_50
-    stats["50R"].attempt = getEvents(opponent, "turnover", 75, "Left") + getEvents(opponent, "foul", 75, "Left") + getEvents(target, "foul", 50, "Right");
-    stats["50R"].success = stats["50R"].attempt - getEvents(target, "foul", 50, "Right");
-
-    Object.keys(stats).forEach(k => {
-      const s = stats[k];
-      s.rate = s.attempt > 0 ? Math.round((s.success / s.attempt) * 100) : 0;
+      stats[z.id].attempt = oppTO + oppFoul + myFoul;
+      stats[z.id].success = oppTO + oppFoul;
+      stats[z.id].rate = stats[z.id].attempt > 0 ? Math.round((stats[z.id].success / stats[z.id].attempt) * 100) : 0;
+      
       // 평균치 계산
-      s.attempt = parseFloat((s.attempt / matchCount).toFixed(1));
-      s.success = parseFloat((s.success / matchCount).toFixed(1));
+      stats[z.id].attempt = parseFloat((stats[z.id].attempt / matchCount).toFixed(1));
+      stats[z.id].success = parseFloat((stats[z.id].success / matchCount).toFixed(1));
     });
 
     return stats;
@@ -80,9 +71,9 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, awayHeader, ma
     <div className="flex flex-col items-center">
       <h3 className="text-sm font-bold mb-2 uppercase tracking-tight" style={{ color }}>{teamName} 압박 효율</h3>
       <div className="relative w-full max-w-sm aspect-[50/35] bg-emerald-800/10 border-2 border-emerald-900/20 rounded-lg overflow-hidden flex">
-        {/* 25y Zone (Right Side of Map visually) */}
+        {/* 25y Zone */}
         <div className="w-1/2 h-full border-r border-dashed border-emerald-900/30 grid grid-rows-3">
-          {["25R", "25C", "25L"].map(zone => (
+          {["25L", "25C", "25R"].map(zone => (
             <div key={zone} className="border-b last:border-b-0 border-emerald-900/10 flex flex-col items-center justify-center p-1 text-[10px]">
               <span className="font-bold opacity-40">{zone}</span>
               <div className="flex flex-col items-center leading-tight">
@@ -93,9 +84,9 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, awayHeader, ma
             </div>
           ))}
         </div>
-        {/* 50y Zone (Left Side of Map visually) */}
+        {/* 50y Zone */}
         <div className="w-1/2 h-full grid grid-rows-3">
-          {["50R", "50C", "50L"].map(zone => (
+          {["50L", "50C", "50R"].map(zone => (
             <div key={zone} className="border-b last:border-b-0 border-emerald-900/10 flex flex-col items-center justify-center p-1 text-[10px]">
               <span className="font-bold opacity-40">{zone}</span>
               <div className="flex flex-col items-center leading-tight">
@@ -109,8 +100,8 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, awayHeader, ma
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-5 font-black text-4xl italic">PRESS</div>
       </div>
       <div className="mt-2 text-[10px] font-bold text-muted-foreground uppercase flex gap-4">
-        <span>TOP: R (Right)</span>
-        <span>BOTTOM: L (Left)</span>
+        <span>TOP: L (Left)</span>
+        <span>BOTTOM: R (Right)</span>
       </div>
     </div>
   );
@@ -120,7 +111,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, awayHeader, ma
       <CardHeader className="pb-2">
         <CardTitle>Pressure Analysis Map (압박 분석 지도)</CardTitle>
         <CardDescription className="text-xs">
-          시도: (상대 턴오버/파울 @75,100) + (본인 파울 @25,50) | 성공: 시도 - 본인 파울
+          시도: (상대 실책 @75,100) + (본인 파울 @25,50) | 성공: 시도 - 본인 파울
         </CardDescription>
       </CardHeader>
       <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8 p-6">
