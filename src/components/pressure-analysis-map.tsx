@@ -77,8 +77,12 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
 
   const renderHalfPitch = (teamData: { zones: ZoneStat[], totalCount: number, totalSuccess: number }, team: Team, isHome: boolean, globalMaxCount: number) => {
     const labels = ["25L", "25C", "25R", "50L", "50C", "50R"];
-    const avgCount = (teamData.totalCount / matchCount).toFixed(1);
-    const avgSuccess = (teamData.totalSuccess / matchCount).toFixed(1);
+    const formatNum = (val: number) => {
+      return matchCount > 1 ? (val / matchCount).toFixed(1) : Math.round(val / matchCount).toString();
+    };
+    
+    const avgCountFormatted = formatNum(teamData.totalCount);
+    const avgSuccessFormatted = formatNum(teamData.totalSuccess);
     const totalRate = teamData.totalCount > 0 ? (teamData.totalSuccess / teamData.totalCount * 100).toFixed(1) : "0.0";
     
     const headerTitle = isHome ? `${team.name} 상대 진영 압박` : (awayHeader || `${team.name} 상대 진영 압박`);
@@ -90,7 +94,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
             {headerTitle}
           </h3>
           <p className="text-[10px] font-bold mt-1 uppercase tracking-tight">
-            경기당 평균 {isHome ? '압박' : '피압박'}: <span className="text-primary">{avgCount}</span>회 | 성공: <span className="text-emerald-600">{avgSuccess}</span>회 ({totalRate}%)
+            {matchCount > 1 ? '경기당 평균' : '합계'} {isHome ? '압박' : '피압박'}: <span className="text-primary">{avgCountFormatted}</span>회 | 성공: <span className="text-emerald-600">{avgSuccessFormatted}</span>회 ({totalRate}%)
           </p>
         </div>
         <div className="relative aspect-[45.7/55] bg-green-50/50 rounded-b-lg overflow-hidden border border-muted shadow-inner">
@@ -104,9 +108,8 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
                   <path d={`M 45.7,${27.5 - 14.63} A 14.63,14.63 0 0,0 31.07,27.5 A 14.63,14.63 0 0,0 45.7,${27.5 + 14.63}`} />
                   <path d={`M 45.7,${27.5 - 19.63} A 19.63,19.63 0 0,0 26.07,27.5 A 19.63,19.63 0 0,0 45.7,${27.5 + 19.63}`} strokeDasharray="1,1" />
                   <circle cx={45.7 - 6.47} cy={27.5} r="0.5" fill="black" stroke="none" />
-                  <line x1="45.7" y1={27.5 - 1.83} x2="46.9" y2={27.5 - 1.83} />
-                  <line x1="45.7" y1={27.5 + 1.83} x2="46.9" y2={27.5 + 1.83} />
-                  <line x1="46.9" y1={27.5 - 1.83} x2="46.9" y2={27.5 + 1.83} />
+                  {/* Goal Frame at Right */}
+                  <rect x="45.7" y={27.5 - 1.83} width="1.2" height="3.66" />
                 </>
               ) : (
                 // 어웨이 팀 시점: 골대가 왼쪽 (x=0)
@@ -114,9 +117,8 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
                   <path d={`M 0,${27.5 - 14.63} A 14.63,14.63 0 0,1 14.63,27.5 A 14.63,14.63 0 0,1 0,${27.5 + 14.63}`} />
                   <path d={`M 0,${27.5 - 19.63} A 19.63,19.63 0 0,1 19.63,27.5 A 19.63,19.63 0 0,1 0,${27.5 + 19.63}`} strokeDasharray="1,1" />
                   <circle cx={6.47} cy={27.5} r="0.5" fill="black" stroke="none" />
-                  <line x1="0" y1={27.5 - 1.83} x2="-1.2" y2={27.5 - 1.83} />
-                  <line x1="0" y1={27.5 + 1.83} x2="-1.2" y2={27.5 + 1.83} />
-                  <line x1="-1.2" y1={27.5 - 1.83} x2="-1.2" y2={27.5 + 1.83} />
+                  {/* Goal Frame at Left */}
+                  <rect x="-1.2" y={27.5 - 1.83} width="1.2" height="3.66" />
                 </>
               )}
               {/* 공통 구분선 */}
@@ -128,10 +130,9 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
             {/* 구역 히트맵 및 데이터 */}
             {teamData.zones.map((stat, i) => {
               const xIdx = Math.floor(i / 3); // 0: 25y band, 1: 50y band
-              let yIdx = i % 3; // 0: L, 1: C, 2: R
+              const yIdx = i % 3; // 0: L, 1: C, 2: R
 
               // 가로 위치 결정 (반전 반영)
-              // isHome이면 25y(xIdx=0)는 오른쪽(22.85~45.7), 50y(xIdx=1)는 왼쪽(0~22.85)
               let rectX = 0;
               if (isHome) {
                 rectX = xIdx === 0 ? 22.85 : 0;
@@ -139,13 +140,8 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
                 rectX = xIdx === 0 ? 0 : 22.85;
               }
 
-              // 세로 위치 결정 (어웨이팀 시점 lane 반전)
-              let actualYIdx = yIdx;
-              if (!isHome) {
-                if (yIdx === 0) actualYIdx = 2; // Left -> 하단
-                else if (yIdx === 2) actualYIdx = 0; // Right -> 상단
-              }
-              const rectY = actualYIdx * 18.33;
+              // 세로 위치 결정
+              const rectY = yIdx * 18.33;
 
               const intensity = stat.count > 0 ? (stat.count / globalMaxCount) * 0.45 + 0.1 : 0;
 
@@ -165,12 +161,11 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
                     textAnchor="middle" 
                     dominantBaseline="middle" 
                     className="fill-foreground font-bold"
-                    style={{ fontSize: '3px' }}
                   >
-                    <tspan x={rectX + 11.42} dy="-4" fontSize="2px" fontWeight="black" fillOpacity="0.6">{labels[i]}</tspan>
-                    <tspan x={rectX + 11.42} dy="4" fontWeight="black" fontSize="4px">{(stat.count / matchCount).toFixed(1)}</tspan>
-                    <tspan x={rectX + 11.42} dy="4" fontWeight="black" fontSize="3px" fill="#059669">{(stat.success / matchCount).toFixed(1)}</tspan>
-                    <tspan x={rectX + 11.42} dy="3" fontSize="2.2px" fontWeight="normal" opacity="0.8">({stat.rate.toFixed(0)}%)</tspan>
+                    <tspan x={rectX + 11.42} dy="-4" fontSize="2.5px" fontWeight="black" fillOpacity="0.6">{labels[i]}</tspan>
+                    <tspan x={rectX + 11.42} dy="4.5" fontWeight="black" fontSize="4.5px">{formatNum(stat.count)}</tspan>
+                    <tspan x={rectX + 11.42} dy="4" fontWeight="black" fontSize="3.5px" fill="#059669">{formatNum(stat.success)}</tspan>
+                    <tspan x={rectX + 11.42} dy="3" fontSize="2.5px" fontWeight="normal" opacity="0.8">({stat.rate.toFixed(0)}%)</tspan>
                   </text>
                 </g>
               );
@@ -186,7 +181,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
       <CardHeader className={isCompact ? "py-2 px-4" : ""}>
         <CardTitle className={isCompact ? "text-lg" : ""}>Tournament Pressure Analysis Map</CardTitle>
         <CardDescription className={isCompact ? "text-[10px]" : ""}>
-          {matchCount > 1 ? `대회 ${matchCount}경기 평균 수치.` : '경기별 분석 수치.'} {awayHeader ? '공격적 압박 시도와 수비적 탈압박 성공률 분석.' : '구역별 압박 시도, 성공 횟수 및 성공률.'}
+          {matchCount > 1 ? `대회 ${matchCount}경기 평균 수치.` : '경기 데이터 실제 수치.'} {awayHeader ? '공격적 압박 시도와 수비적 탈압박 성공률 분석.' : '구역별 압박 시도, 성공 횟수 및 성공률.'}
         </CardDescription>
       </CardHeader>
       <CardContent className={isCompact ? "p-2 md:p-4" : "p-4 md:p-6"}>
