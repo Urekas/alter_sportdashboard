@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview 하키 경기 데이터를 분석하여 전술적 요약을 생성하는 AI 에이전트입니다.
@@ -60,8 +61,15 @@ const analyzeMatchFlow = ai.defineFlow(
     outputSchema: MatchAnalysisOutputSchema,
   },
   async (input) => {
-    const { output } = await analysisPrompt(input);
-    if (!output) throw new Error('AI 분석 결과를 생성하지 못했습니다.');
-    return output;
+    try {
+      const { output } = await analysisPrompt(input);
+      if (!output) throw new Error('AI 분석 결과를 생성하지 못했습니다.');
+      return output;
+    } catch (error: any) {
+      if (error.message?.includes('API_KEY')) {
+        throw new Error('Gemini API 키가 설정되지 않았거나 유효하지 않습니다. .env 파일을 확인해주세요.');
+      }
+      throw error;
+    }
   }
 );
