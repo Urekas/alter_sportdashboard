@@ -35,14 +35,23 @@ const CustomTooltip = ({ active, payload, homeTeam, awayTeam }: TooltipProps<Val
     const homePayload = payload.find(p => p.dataKey === homeTeam.name);
     const awayPayload = payload.find(p => p.dataKey === awayTeam.name);
 
+    const formatValue = (val: any) => {
+      const num = Number(val);
+      // 데이터가 실제 maxY와 같은지 확인 (0인 경우 시각적 보정을 위해 maxY를 할당함)
+      if (num === 0 || dataPoint[`${homeTeam.name}_isZero`] || dataPoint[`${awayTeam.name}_isZero`]) {
+         return "압박 없음";
+      }
+      return `${num.toFixed(1)}s`;
+    };
+
     return (
       <div className="bg-card p-3 border rounded-lg shadow-lg text-sm">
         <p className="font-bold text-base mb-2">{`${dataPoint.interval}`}</p>
         {homePayload && <p style={{ color: homePayload.color }}>
-          {`${homePayload.name} SPP: ${Number(homePayload.value).toFixed(1)}s`}
+          {`${homePayload.name} SPP: ${dataPoint[`${homeTeam.name}_raw`] === 0 ? '압박 없음' : formatValue(homePayload.value)}`}
         </p>}
         {awayPayload && <p style={{ color: awayPayload.color }}>
-          {`${awayPayload.name} SPP: ${Number(awayPayload.value).toFixed(1)}s`}
+          {`${awayPayload.name} SPP: ${dataPoint[`${awayTeam.name}_raw`] === 0 ? '압박 없음' : formatValue(awayPayload.value)}`}
         </p>}
       </div>
     );
@@ -52,6 +61,13 @@ const CustomTooltip = ({ active, payload, homeTeam, awayTeam }: TooltipProps<Val
 
 export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: PressureBattleChartProps) {
   const isMatchTrend = data.some(d => d.interval.startsWith('M'));
+
+  // Y축 최대값 미리 계산 (0을 제외한 데이터 중 최대값 기준)
+  const maxY = useMemo(() => {
+    const vals = data.flatMap(d => [Number(d[homeTeam.name]), Number(d[awayTeam.name])]).filter(v => v > 0);
+    const maxVal = vals.length > 0 ? Math.max(...vals) : 15;
+    return Math.ceil(maxVal * 1.3);
+  }, [data, homeTeam, awayTeam]);
 
   const chartData = useMemo(() => {
     let baseData = [...data];
@@ -66,7 +82,20 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
       ];
     }
 
-    const withX = baseData.map((d, i) => ({ ...d, x: i }));
+    // 0값을 maxY로 치환 (시각적으로 하단에 배치하기 위함)
+    const processedBaseData = baseData.map(d => {
+      const hVal = Number(d[homeTeam.name]);
+      const aVal = Number(d[awayTeam.name]);
+      return {
+        ...d,
+        [homeTeam.name]: hVal === 0 ? maxY : hVal,
+        [`${homeTeam.name}_raw`]: hVal,
+        [awayTeam.name]: aVal === 0 ? maxY : aVal,
+        [`${awayTeam.name}_raw`]: aVal,
+      };
+    });
+
+    const withX = processedBaseData.map((d, i) => ({ ...d, x: i }));
     const result = [];
     
     for (let i = 0; i < withX.length - 1; i++) {
@@ -79,19 +108,23 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
 
       result.push(p1);
 
-      const diff1 = v1_1 - v1_2;
-      const diff2 = v2_1 - v2_2;
+      // 둘 다 실제 데이터가 있는 경우에만 교차점 계산
+      if (p1[`${homeTeam.name}_raw`] > 0 && p1[`${awayTeam.name}_raw`] > 0 && 
+          p2[`${homeTeam.name}_raw`] > 0 && p2[`${awayTeam.name}_raw`] > 0) {
+        const diff1 = v1_1 - v1_2;
+        const diff2 = v2_1 - v2_2;
 
-      if (diff1 * diff2 < 0) {
-        const t = Math.abs(diff1) / (Math.abs(diff1) + Math.abs(diff2));
-        const intersectV = v1_1 + t * (v2_1 - v1_1);
-        result.push({
-          interval: "",
-          x: i + t,
-          [homeTeam.name]: intersectV,
-          [awayTeam.name]: intersectV,
-          isIntersection: true
-        });
+        if (diff1 * diff2 < 0) {
+          const t = Math.abs(diff1) / (Math.abs(diff1) + Math.abs(diff2));
+          const intersectV = v1_1 + t * (v2_1 - v1_1);
+          result.push({
+            interval: "",
+            x: i + t,
+            [homeTeam.name]: intersectV,
+            [awayTeam.name]: intersectV,
+            isIntersection: true
+          });
+        }
       }
     }
     result.push(withX[withX.length - 1]);
@@ -103,19 +136,11 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
       
       return {
         ...d,
-        [homeTeam.name]: hVal,
-        [awayTeam.name]: aVal,
         homeLead: homeIsLeading ? [aVal, hVal] : [hVal, hVal],
         awayLead: !homeIsLeading ? [hVal, aVal] : [aVal, aVal],
       };
     });
-  }, [data, homeTeam, awayTeam, isMatchTrend]);
-
-  const maxY = useMemo(() => {
-    const vals = chartData.flatMap(d => [Number(d[homeTeam.name]), Number(d[awayTeam.name])]).filter(v => v > 0);
-    const maxVal = vals.length > 0 ? Math.max(...vals) : 15;
-    return Math.ceil(maxVal * 1.3);
-  }, [chartData, homeTeam, awayTeam]);
+  }, [data, homeTeam, awayTeam, isMatchTrend, maxY]);
 
   const quarterBoundaries = [
     { x: 5, label: 'Q1 | Q2' },
@@ -128,7 +153,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
       <CardHeader>
         <CardTitle>{isMatchTrend ? 'Pressure Battle Trend (경기별 SPP 추이)' : 'Pressure Battle (3분 단위 SPP 추이)'}</CardTitle>
         <CardDescription>
-          시각적으로 상단(높은 압박 강도)에 위치한 팀의 색상으로 격차가 표시됩니다. {!isMatchTrend && '15분 단위로 쿼터가 구분됩니다.'}
+          시각적으로 상단(낮은 SPP, 높은 압박 강도)에 위치한 팀의 색상으로 격차가 표시됩니다. 데이터가 없는 경우(0s) 최하단에 표시됩니다.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -144,7 +169,12 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               tick={{ fontSize: 10 }}
               height={isMatchTrend ? 60 : 30}
             />
-            <YAxis reversed domain={[0, maxY]} label={{ value: 'SPP (s)', angle: -90, position: 'insideLeft' }} />
+            <YAxis 
+              reversed 
+              domain={[0, maxY]} 
+              label={{ value: 'SPP (s)', angle: -90, position: 'insideLeft' }} 
+              tickFormatter={(val) => val === maxY ? "None" : val}
+            />
             <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
             <Legend verticalAlign="top" height={36} />
             
