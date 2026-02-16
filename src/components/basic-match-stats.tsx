@@ -49,7 +49,7 @@ export function BasicMatchStats({ data }: BasicMatchStatsProps) {
     { label: "평균 전체 점유율 (%)", h: formatValue(matchStats.home.possession), a: formatValue(matchStats.away.possession), isFloat: true },
     { label: "평균 공격 점유율 (%)", h: formatValue(matchStats.home.attackPossession), a: formatValue(matchStats.away.attackPossession), isFloat: true },
     { label: "빌드업 정체 비율 (%)", h: formatValue(matchStats.home.buildUpStagnation), a: formatValue(matchStats.away.buildUpStagnation), isFloat: true },
-    { label: "평균 CE 1회당 시간 (s)", h: formatValue(matchStats.home.timePerCE), a: formatValue(matchStats.away.timePerCE), isFloat: true, lowerIsBetter: true },
+    { label: " CE 1회당 시간 (s)", h: formatValue(matchStats.home.timePerCE), a: formatValue(matchStats.away.timePerCE), isFloat: true, lowerIsBetter: true },
   ]
 
   return (

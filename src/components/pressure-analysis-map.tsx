@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useMemo } from 'react';
@@ -139,14 +140,14 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
                 <>
                   <path d={`M 45.7,${27.5 - 14.63} A 14.63,14.63 0 0,0 31.07,27.5 A 14.63,14.63 0 0,0 45.7,${27.5 + 14.63}`} />
                   <path d={`M 45.7,${27.5 - 19.63} A 19.63,19.63 0 0,0 26.07,27.5 A 19.63,19.63 0 0,0 45.7,${27.5 + 19.63}`} strokeDasharray="1,1" />
-                  <circle cx={45.7 - 6.47} cy={27.5} r="0.5" fill="black" stroke="none" />
+                  <circle cx={45.7 - 6.47} cy={27.5} r={0.5} fill="black" stroke="none" />
                   <rect x="45.7" y={27.5 - 1.83} width="1.2" height="3.66" />
                 </>
               ) : (
                 <>
                   <path d={`M 0,${27.5 - 14.63} A 14.63,14.63 0 0,1 14.63,27.5 A 14.63,14.63 0 0,1 0,${27.5 + 14.63}`} />
                   <path d={`M 0,${27.5 - 19.63} A 19.63,19.63 0 0,1 19.63,27.5 A 19.63,19.63 0 0,1 0,${27.5 + 19.63}`} strokeDasharray="1,1" />
-                  <circle cx={6.47} cy={27.5} r="0.5" fill="black" stroke="none" />
+                  <circle cx={6.47} cy={27.5} r={0.5} fill="black" stroke="none" />
                   <rect x="-1.2" y={27.5 - 1.83} width="1.2" height="3.66" />
                 </>
               )}

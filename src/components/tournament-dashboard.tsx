@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { Trophy, Activity, TrendingUp, Grid3X3, Loader2, BrainCircuit, FileDown, Sword, Shield } from "lucide-react"
+import { Trophy, Activity, Grid3X3, Loader2, FileDown, Sword, Shield, TrendingUp } from "lucide-react"
 import type { MatchData, TeamMatchStats } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -58,7 +58,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     const teamColorMap = new Map<string, string>();
     allTeams.forEach((name, idx) => teamColorMap.set(name, getTeamColor(name, idx)));
 
-    // 글로벌 평균 계산 (대회 전체 모든 데이터의 평균)
+    // [형님 철칙] 대회 전체 평균 계산 (대조군)
     const globalCount = (matches.length * 2) || 1;
     const gSums = matches.reduce((acc, m) => {
       [m.matchStats.home, m.matchStats.away].forEach(s => {
@@ -71,7 +71,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     }, { goals: 0, shots: 0, pcs: 0, circle: 0, a25: 0, poss: 0, att: 0, bup: 0, pcSucc: 0, spp: 0, ceTime: 0, b25: 0 });
 
     const globalAvg: TeamMatchStats = {
-      goals: { field: (gSums.goals / globalCount) * 0.7, pc: (gSums.goals / globalCount) * 0.3 }, // 가상 분배
+      goals: { field: (gSums.goals / globalCount) * 0.7, pc: (gSums.goals / globalCount) * 0.3 },
       shots: gSums.shots / globalCount, pcs: gSums.pcs / globalCount,
       pcSuccessRate: gSums.pcSucc / globalCount, circleEntries: gSums.circle / globalCount, twentyFiveEntries: gSums.a25 / globalCount,
       possession: gSums.poss / globalCount, attackPossession: gSums.att / globalCount, buildUpStagnation: gSums.bup / globalCount,
@@ -168,7 +168,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               <Input type="color" value={selectedTeamColor} onChange={(e) => setSelectedTeamColor(e.target.value)} className="w-8 h-8 p-0 border-none bg-transparent" />
             </div>
             <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-lg border">
-              <Label className="text-[10px] font-bold uppercase">상대(대회평균)</Label>
+              <Label className="text-[10px] font-bold uppercase">대회 전체 평균</Label>
               <Input type="color" value={opponentColor} onChange={(e) => setOpponentColor(e.target.value)} className="w-8 h-8 p-0 border-none bg-transparent" />
             </div>
           </div>

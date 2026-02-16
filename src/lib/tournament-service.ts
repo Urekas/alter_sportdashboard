@@ -25,16 +25,21 @@ const TOURNAMENTS_COL = 'tournaments';
 const MATCHES_COL = 'matches';
 
 export const TournamentService = {
-  // 대회 목록 가져오기 (에러 해결용)
+  // 대회 목록 가져오기
   async getTournaments() {
-    const q = query(collection(db, TOURNAMENTS_COL), orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tournament));
+    try {
+      const q = query(collection(db, TOURNAMENTS_COL), orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tournament));
+    } catch (e) {
+      console.error("TournamentService.getTournaments failed:", e);
+      return [];
+    }
   },
 
   // 대회 생성
-  async createTournament(name: string, startDate: string) {
-    const docRef = await addDoc(collection(db, TOURNAMENTS_COL), {
+  async createTournament(dbInstance: Firestore, name: string, startDate: string) {
+    const docRef = await addDoc(collection(dbInstance, TOURNAMENTS_COL), {
       name,
       startDate,
       createdAt: serverTimestamp(),
@@ -43,9 +48,9 @@ export const TournamentService = {
   },
 
   // 대회 수정
-  async updateTournament(id: string, name: string) {
+  async updateTournament(dbInstance: Firestore, id: string, name: string) {
     if (!id) return;
-    const docRef = doc(db, TOURNAMENTS_COL, id);
+    const docRef = doc(dbInstance, TOURNAMENTS_COL, id);
     await updateDoc(docRef, { name });
   },
 
@@ -65,24 +70,24 @@ export const TournamentService = {
   },
 
   // 경기 이름 수정
-  async updateMatchName(matchId: string, matchName: string) {
+  async updateMatchName(dbInstance: Firestore, matchId: string, matchName: string) {
     if (!matchId) return;
-    const docRef = doc(db, MATCHES_COL, matchId);
+    const docRef = doc(dbInstance, MATCHES_COL, matchId);
     await updateDoc(docRef, { matchName });
   },
 
   // 경기 순서 업데이트
-  async updateMatchOrder(matchId: string, newOrder: number) {
+  async updateMatchOrder(dbInstance: Firestore, matchId: string, newOrder: number) {
     if (!matchId) return;
-    const docRef = doc(db, MATCHES_COL, matchId);
+    const docRef = doc(dbInstance, MATCHES_COL, matchId);
     await updateDoc(docRef, { orderIndex: newOrder });
   },
 
   // 기존 경기 데이터 교체
-  async updateMatchData(matchId: string, matchData: MatchData) {
+  async updateMatchData(dbInstance: Firestore, matchId: string, matchData: MatchData) {
     if (!matchId) return;
     const { id, uploadedAt, ...dataToSave } = matchData;
-    const docRef = doc(db, MATCHES_COL, matchId);
+    const docRef = doc(dbInstance, MATCHES_COL, matchId);
     await updateDoc(docRef, {
       ...dataToSave,
       updatedAt: serverTimestamp(),
@@ -90,21 +95,21 @@ export const TournamentService = {
   },
 
   // 경기 삭제
-  async deleteMatch(matchId: string) {
+  async deleteMatch(dbInstance: Firestore, matchId: string) {
     if (!matchId) return;
-    const matchRef = doc(db, MATCHES_COL, matchId);
+    const matchRef = doc(dbInstance, MATCHES_COL, matchId);
     await deleteDoc(matchRef);
   },
 
   // 대회 삭제
-  async deleteTournament(tournamentId: string) {
+  async deleteTournament(dbInstance: Firestore, tournamentId: string) {
     if (!tournamentId) return;
-    const tourneyRef = doc(db, TOURNAMENTS_COL, tournamentId);
+    const tourneyRef = doc(dbInstance, TOURNAMENTS_COL, tournamentId);
     await deleteDoc(tourneyRef);
     
-    const q = query(collection(db, MATCHES_COL), where('tournamentId', '==', tournamentId));
+    const q = query(collection(dbInstance, MATCHES_COL), where('tournamentId', '==', tournamentId));
     const snapshot = await getDocs(q);
-    const deletePromises = snapshot.docs.map(d => deleteDoc(doc(db, MATCHES_COL, d.id)));
+    const deletePromises = snapshot.docs.map(d => deleteDoc(doc(dbInstance, MATCHES_COL, d.id)));
     await Promise.all(deletePromises);
   }
 };
