@@ -121,28 +121,18 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
 };
 
 export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { home: string, away: string } } => {
-  console.log("--- CSV Parsing Debug Start ---");
-  // Robust line splitting for both Unix and Windows
   const lines = csvText.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
-  console.log(`Total non-empty lines: ${lines.length}`);
-
-  if (lines.length < 2) {
-    console.warn("CSV Error: Less than 2 lines found.");
-    return { events: [], teams: { home: "", away: "" } };
-  }
+  if (lines.length < 2) return { events: [], teams: { home: "", away: "" } };
 
   const splitCSVLine = (line: string) => {
     return line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(item => item.replace(/^"|"$/g, '').trim());
   };
 
   const headers = splitCSVLine(lines[0]);
-  console.log("Detected Headers:", headers);
-
   const getColIdx = (colNames: string[]) => {
     const idx = headers.findIndex(h => 
       colNames.some(name => h.toLowerCase().replace(/\s/g, '').includes(name.toLowerCase().replace(/\s/g, '')))
     );
-    if (idx === -1) console.warn(`CSV Warning: Column not found for ${colNames.join("/")}`);
     return idx;
   };
 
@@ -155,8 +145,6 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
     ungrouped: getColIdx(["Ungrouped"]),
     id: getColIdx(["Instance", "ID"])
   };
-
-  console.log("Index Mapping:", idxMap);
 
   let detectedTeams = detectRealTeamNames(csvText);
   const events: MatchEvent[] = [];
@@ -191,7 +179,6 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
       code
     });
   }
-  console.log("--- CSV Parsing Debug End ---");
 
   return { 
     events, 
@@ -275,6 +262,11 @@ export const createMatchDataFromUpload = (
     ).length;
     const fieldGoals = Math.max(0, totalGoals - pcGoals);
 
+    // 빌드업 점유 비중: (TEAM 시간 - ATT 시간) / TEAM 시간
+    const buildUpPossession = teamTime > 0 ? ((teamTime - attTime) / teamTime) * 100 : 0;
+    // PC 성공률: PC 득점 / 전체 PC 횟수
+    const pcSuccessRate = pcCount > 0 ? (pcGoals / pcCount) * 100 : 0;
+
     return {
       goals: { field: fieldGoals, pc: pcGoals },
       shots: shotCount,
@@ -283,6 +275,8 @@ export const createMatchDataFromUpload = (
       twentyFiveEntries: a25Count,
       possession: totalPossession > 0 ? (teamTime / totalPossession) * 100 : 0,
       attackPossession: totalATT > 0 ? (attTime / totalATT) * 100 : 0,
+      buildUpPossession: parseFloat(buildUpPossession.toFixed(1)),
+      pcSuccessRate: parseFloat(pcSuccessRate.toFixed(1)),
       spp: parseFloat(spp.toFixed(1)),
       allowedSpp: 0, 
       build25Ratio: Math.min(100, build25Ratio),

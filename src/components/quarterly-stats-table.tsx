@@ -1,3 +1,4 @@
+
 "use client"
 
 import {
@@ -165,10 +166,12 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
             {/* 나머지 지표 섹션들 */}
             {renderStatRows("슈팅", "shots")}
             {renderStatRows("페널티코너 (PC)", "pcs")}
+            {renderStatRows("PC 성공률 (%)", "pcSuccessRate", 1)}
             {renderStatRows("서클 진입 (CE)", "circleEntries")}
             {renderStatRows("25y 진입 (A25)", "twentyFiveEntries")}
             {renderStatRows("전체 점유율 (%)", "possession", 1)}
             {renderStatRows("공격 점유율 (%)", "attackPossession", 1)}
+            {renderStatRows("빌드업 점유 비중 (%)", "buildUpPossession", 1)}
             {renderStatRows("평균 SPP (s)", "spp", 1, true)}
             {renderStatRows("CE당 소요시간 (s)", "timePerCE", 1, true)}
           </TableBody>
