@@ -70,13 +70,16 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       return acc;
     }, { goals: 0, shots: 0, pcs: 0, circle: 0, a25: 0, poss: 0, att: 0, bup: 0, pcSucc: 0, spp: 0, ceTime: 0, b25: 0 });
 
-    const globalAvg: TeamMatchStats = {
+    const globalAvg = {
       goals: { field: (gSums.goals / globalCount) * 0.7, pc: (gSums.goals / globalCount) * 0.3 },
       shots: gSums.shots / globalCount, pcs: gSums.pcs / globalCount,
       pcSuccessRate: gSums.pcSucc / globalCount, circleEntries: gSums.circle / globalCount, twentyFiveEntries: gSums.a25 / globalCount,
       possession: gSums.poss / globalCount, attackPossession: gSums.att / globalCount, buildUpStagnation: gSums.bup / globalCount,
       spp: gSums.spp / globalCount, timePerCE: gSums.ceTime / globalCount, build25Ratio: gSums.b25 / globalCount,
-      allowedSpp: gSums.spp / globalCount, avgAttackDuration: 0, pressAttempts: 0, pressSuccess: 0
+      allowedSpp: gSums.spp / globalCount, 
+      threat: (gSums.shots + gSums.pcs) / globalCount,
+      allowedThreat: (gSums.shots + gSums.pcs) / globalCount,
+      avgAttackDuration: 0, pressAttempts: 0, pressSuccess: 0
     };
 
     const getTeamAverages = (teamName: string) => {
@@ -207,7 +210,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         <PressureAnalysisMap events={analysisData.mockMatch.events} homeTeam={analysisData.mockMatch.homeTeam} awayTeam={analysisData.mockMatch.awayTeam} awayHeader="상대팀 평균 압박" matchCount={analysisData.teamMatches.length} />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <TacticalQuadrantChart title="수비 복원력" description="상대 25y 진입 대비 서클 진입 허용 비율" data={analysisData.quadrantData.defensiveResilience} xAxisLabel="상대 A25 허용 (평균)" yAxisLabel="상대 CE 허용 (평균)" avgX={analysisData.globalAvg.twentyFiveEntries} avgY={analysisData.globalAvg.circleEntries} selectedTeamName={analysisData.currentTeam} selectedColor={selectedTeamColor} labels={{ tr: "Vulnerable", tl: "Weak Core", br: "Solid Core", bl: "Elite Defense" }} />
-          <TacticalQuadrantChart title="서클 수비 효율" description="상대 서클 진입 대비 위협 허용 비율" data={analysisData.quadrantData.circleDefense} xAxisLabel="상대 CE 허용 (평균)" yAxisLabel="상대 위협 허용 (평균)" avgX={analysisData.globalAvg.circleEntries} avgY={analysisData.globalAvg.threat} selectedTeamName={analysisData.currentTeam} selectedColor={selectedTeamColor} labels={{ tr: "Open Circle", tl: "Weak Perimeter", br: "Solid Defense", bl: "Elite Defense" }} />
+          <TacticalQuadrantChart title="서클 수비 효율" description="상대 서클 진입 대비 위협 허용 비율" data={analysisData.quadrantData.circleDefense} xAxisLabel="상대 CE 허용 (평균)" yAxisLabel="상대 위협 허용 (평균)" avgX={analysisData.globalAvg.circleEntries} avgY={analysisData.globalAvg.allowedThreat} selectedTeamName={analysisData.currentTeam} selectedColor={selectedTeamColor} labels={{ tr: "Open Circle", tl: "Weak Perimeter", br: "Solid Defense", bl: "Elite Defense" }} />
         </div>
       </div>
     </div>
