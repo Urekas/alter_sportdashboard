@@ -21,6 +21,12 @@ type ZoneStat = {
   rate: number;
 };
 
+/**
+ * 압박 및 탈압박 분석 지도 컴포넌트
+ * 
+ * - 시도(Count): 상대 턴오버/파울 + 우리 파울 (경합 상황 총량)
+ * - 성공/탈출(Success): 상대 턴오버/파울 (클린한 소유권 확보)
+ */
 export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awayHeader, matchCount = 1 }: PressureAnalysisMapProps) {
   const isTournament = matchCount > 1;
 
@@ -47,12 +53,19 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
         const isMyFoul = e.team === myTeam && e.type === 'foul';
 
         mapping.forEach((m, idx) => {
-          if (isOppError && zoneInfo.zoneBand === m.oppZone && zoneInfo.lane === m.oppLane) {
-            zones[idx].count++;
-            zones[idx].success++;
-          }
-          if (isMyFoul && zoneInfo.zoneBand === m.myZone && zoneInfo.lane === m.myLane) {
-            zones[idx].count++;
+          // 상대방의 공격 구역(우리의 수비 구역) 매칭
+          const isInTargetZone = isHome 
+            ? (zoneInfo.zoneBand === m.oppZone && zoneInfo.lane === m.oppLane)
+            : (zoneInfo.zoneBand === m.myZone && zoneInfo.lane === m.myLane);
+
+          if (isInTargetZone) {
+            if (isOppError) {
+              zones[idx].count++;
+              zones[idx].success++;
+            }
+            if (isMyFoul) {
+              zones[idx].count++;
+            }
           }
         });
       });
@@ -93,10 +106,15 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
     
     const headerTitle = isHome ? `${team.name} 상대 진영 압박` : (awayHeader || `${team.name} 상대 진영 압박`);
 
+    // 대회 모드일 때만 요청하신 대로 반전된 레이아웃 적용
+    const shouldUseReversedLayout = isTournament;
     let goalOnRight = false;
-    if (isTournament) {
+    
+    if (shouldUseReversedLayout) {
+      // 대회 모드: 홈팀 좌측 골대(우측 공격), 탈압박 우측 골대(좌측 공격)
       goalOnRight = !isHome; 
     } else {
+      // 단일 경기 모드: 홈팀 우측 골대, 어웨이 좌측 골대 (기존 유지)
       goalOnRight = isHome;  
     }
 
