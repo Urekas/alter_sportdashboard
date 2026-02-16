@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { Trophy, Activity, Target, Shield, Sword, Trash2, FileDown, Database, TrendingUp, Grid3X3, ArrowRight, Table as TableIcon } from "lucide-react"
+import { Trophy, Activity, Target, Shield, Sword, Trash2, FileDown, Database, TrendingUp, Grid3X3, ArrowRight, Table as TableIcon, Map as MapIcon } from "lucide-react"
 import type { MatchData, TeamMatchStats, Tournament, QuarterStats } from "@/lib/types"
 import { TournamentService } from "@/lib/tournament-service"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -13,6 +13,7 @@ import { PressureBattleChart } from "./pressure-battle-chart"
 import { TacticalQuadrantChart } from "./tactical-quadrant-charts"
 import { MatchTrajectoryChart } from "./match-trajectory-chart"
 import { QuarterlyStatsTable } from "./quarterly-stats-table"
+import { PressureAnalysisMap } from "./pressure-analysis-map"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
@@ -276,6 +277,17 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     return { mockMatch, allTeams, currentTeam, teamStatsList, globalAvg, quadrantData, teamMatches: matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam) };
   }, [matches, selectedTeamName, selectedTeamColor, opponentColor]);
 
+  const aggregatedEvents = useMemo(() => {
+    if (!analysisData?.teamMatches) return [];
+    const currentTeam = analysisData.currentTeam;
+    return analysisData.teamMatches.flatMap(m => {
+      return m.events.map(e => ({
+        ...e,
+        team: e.team === currentTeam ? currentTeam : '상대팀 평균'
+      }));
+    });
+  }, [analysisData]);
+
   if (loading) return <div className="py-20 text-center">대회 데이터를 불러오는 중...</div>;
   if (matches.length === 0) return <div className="py-20 text-center text-muted-foreground">데이터가 없습니다. 분석할 경기를 업로드하고 DB에 저장해 주세요.</div>;
 
@@ -382,6 +394,18 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               isTournamentView 
               allMatchesPoints={trajectoryPoints} 
             />
+            
+            <div className="mt-8 space-y-4">
+              <div className="flex items-center gap-2 text-2xl font-black text-primary border-b-2 pb-1">
+                <MapIcon className="h-6 w-6" /> 대회 통합 압박 및 탈압박 분석 (Tournament Pressure Map)
+              </div>
+              <PressureAnalysisMap 
+                events={aggregatedEvents} 
+                homeTeam={{ name: analysisData.currentTeam, color: selectedTeamColor }} 
+                awayTeam={{ name: '상대팀 평균', color: opponentColor }} 
+                awayHeader="탈압박 분석 (상대 압박 대응)"
+              />
+            </div>
           </div>
 
           <div className="page-break space-y-12">

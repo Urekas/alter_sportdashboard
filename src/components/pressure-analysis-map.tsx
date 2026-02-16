@@ -11,6 +11,7 @@ interface PressureAnalysisMapProps {
   homeTeam: Team;
   awayTeam: Team;
   isCompact?: boolean;
+  awayHeader?: string;
 }
 
 type ZoneStat = {
@@ -19,7 +20,7 @@ type ZoneStat = {
   rate: number;
 };
 
-export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: PressureAnalysisMapProps) {
+export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awayHeader }: PressureAnalysisMapProps) {
   const zoneStats = useMemo(() => {
     const calculateStats = (isHome: boolean) => {
       const zones: ZoneStat[] = Array(6).fill(null).map(() => ({ count: 0, success: 0, rate: 0 }));
@@ -75,15 +76,17 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
   const renderHalfPitch = (teamData: { zones: ZoneStat[], totalCount: number, totalSuccess: number }, team: Team, isHome: boolean, globalMaxCount: number) => {
     const labels = ["25L", "25C", "25R", "50L", "50C", "50R"];
     const totalRate = teamData.totalCount > 0 ? (teamData.totalSuccess / teamData.totalCount * 100).toFixed(1) : "0.0";
+    
+    const headerTitle = isHome ? `${team.name} 상대 진영 압박` : (awayHeader || `${team.name} 상대 진영 압박`);
 
     return (
       <div className="flex flex-col gap-1">
         <div className="flex flex-col items-center justify-center p-2 rounded-t-lg border-b-2" style={{ backgroundColor: `${team.color}15`, borderColor: team.color }}>
           <h3 className="text-sm font-black uppercase tracking-tighter" style={{ color: team.color }}>
-            {team.name} 상대 진영 압박
+            {headerTitle}
           </h3>
           <p className="text-xs font-bold mt-1">
-            총 압박: {teamData.totalCount}회 | 성공: {teamData.totalSuccess}회 ({totalRate}%)
+            {isHome ? '총 압박' : '피압박'}: {teamData.totalCount}회 | 성공: {teamData.totalSuccess}회 ({totalRate}%)
           </p>
         </div>
         <div className="relative aspect-[45.7/55] bg-green-50/50 rounded-b-lg overflow-hidden border border-muted shadow-inner">
@@ -130,7 +133,7 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
                   <rect x={rectX} y={rectY} width="22.85" height="18.33" fill={team.color} fillOpacity={intensity} />
                   <text x={rectX + 11.42} y={rectY + 18.33/2} textAnchor="middle" dominantBaseline="middle" className="fill-foreground" style={{ fontSize: '2.8px' }}>
                     <tspan x={rectX + 11.42} dy="-5.5" fontWeight="bold">{labels[i]}</tspan>
-                    <tspan x={rectX + 11.42} dy="4" fontWeight="bold">압박 : {stat.count}</tspan>
+                    <tspan x={rectX + 11.42} dy="4" fontWeight="bold">횟수 : {stat.count}</tspan>
                     <tspan x={rectX + 11.42} dy="3.5" fontWeight="bold">성공 : {stat.success}</tspan>
                     <tspan x={rectX + 11.42} dy="3.5" fontSize="2.2px" fontWeight="normal" opacity="0.8">{stat.rate.toFixed(1)}%</tspan>
                   </text>
@@ -146,9 +149,9 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact }: P
   return (
     <Card className="lg:col-span-3">
       <CardHeader className={isCompact ? "py-2 px-4" : ""}>
-        <CardTitle className={isCompact ? "text-lg" : ""}>Pressure Analysis Map</CardTitle>
+        <CardTitle className={isCompact ? "text-lg" : ""}>Pressure & De-pressing Analysis</CardTitle>
         <CardDescription className={isCompact ? "text-[10px]" : ""}>
-          구역별 압박 시도, 성공 횟수 및 성공률 (어웨이팀: 아래L/위R)
+          {awayHeader ? '대회 전체 압박 시도 및 상대 압박 대응 분석' : '구역별 압박 시도, 성공 횟수 및 성공률 (어웨이팀: 아래L/위R)'}
         </CardDescription>
       </CardHeader>
       <CardContent className={isCompact ? "p-2 md:p-4" : "p-4 md:p-6"}>
