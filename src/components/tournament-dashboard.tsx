@@ -235,7 +235,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     <div className="space-y-12">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b-4 border-primary pb-6">
         <div>
-          <h2 className="text-xl font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2"><Trophy className="h-5 w-5" /> Tournament Report</h2>
+          <h2 className="text-xl font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2"><Trophy className="h-5 w-5" /> {tournamentName}</h2>
           <div className="flex flex-wrap items-center gap-4 mt-2">
             <Select value={currentTeam} onValueChange={setSelectedTeamName}>
               <SelectTrigger className="w-64 h-12 text-xl font-black italic"><SelectValue /></SelectTrigger>

@@ -112,6 +112,7 @@ export function Dashboard() {
       const id = await TournamentService.createTournament(newTournamentName, new Date().toISOString());
       await fetchTournaments();
       setActiveTournamentId(id);
+      setTournamentName(newTournamentName);
       setIsNewTournamentDialogOpen(false);
       setNewTournamentName("");
       toast({ title: "대회 생성 완료" });
@@ -177,6 +178,8 @@ export function Dashboard() {
 
   const handleViewMatchFromDB = (data: MatchData) => {
     setMatchData(data);
+    setTournamentName(data.tournamentName || "");
+    setMatchName(data.matchName || "");
     setViewMode('single');
     setAiAnalysis(null);
   }
@@ -204,7 +207,14 @@ export function Dashboard() {
         <div className="flex flex-wrap items-center gap-4 bg-card p-3 rounded-lg border shadow-sm w-full xl:w-auto">
           <div className="flex items-center gap-3 border-r pr-4">
             <Trophy className="h-4 w-4 text-muted-foreground" />
-            <Select value={activeTournamentId} onValueChange={setActiveTournamentId}>
+            <Select 
+              value={activeTournamentId} 
+              onValueChange={(id) => {
+                setActiveTournamentId(id);
+                const selected = tournaments.find(t => t.id === id);
+                if (selected) setTournamentName(selected.name);
+              }}
+            >
               <SelectTrigger className="h-8 w-40 text-xs">
                 <SelectValue placeholder="대회 선택" />
               </SelectTrigger>
@@ -217,6 +227,26 @@ export function Dashboard() {
 
           {viewMode !== 'tournament' && (
             <>
+              <div className="flex items-center gap-4 border-r pr-4">
+                <div className="flex flex-col gap-1">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">대회명 / 경기명</Label>
+                  <div className="flex items-center gap-2">
+                    <Input 
+                      placeholder="대회명" 
+                      value={tournamentName} 
+                      onChange={(e) => setTournamentName(e.target.value)} 
+                      className="h-8 w-32 text-xs font-bold" 
+                    />
+                    <Input 
+                      placeholder="경기명" 
+                      value={matchName} 
+                      onChange={(e) => setMatchName(e.target.value)} 
+                      className="h-8 w-40 text-xs font-bold" 
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-center gap-4 border-r pr-4">
                 <div className="flex flex-col gap-1">
                   <Label className="text-[10px] font-bold text-muted-foreground uppercase">홈 / 어웨이 설정</Label>
