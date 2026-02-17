@@ -126,6 +126,32 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     const currentTeamStats = aggregateStats(teamMatches, currentTeam);
     const globalAvg = aggregateStats(matches);
 
+    // 경기별 추이 데이터 생성 (Pressure Battle & Attack Threat용)
+    const matchTrendData = teamMatches.map((m, idx) => {
+      const isHome = m.homeTeam.name === currentTeam;
+      const s = isHome ? m.matchStats.home : m.matchStats.away;
+      const interval = `M${String(idx + 1).padStart(2, '0')}`;
+      return {
+        interval,
+        [currentTeam]: s.spp,
+        ["대회 전체 평균"]: globalAvg.spp,
+        threat: s.shots + s.pcs,
+        avgThreat: globalAvg.shots + globalAvg.pcs
+      };
+    });
+
+    const pressureData = matchTrendData.map(d => ({
+      interval: d.interval,
+      [currentTeam]: d[currentTeam],
+      ["대회 전체 평균"]: d["대회 전체 평균"]
+    }));
+
+    const attackThreatData = matchTrendData.map(d => ({
+      interval: d.interval,
+      [currentTeam]: d.threat,
+      ["대회 전체 평균"]: d.avgThreat
+    }));
+
     const calculatePressureStats = (targetMatches: MatchData[], targetTeamName: string | null) => {
       const zones = Array(6).fill(null).map(() => ({ count: 0, success: 0 }));
       const mapping = [
@@ -196,7 +222,10 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     const mockMatch: MatchData = {
       homeTeam: { name: currentTeam, color: selectedTeamColor },
       awayTeam: { name: '대회 전체 평균', color: opponentColor },
-      events: [], pressureData: [], circleEntries: [], attackThreatData: [],
+      events: [], 
+      pressureData, 
+      circleEntries: [], 
+      attackThreatData,
       build25Ratio: { home: currentTeamStats.build25Ratio, away: globalAvg.build25Ratio },
       spp: { home: currentTeamStats.spp, away: globalAvg.spp },
       matchStats: { home: currentTeamStats as any, away: globalAvg as any },
@@ -303,9 +332,14 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
       <div className="page-break space-y-8">
         <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-          <Grid3X3 className="h-6 w-6" /> 전술적 위치 비교 (대회 누적)
+          <Sword className="h-6 w-6" /> 공격 성능 분석
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <AttackThreatChart 
+          data={mockMatch.attackThreatData} 
+          homeTeam={{ name: currentTeam, color: selectedTeamColor }} 
+          awayTeam={{ name: '대회 전체 평균', color: opponentColor }} 
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
           <TacticalQuadrantChart
             title="공격 생성 효율"
             description="점유율 대비 서클 진입 생성 빈도"
@@ -340,6 +374,46 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
              })}
              labels={{ tr: "Lethal", tl: "Sharp", br: "Wasteful", bl: "Low Impact" }}
           />
+        </div>
+      </div>
+
+      <div className="page-break space-y-8">
+        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+          <TrendingUp className="h-6 w-6" /> 매치 트래직토리 (대회 전체 흐름)
+        </div>
+        <MatchTrajectoryChart 
+          data={mockMatch} 
+          isTournamentView={true}
+          allMatchesPoints={teamMatches.map(m => ({
+            homeX: m.homeTeam.name === currentTeam ? m.matchStats.home.attackPossession : m.matchStats.away.attackPossession,
+            homeY: m.homeTeam.name === currentTeam ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE,
+            homeRawTime: m.homeTeam.name === currentTeam ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE
+          }))}
+        />
+      </div>
+
+      <div className="page-break space-y-8">
+        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+          <Shield className="h-6 w-6" /> 압박 분석
+        </div>
+        <PressureBattleChart 
+          data={mockMatch.pressureData} 
+          homeTeam={{ name: currentTeam, color: selectedTeamColor }} 
+          awayTeam={{ name: '대회 전체 평균', color: opponentColor }} 
+        />
+        <div className="mt-6">
+          <PressureAnalysisMap
+              homeTeam={{ name: currentTeam, color: selectedTeamColor }}
+              awayTeam={{ name: '대회 전체 평균', color: opponentColor }}
+              homeStats={teamPressureStats}
+              awayStats={globalPressureStats}
+              isTournament={true}
+              homeMatchCount={teamMatches.length || 1}
+              awayMatchCount={matches.length * 2}
+              awayTitle="대회 전체 평균 압박"
+          />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
           <TacticalQuadrantChart
             title="수비 복원력"
             description="상대 점유 허용 대비 서클 진입 허용"
@@ -377,37 +451,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             labels={{ tr: "Brittle", tl: "Passive", br: "Solid", bl: "Impenetrable" }}
           />
         </div>
-      </div>
-
-      <div className="page-break space-y-8">
-        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-          <TrendingUp className="h-6 w-6" /> 매치 트래직토리 (대회 전체 흐름)
-        </div>
-        <MatchTrajectoryChart 
-          data={mockMatch} 
-          isTournamentView={true}
-          allMatchesPoints={teamMatches.map(m => ({
-            homeX: m.homeTeam.name === currentTeam ? m.matchStats.home.attackPossession : m.matchStats.away.attackPossession,
-            homeY: m.homeTeam.name === currentTeam ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE,
-            homeRawTime: m.homeTeam.name === currentTeam ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE
-          }))}
-        />
-      </div>
-
-      <div className="page-break space-y-8">
-        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-          <Shield className="h-6 w-6" /> 누적 압박 분석
-        </div>
-        <PressureAnalysisMap
-            homeTeam={{ name: currentTeam, color: selectedTeamColor }}
-            awayTeam={{ name: '대회 전체 평균', color: opponentColor }}
-            homeStats={teamPressureStats}
-            awayStats={globalPressureStats}
-            isTournament={true}
-            homeMatchCount={teamMatches.length || 1}
-            awayMatchCount={matches.length * 2}
-            awayTitle="대회 전체 평균 압박"
-        />
       </div>
 
       {aiAnalysis && (
