@@ -75,24 +75,24 @@ export function TacticalQuadrantChart({
   const maxY = Math.ceil(Math.max(...allY) * 1.2)
 
   return (
-    <Card className="w-full">
-      <CardHeader className="pb-2">
+    <Card className="w-full border-2">
+      <CardHeader className="pb-2 bg-muted/5 border-b">
         <CardTitle className="text-lg font-bold">{title}</CardTitle>
-        <CardDescription className="text-[10px] leading-tight">{description}</CardDescription>
+        <CardDescription className="text-[10px] leading-tight font-medium">{description}</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-[300px] w-full mt-4">
+        <div className="h-[350px] w-full mt-4">
           <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
+            <ScatterChart margin={{ top: 30, right: 30, bottom: 30, left: 10 }}>
               <XAxis 
                 type="number" 
                 dataKey="x" 
                 name={xAxisLabel} 
                 domain={[minX, maxX]} 
                 reversed={reversedX}
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 10, fontWeight: 'bold' }}
               >
-                <Label value={xAxisLabel} position="bottom" offset={0} style={{ fontSize: '10px', fill: 'hsl(var(--muted-foreground))' }} />
+                <Label value={xAxisLabel} position="bottom" offset={0} style={{ fontSize: '11px', fontWeight: 'bold', fill: 'hsl(var(--muted-foreground))' }} />
               </XAxis>
               <YAxis 
                 type="number" 
@@ -100,16 +100,44 @@ export function TacticalQuadrantChart({
                 name={yAxisLabel} 
                 domain={[minY, maxY]} 
                 reversed={reversedY}
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 10, fontWeight: 'bold' }}
               >
-                <Label value={yAxisLabel} angle={-90} position="insideLeft" style={{ fontSize: '10px', fill: 'hsl(var(--muted-foreground))' }} />
+                <Label value={yAxisLabel} angle={-90} position="insideLeft" style={{ fontSize: '11px', fontWeight: 'bold', fill: 'hsl(var(--muted-foreground))' }} />
               </YAxis>
-              <ZAxis type="number" dataKey="z" range={[100, 400]} />
+              <ZAxis type="number" dataKey="z" range={[150, 500]} />
               <Tooltip content={<CustomTooltip />} />
               
-              <ReferenceArea x1={reversedX ? maxX : avgX} x2={reversedX ? avgX : maxX} y1={reversedY ? minY : avgY} y2={reversedY ? avgY : maxY} fill="hsl(var(--primary))" fillOpacity={0.05} />
-              <ReferenceLine x={avgX} stroke="hsl(var(--foreground))" strokeDasharray="3 3" opacity={0.5} />
-              <ReferenceLine y={avgY} stroke="hsl(var(--foreground))" strokeDasharray="3 3" opacity={0.5} />
+              {/* 4분면 배경 색상 (ReferenceArea) */}
+              {/* TR: Top Right (Efficient Dominance / High Impact) */}
+              <ReferenceArea 
+                x1={avgX} x2={reversedX ? minX : maxX} 
+                y1={avgY} y2={reversedY ? minY : maxY} 
+                fill="#4bc0c0" fillOpacity={0.1} 
+              />
+              
+              {/* TL: Top Left (Direct / Efficient) */}
+              <ReferenceArea 
+                x1={reversedX ? maxX : minX} x2={avgX} 
+                y1={avgY} y2={reversedY ? minY : maxY} 
+                fill="#4bc0c0" fillOpacity={0.05} 
+              />
+              
+              {/* BR: Bottom Right (Slow / Positional) */}
+              <ReferenceArea 
+                x1={avgX} x2={reversedX ? minX : maxX} 
+                y1={reversedY ? maxY : minY} y2={avgY} 
+                fill="#94a3b8" fillOpacity={0.06} 
+              />
+              
+              {/* BL: Bottom Left (Low Impact / Defensive) */}
+              <ReferenceArea 
+                x1={reversedX ? maxX : minX} x2={avgX} 
+                y1={reversedY ? maxY : minY} y2={avgY} 
+                fill="#6366f1" fillOpacity={0.04} 
+              />
+
+              <ReferenceLine x={avgX} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={1.5} opacity={0.6} />
+              <ReferenceLine y={avgY} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={1.5} opacity={0.6} />
 
               <Scatter name="Teams" data={data}>
                 {data.map((entry, index) => (
@@ -121,13 +149,14 @@ export function TacticalQuadrantChart({
                     strokeWidth={2}
                   />
                 ))}
-                <LabelList dataKey="name" position="top" style={{ fontSize: '9px', fontWeight: 'bold' }} />
+                <LabelList dataKey="name" position="top" style={{ fontSize: '10px', fontWeight: 'black', fill: 'hsl(var(--foreground))' }} />
               </Scatter>
 
-              <text x="95%" y="10%" textAnchor="end" className="fill-muted-foreground font-bold italic" style={{ fontSize: '10px', opacity: 0.4 }}>{labels.tr}</text>
-              <text x="5%" y="10%" textAnchor="start" className="fill-muted-foreground font-bold italic" style={{ fontSize: '10px', opacity: 0.4 }}>{labels.tl}</text>
-              <text x="95%" y="90%" textAnchor="end" className="fill-muted-foreground font-bold italic" style={{ fontSize: '10px', opacity: 0.4 }}>{labels.br}</text>
-              <text x="5%" y="90%" textAnchor="start" className="fill-muted-foreground font-bold italic" style={{ fontSize: '10px', opacity: 0.4 }}>{labels.bl}</text>
+              {/* 4분면 텍스트 레이블 */}
+              <text x="96%" y="8%" textAnchor="end" className="fill-emerald-800 font-black italic uppercase tracking-tighter" style={{ fontSize: '11px', opacity: 0.6 }}>{labels.tr}</text>
+              <text x="4%" y="8%" textAnchor="start" className="fill-teal-800 font-black italic uppercase tracking-tighter" style={{ fontSize: '11px', opacity: 0.6 }}>{labels.tl}</text>
+              <text x="96%" y="92%" textAnchor="end" className="fill-slate-700 font-black italic uppercase tracking-tighter" style={{ fontSize: '11px', opacity: 0.6 }}>{labels.br}</text>
+              <text x="4%" y="92%" textAnchor="start" className="fill-indigo-800 font-black italic uppercase tracking-tighter" style={{ fontSize: '11px', opacity: 0.6 }}>{labels.bl}</text>
             </ScatterChart>
           </ResponsiveContainer>
         </div>
