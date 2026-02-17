@@ -1,10 +1,10 @@
 
-"use client"
+'use client'
 
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import type { MatchEvent, Team } from "@/lib/types";
-import { mapZone } from "@/lib/parser";
+import { mapZone } from "@/lib/zone-helpers";
 
 interface ZoneStat {
   count: number;
@@ -19,7 +19,6 @@ interface PressureAnalysisMapProps {
   isCompact?: boolean;
   awayHeader?: string;
   matchCount?: number;
-  // Tournament mode props
   homeStats?: ZoneStat[];
   awayStats?: ZoneStat[];
   isTournament?: boolean;
@@ -28,13 +27,6 @@ interface PressureAnalysisMapProps {
   awayTitle?: string;
 }
 
-/**
- * 압박 분석 지도 컴포넌트
- * 
- * [로직 정의 - 형님 에디션]
- * - 압박 시도(Count): 해당 진영에서의 모든 경합 (상대 에러 + 압박하는 팀의 파울)
- * - 압박 성공(Success): 압박 시도 - 압박하는 팀의 파울 (즉, 순수하게 상대의 실책을 유도한 상황)
- */
 export function PressureAnalysisMap({ 
   events, 
   homeTeam, 
@@ -54,7 +46,6 @@ export function PressureAnalysisMap({
   const aCount = awayMatchCount || matchCount;
 
   const zoneStats = useMemo(() => {
-    // 대회 모드에서 통계가 직접 넘어온 경우
     if (homeStats && awayStats) {
       const hData = {
         zones: homeStats.map(s => ({ ...s, rate: s.count > 0 ? (s.success / s.count) * 100 : 0 })),
@@ -70,14 +61,9 @@ export function PressureAnalysisMap({
       return { home: hData, away: aData, globalMaxCount };
     }
 
-    // 경기별 분석 모드 (이벤트로 계산)
     const calculateStats = (isHome: boolean) => {
       const zones: ZoneStat[] = Array(6).fill(null).map(() => ({ count: 0, success: 0, rate: 0 }));
-      if (!events) return { zones, totalCount: 0, totalSuccess: 0 };
-
-      const myTeam = isHome ? homeTeam.name : awayTeam.name;
       
-      // 구역 매핑 정의: 우리 기준 25구역 압박은 상대 기준 100구역 실책임
       const mapping = [
         { oppZone: 100, oppLane: 'Right', myZone: 25, myLane: 'Left' },  
         { oppZone: 100, oppLane: 'Center', myZone: 25, myLane: 'Center' },
@@ -87,45 +73,46 @@ export function PressureAnalysisMap({
         { oppZone: 75, oppLane: 'Left', myZone: 50, myLane: 'Right' }    
       ];
 
-      events.forEach(e => {
+      events?.forEach(e => {
         const zoneInfo = mapZone(e.locationLabel || e.code);
         if (!zoneInfo) return;
 
-        // 상대팀은 우리팀이 아닌 모든 팀 (대회 모드 호환)
-        const isOpponent = e.team !== homeTeam.name;
         const isMe = e.team === homeTeam.name;
+        // 대회 모드 대응: 우리 팀 이름이 아니면 무조건 상대로 간주
+        const isOpponent = e.team !== homeTeam.name;
 
-        const isOppError = isOpponent && (e.type === 'turnover' || e.type === 'foul');
-        const isMyFoul = isMe && e.type === 'foul';
+        if (isHome) {
+          const isOpponentError = isOpponent && (e.type === 'turnover' || e.type === 'foul');
+          const isMyFoul = isMe && e.type === 'foul';
+          if (!isOpponentError && !isMyFoul) return;
 
-        mapping.forEach((m, idx) => {
-          if (isHome) {
-            // [우리의 상대 진영 압박]
+          mapping.forEach((m, idx) => {
             if (zoneInfo.zoneBand === m.oppZone && zoneInfo.lane === m.oppLane) {
-              if (isOppError || isMyFoul) zones[idx].count++;
-              if (isOppError) zones[idx].success++;
+              if (isOpponentError || isMyFoul) zones[idx].count++;
+              if (isOpponentError) zones[idx].success++;
             }
-          } else {
-            // [상대의 압박 (우리의 피압박)]
-            if (zoneInfo.zoneBand === m.myZone && zoneInfo.lane === m.myLane) {
-              // 상대의 압박 시도: 우리팀 에러 + 상대팀 파울 (여기선 상대 데이터가 완벽하지 않으므로 보수적 접근)
-              if (isMe && (e.type === 'turnover' || e.type === 'foul')) zones[idx].count++;
-              if (isMe && e.type === 'turnover') zones[idx].success++;
+          });
+        } else {
+          const isMyTeamError = isMe && (e.type === 'turnover' || e.type === 'foul');
+          const isOppTeamFoul = isOpponent && e.type === 'foul';
+          if (!isMyTeamError && !isOppTeamFoul) return;
+
+          mapping.forEach((m, idx) => {
+            if (isMyTeamError && zoneInfo.zoneBand === m.oppZone && zoneInfo.lane === m.oppLane) {
+              zones[idx].count++;
+              zones[idx].success++;
             }
-          }
-        });
+            if (isOppTeamFoul && zoneInfo.zoneBand === m.myZone && zoneInfo.lane === m.myLane) {
+              zones[idx].count++;
+            }
+          });
+        }
       });
 
-      const totalCount = zones.reduce((acc, z) => acc + z.count, 0);
-      const totalSuccess = zones.reduce((acc, z) => acc + z.success, 0);
-
       return {
-        zones: zones.map(z => ({
-          ...z,
-          rate: z.count > 0 ? (z.success / z.count) * 100 : 0
-        })),
-        totalCount,
-        totalSuccess
+        zones: zones.map(z => ({ ...z, rate: z.count > 0 ? (z.success / z.count) * 100 : 0 })),
+        totalCount: zones.reduce((acc, z) => acc + z.count, 0),
+        totalSuccess: zones.reduce((acc, z) => acc + z.success, 0)
       };
     };
 
@@ -138,26 +125,16 @@ export function PressureAnalysisMap({
 
   const renderHalfPitch = (teamData: { zones: ZoneStat[], totalCount: number, totalSuccess: number }, team: Team, isHome: boolean, globalMaxCount: number, mCount: number) => {
     const labels = ["25L", "25C", "25R", "50L", "50C", "50R"];
-    
-    const formatNum = (val: number) => {
-      return isTournament ? (val / mCount).toFixed(1) : val.toString();
-    };
-    
-    const avgCountFormatted = formatNum(teamData.totalCount);
-    const avgSuccessFormatted = formatNum(teamData.totalSuccess);
-    const totalRate = teamData.totalCount > 0 ? (teamData.totalSuccess / teamData.totalCount * 100).toFixed(1) : "0.0";
-    
+    const formatNum = (val: number) => isTournament ? (val / mCount).toFixed(1) : val.toString();
     const headerTitle = isHome ? `${team.name} 압박` : (awayTitle || awayHeader || `${team.name} 압박`);
-    const goalOnRight = isHome; // 홈팀(공격팀) 기준 골대는 오른쪽
+    const goalOnRight = isHome;
 
     return (
       <div className="flex flex-col gap-1">
         <div className="flex flex-col items-center justify-center p-2 rounded-t-lg border-b-2" style={{ backgroundColor: `${team.color}15`, borderColor: team.color }}>
-          <h3 className="text-sm font-black uppercase tracking-tighter" style={{ color: team.color }}>
-            {headerTitle}
-          </h3>
+          <h3 className="text-sm font-black uppercase tracking-tighter" style={{ color: team.color }}>{headerTitle}</h3>
           <p className="text-[10px] font-bold mt-1 uppercase tracking-tight">
-            {isTournament ? '평균' : '합계'} 시도: <span className="text-primary">{avgCountFormatted}</span> | 성공: <span className="text-emerald-600">{avgSuccessFormatted}</span> ({totalRate}%)
+            {isTournament ? '평균' : '합계'} 시도: <span className="text-primary">{formatNum(teamData.totalCount)}</span> | 성공: <span className="text-emerald-600">{formatNum(teamData.totalSuccess)}</span> ({teamData.totalCount > 0 ? (teamData.totalSuccess / teamData.totalCount * 100).toFixed(1) : "0.0"}%)
           </p>
         </div>
         <div className="relative aspect-[45.7/55] bg-green-50/50 rounded-b-lg overflow-hidden border border-muted shadow-inner">
@@ -187,9 +164,8 @@ export function PressureAnalysisMap({
             {teamData.zones.map((stat, i) => {
               const xIdx = Math.floor(i / 3);
               const yIdx = i % 3;
-
               let rectX = goalOnRight ? (xIdx === 0 ? 22.85 : 0) : (xIdx === 0 ? 0 : 22.85);
-              const rectY = yIdx * 18.33; // 상단이 L (yIdx=0), 하단이 R (yIdx=2)
+              const rectY = yIdx * 18.33; 
               const intensity = stat.count > 0 ? (stat.count / globalMaxCount) * 0.45 + 0.1 : 0;
 
               return (
@@ -214,9 +190,7 @@ export function PressureAnalysisMap({
     <Card className="lg:col-span-3">
       <CardHeader className={isCompact ? "py-2 px-4" : ""}>
         <CardTitle className={isCompact ? "text-lg" : ""}>Pressure Analysis</CardTitle>
-        <CardDescription className={isCompact ? "text-[10px]" : ""}>
-          압박 시도 대비 순수 성공(상대 실책 유도) 분석. {isTournament ? `대회 평균 수치.` : '경기 실제 수치.'}
-        </CardDescription>
+        <CardDescription className={isCompact ? "text-[10px]" : ""}>압박 시도 대비 순수 성공 분석. {isTournament ? `대회 평균 수치.` : '경기 실제 수치.'}</CardDescription>
       </CardHeader>
       <CardContent className={isCompact ? "p-2 md:p-4" : "p-4 md:p-6"}>
         <div className="grid grid-cols-2 gap-4">

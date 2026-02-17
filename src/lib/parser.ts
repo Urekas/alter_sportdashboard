@@ -4,16 +4,13 @@ import type { MatchEvent, MatchData, TeamMatchStats } from './types';
 export const detectRealTeamNames = (text: string): { home: string, away: string } | null => {
   const pattern = /([가-힣A-Za-z]+)\s*(\d+)?\s*-\s*([가-힣A-Za-z]+)\s*(\d+)?/;
   const match = text.match(pattern);
-  if (match) {
-    return { home: match[1].trim(), away: match[3].trim() };
-  }
+  if (match) return { home: match[1].trim(), away: match[3].trim() };
   return null;
 };
 
 export const extractTeamName = (code: string, detectedTeams: { home: string, away: string } | null): string => {
   if (!code) return "Unknown";
   const upperCode = code.toUpperCase();
-  
   if (detectedTeams) {
     const homeUpper = detectedTeams.home.toUpperCase().trim();
     const awayUpper = detectedTeams.away.toUpperCase().trim();
@@ -186,24 +183,18 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     const myEvents = targetEvents.filter(e => e.team === team);
     const oppEvents = targetEvents.filter(e => e.team === opponent);
     
-    // TEAM / ATT 시간 집계 (완전 일치 규칙 적용)
-    const myTeamEvents = myEvents.filter(e => e.code.trim() === `${team} TEAM`);
-    const teamTime = myTeamEvents.reduce((acc, e) => acc + e.duration, 0);
+    const teamTime = myEvents.filter(e => e.code.trim() === `${team} TEAM`).reduce((acc, e) => acc + e.duration, 0);
     const attTime = myEvents.filter(e => e.code.trim() === `${team} ATT`).reduce((acc, e) => acc + e.duration, 0);
-    
     const oppTeamTime = oppEvents.filter(e => e.code.trim() === `${opponent} TEAM`).reduce((acc, e) => acc + e.duration, 0);
     const oppAttTime = oppEvents.filter(e => e.code.trim() === `${opponent} ATT`).reduce((acc, e) => acc + e.duration, 0);
     const oppBuildUpTime = Math.max(0, oppTeamTime - oppAttTime);
     
-    // [형님 철칙] 완전 일치(Exact Match) 규칙 적용
-    // 슈팅은 오직 "팀명 슈팅" 코드만 카운트 (슈팅서클 진입 오판 방지)
     const shotCount = myEvents.filter(e => e.code.trim() === `${team} 슈팅`).length;
     const ceCount = myEvents.filter(e => e.code.trim() === `${team} 슈팅서클 진입`).length;
     const pcEvents = myEvents.filter(e => e.code.trim() === `${team} 페널티코너`);
     const a25Count = myEvents.filter(e => e.code.trim() === `${team} A25 START`).length;
     const goalEvents = myEvents.filter(e => e.code.trim() === `${team} 득점`);
 
-    // [형님 철칙] 빌드업 정체 비율 = (TEAM 시간 - ATT 시간) / TEAM 시간 * 100
     const buildUpStagnation = teamTime > 0 ? ((teamTime - attTime) / teamTime) * 100 : 0;
 
     const getZoneCount = (evts: MatchEvent[], types: string[], zones: number[]) => evts.filter(e => {
@@ -238,9 +229,7 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
     pressureData: Array(20).fill(0).map((_, i) => {
       const start = i * 180, end = (i + 1) * 180;
       const pEvents = events.filter(e => { const nt = getNormalizedTime(e); return nt >= start && nt < end; });
-      const hStats = calculateTeamStats(homeName, awayName, pEvents);
-      const aStats = calculateTeamStats(awayName, homeName, pEvents);
-      return { interval: `${(i + 1) * 3}'`, [homeName]: hStats.spp, [awayName]: aStats.spp };
+      return { interval: `${(i + 1) * 3}'`, [homeName]: calculateTeamStats(homeName, awayName, pEvents).spp, [awayName]: calculateTeamStats(awayName, homeName, pEvents).spp };
     }),
     circleEntries: events.filter(e => e.code.trim() === `${homeName} 슈팅서클 진입` || e.code.trim() === `${awayName} 슈팅서클 진입`).map(e => {
       const res = e.resultLabel.toUpperCase();
@@ -251,9 +240,7 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
       const s = i * 300, e_ = (i + 1) * 300;
       const filterT = (t: string) => events.filter(e => {
         const nt = getNormalizedTime(e); 
-        const isMatch = e.team === t && nt >= s && nt < e_;
-        const isThreat = e.code.trim() === `${t} 슈팅` || e.code.trim() === `${t} 페널티코너`;
-        return isMatch && isThreat;
+        return e.team === t && nt >= s && nt < e_ && (e.code.trim() === `${t} 슈팅` || e.code.trim() === `${t} 페널티코너`);
       }).length;
       return { interval: `${(i + 1) * 5}'`, [homeName]: filterT(homeName), [awayName]: filterT(awayName) };
     }),

@@ -1,5 +1,5 @@
 
-"use client";
+'use client';
 
 import React, { useState, useMemo } from "react";
 import { Trophy, Activity, Grid3X3, Loader2, FileDown, Sword, Shield, TrendingUp, Target, TrendingDown, ShieldCheck } from "lucide-react";
@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
-import { mapZone } from "@/lib/parser";
+import { mapZone } from "@/lib/zone-helpers";
 
 interface TournamentDashboardProps {
   tournamentId: string;
@@ -55,23 +55,17 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
     const allTeams = Array.from(new Set(matches.flatMap(m => [m.homeTeam.name, m.awayTeam.name]))).sort();
     const currentTeam = selectedTeamName || allTeams[0];
-
-    // Filter matches involving the selected team
     const teamMatches = matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam);
 
     const aggregateStats = (targetMatches: MatchData[], targetTeam?: string) => {
-      const statsSum: TeamMatchStats = {
+      const statsSum = {
         goals: { field: 0, pc: 0 },
         shots: 0, pcs: 0, circleEntries: 0, twentyFiveEntries: 0,
         possession: 0, attackPossession: 0, buildUpStagnation: 0,
-        pcSuccessRate: 0, allowedSpp: 0, avgAttackDuration: 0,
-        timePerCE: 0, spp: 0, build25Ratio: 0, pressAttempts: 0, pressSuccess: 0
+        pcSuccessRate: 0, spp: 0, timePerCE: 0, build25Ratio: 0, 
+        pressAttempts: 0, pressSuccess: 0, threat: 0, allowedThreat: 0, 
+        allowedCircleEntries: 0, allowedPossession: 0
       };
-      // For quadrant charts
-      let threat = 0;
-      let allowedThreat = 0;
-      let allowedCircleEntries = 0;
-      let allowedPossession = 0;
 
       targetMatches.forEach(m => {
         const isHome = targetTeam ? m.homeTeam.name === targetTeam : true;
@@ -92,12 +86,10 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         statsSum.timePerCE += s.timePerCE;
         statsSum.pressAttempts += s.pressAttempts;
         statsSum.pressSuccess += s.pressSuccess;
-        
-        // Add threat (Shots + PCs)
-        threat += (s.shots + s.pcs);
-        allowedThreat += (opp.shots + opp.pcs);
-        allowedCircleEntries += opp.circleEntries;
-        allowedPossession += opp.possession;
+        statsSum.threat += (s.shots + s.pcs);
+        statsSum.allowedThreat += (opp.shots + opp.pcs);
+        statsSum.allowedCircleEntries += opp.circleEntries;
+        statsSum.allowedPossession += opp.possession;
       });
 
       const count = targetMatches.length || 1;
@@ -116,20 +108,18 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         timePerCE: statsSum.timePerCE / count,
         pressAttempts: statsSum.pressAttempts / count,
         pressSuccess: statsSum.pressSuccess / count,
-        threat: threat / count,
-        allowedThreat: allowedThreat / count,
-        allowedCircleEntries: allowedCircleEntries / count,
-        allowedPossession: allowedPossession / count
+        threat: statsSum.threat / count,
+        allowedThreat: statsSum.allowedThreat / count,
+        allowedCircleEntries: statsSum.allowedCircleEntries / count,
+        allowedPossession: statsSum.allowedPossession / count
       };
     };
 
     const currentTeamStats = aggregateStats(teamMatches, currentTeam);
-    const globalAvg = aggregateStats(matches); // Average across ALL teams (simplified)
+    const globalAvg = aggregateStats(matches);
 
-    // Calculate pressure stats for 6 zones (25L...50R)
     const calculatePressureStats = (targetMatches: MatchData[], targetTeamName: string | null) => {
       const zones = Array(6).fill(null).map(() => ({ count: 0, success: 0 }));
-      
       const mapping = [
         { oppZone: 100, oppLane: 'Right', myZone: 25, myLane: 'Left' },  
         { oppZone: 100, oppLane: 'Center', myZone: 25, myLane: 'Center' },
@@ -140,18 +130,14 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       ];
 
       targetMatches.forEach(m => {
-        const myName = targetTeamName || m.homeTeam.name; // In global mode, home team is 'us'
-        
+        const myName = targetTeamName || m.homeTeam.name;
         m.events.forEach(e => {
           const zoneInfo = mapZone(e.locationLabel || e.code);
           if (!zoneInfo) return;
-
           const isMe = e.team === myName;
           const isOpponent = e.team !== myName;
-
           const isOppError = isOpponent && (e.type === 'turnover' || e.type === 'foul');
           const isMyFoul = isMe && e.type === 'foul';
-
           mapping.forEach((mp, idx) => {
             if (zoneInfo.zoneBand === mp.oppZone && zoneInfo.lane === mp.oppLane) {
               if (isOppError || isMyFoul) zones[idx].count++;
@@ -164,33 +150,49 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     };
 
     const teamPressureStats = calculatePressureStats(teamMatches, currentTeam);
-    const globalPressureStats = calculatePressureStats(matches, null); // Global logic
+    const globalPressureStats = calculatePressureStats(matches, null);
 
-    // Quarterly averages
     const getQuarterlyAverages = (q: string) => {
-      const qMatches = teamMatches.filter(m => m.quarterlyStats.some(qs => qs.quarter === q));
-      const homeStats = aggregateStats(qMatches, currentTeam);
-      const awayStats = aggregateStats(matches.filter(m => m.quarterlyStats.some(qs => qs.quarter === q)));
-      return { home: homeStats, away: awayStats };
+      const qMatchesTeam = teamMatches.filter(m => m.quarterlyStats.some(qs => qs.quarter === q));
+      const qMatchesAll = matches.filter(m => m.quarterlyStats.some(qs => qs.quarter === q));
+      
+      const aggregateQ = (ms: MatchData[], tName?: string) => {
+        let qsSum = { ...currentTeamStats, goals: { field: 0, pc: 0 }, shots: 0, pcs: 0, circleEntries: 0, twentyFiveEntries: 0, possession: 0, attackPossession: 0, buildUpStagnation: 0, spp: 0, timePerCE: 0 };
+        let c = 0;
+        ms.forEach(m => {
+          const qData = m.quarterlyStats.find(qs => qs.quarter === q);
+          if (qData) {
+            const isH = tName ? m.homeTeam.name === tName : true;
+            const s = isH ? qData.home : qData.away;
+            qsSum.goals.field += s.goals.field;
+            qsSum.goals.pc += s.goals.pc;
+            qsSum.shots += s.shots;
+            qsSum.pcs += s.pcs;
+            qsSum.circleEntries += s.circleEntries;
+            qsSum.twentyFiveEntries += s.twentyFiveEntries;
+            qsSum.possession += s.possession;
+            qsSum.attackPossession += s.attackPossession;
+            qsSum.buildUpStagnation += s.buildUpStagnation;
+            qsSum.spp += s.spp;
+            qsSum.timePerCE += s.timePerCE;
+            c++;
+          }
+        });
+        const div = c || 1;
+        return { ...qsSum, goals: { field: qsSum.goals.field / div, pc: qsSum.goals.pc / div }, shots: qsSum.shots / div, pcs: qsSum.pcs / div, circleEntries: qsSum.circleEntries / div, twentyFiveEntries: qsSum.twentyFiveEntries / div, possession: qsSum.possession / div, attackPossession: qsSum.attackPossession / div, buildUpStagnation: qsSum.buildUpStagnation / div, spp: qsSum.spp / div, timePerCE: qsSum.timePerCE / div };
+      };
+
+      return { home: aggregateQ(qMatchesTeam, currentTeam), away: aggregateQ(qMatchesAll) };
     };
 
     const mockMatch: MatchData = {
       homeTeam: { name: currentTeam, color: selectedTeamColor },
       awayTeam: { name: '대회 전체 평균', color: opponentColor },
-      events: [],
-      pressureData: [],
-      circleEntries: [],
-      attackThreatData: [],
+      events: [], pressureData: [], circleEntries: [], attackThreatData: [],
       build25Ratio: { home: currentTeamStats.build25Ratio, away: globalAvg.build25Ratio },
       spp: { home: currentTeamStats.spp, away: globalAvg.spp },
-      matchStats: {
-        home: currentTeamStats as any,
-        away: globalAvg as any
-      },
-      quarterlyStats: ['Q1', 'Q2', 'Q3', 'Q4'].map(q => ({
-        quarter: q,
-        ...getQuarterlyAverages(q)
-      })) as any
+      matchStats: { home: currentTeamStats as any, away: globalAvg as any },
+      quarterlyStats: ['Q1', 'Q2', 'Q3', 'Q4'].map(q => ({ quarter: q, ...getQuarterlyAverages(q) })) as any
     };
 
     return { allTeams, currentTeam, teamMatches, teamPressureStats, globalPressureStats, mockMatch };
@@ -211,7 +213,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               <SelectTrigger className="w-64 h-12 text-xl font-black italic"><SelectValue /></SelectTrigger>
               <SelectContent>{allTeams.map(name => <SelectItem key={name} value={name}>{name}</SelectItem>)}</SelectContent>
             </Select>
-             <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-lg border">
+            <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-lg border">
               <Label className="text-[10px] font-bold uppercase">분석 팀</Label>
               <Input type="color" value={selectedTeamColor} onChange={(e) => setSelectedTeamColor(e.target.value)} className="w-8 h-8 p-0 border-none bg-transparent" />
             </div>
@@ -285,7 +287,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
           />
           <TacticalQuadrantChart
              title="피니싱 효율"
-             description="서클 진입 대비 위협(슈팅+PC) 창출"
+             description="서클 진입 대비 위협 창출"
              xAxisLabel="Circle Entries"
              yAxisLabel="Threat (Shots+PC)"
              avgX={mockMatch.matchStats.away.circleEntries}
@@ -320,7 +322,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
           />
           <TacticalQuadrantChart
             title="서클 수비 효율"
-            description="서클 허용 대비 위협(슈팅+PC) 허용 억제"
+            description="서클 허용 대비 위협 허용 억제"
             xAxisLabel="Allowed Circle Entries"
             yAxisLabel="Allowed Threat (Shots+PC)"
             avgX={(mockMatch.matchStats.away as any).allowedCircleEntries || 0}

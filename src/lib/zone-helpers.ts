@@ -1,30 +1,39 @@
 
+'use client';
+
 export const zoneMapping = [
-    { zone: 'D', subZone: 'L' }, { zone: 'D', subZone: 'C' }, { zone: 'D', subZone: 'R' },
-    { zone: 'M', subZone: 'L' }, { zone: 'M', subZone: 'C' }, { zone: 'M', subZone: 'R' },
-    { zone: 'A', subZone: 'L' }, { zone: 'A', subZone: 'C' }, { zone: 'A', subZone: 'R' },
+  { zoneBand: 25, lane: 'Left' as const },
+  { zoneBand: 25, lane: 'Center' as const },
+  { zoneBand: 25, lane: 'Right' as const },
+  { zoneBand: 50, lane: 'Left' as const },
+  { zoneBand: 50, lane: 'Center' as const },
+  { zoneBand: 50, lane: 'Right' as const },
 ];
 
-export const mapZone = (code: string) => {
-    if (!code) return null;
-    const parts = code.split('_');
-    if (parts.length < 2) return null;
-    const zoneMap: { [key: string]: 'D' | 'M' | 'A' } = { 'd': 'D', 'm': 'M', 'a': 'A' };
-    const subZoneMap: { [key: string]: 'L' | 'C' | 'R' } = { 'l': 'L', 'c': 'C', 'r': 'R' };
-    const zone = zoneMap[parts[0].toLowerCase()];
-    const subZone = subZoneMap[parts[1].toLowerCase()];
-    if (!zone || !subZone) return null;
-    return { zone, subZone };
-};
+export function mapZone(locStr: string) {
+  if (!locStr) return null;
+  const text = locStr.toUpperCase().replace('유', '우');
+  let lane: 'Left' | 'Center' | 'Right' = 'Center';
+  if (text.includes('좌') || text.includes('LEFT') || text.startsWith('L_') || text.startsWith('L ')) lane = 'Left';
+  else if (text.includes('우') || text.includes('RIGHT') || text.startsWith('R_') || text.startsWith('R ')) lane = 'Right';
 
-export const flipZone = (zone: 'A' | 'D' | 'M'): 'A' | 'D' | 'M' => {
-    if (zone === 'A') return 'D';
-    if (zone === 'D') return 'A';
-    return 'M';
-};
+  let zoneBand = 50;
+  const zoneMatch = text.match(/(\d+)/);
+  if (zoneMatch) zoneBand = parseInt(zoneMatch[1]);
 
-export const flipSubZone = (subZone: 'L' | 'R' | 'C'): 'L' | 'R' | 'C' => {
-    if (subZone === 'L') return 'R';
-    if (subZone === 'R') return 'L';
-    return 'C';
-};
+  return { lane, zoneBand };
+}
+
+export function flipZone(zone: number): number {
+  if (zone === 100) return 25;
+  if (zone === 75) return 50;
+  if (zone === 50) return 75;
+  if (zone === 25) return 100;
+  return zone;
+}
+
+export function flipSubZone(lane: 'Left' | 'Center' | 'Right'): 'Left' | 'Center' | 'Right' {
+  if (lane === 'Left') return 'Right';
+  if (lane === 'Right') return 'Left';
+  return 'Center';
+}
