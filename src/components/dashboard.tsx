@@ -87,12 +87,15 @@ export function Dashboard() {
     if (!matchData) return;
     setIsAiLoading(true);
     try {
+      // Firebase Timestamp 등 비직렬화 객체 제거를 위해 JSON 세탁
+      const sanitizedStats = JSON.parse(JSON.stringify(matchData));
+      
       const result = await analyzeMatch({
         type: 'single',
         matchName: matchData.matchName,
         homeTeam: { name: matchData.homeTeam.name },
         awayTeam: { name: matchData.awayTeam.name },
-        stats: matchData 
+        stats: sanitizedStats 
       });
       setAiAnalysis(result);
       toast({ title: "AI 전술 분석 완료" });
@@ -300,7 +303,7 @@ export function Dashboard() {
           <div className="space-y-12">
             <div className="border-b-4 border-primary pb-4 mb-8 flex justify-between items-end">
               <div>
-                <h2 className="text-xl font-bold text-muted-foreground uppercase tracking-widest block print:text-primary print:text-2xl print:mb-2">{matchData.tournamentName || "Tournament Report"}</h2>
+                <h2 className="text-xl font-bold text-muted-foreground uppercase tracking-widest block print:text-primary print:text-2xl print:mb-2">{tournamentName || "Tournament Report"}</h2>
                 <h1 className="text-4xl font-black italic tracking-tighter text-foreground mt-1 font-headline print:text-3xl">{matchData.matchName || "Match Performance Analysis"}</h1>
               </div>
               <Button variant="outline" size="sm" className="print-hidden border-primary text-primary font-bold h-9" onClick={handleAiAnalysis} disabled={isAiLoading}>
@@ -318,10 +321,10 @@ export function Dashboard() {
                       {team.name} ({i === 0 ? '홈' : '어웨이'})
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <StatsCard title="SPP (압박 지수)" value={i === 0 ? matchData.matchStats.home.spp : matchData.matchStats.away.spp} isTime icon={<TrendingDown className="h-4 w-4" />} />
-                      <StatsCard title="빌드업 정체 비율" value={i === 0 ? matchData.matchStats.home.buildUpStagnation : matchData.matchStats.away.buildUpStagnation} isPercentage icon={<ShieldCheck className="h-4 w-4" />} />
-                      <StatsCard title="공격 점유율" value={i === 0 ? matchData.matchStats.home.attackPossession : matchData.matchStats.away.attackPossession} isPercentage icon={<Target className="h-4 w-4" />} />
-                      <StatsCard title="CE 소요 시간" value={i === 0 ? matchData.matchStats.home.timePerCE : matchData.matchStats.away.timePerCE} isTime icon={<Activity className="h-4 w-4" />} />
+                      <StatsCard title="SPP (압박 지수)" value={i === 0 ? matchData.matchStats.home.spp : matchData.matchStats.away.spp} icon={<TrendingDown className="h-4 w-4" />} isTime />
+                      <StatsCard title="빌드업 정체 비율" value={i === 0 ? matchData.matchStats.home.buildUpStagnation : matchData.matchStats.away.buildUpStagnation} icon={<ShieldCheck className="h-4 w-4" />} isPercentage />
+                      <StatsCard title="공격 점유율" value={i === 0 ? matchData.matchStats.home.attackPossession : matchData.matchStats.away.attackPossession} icon={<Target className="h-4 w-4" />} isPercentage />
+                      <StatsCard title="CE 소요 시간" value={i === 0 ? matchData.matchStats.home.timePerCE : matchData.matchStats.away.timePerCE} icon={<Activity className="h-4 w-4" />} isTime />
                     </div>
                   </div>
                 ))}

@@ -254,12 +254,15 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     if (!analysisData) return;
     setIsAiLoading(true);
     try {
+      // Firebase Timestamp 등 비직렬화 객체 제거를 위해 JSON 세탁
+      const sanitizedStats = JSON.parse(JSON.stringify(analysisData.mockMatch));
+      
       const result = await analyzeMatch({
         type: 'tournament',
         matchName: tournamentName,
         homeTeam: { name: analysisData.currentTeam },
         awayTeam: { name: '대회 전체 평균' },
-        stats: analysisData.mockMatch 
+        stats: sanitizedStats 
       });
       setAiAnalysis(result);
       toast({ title: "대회 누적 AI 분석 완료" });
@@ -316,10 +319,10 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               {currentTeam} (대회 누적 평균)
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <StatsCard title="SPP (압박 지수)" value={mockMatch.matchStats.home.spp} isTime icon={<TrendingDown className="h-4 w-4" />} />
-              <StatsCard title="빌드업 정체 비율" value={mockMatch.matchStats.home.buildUpStagnation} isPercentage icon={<ShieldCheck className="h-4 w-4" />} />
-              <StatsCard title="공격 점유율" value={mockMatch.matchStats.home.attackPossession} isPercentage icon={<Target className="h-4 w-4" />} />
-              <StatsCard title="CE 소요 시간" value={mockMatch.matchStats.home.timePerCE} isTime icon={<Activity className="h-4 w-4" />} />
+              <StatsCard title="SPP (압박 지수)" value={mockMatch.matchStats.home.spp} icon={<TrendingDown className="h-4 w-4" />} isTime />
+              <StatsCard title="빌드업 정체 비율" value={mockMatch.matchStats.home.buildUpStagnation} icon={<ShieldCheck className="h-4 w-4" />} isPercentage />
+              <StatsCard title="공격 점유율" value={mockMatch.matchStats.home.attackPossession} icon={<Target className="h-4 w-4" />} isPercentage />
+              <StatsCard title="CE 소요 시간" value={mockMatch.matchStats.home.timePerCE} icon={<Activity className="h-4 w-4" />} isTime />
             </div>
           </div>
           <div className="space-y-3">
@@ -328,10 +331,10 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               대회 전체 평균
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <StatsCard title="SPP (압박 지수)" value={mockMatch.matchStats.away.spp} isTime icon={<TrendingDown className="h-4 w-4" />} />
-              <StatsCard title="빌드업 정체 비율" value={mockMatch.matchStats.away.buildUpStagnation} isPercentage icon={<ShieldCheck className="h-4 w-4" />} />
-              <StatsCard title="공격 점유율" value={mockMatch.matchStats.away.attackPossession} isPercentage icon={<Target className="h-4 w-4" />} />
-              <StatsCard title="CE 소요 시간" value={mockMatch.matchStats.away.timePerCE} isTime icon={<Activity className="h-4 w-4" />} />
+              <StatsCard title="SPP (압박 지수)" value={mockMatch.matchStats.away.spp} icon={<TrendingDown className="h-4 w-4" />} isTime />
+              <StatsCard title="빌드업 정체 비율" value={mockMatch.matchStats.away.buildUpStagnation} icon={<ShieldCheck className="h-4 w-4" />} isPercentage />
+              <StatsCard title="공격 점유율" value={mockMatch.matchStats.away.attackPossession} icon={<Target className="h-4 w-4" />} isPercentage />
+              <StatsCard title="CE 소요 시간" value={mockMatch.matchStats.away.timePerCE} icon={<Activity className="h-4 w-4" />} isTime />
             </div>
           </div>
         </div>
