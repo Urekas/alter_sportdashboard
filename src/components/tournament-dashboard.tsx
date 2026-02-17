@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useMemo } from "react";
-import { Trophy, Activity, Grid3X3, Loader2, FileDown, Sword, Shield, TrendingUp, Target, TrendingDown, ShieldCheck } from "lucide-react";
+import { Trophy, Activity, Grid3X3, Loader2, FileDown, Sword, Shield, TrendingUp, Target, TrendingDown, ShieldCheck, BrainCircuit, Sparkles, Info } from "lucide-react";
 import type { MatchData, TeamMatchStats, QuarterStats } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import { mapZone } from "@/lib/zone-helpers";
+import { analyzeMatch, type MatchAnalysisOutput } from "@/ai/flows/match-analysis-flow";
 
 interface TournamentDashboardProps {
   tournamentId: string;
@@ -35,6 +36,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
   const [selectedTeamName, setSelectedTeamName] = useState("");
   const [selectedTeamColor, setSelectedTeamColor] = useState("#0066ff");
   const [opponentColor, setOpponentColor] = useState("#ef4444");
+  const [aiAnalysis, setAiAnalysis] = useState<MatchAnalysisOutput | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
   const db = useFirestore();
   const { toast } = useToast();
 
@@ -49,6 +52,11 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     if (!rawMatches) return [];
     return [...rawMatches].sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
   }, [rawMatches]);
+
+  const tournamentName = useMemo(() => {
+    if (matches.length > 0) return matches[0].tournamentName || "Tournament Report";
+    return "Tournament Report";
+  }, [matches]);
 
   const analysisData = useMemo(() => {
     if (matches.length === 0) return null;
@@ -198,6 +206,26 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     return { allTeams, currentTeam, teamMatches, teamPressureStats, globalPressureStats, mockMatch };
   }, [matches, selectedTeamName, selectedTeamColor, opponentColor]);
 
+  const handleAiAnalysis = async () => {
+    if (!analysisData) return;
+    setIsAiLoading(true);
+    try {
+      const result = await analyzeMatch({
+        type: 'tournament',
+        matchName: tournamentName,
+        homeTeam: { name: analysisData.currentTeam },
+        awayTeam: { name: '대회 전체 평균' },
+        stats: analysisData.mockMatch 
+      });
+      setAiAnalysis(result);
+      toast({ title: "대회 누적 AI 분석 완료" });
+    } catch (e: any) {
+      toast({ title: "AI 분석 실패", description: e.message, variant: "destructive" });
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
   if (loading) return <div className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />대회 데이터를 불러오는 중...</div>;
   if (!analysisData) return <div className="py-20 text-center">대회에 등록된 경기가 없습니다.</div>;
 
@@ -223,10 +251,20 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             </div>
           </div>
         </div>
-        <Button variant="default" className="bg-emerald-600 hover:bg-emerald-700 h-11 px-6 font-bold print-hidden" onClick={() => window.print()}><FileDown className="mr-2 h-5 w-5" /> PDF 저장</Button>
+        <div className="flex gap-2 print-hidden">
+          <Button variant="outline" className="border-primary text-primary font-bold h-11" onClick={handleAiAnalysis} disabled={isAiLoading}>
+            {isAiLoading ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <BrainCircuit className="h-5 w-5 mr-2" />}
+            대회 누적 AI 분석
+          </Button>
+          <Button variant="default" className="bg-emerald-600 hover:bg-emerald-700 h-11 px-6 font-bold" onClick={() => window.print()}><FileDown className="mr-2 h-5 w-5" /> PDF 저장</Button>
+        </div>
       </div>
 
       <div className="page-break space-y-8">
+        <div className="mb-6 hidden print:block border-b-2 pb-4">
+          <h1 className="text-4xl font-black italic text-primary uppercase tracking-tighter">{tournamentName}</h1>
+          <p className="text-muted-foreground font-bold">Cumulative Performance Analysis: {currentTeam}</p>
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-3">
             <div className="flex items-center gap-2 font-bold text-xl" style={{ color: selectedTeamColor }}>
@@ -371,6 +409,88 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             awayTitle="대회 전체 평균 압박"
         />
       </div>
+
+      {aiAnalysis && (
+        <div className="page-break space-y-8">
+          <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+            <Sparkles className="h-6 w-6" /> AI 누적 전술 분석 리포트
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="border-2 border-primary/20">
+              <CardHeader className="bg-primary/5">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Info className="h-5 w-5 text-primary" /> 분석 요약
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.summary}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-2 border-primary/20">
+              <CardHeader className="bg-emerald-500/5">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Target className="h-5 w-5 text-emerald-600" /> 전술적 주요 포인트
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <ul className="space-y-3">
+                  {aiAnalysis.tacticalAnalysis.map((point, idx) => (
+                    <li key={idx} className="flex gap-2 text-sm">
+                      <span className="font-bold text-emerald-600 shrink-0">{idx + 1}.</span>
+                      <span className="text-muted-foreground">{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+            <Card className="border-2 border-primary/20">
+              <CardHeader className="bg-blue-500/5">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-blue-600" /> 팀의 강점 (Strengths)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <ul className="space-y-3">
+                  {aiAnalysis.strengths.map((s, idx) => (
+                    <li key={idx} className="flex gap-2 text-sm">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1.5 shrink-0" />
+                      <span className="text-muted-foreground">{s}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+            <Card className="border-2 border-primary/20">
+              <CardHeader className="bg-orange-500/5">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <TrendingDown className="h-5 w-5 text-orange-600" /> 개선 필요 사항 (Weaknesses)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <ul className="space-y-3">
+                  {aiAnalysis.weaknesses.map((w, idx) => (
+                    <li key={idx} className="flex gap-2 text-sm">
+                      <div className="w-1.5 h-1.5 rounded-full bg-orange-600 mt-1.5 shrink-0" />
+                      <span className="text-muted-foreground">{w}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
+          <Card className="bg-primary text-primary-foreground border-none shadow-xl">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="bg-white/20 p-3 rounded-xl">
+                <Sparkles className="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest opacity-80">최종 분석 한줄평 (Verdict)</p>
+                <p className="text-xl font-black italic mt-1">"{aiAnalysis.verdict}"</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

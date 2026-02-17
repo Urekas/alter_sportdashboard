@@ -28,7 +28,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { analyzeMatch, type MatchAnalysisOutput } from "@/ai/flows/match-analysis-flow"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export function Dashboard() {
   const [viewMode, setViewMode] = useState<'single' | 'tournament' | 'manage'>('single')
@@ -270,8 +270,8 @@ export function Dashboard() {
           <div className="space-y-12">
             <div className="border-b-4 border-primary pb-4 mb-8 flex justify-between items-end">
               <div>
-                <h2 className="text-xl font-bold text-muted-foreground uppercase tracking-widest">{matchData.tournamentName || "Tournament Report"}</h2>
-                <h1 className="text-4xl font-black italic tracking-tighter text-foreground mt-1 font-headline">{matchData.matchName || "Match Performance Analysis"}</h1>
+                <h2 className="text-xl font-bold text-muted-foreground uppercase tracking-widest block print:text-primary print:text-2xl print:mb-2">{matchData.tournamentName || "Tournament Report"}</h2>
+                <h1 className="text-4xl font-black italic tracking-tighter text-foreground mt-1 font-headline print:text-3xl">{matchData.matchName || "Match Performance Analysis"}</h1>
               </div>
               <Button variant="outline" size="sm" className="print-hidden border-primary text-primary font-bold h-9" onClick={handleAiAnalysis} disabled={isAiLoading}>
                 {isAiLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <BrainCircuit className="h-4 w-4 mr-2" />}
@@ -332,6 +332,88 @@ export function Dashboard() {
               <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
               <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
             </div>
+
+            {aiAnalysis && (
+              <div className="page-break space-y-8">
+                <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+                  <Sparkles className="h-6 w-6" /> AI 전술 분석 리포트
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card className="border-2 border-primary/20">
+                    <CardHeader className="bg-primary/5">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Info className="h-5 w-5 text-primary" /> 분석 요약
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.summary}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-2 border-primary/20">
+                    <CardHeader className="bg-emerald-500/5">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Target className="h-5 w-5 text-emerald-600" /> 전술적 주요 포인트
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <ul className="space-y-3">
+                        {aiAnalysis.tacticalAnalysis.map((point, idx) => (
+                          <li key={idx} className="flex gap-2 text-sm">
+                            <span className="font-bold text-emerald-600 shrink-0">{idx + 1}.</span>
+                            <span className="text-muted-foreground">{point}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-2 border-primary/20">
+                    <CardHeader className="bg-blue-500/5">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Activity className="h-5 w-5 text-blue-600" /> 팀의 강점
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <ul className="space-y-3">
+                        {aiAnalysis.strengths.map((s, idx) => (
+                          <li key={idx} className="flex gap-2 text-sm">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1.5 shrink-0" />
+                            <span className="text-muted-foreground">{s}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-2 border-primary/20">
+                    <CardHeader className="bg-orange-500/5">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <TrendingDown className="h-5 w-5 text-orange-600" /> 개선 필요 사항
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <ul className="space-y-3">
+                        {aiAnalysis.weaknesses.map((w, idx) => (
+                          <li key={idx} className="flex gap-2 text-sm">
+                            <div className="w-1.5 h-1.5 rounded-full bg-orange-600 mt-1.5 shrink-0" />
+                            <span className="text-muted-foreground">{w}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                </div>
+                <Card className="bg-primary text-primary-foreground border-none shadow-xl">
+                  <CardContent className="p-6 flex items-center gap-4">
+                    <div className="bg-white/20 p-3 rounded-xl">
+                      <Sparkles className="h-8 w-8 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest opacity-80">최종 분석 한줄평 (Verdict)</p>
+                      <p className="text-xl font-black italic mt-1">"{aiAnalysis.verdict}"</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
         )}
       </main>
