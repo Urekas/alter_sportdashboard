@@ -1,5 +1,5 @@
 
-"use client"
+'use client';
 
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -26,37 +26,62 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
 
   const zoneStats = useMemo(() => {
     const calculateStats = (isHome: boolean) => {
+      // Index mapping: 0: 25L, 1: 25C, 2: 25R, 3: 50L, 4: 50C, 5: 50R
       const zones: ZoneStat[] = Array(6).fill(null).map(() => ({ count: 0, success: 0, rate: 0 }));
 
+      // 형님의 철칙 매핑 (홈팀 기준)
+      // 25L(0) = 상대 100R + 본인 25L(파울)
+      // 25C(1) = 상대 100C + 본인 25C(파울)
+      // 25R(2) = 상대 100L + 본인 25R(파울)
       const mapping = [
-        { oppZone: 100, oppLane: 'Left', myZone: 25, myLane: 'Left' },
-        { oppZone: 100, oppLane: 'Center', myZone: 25, myLane: 'Center' },
-        { oppZone: 100, oppLane: 'Right', myZone: 25, myLane: 'Right' },
-        { oppZone: 75, oppLane: 'Left', myZone: 50, myLane: 'Left' },
-        { oppZone: 75, oppLane: 'Center', myZone: 50, myLane: 'Center' },
-        { oppZone: 75, oppLane: 'Right', myZone: 50, myLane: 'Right' }
+        { name: "25L", oppZone: 100, oppLane: 'Right', myZone: 25, myLane: 'Left' },
+        { name: "25C", oppZone: 100, oppLane: 'Center', myZone: 25, myLane: 'Center' },
+        { name: "25R", oppZone: 100, oppLane: 'Left', myZone: 25, myLane: 'Right' },
+        { name: "50L", oppZone: 75, oppLane: 'Right', myZone: 50, myLane: 'Left' },
+        { name: "50C", oppZone: 75, oppLane: 'Center', myZone: 50, myLane: 'Center' },
+        { name: "50R", oppZone: 75, oppLane: 'Left', myZone: 50, myLane: 'Right' }
       ];
 
       events.forEach(e => {
         const zoneInfo = mapZone(e.locationLabel || e.code);
-        const isMyTeam = e.team === homeTeam.name;
-        const isOppTeam = e.team !== homeTeam.name;
+        const teamName = e.team?.trim();
+        const isMyTeam = teamName === homeTeam.name;
+        
+        // 형님의 지혜: 상대 팀 이름이 "대회 전체 평균"일 때를 대비해 우리 팀이 아니면 무조건 상대 팀으로 간주
+        const isOppTeam = teamName !== homeTeam.name;
 
         const isOppError = isOppTeam && (e.type === 'turnover' || e.type === 'foul');
         const isMyFoul = isMyTeam && e.type === 'foul';
+        
         const isMyError = isMyTeam && (e.type === 'turnover' || e.type === 'foul');
         const isOppFoul = isOppTeam && e.type === 'foul';
 
         mapping.forEach((m, idx) => {
           if (isHome) {
+            // [홈팀 압박 분석]
             if (zoneInfo.zoneBand === m.oppZone && zoneInfo.lane === m.oppLane) {
-              if (isOppError || isMyFoul) zones[idx].count++;
-              if (isOppError) zones[idx].success++;
+              if (isOppError) {
+                zones[idx].count++;
+                zones[idx].success++;
+              }
+            }
+            if (zoneInfo.zoneBand === m.myZone && zoneInfo.lane === m.myLane) {
+              if (isMyFoul) {
+                zones[idx].count++;
+              }
             }
           } else {
+            // [상대팀 압박 분석]
             if (zoneInfo.zoneBand === m.myZone && zoneInfo.lane === m.myLane) {
-              if (isMyError || isOppFoul) zones[idx].count++;
-              if (isMyError) zones[idx].success++;
+              if (isMyError) {
+                zones[idx].count++;
+                zones[idx].success++;
+              }
+            }
+            if (zoneInfo.zoneBand === m.oppZone && zoneInfo.lane === m.oppLane) {
+              if (isOppFoul) {
+                zones[idx].count++;
+              }
             }
           }
         });
@@ -118,10 +143,13 @@ export function PressureAnalysisMap({ events, homeTeam, awayTeam, isCompact, awa
             </g>
 
             {teamData.zones.map((stat, i) => {
-              const xIdx = Math.floor(i / 3);
-              const yIdx = i % 3;
+              const xIdx = Math.floor(i / 3); // 0 (25), 1 (50)
+              const yIdx = i % 3; // 0 (L), 1 (C), 2 (R)
               const rectX = isHome ? (xIdx === 0 ? 22.85 : 0) : (xIdx === 0 ? 0 : 22.85);
-              const rectY = yIdx * 18.33;
+              
+              // 형님의 지혜: 상단이 R(yIdx=2), 하단이 L(yIdx=0)
+              const rectY = (2 - yIdx) * 18.33;
+              
               const intensity = stat.count > 0 ? (stat.count / globalMaxCount) * 0.45 + 0.1 : 0;
 
               return (

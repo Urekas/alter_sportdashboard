@@ -66,9 +66,10 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         acc.circle += (s.circleEntries || 0); acc.a25 += (s.twentyFiveEntries || 0); acc.poss += (s.possession || 0);
         acc.att += (s.attackPossession || 0); acc.bup += (s.buildUpStagnation || 0); acc.pcSucc += (s.pcSuccessRate || 0);
         acc.spp += (s.spp || 0); acc.ceTime += (s.timePerCE || 0); acc.b25 += (s.build25Ratio || 0);
+        acc.pressAtt += (s.pressAttempts || 0); acc.pressSucc += (s.pressSuccess || 0);
       });
       return acc;
-    }, { goals: 0, shots: 0, pcs: 0, circle: 0, a25: 0, poss: 0, att: 0, bup: 0, pcSucc: 0, spp: 0, ceTime: 0, b25: 0 });
+    }, { goals: 0, shots: 0, pcs: 0, circle: 0, a25: 0, poss: 0, att: 0, bup: 0, pcSucc: 0, spp: 0, ceTime: 0, b25: 0, pressAtt: 0, pressSucc: 0 });
 
     const globalAvg = {
       goals: { field: gSums.goals / globalCount * 0.7, pc: gSums.goals / globalCount * 0.3 },
@@ -76,13 +77,14 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       pcSuccessRate: gSums.pcSucc / globalCount, circleEntries: gSums.circle / globalCount, twentyFiveEntries: gSums.a25 / globalCount,
       possession: gSums.poss / globalCount, attackPossession: gSums.att / globalCount, buildUpStagnation: gSums.bup / globalCount,
       spp: gSums.spp / globalCount, timePerCE: gSums.ceTime / globalCount, build25Ratio: gSums.b25 / globalCount,
+      pressAttempts: gSums.pressAtt / globalCount, pressSuccess: gSums.pressSucc / globalCount,
       threat: (gSums.shots + gSums.pcs) / globalCount, allowedThreat: (gSums.shots + gSums.pcs) / globalCount
     };
 
     const getTeamAverages = (teamName: string) => {
       const myMatches = matches.filter(m => m.homeTeam.name === teamName || m.awayTeam.name === teamName);
       const count = myMatches.length || 1;
-      const sum = { fieldGoals: 0, pcGoals: 0, shots: 0, pcs: 0, circle: 0, entry25: 0, possession: 0, attPoss: 0, buildUpStagnation: 0, pcSuccess: 0, spp: 0, timeCE: 0, buildUp: 0, allowed25: 0, allowedCircle: 0, allowedShots: 0, allowedPC: 0 };
+      const sum = { fieldGoals: 0, pcGoals: 0, shots: 0, pcs: 0, circle: 0, entry25: 0, possession: 0, attPoss: 0, buildUpStagnation: 0, pcSuccess: 0, spp: 0, timeCE: 0, buildUp: 0, allowed25: 0, allowedCircle: 0, allowedShots: 0, allowedPC: 0, pressAtt: 0, pressSucc: 0 };
 
       myMatches.forEach(m => {
         const isHome = m.homeTeam.name === teamName;
@@ -92,6 +94,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         sum.shots += (my.shots || 0); sum.pcs += (my.pcs || 0); sum.circle += (my.circleEntries || 0); sum.entry25 += (my.twentyFiveEntries || 0);
         sum.possession += (my.possession || 0); sum.attPoss += (my.attackPossession || 0); sum.buildUpStagnation += (my.buildUpStagnation || 0);
         sum.pcSuccess += (my.pcSuccessRate || 0); sum.spp += (my.spp || 0); sum.timeCE += (my.timePerCE || 0); sum.buildUp += (my.build25Ratio || 0);
+        sum.pressAtt += (my.pressAttempts || 0); sum.pressSucc += (my.pressSuccess || 0);
         sum.allowed25 += (opp.twentyFiveEntries || 0); sum.allowedCircle += (opp.circleEntries || 0); sum.allowedShots += (opp.shots || 0); sum.allowedPC += (opp.pcs || 0);
       });
 
@@ -102,12 +105,12 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         circleEntries: sum.circle / count, twentyFiveEntries: sum.entry25 / count, possession: sum.possession / count,
         attackPossession: sum.attPoss / count, buildUpStagnation: sum.buildUpStagnation / count,
         spp: sum.spp / count, timePerCE: sum.timeCE / count, build25Ratio: sum.buildUp / count,
+        pressAttempts: sum.pressAtt / count, pressSuccess: sum.pressSucc / count,
         allowed25: sum.allowed25 / count, allowedCircle: sum.allowedCircle / count,
         allowedThreat: (sum.allowedShots + sum.allowedPC) / count, threat: (sum.shots + sum.pcs) / count
       };
     };
 
-    // 쿼터별 평균 계산 함수 (형님 요청 사항 해결)
     const getQuarterlyAverages = (teamName: string | null, quarter: string) => {
       const targetMatches = teamName 
         ? matches.filter(m => m.homeTeam.name === teamName || m.awayTeam.name === teamName)
@@ -168,7 +171,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       build25Ratio: { home: currentTeamStats.build25Ratio, away: globalAvg.build25Ratio },
       spp: { home: currentTeamStats.spp, away: globalAvg.spp },
       matchStats: { home: currentTeamStats as any, away: globalAvg as any },
-      // 쿼터별 데이터 바인딩 (수정 완료)
       quarterlyStats: ['Q1', 'Q2', 'Q3', 'Q4'].map(q => ({
         quarter: q,
         home: getQuarterlyAverages(currentTeam, q) as any,
