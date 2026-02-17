@@ -1,147 +1,229 @@
 
-"use client";
+"use client"
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import type { Team } from "@/lib/types";
+import type { MatchEvent, Team } from "@/lib/types";
+import { mapZone } from "@/lib/parser";
+
+interface ZoneStat {
+  count: number;
+  success: number;
+  rate?: number;
+}
 
 interface PressureAnalysisMapProps {
+  events?: MatchEvent[];
   homeTeam: Team;
   awayTeam: Team;
-  homeStats: any[]; 
-  awayStats: any[]; 
-  isTournament: boolean;
-  homeMatchCount: number;
-  awayMatchCount: number; 
+  isCompact?: boolean;
+  awayHeader?: string;
+  matchCount?: number;
+  // Tournament mode props
+  homeStats?: ZoneStat[];
+  awayStats?: ZoneStat[];
+  isTournament?: boolean;
+  homeMatchCount?: number;
+  awayMatchCount?: number;
   awayTitle?: string;
 }
 
-const zoneMapping = [
-  { zone: 'D', subZone: 'L', x: 5, y: 42.5 }, { zone: 'D', subZone: 'C', x: 5, y: 25 }, { zone: 'D', subZone: 'R', x: 5, y: 7.5 },
-  { zone: 'M', subZone: 'L', x: 27.5, y: 42.5 }, { zone: 'M', subZone: 'C', x: 27.5, y: 25 }, { zone: 'M', subZone: 'R', x: 27.5, y: 7.5 },
-  { zone: 'A', subZone: 'L', x: 50, y: 42.5 }, { zone: 'A', subZone: 'C', x: 50, y: 25 }, { zone: 'A', subZone: 'R', x: 50, y: 7.5 },
-];
+/**
+ * 압박 분석 지도 컴포넌트
+ * 
+ * [로직 정의 - 형님 에디션]
+ * - 압박 시도(Count): 해당 진영에서의 모든 경합 (상대 에러 + 압박하는 팀의 파울)
+ * - 압박 성공(Success): 압박 시도 - 압박하는 팀의 파울 (즉, 순수하게 상대의 실책을 유도한 상황)
+ */
+export function PressureAnalysisMap({ 
+  events, 
+  homeTeam, 
+  awayTeam, 
+  isCompact, 
+  awayHeader, 
+  matchCount = 1,
+  homeStats,
+  awayStats,
+  isTournament: isTournamentProp,
+  homeMatchCount,
+  awayMatchCount,
+  awayTitle
+}: PressureAnalysisMapProps) {
+  const isTournament = isTournamentProp || matchCount > 1;
+  const hCount = homeMatchCount || matchCount;
+  const aCount = awayMatchCount || matchCount;
 
-const formatNum = (val: number, isTournament: boolean, matchCount: number) => {
-  if (matchCount === 0) return "0";
-  return isTournament ? (val / matchCount).toFixed(1) : Math.round(val).toString();
-};
-
-const TeamPressureDisplay = (
-    { title, team, stats, isTournament, matchCount, isHome }: 
-    { title: string, team: Team, stats: any[], isTournament: boolean, matchCount: number, isHome: boolean }
-) => {
-    if (!stats || stats.length === 0) {
-      return (
-        <div>
-          <h3 className="font-bold text-lg" style={{color: team.color}}>{title}</h3>
-          <p className="text-sm text-muted-foreground mt-1">데이터가 없습니다.</p>
-        </div>
-      );
+  const zoneStats = useMemo(() => {
+    // 대회 모드에서 통계가 직접 넘어온 경우
+    if (homeStats && awayStats) {
+      const hData = {
+        zones: homeStats.map(s => ({ ...s, rate: s.count > 0 ? (s.success / s.count) * 100 : 0 })),
+        totalCount: homeStats.reduce((acc, s) => acc + s.count, 0),
+        totalSuccess: homeStats.reduce((acc, s) => acc + s.success, 0)
+      };
+      const aData = {
+        zones: awayStats.map(s => ({ ...s, rate: s.count > 0 ? (s.success / s.count) * 100 : 0 })),
+        totalCount: awayStats.reduce((acc, s) => acc + s.count, 0),
+        totalSuccess: awayStats.reduce((acc, s) => acc + s.success, 0)
+      };
+      const globalMaxCount = Math.max(...hData.zones.map(s => s.count), ...aData.zones.map(s => s.count), 1);
+      return { home: hData, away: aData, globalMaxCount };
     }
-    const totalAttempts = stats.reduce((sum, z) => sum + z.count, 0);
-    const totalSuccesses = stats.reduce((sum, z) => sum + z.success, 0);
-    const globalMaxCount = Math.max(...stats.map(z => z.count), 0) || 1;
-    const maxCountForScaling = isTournament && matchCount > 0 ? globalMaxCount / matchCount : globalMaxCount;
+
+    // 경기별 분석 모드 (이벤트로 계산)
+    const calculateStats = (isHome: boolean) => {
+      const zones: ZoneStat[] = Array(6).fill(null).map(() => ({ count: 0, success: 0, rate: 0 }));
+      if (!events) return { zones, totalCount: 0, totalSuccess: 0 };
+
+      const myTeam = isHome ? homeTeam.name : awayTeam.name;
+      
+      // 구역 매핑 정의: 우리 기준 25구역 압박은 상대 기준 100구역 실책임
+      const mapping = [
+        { oppZone: 100, oppLane: 'Right', myZone: 25, myLane: 'Left' },  
+        { oppZone: 100, oppLane: 'Center', myZone: 25, myLane: 'Center' },
+        { oppZone: 100, oppLane: 'Left', myZone: 25, myLane: 'Right' },  
+        { oppZone: 75, oppLane: 'Right', myZone: 50, myLane: 'Left' },    
+        { oppZone: 75, oppLane: 'Center', myZone: 50, myLane: 'Center' },  
+        { oppZone: 75, oppLane: 'Left', myZone: 50, myLane: 'Right' }    
+      ];
+
+      events.forEach(e => {
+        const zoneInfo = mapZone(e.locationLabel || e.code);
+        if (!zoneInfo) return;
+
+        // 상대팀은 우리팀이 아닌 모든 팀 (대회 모드 호환)
+        const isOpponent = e.team !== homeTeam.name;
+        const isMe = e.team === homeTeam.name;
+
+        const isOppError = isOpponent && (e.type === 'turnover' || e.type === 'foul');
+        const isMyFoul = isMe && e.type === 'foul';
+
+        mapping.forEach((m, idx) => {
+          if (isHome) {
+            // [우리의 상대 진영 압박]
+            if (zoneInfo.zoneBand === m.oppZone && zoneInfo.lane === m.oppLane) {
+              if (isOppError || isMyFoul) zones[idx].count++;
+              if (isOppError) zones[idx].success++;
+            }
+          } else {
+            // [상대의 압박 (우리의 피압박)]
+            if (zoneInfo.zoneBand === m.myZone && zoneInfo.lane === m.myLane) {
+              // 상대의 압박 시도: 우리팀 에러 + 상대팀 파울 (여기선 상대 데이터가 완벽하지 않으므로 보수적 접근)
+              if (isMe && (e.type === 'turnover' || e.type === 'foul')) zones[idx].count++;
+              if (isMe && e.type === 'turnover') zones[idx].success++;
+            }
+          }
+        });
+      });
+
+      const totalCount = zones.reduce((acc, z) => acc + z.count, 0);
+      const totalSuccess = zones.reduce((acc, z) => acc + z.success, 0);
+
+      return {
+        zones: zones.map(z => ({
+          ...z,
+          rate: z.count > 0 ? (z.success / z.count) * 100 : 0
+        })),
+        totalCount,
+        totalSuccess
+      };
+    };
+
+    const homeData = calculateStats(true);
+    const awayData = calculateStats(false);
+    const globalMaxCount = Math.max(...homeData.zones.map(s => s.count), ...awayData.zones.map(s => s.count), 1);
+
+    return { home: homeData, away: awayData, globalMaxCount };
+  }, [events, homeTeam, awayTeam, homeStats, awayStats]);
+
+  const renderHalfPitch = (teamData: { zones: ZoneStat[], totalCount: number, totalSuccess: number }, team: Team, isHome: boolean, globalMaxCount: number, mCount: number) => {
+    const labels = ["25L", "25C", "25R", "50L", "50C", "50R"];
+    
+    const formatNum = (val: number) => {
+      return isTournament ? (val / mCount).toFixed(1) : val.toString();
+    };
+    
+    const avgCountFormatted = formatNum(teamData.totalCount);
+    const avgSuccessFormatted = formatNum(teamData.totalSuccess);
+    const totalRate = teamData.totalCount > 0 ? (teamData.totalSuccess / teamData.totalCount * 100).toFixed(1) : "0.0";
+    
+    const headerTitle = isHome ? `${team.name} 압박` : (awayTitle || awayHeader || `${team.name} 압박`);
+    const goalOnRight = isHome; // 홈팀(공격팀) 기준 골대는 오른쪽
 
     return (
-        <div>
-            <h3 className="font-bold text-lg" style={{color: team.color}}>{title}</h3>
-            <CardDescription className="mt-1">
-                총 압박 시도: <span className="font-bold text-primary">{formatNum(totalAttempts, isTournament, matchCount)}</span>회,
-                총 압박 성공: <span className="font-bold text-emerald-600">{formatNum(totalSuccesses, isTournament, matchCount)}</span>회
-                {isTournament && " (경기당 평균)"}
-            </CardDescription>
-            <div className="relative mt-2 aspect-[45.7/55] bg-green-50/50 rounded-lg overflow-hidden border border-muted shadow-inner">
-                <svg viewBox="0 0 45.7 55" className="w-full h-full overflow-visible">
-                    <defs>
-                        <linearGradient id={`${team.name.replace(/\s+/g, '')}-successGradient`} x1="0" x2="1" y1="0" y2="0">
-                            <stop offset="0%" stopColor="#10b981" />
-                            <stop offset="100%" stopColor="#10b981" stopOpacity="0.1" />
-                        </linearGradient>
-                        <linearGradient id={`${team.name.replace(/\s+/g, '')}-attemptGradient`} x1="0" x2="1" y1="0" y2="0">
-                            <stop offset="0%" stopColor={team.color || '#000000'} />
-                            <stop offset="100%" stopColor={team.color || '#000000'} stopOpacity="0.1" />
-                        </linearGradient>
-                    </defs>
-
-                    {/* 피치 라인 아트 */}
-                    <g stroke="#000" strokeWidth="0.3" fill="none" opacity="0.4">
-                      <rect x="0" y="0" width="45.7" height="55" />
-                      {isHome ? (
-                        <>
-                          <path d={`M 45.7,${27.5 - 14.63} A 14.63,14.63 0 0,0 31.07,27.5 A 14.63,14.63 0 0,0 45.7,${27.5 + 14.63}`} />
-                          <path d={`M 45.7,${27.5 - 19.63} A 19.63,19.63 0 0,0 26.07,27.5 A 19.63,19.63 0 0,0 45.7,${27.5 + 19.63}`} strokeDasharray="1,1" />
-                          <circle cx={45.7 - 6.47} cy={27.5} r="0.5" fill="black" stroke="none" />
-                          <rect x="45.7" y={27.5 - 1.83} width="1.2" height="3.66" />
-                        </>
-                      ) : (
-                        <>
-                          <path d={`M 0,${27.5 - 14.63} A 14.63,14.63 0 0,1 14.63,27.5 A 14.63,14.63 0 0,1 0,${27.5 + 14.63}`} />
-                          <path d={`M 0,${27.5 - 19.63} A 19.63,19.63 0 0,1 19.63,27.5 A 19.63,19.63 0 0,1 0,${27.5 + 19.63}`} strokeDasharray="1,1" />
-                          <circle cx={6.47} cy={27.5} r="0.5" fill="black" stroke="none" />
-                          <rect x="-1.2" y={27.5 - 1.83} width="1.2" height="3.66" />
-                        </>
-                      )}
-                      <line x1="0" y1="18.33" x2="45.7" y2="18.33" strokeDasharray="1,1" />
-                      <line x1="0" y1="36.66" x2="45.7" y2="36.66" strokeDasharray="1,1" />
-                      <line x1="22.85" y1="0" x2="22.85" y2="55" strokeDasharray="1,1" />
-                    </g>
-
-                    {stats.map((zone, i) => {
-                        if (!zoneMapping[i]) return null;
-
-                        const avgCount = isTournament && matchCount > 0 ? zone.count / matchCount : zone.count;
-                        const maxAvgCount = maxCountForScaling > 0 ? maxCountForScaling : 1;
-                        
-                        const successRate = zone.count > 0 ? (zone.success / zone.count) : 0;
-                        const attemptWidth = (avgCount / maxAvgCount) * 18;
-                        const successWidth = attemptWidth * successRate;
-                        
-                        return (
-                            <g key={i} transform={`translate(${zoneMapping[i].x}, ${zoneMapping[i].y})`}>
-                                <rect y="-3" width={attemptWidth} height="3" fill={`url(#${team.name.replace(/\s+/g, '')}-attemptGradient)`} />
-                                <rect y="-0.5" width={successWidth} height="3" fill={`url(#${team.name.replace(/\s+/g, '')}-successGradient)`} />
-                                <text y="3" fontSize="2.5" fill="#374151" fontWeight="bold">
-                                    {zoneMapping[i].zone}{zoneMapping[i].subZone}: S {formatNum(zone.success, isTournament, matchCount)} / A {formatNum(zone.count, isTournament, matchCount)}
-                                </text>
-                            </g>
-                        );
-                    })}
-                </svg>
-            </div>
+      <div className="flex flex-col gap-1">
+        <div className="flex flex-col items-center justify-center p-2 rounded-t-lg border-b-2" style={{ backgroundColor: `${team.color}15`, borderColor: team.color }}>
+          <h3 className="text-sm font-black uppercase tracking-tighter" style={{ color: team.color }}>
+            {headerTitle}
+          </h3>
+          <p className="text-[10px] font-bold mt-1 uppercase tracking-tight">
+            {isTournament ? '평균' : '합계'} 시도: <span className="text-primary">{avgCountFormatted}</span> | 성공: <span className="text-emerald-600">{avgSuccessFormatted}</span> ({totalRate}%)
+          </p>
         </div>
-    );
-}
+        <div className="relative aspect-[45.7/55] bg-green-50/50 rounded-b-lg overflow-hidden border border-muted shadow-inner">
+          <svg viewBox="0 0 45.7 55" className="w-full h-full overflow-visible">
+            <g stroke="#000" strokeWidth="0.3" fill="none" opacity="0.4">
+              <rect x="0" y="0" width="45.7" height="55" />
+              {goalOnRight ? (
+                <>
+                  <path d={`M 45.7,${27.5 - 14.63} A 14.63,14.63 0 0,0 31.07,27.5 A 14.63,14.63 0 0,0 45.7,${27.5 + 14.63}`} />
+                  <path d={`M 45.7,${27.5 - 19.63} A 19.63,19.63 0 0,0 26.07,27.5 A 19.63,19.63 0 0,0 45.7,${27.5 + 19.63}`} strokeDasharray="1,1" />
+                  <circle cx={45.7 - 6.47} cy={27.5} r="0.5" fill="black" stroke="none" />
+                  <rect x="45.7" y={27.5 - 1.83} width="1.2" height="3.66" />
+                </>
+              ) : (
+                <>
+                  <path d={`M 0,${27.5 - 14.63} A 14.63,14.63 0 0,1 14.63,27.5 A 14.63,14.63 0 0,1 0,${27.5 + 14.63}`} />
+                  <path d={`M 0,${27.5 - 19.63} A 19.63,19.63 0 0,1 19.63,27.5 A 19.63,19.63 0 0,1 0,${27.5 + 19.63}`} strokeDasharray="1,1" />
+                  <circle cx={6.47} cy={27.5} r="0.5" fill="black" stroke="none" />
+                  <rect x="-1.2" y={27.5 - 1.83} width="1.2" height="3.66" />
+                </>
+              )}
+              <line x1="0" y1="18.33" x2="45.7" y2="18.33" strokeDasharray="1,1" />
+              <line x1="0" y1="36.66" x2="45.7" y2="36.66" strokeDasharray="1,1" />
+              <line x1="22.85" y1="0" x2="22.85" y2="55" strokeDasharray="1,1" />
+            </g>
 
-export function PressureAnalysisMap({ homeTeam, awayTeam, homeStats, awayStats, isTournament, homeMatchCount, awayMatchCount, awayTitle }: PressureAnalysisMapProps) {
+            {teamData.zones.map((stat, i) => {
+              const xIdx = Math.floor(i / 3);
+              const yIdx = i % 3;
+
+              let rectX = goalOnRight ? (xIdx === 0 ? 22.85 : 0) : (xIdx === 0 ? 0 : 22.85);
+              const rectY = yIdx * 18.33; // 상단이 L (yIdx=0), 하단이 R (yIdx=2)
+              const intensity = stat.count > 0 ? (stat.count / globalMaxCount) * 0.45 + 0.1 : 0;
+
+              return (
+                <g key={i}>
+                  <rect x={rectX} y={rectY} width="22.85" height="18.33" fill={team.color} fillOpacity={intensity} />
+                  <text x={rectX + 11.42} y={rectY + 9.16} textAnchor="middle" dominantBaseline="middle" className="fill-foreground font-bold">
+                    <tspan x={rectX + 11.42} dy="-4" fontSize="2.5px" fontWeight="black" fillOpacity="0.6">{labels[i]}</tspan>
+                    <tspan x={rectX + 11.42} dy="4.5" fontWeight="black" fontSize="4px">{formatNum(stat.count)}</tspan>
+                    <tspan x={rectX + 11.42} dy="4" fontWeight="black" fontSize="3.2px" fill="#059669">성공: {formatNum(stat.success)}</tspan>
+                    <tspan x={rectX + 11.42} dy="3" fontSize="2.2px" fontWeight="normal" opacity="0.8">({stat.rate?.toFixed(0)}%)</tspan>
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <Card>
-        <CardHeader>
-            <CardTitle>구역별 압박 분석</CardTitle>
-            <CardDescription>
-              {isTournament ? '선택팀과 대회 전체의 경기당 평균 압박 데이터 비교' : '홈 팀과 어웨이 팀의 압박 데이터'}
-            </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-            <TeamPressureDisplay 
-                title={`${homeTeam.name} 압박`}
-                team={homeTeam} 
-                stats={homeStats} 
-                isTournament={isTournament} 
-                matchCount={homeMatchCount} 
-                isHome={true}
-            />
-            <div className="border-t border-dashed" />
-            <TeamPressureDisplay 
-                title={awayTitle || `${awayTeam.name} 압박`}
-                team={awayTeam} 
-                stats={awayStats} 
-                isTournament={isTournament} 
-                matchCount={awayMatchCount} 
-                isHome={false}
-            />
-        </CardContent>
+    <Card className="lg:col-span-3">
+      <CardHeader className={isCompact ? "py-2 px-4" : ""}>
+        <CardTitle className={isCompact ? "text-lg" : ""}>Pressure Analysis</CardTitle>
+        <CardDescription className={isCompact ? "text-[10px]" : ""}>
+          압박 시도 대비 순수 성공(상대 실책 유도) 분석. {isTournament ? `대회 평균 수치.` : '경기 실제 수치.'}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className={isCompact ? "p-2 md:p-4" : "p-4 md:p-6"}>
+        <div className="grid grid-cols-2 gap-4">
+          {renderHalfPitch(zoneStats.home, homeTeam, true, zoneStats.globalMaxCount, hCount)}
+          {renderHalfPitch(zoneStats.away, awayTeam, false, zoneStats.globalMaxCount, aCount)}
+        </div>
+      </CardContent>
     </Card>
   );
 }

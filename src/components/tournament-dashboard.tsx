@@ -2,8 +2,8 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Trophy, Activity, Grid3X3, Loader2, FileDown, Sword, Shield, TrendingUp } from "lucide-react";
-import type { MatchData, TeamMatchStats } from "@/lib/types";
+import { Trophy, Activity, Grid3X3, Loader2, FileDown, Sword, Shield, TrendingUp, Target, TrendingDown, ShieldCheck } from "lucide-react";
+import type { MatchData, TeamMatchStats, QuarterStats } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BasicMatchStats } from "./basic-match-stats";
@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
-import { mapZone, flipZone, flipSubZone, zoneMapping } from "@/lib/zone-helpers";
+import { mapZone } from "@/lib/parser";
 
 interface TournamentDashboardProps {
   tournamentId: string;
@@ -36,6 +36,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
   const [selectedTeamColor, setSelectedTeamColor] = useState("#0066ff");
   const [opponentColor, setOpponentColor] = useState("#ef4444");
   const db = useFirestore();
+  const { toast } = useToast();
 
   const matchesQuery = useMemoFirebase(() => {
     if (!db || !tournamentId) return null;
@@ -55,123 +56,106 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     const allTeams = Array.from(new Set(matches.flatMap(m => [m.homeTeam.name, m.awayTeam.name]))).sort();
     const currentTeam = selectedTeamName || allTeams[0];
 
-    const getTeamAverages = (teamName: string) => {
-      const myMatches = matches.filter(m => m.homeTeam.name === teamName || m.awayTeam.name === teamName);
-      const count = myMatches.length || 1;
-      const sum = { fieldGoals: 0, pcGoals: 0, shots: 0, pcs: 0, circle: 0, entry25: 0, possession: 0, attPoss: 0, buildUpStagnation: 0, pcSuccess: 0, spp: 0, timeCE: 0, buildUp: 0, allowed25: 0, allowedCircle: 0, allowedShots: 0, allowedPC: 0, pressAttempts: 0, pressSuccess: 0 };
+    // Filter matches involving the selected team
+    const teamMatches = matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam);
 
-      myMatches.forEach(m => {
-        const isHome = m.homeTeam.name === teamName;
-        const my = isHome ? m.matchStats.home : m.matchStats.away;
+    const aggregateStats = (targetMatches: MatchData[], targetTeam?: string) => {
+      const statsSum: TeamMatchStats = {
+        goals: { field: 0, pc: 0 },
+        shots: 0, pcs: 0, circleEntries: 0, twentyFiveEntries: 0,
+        possession: 0, attackPossession: 0, buildUpStagnation: 0,
+        pcSuccessRate: 0, allowedSpp: 0, avgAttackDuration: 0,
+        timePerCE: 0, spp: 0, build25Ratio: 0, pressAttempts: 0, pressSuccess: 0
+      };
+      // For quadrant charts
+      let threat = 0;
+      let allowedThreat = 0;
+      let allowedCircleEntries = 0;
+      let allowedPossession = 0;
+
+      targetMatches.forEach(m => {
+        const isHome = targetTeam ? m.homeTeam.name === targetTeam : true;
+        const s = isHome ? m.matchStats.home : m.matchStats.away;
         const opp = isHome ? m.matchStats.away : m.matchStats.home;
-        sum.fieldGoals += (my.goals?.field || 0); sum.pcGoals += (my.goals?.pc || 0);
-        sum.shots += (my.shots || 0); sum.pcs += (my.pcs || 0); sum.circle += (my.circleEntries || 0); sum.entry25 += (my.twentyFiveEntries || 0);
-        sum.possession += (my.possession || 0); sum.attPoss += (my.attackPossession || 0); sum.buildUpStagnation += (my.buildUpStagnation || 0);
-        sum.pcSuccess += (my.pcSuccessRate || 0); sum.spp += (my.spp || 0); sum.timeCE += (my.timePerCE || 0); sum.buildUp += (my.build25Ratio || 0);
-        sum.allowed25 += (opp.twentyFiveEntries || 0); sum.allowedCircle += (opp.circleEntries || 0); sum.allowedShots += (opp.shots || 0); sum.allowedPC += (opp.pcs || 0);
-        sum.pressAttempts += (my.pressAttempts || 0); sum.pressSuccess += (my.pressSuccess || 0);
+
+        statsSum.goals.field += s.goals.field;
+        statsSum.goals.pc += s.goals.pc;
+        statsSum.shots += s.shots;
+        statsSum.pcs += s.pcs;
+        statsSum.circleEntries += s.circleEntries;
+        statsSum.twentyFiveEntries += s.twentyFiveEntries;
+        statsSum.possession += s.possession;
+        statsSum.attackPossession += s.attackPossession;
+        statsSum.buildUpStagnation += s.buildUpStagnation;
+        statsSum.pcSuccessRate += s.pcSuccessRate;
+        statsSum.spp += s.spp;
+        statsSum.timePerCE += s.timePerCE;
+        statsSum.pressAttempts += s.pressAttempts;
+        statsSum.pressSuccess += s.pressSuccess;
+        
+        // Add threat (Shots + PCs)
+        threat += (s.shots + s.pcs);
+        allowedThreat += (opp.shots + opp.pcs);
+        allowedCircleEntries += opp.circleEntries;
+        allowedPossession += opp.possession;
       });
 
+      const count = targetMatches.length || 1;
       return {
-        name: teamName,
-        goals: { field: sum.fieldGoals / count, pc: sum.pcGoals / count },
-        shots: sum.shots / count, pcs: sum.pcs / count, pcSuccessRate: sum.pcSuccess / count,
-        circleEntries: sum.circle / count, twentyFiveEntries: sum.entry25 / count, possession: sum.possession / count,
-        attackPossession: sum.attPoss / count, buildUpStagnation: sum.buildUpStagnation / count,
-        spp: sum.spp / count, timePerCE: sum.timeCE / count, build25Ratio: sum.buildUp / count,
-        pressAttempts: sum.pressAttempts / count, pressSuccess: sum.pressSuccess / count,
-        allowedThreat: (sum.allowedShots + sum.allowedPC) / count, threat: (sum.shots + sum.pcs) / count,
+        ...statsSum,
+        goals: { field: statsSum.goals.field / count, pc: statsSum.goals.pc / count },
+        shots: statsSum.shots / count,
+        pcs: statsSum.pcs / count,
+        circleEntries: statsSum.circleEntries / count,
+        twentyFiveEntries: statsSum.twentyFiveEntries / count,
+        possession: statsSum.possession / count,
+        attackPossession: statsSum.attackPossession / count,
+        buildUpStagnation: statsSum.buildUpStagnation / count,
+        pcSuccessRate: statsSum.pcSuccessRate / count,
+        spp: statsSum.spp / count,
+        timePerCE: statsSum.timePerCE / count,
+        pressAttempts: statsSum.pressAttempts / count,
+        pressSuccess: statsSum.pressSuccess / count,
+        threat: threat / count,
+        allowedThreat: allowedThreat / count,
+        allowedCircleEntries: allowedCircleEntries / count,
+        allowedPossession: allowedPossession / count
       };
     };
 
-    const getQuarterlyAverages = (teamName: string, quarter: string) => {
-      const myMatches = matches.filter(m => m.homeTeam.name === teamName || m.awayTeam.name === teamName);
-      const qStats = myMatches.map(m => {
-        const isHome = m.homeTeam.name === teamName;
-        const qData = m.quarterlyStats?.find(qs => qs.quarter === quarter);
-        return isHome ? qData?.home : qData?.away;
-      }).filter(Boolean);
+    const currentTeamStats = aggregateStats(teamMatches, currentTeam);
+    const globalAvg = aggregateStats(matches); // Average across ALL teams (simplified)
 
-      const count = qStats.length || 1;
-      const sum = qStats.reduce((acc: any, curr: any) => ({
-        fieldGoals: acc.fieldGoals + (curr.goals?.field || 0),
-        pcGoals: acc.pcGoals + (curr.goals?.pc || 0),
-        shots: acc.shots + (curr.shots || 0),
-        pcs: acc.pcs + (curr.pcs || 0),
-        pcSuccess: acc.pcSuccess + (curr.pcSuccessRate || 0),
-        circle: acc.circle + (curr.circleEntries || 0),
-        entry25: acc.entry25 + (curr.twentyFiveEntries || 0),
-        possession: acc.possession + (curr.possession || 0),
-        attPoss: acc.attPoss + (curr.attackPossession || 0),
-        stagnation: acc.stagnation + (curr.buildUpStagnation || 0),
-        spp: acc.spp + (curr.spp || 0),
-        timeCE: acc.timeCE + (curr.timePerCE || 0)
-      }), { fieldGoals: 0, pcGoals: 0, shots: 0, pcs: 0, pcSuccess: 0, circle: 0, entry25: 0, possession: 0, attPoss: 0, stagnation: 0, spp: 0, timeCE: 0 });
+    // Calculate pressure stats for 6 zones (25L...50R)
+    const calculatePressureStats = (targetMatches: MatchData[], targetTeamName: string | null) => {
+      const zones = Array(6).fill(null).map(() => ({ count: 0, success: 0 }));
+      
+      const mapping = [
+        { oppZone: 100, oppLane: 'Right', myZone: 25, myLane: 'Left' },  
+        { oppZone: 100, oppLane: 'Center', myZone: 25, myLane: 'Center' },
+        { oppZone: 100, oppLane: 'Left', myZone: 25, myLane: 'Right' },  
+        { oppZone: 75, oppLane: 'Right', myZone: 50, myLane: 'Left' },    
+        { oppZone: 75, oppLane: 'Center', myZone: 50, myLane: 'Center' },  
+        { oppZone: 75, oppLane: 'Left', myZone: 50, myLane: 'Right' }    
+      ];
 
-      return {
-        goals: { field: sum.fieldGoals / count, pc: sum.pcGoals / count },
-        shots: sum.shots / count, pcs: sum.pcs / count, pcSuccessRate: sum.pcSuccess / count,
-        circleEntries: sum.circle / count, twentyFiveEntries: sum.entry25 / count, possession: sum.possession / count,
-        attackPossession: sum.attPoss / count, buildUpStagnation: sum.stagnation / count,
-        spp: sum.spp / count, timePerCE: sum.timeCE / count
-      };
-    };
+      targetMatches.forEach(m => {
+        const myName = targetTeamName || m.homeTeam.name; // In global mode, home team is 'us'
+        
+        m.events.forEach(e => {
+          const zoneInfo = mapZone(e.locationLabel || e.code);
+          if (!zoneInfo) return;
 
-    const calculateTeamPressureStats = (targetTeamName: string, teamMatches: MatchData[]) => {
-      const zones = zoneMapping.map(() => ({ count: 0, success: 0 }));
-      teamMatches.forEach(match => {
-        const isHome = match.homeTeam.name === targetTeamName;
-        match.events.forEach(event => {
-          const zoneInfo = mapZone(event.locationLabel || event.code);
-          if (!zoneInfo || !event.team) return;
-          
-          const isOpponentError = event.team !== targetTeamName && (event.type === 'turnover' || event.type === 'foul');
-          const isMyFoul = event.team === targetTeamName && event.type === 'foul';
-          if (!isOpponentError && !isMyFoul) return;
+          const isMe = e.team === myName;
+          const isOpponent = e.team !== myName;
 
-          let { zone: effectiveZone, subZone: effectiveSubZone } = zoneInfo;
-          if (!isHome) {
-            effectiveZone = flipZone(zoneInfo.zone);
-            effectiveSubZone = flipSubZone(zoneInfo.subZone);
-          }
+          const isOppError = isOpponent && (e.type === 'turnover' || e.type === 'foul');
+          const isMyFoul = isMe && e.type === 'foul';
 
-          const zoneIndex = zoneMapping.findIndex(m => m.zone === effectiveZone && m.subZone === effectiveSubZone);
-          if (zoneIndex !== -1) {
-            const isPressureZone = effectiveZone === 'A' || effectiveZone === 'M';
-            if (isPressureZone) {
-              if (isOpponentError || isMyFoul) zones[zoneIndex].count++;
-              if (isOpponentError) zones[zoneIndex].success++;
-            }
-          }
-        });
-      });
-      return zones;
-    };
-
-    const calculateGlobalPressureStats = (allMatches: MatchData[]) => {
-      const zones = zoneMapping.map(() => ({ count: 0, success: 0 }));
-      allMatches.forEach(match => {
-        // 모든 팀의 압박 성과를 중립적으로 집계
-        [match.homeTeam.name, match.awayTeam.name].forEach(teamName => {
-          const isHome = match.homeTeam.name === teamName;
-          match.events.forEach(event => {
-            const zoneInfo = mapZone(event.locationLabel || event.code);
-            if (!zoneInfo || !event.team) return;
-
-            const isOpponentError = event.team !== teamName && (event.type === 'turnover' || event.type === 'foul');
-            const isMyFoul = event.team === teamName && event.type === 'foul';
-            if (!isOpponentError && !isMyFoul) return;
-
-            let { zone: effectiveZone, subZone: effectiveSubZone } = zoneInfo;
-            if (!isHome) {
-              effectiveZone = flipZone(zoneInfo.zone);
-              effectiveSubZone = flipSubZone(zoneInfo.subZone);
-            }
-
-            const zoneIndex = zoneMapping.findIndex(m => m.zone === effectiveZone && m.subZone === effectiveSubZone);
-            if (zoneIndex !== -1 && (effectiveZone === 'A' || effectiveZone === 'M')) {
-              zones[zoneIndex].count++;
-              if (isOpponentError) zones[zoneIndex].success++;
+          mapping.forEach((mp, idx) => {
+            if (zoneInfo.zoneBand === mp.oppZone && zoneInfo.lane === mp.oppLane) {
+              if (isOppError || isMyFoul) zones[idx].count++;
+              if (isOppError) zones[idx].success++;
             }
           });
         });
@@ -179,116 +163,43 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       return zones;
     };
 
-    const teamMatches = matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam);
-    const currentTeamStats = getTeamAverages(currentTeam);
-    
-    const globalSum = allTeams.reduce((acc, name) => {
-      const stats = getTeamAverages(name);
-      return {
-        fieldGoals: acc.fieldGoals + stats.goals.field,
-        pcGoals: acc.pcGoals + stats.goals.pc,
-        shots: acc.shots + stats.shots,
-        pcs: acc.pcs + stats.pcs,
-        circle: acc.circle + stats.circleEntries,
-        entry25: acc.entry25 + stats.twentyFiveEntries,
-        possession: acc.possession + stats.possession,
-        attPoss: acc.attPoss + stats.attackPossession,
-        stagnation: acc.stagnation + stats.buildUpStagnation,
-        pcSuccess: acc.pcSuccess + stats.pcSuccessRate,
-        spp: acc.spp + stats.spp,
-        timeCE: acc.timeCE + stats.timePerCE,
-        threat: acc.threat + stats.threat,
-        allowedThreat: acc.allowedThreat + stats.allowedThreat
-      };
-    }, { fieldGoals: 0, pcGoals: 0, shots: 0, pcs: 0, circle: 0, entry25: 0, possession: 0, attPoss: 0, stagnation: 0, pcSuccess: 0, spp: 0, timeCE: 0, threat: 0, allowedThreat: 0 });
+    const teamPressureStats = calculatePressureStats(teamMatches, currentTeam);
+    const globalPressureStats = calculatePressureStats(matches, null); // Global logic
 
-    const teamCount = allTeams.length || 1;
-    const globalAvg = {
-      name: "대회 전체 평균",
-      goals: { field: globalSum.fieldGoals / teamCount, pc: globalSum.pcGoals / teamCount },
-      shots: globalSum.shots / teamCount, pcs: globalSum.pcs / teamCount, pcSuccessRate: globalSum.pcSuccess / teamCount,
-      circleEntries: globalSum.circle / teamCount, twentyFiveEntries: globalSum.entry25 / teamCount, possession: globalSum.possession / teamCount,
-      attackPossession: globalSum.attPoss / teamCount, buildUpStagnation: globalSum.stagnation / teamCount,
-      spp: globalSum.spp / teamCount, timePerCE: globalSum.timeCE / teamCount,
-      threat: globalSum.threat / teamCount, allowedThreat: globalSum.allowedThreat / teamCount
+    // Quarterly averages
+    const getQuarterlyAverages = (q: string) => {
+      const qMatches = teamMatches.filter(m => m.quarterlyStats.some(qs => qs.quarter === q));
+      const homeStats = aggregateStats(qMatches, currentTeam);
+      const awayStats = aggregateStats(matches.filter(m => m.quarterlyStats.some(qs => qs.quarter === q)));
+      return { home: homeStats, away: awayStats };
     };
 
-    const teamPressureStats = calculateTeamPressureStats(currentTeam, teamMatches);
-    const globalPressureStats = calculateGlobalPressureStats(matches);
-
-    const mockMatchForCharts = {
+    const mockMatch: MatchData = {
       homeTeam: { name: currentTeam, color: selectedTeamColor },
       awayTeam: { name: '대회 전체 평균', color: opponentColor },
-      matchStats: { home: currentTeamStats as any, away: globalAvg as any },
+      events: [],
+      pressureData: [],
+      circleEntries: [],
+      attackThreatData: [],
+      build25Ratio: { home: currentTeamStats.build25Ratio, away: globalAvg.build25Ratio },
+      spp: { home: currentTeamStats.spp, away: globalAvg.spp },
+      matchStats: {
+        home: currentTeamStats as any,
+        away: globalAvg as any
+      },
       quarterlyStats: ['Q1', 'Q2', 'Q3', 'Q4'].map(q => ({
         quarter: q,
-        home: getQuarterlyAverages(currentTeam, q) as any,
-        away: ['Q1', 'Q2', 'Q3', 'Q4'].map(innerQ => {
-           const qSums = allTeams.map(name => getQuarterlyAverages(name, q));
-           const c = qSums.length || 1;
-           return {
-             goals: { field: qSums.reduce((a, b) => a + b.goals.field, 0) / c, pc: qSums.reduce((a, b) => a + b.goals.pc, 0) / c },
-             shots: qSums.reduce((a, b) => a + b.shots, 0) / c,
-             pcs: qSums.reduce((a, b) => a + b.pcs, 0) / c,
-             pcSuccessRate: qSums.reduce((a, b) => a + b.pcSuccessRate, 0) / c,
-             circleEntries: qSums.reduce((a, b) => a + b.circleEntries, 0) / c,
-             twentyFiveEntries: qSums.reduce((a, b) => a + b.twentyFiveEntries, 0) / c,
-             possession: qSums.reduce((a, b) => a + b.possession, 0) / c,
-             attackPossession: qSums.reduce((a, b) => a + b.attackPossession, 0) / c,
-             buildUpStagnation: qSums.reduce((a, b) => a + b.buildUpStagnation, 0) / c,
-             spp: qSums.reduce((a, b) => a + b.spp, 0) / c,
-             timePerCE: qSums.reduce((a, b) => a + b.timePerCE, 0) / c
-           };
-        })[0] as any
-      })),
-      pressureData: teamMatches.map((m, i) => {
-        const isHome = m.homeTeam.name === currentTeam;
-        return { interval: `M${i + 1}`, [currentTeam]: isHome ? m.matchStats.home.spp : m.matchStats.away.spp, ['상대팀']: isHome ? m.matchStats.away.spp : m.matchStats.home.spp };
-      }),
-      attackThreatData: teamMatches.map((m, i) => {
-        const isHome = m.homeTeam.name === currentTeam;
-        const my = isHome ? m.matchStats.home : m.matchStats.away;
-        const opp = isHome ? m.matchStats.away : m.matchStats.home;
-        return { interval: `M${i + 1}`, [currentTeam]: (my.shots || 0) + (my.pcs || 0), ['상대팀']: (opp.shots || 0) + (opp.pcs || 0) };
-      }),
+        ...getQuarterlyAverages(q)
+      })) as any
     };
 
-    return { allTeams, currentTeam, teamMatches, currentTeamStats, globalAvg, teamPressureStats, globalPressureStats, mockMatchForCharts };
+    return { allTeams, currentTeam, teamMatches, teamPressureStats, globalPressureStats, mockMatch };
   }, [matches, selectedTeamName, selectedTeamColor, opponentColor]);
 
   if (loading) return <div className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />대회 데이터를 불러오는 중...</div>;
   if (!analysisData) return <div className="py-20 text-center">대회에 등록된 경기가 없습니다.</div>;
 
-  const { allTeams, currentTeam, teamMatches, currentTeamStats, globalAvg, teamPressureStats, globalPressureStats, mockMatchForCharts } = analysisData;
-
-  const quadrantData = allTeams.map(name => {
-    const stats = matches.filter(m => m.homeTeam.name === name || m.awayTeam.name === name).reduce((acc, m) => {
-      const isHome = m.homeTeam.name === name;
-      const my = isHome ? m.matchStats.home : m.matchStats.away;
-      const opp = isHome ? m.matchStats.away : m.matchStats.home;
-      return { 
-        shots: acc.shots + (my.shots || 0), 
-        pcs: acc.pcs + (my.pcs || 0), 
-        circle: acc.circle + (my.circleEntries || 0),
-        attPoss: acc.attPoss + (my.attackPossession || 0),
-        timeCE: acc.timeCE + (my.timePerCE || 0),
-        allowedShots: acc.allowedShots + (opp.shots || 0),
-        allowedPC: acc.allowedPC + (opp.pcs || 0),
-        count: acc.count + 1
-      };
-    }, { shots: 0, pcs: 0, circle: 0, attPoss: 0, timeCE: 0, allowedShots: 0, allowedPC: 0, count: 0 });
-
-    const c = stats.count || 1;
-    return {
-      name,
-      color: name === currentTeam ? selectedTeamColor : getTeamColor(name, allTeams.indexOf(name)),
-      attPoss: stats.attPoss / c,
-      timeCE: stats.timeCE / c,
-      threat: (stats.shots + stats.pcs) / c,
-      circle: stats.circle / c,
-      allowedThreat: (stats.allowedShots + stats.allowedPC) / c
-    };
-  });
+  const { allTeams, currentTeam, teamMatches, teamPressureStats, globalPressureStats, mockMatch } = analysisData;
 
   return (
     <div className="space-y-12">
@@ -300,7 +211,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               <SelectTrigger className="w-64 h-12 text-xl font-black italic"><SelectValue /></SelectTrigger>
               <SelectContent>{allTeams.map(name => <SelectItem key={name} value={name}>{name}</SelectItem>)}</SelectContent>
             </Select>
-            <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-lg border">
+             <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-lg border">
               <Label className="text-[10px] font-bold uppercase">분석 팀</Label>
               <Input type="color" value={selectedTeamColor} onChange={(e) => setSelectedTeamColor(e.target.value)} className="w-8 h-8 p-0 border-none bg-transparent" />
             </div>
@@ -312,71 +223,151 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         </div>
         <Button variant="default" className="bg-emerald-600 hover:bg-emerald-700 h-11 px-6 font-bold print-hidden" onClick={() => window.print()}><FileDown className="mr-2 h-5 w-5" /> PDF 저장</Button>
       </div>
-      
+
       <div className="page-break space-y-8">
-        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2"><TrendingUp className="h-6 w-6" /> 주요 지표 비교</div>
-        <BasicMatchStats data={mockMatchForCharts as any} />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatsCard title="압박 시도 (경기당)" value={currentTeamStats.pressAttempts} />
-          <StatsCard title="압박 성공 (경기당)" value={currentTeamStats.pressSuccess} />
-          <StatsCard title="성공률 (%)" value={currentTeamStats.pressAttempts > 0 ? (currentTeamStats.pressSuccess / currentTeamStats.pressAttempts) * 100 : 0} isPercentage />
-          <StatsCard title="SPP" value={currentTeamStats.spp} isTime />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 font-bold text-xl" style={{ color: selectedTeamColor }}>
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: selectedTeamColor }} />
+              {currentTeam} (대회 누적 평균)
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <StatsCard title="SPP (압박 지수)" value={mockMatch.matchStats.home.spp} isTime icon={<TrendingDown className="h-4 w-4" />} />
+              <StatsCard title="빌드업 정체 비율" value={mockMatch.matchStats.home.buildUpStagnation} isPercentage icon={<ShieldCheck className="h-4 w-4" />} />
+              <StatsCard title="공격 점유율" value={mockMatch.matchStats.home.attackPossession} isPercentage icon={<Target className="h-4 w-4" />} />
+              <StatsCard title="CE 소요 시간" value={mockMatch.matchStats.home.timePerCE} isTime icon={<Activity className="h-4 w-4" />} />
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 font-bold text-xl" style={{ color: opponentColor }}>
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: opponentColor }} />
+              대회 전체 평균
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <StatsCard title="SPP (압박 지수)" value={mockMatch.matchStats.away.spp} isTime icon={<TrendingDown className="h-4 w-4" />} />
+              <StatsCard title="빌드업 정체 비율" value={mockMatch.matchStats.away.buildUpStagnation} isPercentage icon={<ShieldCheck className="h-4 w-4" />} />
+              <StatsCard title="공격 점유율" value={mockMatch.matchStats.away.attackPossession} isPercentage icon={<Target className="h-4 w-4" />} />
+              <StatsCard title="CE 소요 시간" value={mockMatch.matchStats.away.timePerCE} isTime icon={<Activity className="h-4 w-4" />} />
+            </div>
+          </div>
+        </div>
+        <BasicMatchStats data={mockMatch} />
+      </div>
+
+      <div className="page-break space-y-8">
+        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+          <Activity className="h-6 w-6" /> 쿼터별 상세 데이터 (대회 평균)
+        </div>
+        <QuarterlyStatsTable data={mockMatch} />
+      </div>
+
+      <div className="page-break space-y-8">
+        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+          <Grid3X3 className="h-6 w-6" /> 전술적 위치 비교 (대회 누적)
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <TacticalQuadrantChart
+            title="공격 생성 효율"
+            description="점유율 대비 서클 진입 생성 빈도"
+            xAxisLabel="Possession (%)"
+            yAxisLabel="Circle Entries"
+            avgX={mockMatch.matchStats.away.possession}
+            avgY={mockMatch.matchStats.away.circleEntries}
+            selectedTeamName={currentTeam}
+            selectedColor={selectedTeamColor}
+            data={allTeams.map(name => ({
+              name,
+              x: matches.filter(m => m.homeTeam.name === name || m.awayTeam.name === name).reduce((acc, m) => acc + (m.homeTeam.name === name ? m.matchStats.home.possession : m.matchStats.away.possession), 0) / matches.filter(m => m.homeTeam.name === name || m.awayTeam.name === name).length,
+              y: matches.filter(m => m.homeTeam.name === name || m.awayTeam.name === name).reduce((acc, m) => acc + (m.homeTeam.name === name ? m.matchStats.home.circleEntries : m.matchStats.away.circleEntries), 0) / matches.filter(m => m.homeTeam.name === name || m.awayTeam.name === name).length,
+              color: getTeamColor(name, allTeams.indexOf(name))
+            }))}
+            labels={{ tr: "Dominant", tl: "Efficient", br: "Inefficient", bl: "Defensive" }}
+          />
+          <TacticalQuadrantChart
+             title="피니싱 효율"
+             description="서클 진입 대비 위협(슈팅+PC) 창출"
+             xAxisLabel="Circle Entries"
+             yAxisLabel="Threat (Shots+PC)"
+             avgX={mockMatch.matchStats.away.circleEntries}
+             avgY={(mockMatch.matchStats.away as any).threat || 0}
+             selectedTeamName={currentTeam}
+             selectedColor={selectedTeamColor}
+             data={allTeams.map(name => {
+               const tm = matches.filter(m => m.homeTeam.name === name || m.awayTeam.name === name);
+               const ce = tm.reduce((acc, m) => acc + (m.homeTeam.name === name ? m.matchStats.home.circleEntries : m.matchStats.away.circleEntries), 0) / tm.length;
+               const th = tm.reduce((acc, m) => acc + (m.homeTeam.name === name ? (m.matchStats.home.shots + m.matchStats.home.pcs) : (m.matchStats.away.shots + m.matchStats.away.pcs)), 0) / tm.length;
+               return { name, x: ce, y: th, color: getTeamColor(name, allTeams.indexOf(name)) };
+             })}
+             labels={{ tr: "Lethal", tl: "Sharp", br: "Wasteful", bl: "Low Impact" }}
+          />
+          <TacticalQuadrantChart
+            title="수비 복원력"
+            description="상대 점유 허용 대비 서클 진입 허용"
+            xAxisLabel="Allowed Possession (%)"
+            yAxisLabel="Allowed Circle Entries"
+            avgX={(mockMatch.matchStats.away as any).allowedPossession || 0}
+            avgY={(mockMatch.matchStats.away as any).allowedCircleEntries || 0}
+            reversedX reversedY
+            selectedTeamName={currentTeam}
+            selectedColor={selectedTeamColor}
+            data={allTeams.map(name => {
+              const tm = matches.filter(m => m.homeTeam.name === name || m.awayTeam.name === name);
+              const ap = tm.reduce((acc, m) => acc + (m.homeTeam.name === name ? m.matchStats.away.possession : m.matchStats.home.possession), 0) / tm.length;
+              const ace = tm.reduce((acc, m) => acc + (m.homeTeam.name === name ? m.matchStats.away.circleEntries : m.matchStats.home.circleEntries), 0) / tm.length;
+              return { name, x: ap, y: ace, color: getTeamColor(name, allTeams.indexOf(name)) };
+            })}
+            labels={{ tr: "Weak", tl: "Vulnerable", br: "Resilient", bl: "Fortress" }}
+          />
+          <TacticalQuadrantChart
+            title="서클 수비 효율"
+            description="서클 허용 대비 위협(슈팅+PC) 허용 억제"
+            xAxisLabel="Allowed Circle Entries"
+            yAxisLabel="Allowed Threat (Shots+PC)"
+            avgX={(mockMatch.matchStats.away as any).allowedCircleEntries || 0}
+            avgY={(mockMatch.matchStats.away as any).allowedThreat || 0}
+            reversedX reversedY
+            selectedTeamName={currentTeam}
+            selectedColor={selectedTeamColor}
+            data={allTeams.map(name => {
+               const tm = matches.filter(m => m.homeTeam.name === name || m.awayTeam.name === name);
+               const ace = tm.reduce((acc, m) => acc + (m.homeTeam.name === name ? m.matchStats.away.circleEntries : m.matchStats.home.circleEntries), 0) / tm.length;
+               const ath = tm.reduce((acc, m) => acc + (m.homeTeam.name === name ? (m.matchStats.away.shots + m.matchStats.away.pcs) : (m.matchStats.home.shots + m.matchStats.home.pcs)), 0) / tm.length;
+               return { name, x: ace, y: ath, color: getTeamColor(name, allTeams.indexOf(name)) };
+            })}
+            labels={{ tr: "Brittle", tl: "Passive", br: "Solid", bl: "Impenetrable" }}
+          />
         </div>
       </div>
 
       <div className="page-break space-y-8">
-        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2"><Activity className="h-6 w-6" /> 쿼터별 상세 데이터</div>
-        <QuarterlyStatsTable data={mockMatchForCharts as any} />
-      </div>
-
-      <div className="page-break space-y-8">
-        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2"><Shield className="h-6 w-6" /> 수비 및 압박</div>
-        <PressureBattleChart data={mockMatchForCharts.pressureData} homeTeam={mockMatchForCharts.homeTeam} awayTeam={{ name: '상대팀', color: opponentColor }} />
-        <PressureAnalysisMap
-          homeTeam={{ name: currentTeam, color: selectedTeamColor }}
-          awayTeam={{ name: '대회 전체 평균', color: opponentColor }}
-          homeStats={teamPressureStats}
-          awayStats={globalPressureStats}
-          isTournament={true}
-          homeMatchCount={teamMatches.length}
-          awayMatchCount={matches.length * 2}
-          awayTitle="대회 전체 평균 압박"
+        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+          <TrendingUp className="h-6 w-6" /> 매치 트래직토리 (대회 전체 흐름)
+        </div>
+        <MatchTrajectoryChart 
+          data={mockMatch} 
+          isTournamentView={true}
+          allMatchesPoints={teamMatches.map(m => ({
+            homeX: m.homeTeam.name === currentTeam ? m.matchStats.home.attackPossession : m.matchStats.away.attackPossession,
+            homeY: m.homeTeam.name === currentTeam ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE,
+            homeRawTime: m.homeTeam.name === currentTeam ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE
+          }))}
         />
       </div>
 
       <div className="page-break space-y-8">
-        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2"><Sword className="h-6 w-6" /> 전술 포지셔닝 (4분면 분석)</div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <TacticalQuadrantChart
-            title="피니싱 효율 (Finishing Efficiency)"
-            description="서클 진입 대비 실제 위협 생성 능력"
-            xAxisLabel="Circle Entries" yAxisLabel="Threat (Shots+PC)"
-            data={quadrantData.map(d => ({ ...d, x: d.circle, y: d.threat }))}
-            avgX={globalAvg.circleEntries} avgY={globalAvg.threat}
-            selectedTeamName={currentTeam} selectedColor={selectedTeamColor}
-            labels={{ tr: "High Precision", tl: "Efficiency Over Volume", br: "Volume Without Finish", bl: "Low Threat" }}
-          />
-          <TacticalQuadrantChart
-            title="공격 생성 효율 (Attack Creation)"
-            description="점유율 대비 서클 진입 속도"
-            xAxisLabel="Attack Possession (%)" yAxisLabel="CE Time (s)"
-            data={quadrantData.map(d => ({ ...d, x: d.attPoss, y: d.timeCE }))}
-            avgX={globalAvg.attackPossession} avgY={globalAvg.timePerCE}
-            selectedTeamName={currentTeam} selectedColor={selectedTeamColor}
-            reversedY
-            labels={{ tr: "Fast Dominance", tl: "Direct Attack", br: "Slow Buildup", bl: "Struggling Control" }}
-          />
-          <TacticalQuadrantChart
-            title="서클 수비 효율 (Circle Defense)"
-            description="상대 서클 진입 허용 대비 위협 차단 능력"
-            xAxisLabel="Allowed CE" yAxisLabel="Allowed Threat"
-            data={quadrantData.map(d => ({ ...d, x: globalAvg.circleEntries, y: d.allowedThreat }))}
-            avgX={globalAvg.circleEntries} avgY={globalAvg.allowedThreat}
-            selectedTeamName={currentTeam} selectedColor={selectedTeamColor}
-            reversedX reversedY
-            labels={{ tr: "Solid Defense", tl: "Vulnerable Circle", br: "High Pressure Risk", bl: "Low Volume Def" }}
-          />
+        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+          <Shield className="h-6 w-6" /> 누적 압박 분석
         </div>
+        <PressureAnalysisMap
+            homeTeam={{ name: currentTeam, color: selectedTeamColor }}
+            awayTeam={{ name: '대회 전체 평균', color: opponentColor }}
+            homeStats={teamPressureStats}
+            awayStats={globalPressureStats}
+            isTournament={true}
+            homeMatchCount={teamMatches.length || 1}
+            awayMatchCount={matches.length * 2}
+            awayTitle="대회 전체 평균 압박"
+        />
       </div>
     </div>
   )

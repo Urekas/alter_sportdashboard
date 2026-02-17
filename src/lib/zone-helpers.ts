@@ -1,44 +1,30 @@
 
-'use client';
-
-/**
- * @fileOverview 하키 피치 구역 매핑 및 좌표 변환을 위한 도우미 함수들입니다.
- */
-
 export const zoneMapping = [
-  { zone: 'D', subZone: 'L' }, { zone: 'D', subZone: 'C' }, { zone: 'D', subZone: 'R' },
-  { zone: 'M', subZone: 'L' }, { zone: 'M', subZone: 'C' }, { zone: 'M', subZone: 'R' },
-  { zone: 'A', subZone: 'L' }, { zone: 'A', subZone: 'C' }, { zone: 'A', subZone: 'R' },
+    { zone: 'D', subZone: 'L' }, { zone: 'D', subZone: 'C' }, { zone: 'D', subZone: 'R' },
+    { zone: 'M', subZone: 'L' }, { zone: 'M', subZone: 'C' }, { zone: 'M', subZone: 'R' },
+    { zone: 'A', subZone: 'L' }, { zone: 'A', subZone: 'C' }, { zone: 'A', subZone: 'R' },
 ];
 
-export function mapZone(locStr: string) {
-  if (!locStr) return null;
-  const text = locStr.toUpperCase().replace('유', '우');
-  
-  let subZone: 'L' | 'C' | 'R' = 'C';
-  if (text.includes('좌') || text.includes('LEFT') || text.startsWith('L_') || text.startsWith('L ')) subZone = 'L';
-  else if (text.includes('우') || text.includes('RIGHT') || text.startsWith('R_') || text.startsWith('R ')) subZone = 'R';
+export const mapZone = (code: string) => {
+    if (!code) return null;
+    const parts = code.split('_');
+    if (parts.length < 2) return null;
+    const zoneMap: { [key: string]: 'D' | 'M' | 'A' } = { 'd': 'D', 'm': 'M', 'a': 'A' };
+    const subZoneMap: { [key: string]: 'L' | 'C' | 'R' } = { 'l': 'L', 'c': 'C', 'r': 'R' };
+    const zone = zoneMap[parts[0].toLowerCase()];
+    const subZone = subZoneMap[parts[1].toLowerCase()];
+    if (!zone || !subZone) return null;
+    return { zone, subZone };
+};
 
-  let zone: 'D' | 'M' | 'A' = 'M';
-  const zoneMatch = text.match(/(\d+)/);
-  const band = zoneMatch ? parseInt(zoneMatch[1]) : 50;
+export const flipZone = (zone: 'A' | 'D' | 'M'): 'A' | 'D' | 'M' => {
+    if (zone === 'A') return 'D';
+    if (zone === 'D') return 'A';
+    return 'M';
+};
 
-  // 0-25: D, 25-75: M, 75-100: A
-  if (band <= 25) zone = 'D';
-  else if (band >= 75) zone = 'A';
-  else zone = 'M';
-
-  return { zone, subZone };
-}
-
-export function flipZone(zone: string): 'D' | 'M' | 'A' {
-  if (zone === 'D') return 'A';
-  if (zone === 'A') return 'D';
-  return 'M';
-}
-
-export function flipSubZone(subZone: string): 'L' | 'C' | 'R' {
-  if (subZone === 'L') return 'R';
-  if (subZone === 'R') return 'L';
-  return 'C';
-}
+export const flipSubZone = (subZone: 'L' | 'R' | 'C'): 'L' | 'R' | 'C' => {
+    if (subZone === 'L') return 'R';
+    if (subZone === 'R') return 'L';
+    return 'C';
+};
