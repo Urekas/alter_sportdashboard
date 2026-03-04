@@ -4,7 +4,7 @@
 import React, { useState, useRef, useEffect } from "react"
 import { 
   Upload, FileDown, TrendingDown, Target, Activity, ShieldCheck, 
-  Sword, Shield, Trophy, Users, Save, Plus, BrainCircuit, Loader2, Sparkles, Info
+  Sword, Shield, Trophy, Save, Plus, BrainCircuit, Loader2, Sparkles, Info
 } from "lucide-react"
 import type { MatchData, MatchEvent, Tournament } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
@@ -87,7 +87,6 @@ export function Dashboard() {
     if (!matchData) return;
     setIsAiLoading(true);
     try {
-      // Firebase Timestamp 등 비직렬화 객체 제거를 위해 JSON 세탁
       const sanitizedStats = JSON.parse(JSON.stringify(matchData));
       
       const result = await analyzeMatch({
@@ -348,22 +347,24 @@ export function Dashboard() {
             </div>
 
             <div className="page-break space-y-8">
-              <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                <Target className="h-6 w-6" /> 공격 궤적 및 서클 진입 분석
+              <div className="space-y-8">
+                <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+                  <Target className="h-6 w-6" /> 공격 궤적 및 서클 진입 분석
+                </div>
+                <MatchTrajectoryChart data={matchData} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <CircleEntryAnalysis teamName={matchData.homeTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.homeTeam.name)} teamColor={matchData.homeTeam.color} />
+                  <CircleEntryAnalysis teamName={matchData.awayTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.awayTeam.name)} teamColor={matchData.awayTeam.color} />
+                </div>
               </div>
-              <MatchTrajectoryChart data={matchData} />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <CircleEntryAnalysis teamName={matchData.homeTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.homeTeam.name)} teamColor={matchData.homeTeam.color} />
-                <CircleEntryAnalysis teamName={matchData.awayTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.awayTeam.name)} teamColor={matchData.awayTeam.color} />
-              </div>
-            </div>
 
-            <div className="page-break space-y-8">
-              <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                <Shield className="h-6 w-6" /> 압박 분석
+              <div className="pt-8 space-y-8 border-t-2 border-dashed">
+                <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+                  <Shield className="h-6 w-6" /> 압박 분석
+                </div>
+                <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
+                <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
               </div>
-              <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
-              <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
             </div>
 
             {aiAnalysis && (
