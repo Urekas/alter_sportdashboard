@@ -87,6 +87,7 @@ export function Dashboard() {
     if (!matchData) return;
     setIsAiLoading(true);
     try {
+      // Server Action 직렬화 에러 방지를 위해 Timestamp 등 복잡한 객체 세탁
       const sanitizedStats = JSON.parse(JSON.stringify(matchData));
       
       const result = await analyzeMatch({
@@ -358,6 +359,7 @@ export function Dashboard() {
                 </div>
               </div>
 
+              {/* PDF 출력 레이아웃 최적화를 위해 공격 궤적 분석 뒤에 바로 압박 분석이 이어지도록 배치 */}
               <div className="pt-8 space-y-8 border-t-2 border-dashed">
                 <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                   <Shield className="h-6 w-6" /> 압박 분석

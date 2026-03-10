@@ -81,7 +81,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         if (relevantMatches.length === 0) {
            return {
               ...statsSum,
-              timePerCE: Infinity,
+              timePerCE: 0,
            };
         }
 
@@ -127,8 +127,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         const sorted = [...allTeamsStats].sort((a, b) => {
             const valA = a.stats[metric] as number;
             const valB = b.stats[metric] as number;
-            if (valA === Infinity) return 1; 
-            if (valB === Infinity) return -1;
             return order === 'asc' ? valA - valB : valB - valA;
         });
         const rank = sorted.findIndex(t => t.name === currentTeam) + 1;
@@ -159,7 +157,13 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       const oppStats = isHome ? m.matchStats.away : m.matchStats.home;
       const oppName = isHome ? m.awayTeam.name : m.homeTeam.name;
       const intervalLabel = `M${String(idx + 1).padStart(2, '0')} vs ${oppName}`;
-      return { interval: intervalLabel, [currentTeam]: myStats.spp, ["상대팀"]: oppStats.spp, threat: myStats.shots + myStats.pcs, oppThreat: oppStats.shots + oppStats.pcs };
+      return { 
+        interval: intervalLabel, 
+        [currentTeam]: myStats.spp, 
+        ["상대팀"]: oppStats.spp, 
+        threat: myStats.shots + myStats.pcs, 
+        oppThreat: oppStats.shots + oppStats.pcs 
+      };
     });
 
     const pressureData = matchTrendData.map(d => ({ interval: d.interval, [currentTeam]: d[currentTeam], ["상대팀"]: d["상대팀"] }));
@@ -269,7 +273,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       quarterlyStats: ['Q1', 'Q2', 'Q3', 'Q4'].map(q => ({ quarter: q, ...getQuarterlyAverages(q) })) as any
     };
 
-    return { allTeams, currentTeam, teamMatches, teamPressureStats, opponentPressureStats, mockMatch, teamRanks, allTeamsStats, globalAvg };
+    return { allTeams, currentTeam, teamPressureStats, opponentPressureStats, mockMatch, teamRanks, allTeamsStats, globalAvg };
   }, [matches, selectedTeamName, selectedTeamColor, opponentColor]);
 
   const handleAiAnalysis = async () => {
@@ -277,7 +281,13 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     setIsAiLoading(true);
     try {
       const sanitizedStats = JSON.parse(JSON.stringify(analysisData.mockMatch));
-      const result = await analyzeMatch({ type: 'tournament', matchName: tournamentName, homeTeam: { name: analysisData.currentTeam }, awayTeam: { name: '대회 전체 평균' }, stats: sanitizedStats });
+      const result = await analyzeMatch({ 
+        type: 'tournament', 
+        matchName: tournamentName, 
+        homeTeam: { name: analysisData.currentTeam }, 
+        awayTeam: { name: '대회 전체 평균' }, 
+        stats: sanitizedStats 
+      });
       setAiAnalysis(result);
       toast({ title: "대회 누적 AI 분석 완료" });
     } catch (e: any) {
@@ -403,7 +413,18 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
           <TrendingUp className="h-6 w-6" /> 매치 트래직토리 (대회 전체 흐름)
         </div>
-        <MatchTrajectoryChart data={mockMatch} isTournamentView={true} allMatchesPoints={matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam).map(m => ({ homeX: m.homeTeam.name === currentTeam ? m.matchStats.home.attackPossession : m.matchStats.away.attackPossession, homeY: m.homeTeam.name === currentTeam ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE, homeRawTime: m.homeTeam.name === currentTeam ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE }))} />
+        <MatchTrajectoryChart 
+          data={mockMatch} 
+          isTournamentView={true} 
+          allMatchesPoints={teamMatches.map(m => {
+            const isH = m.homeTeam.name === currentTeam;
+            return {
+              homeX: isH ? m.matchStats.home.attackPossession : m.matchStats.away.attackPossession,
+              homeY: isH ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE,
+              homeRawTime: isH ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE
+            };
+          })} 
+        />
       </div>
 
       <div className="page-break space-y-8">
@@ -418,8 +439,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               homeStats={teamPressureStats}
               awayStats={opponentPressureStats}
               isTournament={true}
-              homeMatchCount={matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam).length || 1}
-              awayMatchCount={matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam).length || 1}
+              homeMatchCount={teamMatches.length || 1}
+              awayMatchCount={teamMatches.length || 1}
               awayTitle="상대팀 누적 압박"
           />
         </div>
