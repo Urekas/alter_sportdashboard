@@ -273,7 +273,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
       quarterlyStats: ['Q1', 'Q2', 'Q3', 'Q4'].map(q => ({ quarter: q, ...getQuarterlyAverages(q) })) as any
     };
 
-    return { allTeams, currentTeam, teamPressureStats, opponentPressureStats, mockMatch, teamRanks, allTeamsStats, globalAvg };
+    return { allTeams, currentTeam, teamMatches, teamPressureStats, opponentPressureStats, mockMatch, teamRanks, allTeamsStats, globalAvg };
   }, [matches, selectedTeamName, selectedTeamColor, opponentColor]);
 
   const handleAiAnalysis = async () => {
@@ -300,7 +300,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
   if (loading) return <div className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />대회 데이터를 불러오는 중...</div>;
   if (!analysisData) return <div className="py-20 text-center">대회에 등록된 경기가 없습니다.</div>;
 
-  const { allTeams, currentTeam, teamPressureStats, opponentPressureStats, mockMatch, teamRanks, allTeamsStats, globalAvg } = analysisData;
+  const { allTeams, currentTeam, teamMatches, teamPressureStats, opponentPressureStats, mockMatch, teamRanks, allTeamsStats, globalAvg } = analysisData;
 
   return (
     <div className="space-y-12">
