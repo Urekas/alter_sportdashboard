@@ -68,7 +68,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     const aggregateStats = (targetMatches: MatchData[], teamName?: string) => {
         const relevantMatches = teamName ? targetMatches.filter(m => m.homeTeam.name === teamName || m.awayTeam.name === teamName) : targetMatches;
         
-        const statsSum: Omit<TeamMatchStats, 'goals' | 'pcSuccessRate' | 'build25Ratio'> & { goals: { field: number, pc: number }, pcSuccessRate: number, build25Ratio: number } = {
+        const statsSum = {
             shots: 0, pcs: 0, circleEntries: 0, twentyFiveEntries: 0,
             possession: 0, attackPossession: 0, buildUpStagnation: 0, spp: 0,
             timePerCE: 0, pressAttempts: 0, pressSuccess: 0, threat: 0,
@@ -101,7 +101,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             statsSum.pressAttempts += s.pressAttempts; statsSum.pressSuccess += s.pressSuccess;
             statsSum.threat += (s.shots + s.pcs);
             statsSum.allowedThreat += (opp.shots + opp.pcs);
-            statsSum.allowedCircleEntries += opp.circleEntries; statsSum.allowedPossession += opp.possession;
+            statsSum.allowedCircleEntries += opp.circleEntries; 
+            statsSum.allowedPossession += opp.possession;
         });
 
         const count = relevantMatches.length;
@@ -126,12 +127,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         const sorted = [...allTeamsStats].sort((a, b) => {
             const valA = a.stats[metric] as number;
             const valB = b.stats[metric] as number;
-            
             if (valA === Infinity) return 1; 
             if (valB === Infinity) return -1;
-            if (valA === -Infinity) return -1;
-            if (valB === -Infinity) return 1;
-
             return order === 'asc' ? valA - valB : valB - valA;
         });
         const rank = sorted.findIndex(t => t.name === currentTeam) + 1;
@@ -155,16 +152,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
     const currentTeamStats = allTeamsStats.find(t => t.name === currentTeam)?.stats ?? aggregateStats([], undefined);
     const globalAvg = aggregateStats(matches);
-    const opponentTeamStats = aggregateStats(teamMatches.map(m => {
-        const isHome = m.homeTeam.name === currentTeam;
-        return {
-            ...m,
-            matchStats: {
-                home: isHome ? m.matchStats.away : m.matchStats.home,
-                away: isHome ? m.matchStats.home : m.matchStats.away,
-            }
-        }
-    }));
 
     const matchTrendData = teamMatches.map((m, idx) => {
       const isHome = m.homeTeam.name === currentTeam;
@@ -203,7 +190,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                       if (isOpponentError) zones[idx].success++;
                   }
               });
-          } else { // teamSide === 'away'
+          } else {
               const isMyTeamError = e.team === match.homeTeam.name && (e.type === 'turnover' || e.type === 'foul');
               const isOppTeamFoul = e.team === match.awayTeam.name && e.type === 'foul';
               if (!isMyTeamError && !isOppTeamFoul) return;
@@ -226,11 +213,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
     teamMatches.forEach(match => {
         const isHome = match.homeTeam.name === currentTeam;
-        const teamSide = isHome ? 'home' : 'away';
-        const opponentSide = isHome ? 'away' : 'home';
-
-        const teamStatsForMatch = calculatePressureStatsForMatch(match, teamSide);
-        const opponentStatsForMatch = calculatePressureStatsForMatch(match, opponentSide);
+        const teamStatsForMatch = calculatePressureStatsForMatch(match, isHome ? 'home' : 'away');
+        const opponentStatsForMatch = calculatePressureStatsForMatch(match, isHome ? 'away' : 'home');
 
         teamStatsForMatch.forEach((stat, i) => {
             teamPressureStats[i].count += stat.count;
@@ -265,13 +249,11 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         const div = c || 1;
         return Object.fromEntries(
             Object.entries(qsSum).map(([key, value]) => {
-                 if (key === 'goals') {
-                    return [key, { field: value.field / div, pc: value.pc / div }];
-                }
-                if(typeof value === 'number') return [key, value/div];
+                if (key === 'goals') return [key, { field: value.field / div, pc: value.pc / div }];
+                if (typeof value === 'number') return [key, value / div];
                 return [key, value];
             })
-        ) as Omit<TeamMatchStats, 'threat' | 'allowedThreat' | 'allowedCircleEntries' | 'allowedPossession' | 'pressAttempts' | 'pressSuccess'>;
+        );
       };
       return { home: aggregateQ(qMatchesTeam, currentTeam), away: aggregateQ(qMatchesAll) };
     };
@@ -308,7 +290,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
   if (loading) return <div className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />대회 데이터를 불러오는 중...</div>;
   if (!analysisData) return <div className="py-20 text-center">대회에 등록된 경기가 없습니다.</div>;
 
-  const { allTeams, currentTeam, teamMatches, teamPressureStats, opponentPressureStats, mockMatch, teamRanks, allTeamsStats, globalAvg } = analysisData;
+  const { allTeams, currentTeam, teamPressureStats, opponentPressureStats, mockMatch, teamRanks, allTeamsStats, globalAvg } = analysisData;
 
   return (
     <div className="space-y-12">
@@ -421,7 +403,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
           <TrendingUp className="h-6 w-6" /> 매치 트래직토리 (대회 전체 흐름)
         </div>
-        <MatchTrajectoryChart data={mockMatch} isTournamentView={true} allMatchesPoints={teamMatches.map(m => ({ homeX: m.homeTeam.name === currentTeam ? m.matchStats.home.attackPossession : m.matchStats.away.attackPossession, homeY: m.homeTeam.name === currentTeam ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE, homeRawTime: m.homeTeam.name === currentTeam ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE }))} />
+        <MatchTrajectoryChart data={mockMatch} isTournamentView={true} allMatchesPoints={matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam).map(m => ({ homeX: m.homeTeam.name === currentTeam ? m.matchStats.home.attackPossession : m.matchStats.away.attackPossession, homeY: m.homeTeam.name === currentTeam ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE, homeRawTime: m.homeTeam.name === currentTeam ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE }))} />
       </div>
 
       <div className="page-break space-y-8">
@@ -436,8 +418,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               homeStats={teamPressureStats}
               awayStats={opponentPressureStats}
               isTournament={true}
-              homeMatchCount={teamMatches.length || 1}
-              awayMatchCount={teamMatches.length || 1}
+              homeMatchCount={matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam).length || 1}
+              awayMatchCount={matches.filter(m => m.homeTeam.name === currentTeam || m.awayTeam.name === currentTeam).length || 1}
               awayTitle="상대팀 누적 압박"
           />
         </div>
@@ -452,12 +434,12 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             reversedX reversedY
             selectedTeamName={currentTeam}
             selectedColor={selectedTeamColor}
-            data={allTeamsStats.map(({ name }) => {
-              const tm = teamMatches.filter(m => m.homeTeam.name === name || m.awayTeam.name === name);
-              const ap = tm.reduce((acc, m) => acc + (m.homeTeam.name === name ? m.matchStats.away.possession : m.matchStats.home.possession), 0) / tm.length;
-              const ace = tm.reduce((acc, m) => acc + (m.homeTeam.name === name ? m.matchStats.away.circleEntries : m.matchStats.home.circleEntries), 0) / tm.length;
-              return { name, x: ap, y: ace, color: getTeamColor(name, allTeams.indexOf(name)) };
-            })}
+            data={allTeamsStats.map((t, i) => ({ 
+              name: t.name, 
+              x: t.stats.allowedPossession, 
+              y: t.stats.allowedCircleEntries, 
+              color: getTeamColor(t.name, i) 
+            }))}
             labels={{ tr: "Weak", tl: "Vulnerable", br: "Resilient", bl: "Fortress" }}
           />
           <TacticalQuadrantChart
@@ -470,12 +452,12 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             reversedX reversedY
             selectedTeamName={currentTeam}
             selectedColor={selectedTeamColor}
-            data={allTeamsStats.map(({ name }) => {
-              const tm = teamMatches.filter(m => m.homeTeam.name === name || m.awayTeam.name === name);
-              const ace = tm.reduce((acc, m) => acc + (m.homeTeam.name === name ? m.matchStats.away.circleEntries : m.matchStats.home.circleEntries), 0) / tm.length;
-              const at = tm.reduce((acc, m) => acc + (m.homeTeam.name === name ? (m.matchStats.away.shots + m.matchStats.away.pcs) : (m.matchStats.home.shots + m.matchStats.home.pcs)), 0) / tm.length;
-              return { name, x: ace, y: at, color: getTeamColor(name, allTeams.indexOf(name)) };
-            })}
+            data={allTeamsStats.map((t, i) => ({ 
+              name: t.name, 
+              x: t.stats.allowedCircleEntries, 
+              y: t.stats.allowedThreat, 
+              color: getTeamColor(t.name, i) 
+            }))}
             labels={{ tr: "Brittle", tl: "Passive", br: "Solid", bl: "Impenetrable" }}
           />
         </div>
