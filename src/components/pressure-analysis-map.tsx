@@ -78,7 +78,6 @@ export function PressureAnalysisMap({
         if (!zoneInfo) return;
 
         const isMe = e.team === homeTeam.name;
-        // 대회 모드 대응: 우리 팀 이름이 아니면 무조건 상대로 간주
         const isOpponent = e.team !== homeTeam.name;
 
         if (isHome) {
@@ -124,7 +123,8 @@ export function PressureAnalysisMap({
   }, [events, homeTeam, awayTeam, homeStats, awayStats]);
 
   const renderHalfPitch = (teamData: { zones: ZoneStat[], totalCount: number, totalSuccess: number }, team: Team, isHome: boolean, globalMaxCount: number, mCount: number) => {
-    const labels = ["25L", "25C", "25R", "50L", "50C", "50R"];
+    // 어웨이 팀일 경우 시각적 일관성을 위해 L과 R의 레이블 순서를 바꿈 (R을 상단으로)
+    const labels = isHome ? ["25L", "25C", "25R", "50L", "50C", "50R"] : ["25R", "25C", "25L", "50R", "50C", "50L"];
     const formatNum = (val: number) => isTournament ? (val / mCount).toFixed(1) : val.toString();
     const headerTitle = isHome ? `${team.name} 압박` : (awayTitle || awayHeader || `${team.name} 압박`);
     const goalOnRight = isHome;
@@ -161,18 +161,28 @@ export function PressureAnalysisMap({
               <line x1="22.85" y1="0" x2="22.85" y2="55" strokeDasharray="1,1" />
             </g>
 
-            {teamData.zones.map((stat, i) => {
+            {labels.map((label, i) => {
               const xIdx = Math.floor(i / 3);
               const yIdx = i % 3;
               let rectX = goalOnRight ? (xIdx === 0 ? 22.85 : 0) : (xIdx === 0 ? 0 : 22.85);
               const rectY = yIdx * 18.33; 
+
+              // 어웨이 팀일 경우 인덱스 접근을 레이블에 맞게 스왑 (0번 레이블(Top)이 Right 데이터를 쓰도록)
+              let dataIdx = i;
+              if (!isHome) {
+                if (i === 0) dataIdx = 2; // 레이블 25R -> 데이터 Index 2(Right)
+                else if (i === 2) dataIdx = 0; // 레이블 25L -> 데이터 Index 0(Left)
+                else if (i === 3) dataIdx = 5; // 레이블 50R -> 데이터 Index 5(Right)
+                else if (i === 5) dataIdx = 3; // 레이블 50L -> 데이터 Index 3(Left)
+              }
+              const stat = teamData.zones[dataIdx];
               const intensity = stat.count > 0 ? (stat.count / globalMaxCount) * 0.45 + 0.1 : 0;
 
               return (
                 <g key={i}>
                   <rect x={rectX} y={rectY} width="22.85" height="18.33" fill={team.color} fillOpacity={intensity} />
                   <text x={rectX + 11.42} y={rectY + 9.16} textAnchor="middle" dominantBaseline="middle" className="fill-foreground font-bold">
-                    <tspan x={rectX + 11.42} dy="-4" fontSize="2.5px" fontWeight="black" fillOpacity="0.6">{labels[i]}</tspan>
+                    <tspan x={rectX + 11.42} dy="-4" fontSize="2.5px" fontWeight="black" fillOpacity="0.6">{label}</tspan>
                     <tspan x={rectX + 11.42} dy="4.5" fontWeight="black" fontSize="4px">{formatNum(stat.count)}</tspan>
                     <tspan x={rectX + 11.42} dy="4" fontWeight="black" fontSize="3.2px" fill="#059669">성공: {formatNum(stat.success)}</tspan>
                     <tspan x={rectX + 11.42} dy="3" fontSize="2.2px" fontWeight="normal" opacity="0.8">({stat.rate?.toFixed(0)}%)</tspan>
