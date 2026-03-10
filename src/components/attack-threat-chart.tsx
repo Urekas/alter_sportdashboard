@@ -233,7 +233,11 @@ export function AttackThreatChart({ data, homeTeam, awayTeam, events = [] }: Att
                     textAnchor={isMatchTrend ? 'end' : 'middle'}
                     allowDecimals={false}
                 />
-                <YAxis label={{ value: '공격 위협도', angle: -90, position: 'insideLeft' }} allowDecimals={false} />
+                <YAxis 
+                  label={{ value: '공격 위협도', angle: -90, position: 'insideLeft' }} 
+                  allowDecimals={false} 
+                  domain={[0, 15]}
+                />
                 <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
                 <Legend verticalAlign="top" height={36} />
                 
