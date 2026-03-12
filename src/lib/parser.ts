@@ -2,9 +2,23 @@
 import type { MatchEvent, MatchData, TeamMatchStats } from './types';
 
 export const detectRealTeamNames = (text: string): { home: string, away: string } | null => {
-  const pattern = /([가-힣A-Za-z]+)\s*(\d+)?\s*-\s*([가-힣A-Za-z]+)\s*(\d+)?/;
-  const match = text.match(pattern);
-  if (match) return { home: match[1].trim(), away: match[3].trim() };
+  // 1. 점수가 포함된 패턴 우선 검색 (예: 웨일즈 0 - 스코틀랜드 0) - 가장 확실한 식별자
+  const scorePattern = /([가-힣A-Za-z]+)\s*\d+\s*-\s*([가-힣A-Za-z]+)\s*\d+/;
+  const scoreMatch = text.match(scorePattern);
+  if (scoreMatch) return { home: scoreMatch[1].trim(), away: scoreMatch[2].trim() };
+
+  // 2. 일반적인 하이픈 연결 패턴 검색 (예: Korea - Netherlands)
+  // 단, M01 - Team A 같은 경우 M01을 팀으로 오인하지 않도록 함
+  const pattern = /([가-힣A-Za-z]+)\s*(\d+)?\s*-\s*([가-힣A-Za-z]+)\s*(\d+)?/g;
+  let m;
+  while ((m = pattern.exec(text)) !== null) {
+    const h = m[1].trim();
+    const a = m[3].trim();
+    // 'M'으로 시작하고 숫자로 구성된 경기 번호 패턴 제외
+    if (!/^M\d+$/i.test(h)) {
+      return { home: h, away: a };
+    }
+  }
   return null;
 };
 
@@ -47,6 +61,7 @@ export const mapZone = (locStr: string): { x: number, y: number, lane: 'Left' | 
 
 export const detectQuarter = (ungroupedText: string, startTime: number): string => {
   const text = ungroupedText.toUpperCase();
+  if (text.includes('0쿼터')) return 'Q1'; // 0쿼터는 Q1으로 간주
   if (text.includes('1쿼터') || text.includes('1Q')) return 'Q1';
   if (text.includes('2쿼터') || text.includes('2Q')) return 'Q2';
   if (text.includes('3쿼터') || text.includes('3Q')) return 'Q3';
@@ -110,13 +125,25 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
   const lines = csvText.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
   if (lines.length < 2) return { events: [], teams: { home: "", away: "" } };
 
-  const splitCSVLine = (line: string) => line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(item => item.replace(/^"|"$/g, '').trim());
+  // 구분자(콤마 vs 탭) 자동 감지
+  const delimiter = lines[0].includes('\t') ? '\t' : ',';
+  const splitCSVLine = (line: string) => {
+    if (delimiter === '\t') return line.split('\t').map(item => item.trim());
+    return line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(item => item.replace(/^"|"$/g, '').trim());
+  };
+
   const headers = splitCSVLine(lines[0]);
-  const getColIdx = (colNames: string[]) => headers.findIndex(h => colNames.some(name => h.toLowerCase().replace(/\s/g, '').includes(name.toLowerCase().replace(/\s/g, ''))));
+  const getColIdx = (colNames: string[]) => headers.findIndex(h => {
+    const cleanHeader = h.toLowerCase().replace(/\s/g, '');
+    return colNames.some(name => {
+      const cleanName = name.toLowerCase().replace(/\s/g, '');
+      return cleanHeader.includes(cleanName);
+    });
+  });
 
   const idxMap = {
     code: getColIdx(["Code", "Row"]),
-    start: getColIdx(["StartTime"]),
+    start: getColIdx(["StartTime", "Starttime"]),
     duration: getColIdx(["Duration"]),
     location: getColIdx(["지역", "Location", "Zone"]),
     result: getColIdx(["결과", "Result", "Outcome"]),
@@ -131,7 +158,10 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
     const row = splitCSVLine(lines[i]);
     const code = idxMap.code > -1 ? row[idxMap.code] : "";
     const ungrouped = idxMap.ungrouped > -1 ? row[idxMap.ungrouped] : "";
+    
+    // 만약 전체 텍스트에서 팀을 못 찾았다면 각 행에서 다시 시도
     if (!detectedTeams) detectedTeams = detectRealTeamNames(ungrouped + code);
+    
     const team = extractTeamName(code, detectedTeams).trim();
     if (team === "Unknown") continue;
 
