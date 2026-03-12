@@ -1,15 +1,6 @@
 
 'use client';
 
-export const zoneMapping = [
-  { zoneBand: 25, lane: 'Left' as const },
-  { zoneBand: 25, lane: 'Center' as const },
-  { zoneBand: 25, lane: 'Right' as const },
-  { zoneBand: 50, lane: 'Left' as const },
-  { zoneBand: 50, lane: 'Center' as const },
-  { zoneBand: 50, lane: 'Right' as const },
-];
-
 export function mapZone(locStr: string) {
   if (!locStr) return null;
   const text = locStr.toUpperCase().replace('유', '우');

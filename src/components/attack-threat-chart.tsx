@@ -226,7 +226,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam, events = [] }: Att
                     dataKey="x"
                     domain={[0, 'dataMax']}
                     ticks={chartData.filter(d => d.interval && !d.isIntersection).map(d => d.x)}
-                    tickFormatter={(val) => `${val}'`}
+                    tickFormatter={(val) => chartData.find(d => d.x === val)?.interval || ""}
                     tick={{ fontSize: 10 }}
                     height={isMatchTrend ? 60 : 30}
                     angle={isMatchTrend ? -45 : 0}

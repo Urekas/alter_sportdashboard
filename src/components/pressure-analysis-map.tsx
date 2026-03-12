@@ -123,7 +123,7 @@ export function PressureAnalysisMap({
   }, [events, homeTeam, awayTeam, homeStats, awayStats]);
 
   const renderHalfPitch = (teamData: { zones: ZoneStat[], totalCount: number, totalSuccess: number }, team: Team, isHome: boolean, globalMaxCount: number, mCount: number) => {
-    // 어웨이 팀일 경우 시각적 일관성을 위해 L과 R의 레이블 순서를 바꿈 (R을 상단으로)
+    // 어웨이 팀일 경우 R(우측)을 위로, L(좌측)을 아래로 스왑
     const labels = isHome ? ["25L", "25C", "25R", "50L", "50C", "50R"] : ["25R", "25C", "25L", "50R", "50C", "50L"];
     const formatNum = (val: number) => isTournament ? (val / mCount).toFixed(1) : val.toString();
     const headerTitle = isHome ? `${team.name} 압박` : (awayTitle || awayHeader || `${team.name} 압박`);
@@ -145,14 +145,14 @@ export function PressureAnalysisMap({
                 <>
                   <path d={`M 45.7,${27.5 - 14.63} A 14.63,14.63 0 0,0 31.07,27.5 A 14.63,14.63 0 0,0 45.7,${27.5 + 14.63}`} />
                   <path d={`M 45.7,${27.5 - 19.63} A 19.63,19.63 0 0,0 26.07,27.5 A 19.63,19.63 0 0,0 45.7,${27.5 + 19.63}`} strokeDasharray="1,1" />
-                  <circle cx={45.7 - 6.47} cy={27.5} r="0.5" fill="black" stroke="none" />
+                  <circle cx={45.7 - 6.47} cy={27.5} r={0.5} fill="black" stroke="none" />
                   <rect x="45.7" y={27.5 - 1.83} width="1.2" height="3.66" />
                 </>
               ) : (
                 <>
                   <path d={`M 0,${27.5 - 14.63} A 14.63,14.63 0 0,1 14.63,27.5 A 14.63,14.63 0 0,1 0,${27.5 + 14.63}`} />
                   <path d={`M 0,${27.5 - 19.63} A 19.63,19.63 0 0,1 19.63,27.5 A 19.63,19.63 0 0,1 0,${27.5 + 19.63}`} strokeDasharray="1,1" />
-                  <circle cx={6.47} cy={27.5} r="0.5" fill="black" stroke="none" />
+                  <circle cx={6.47} cy={27.5} r={0.5} fill="black" stroke="none" />
                   <rect x="-1.2" y={27.5 - 1.83} width="1.2" height="3.66" />
                 </>
               )}
@@ -167,7 +167,7 @@ export function PressureAnalysisMap({
               let rectX = goalOnRight ? (xIdx === 0 ? 22.85 : 0) : (xIdx === 0 ? 0 : 22.85);
               const rectY = yIdx * 18.33; 
 
-              // 어웨이 팀일 경우 인덱스 접근을 레이블에 맞게 스왑 (0번 레이블(Top)이 Right 데이터를 쓰도록)
+              // 어웨이 팀일 경우 시각적 스왑에 따른 데이터 인덱스 매핑 보정
               let dataIdx = i;
               if (!isHome) {
                 if (i === 0) dataIdx = 2; // 레이블 25R -> 데이터 Index 2(Right)
