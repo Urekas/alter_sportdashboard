@@ -105,24 +105,22 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
 
       result.push(p1);
 
-      if (p1[`${homeTeam.name}_raw`] > 0 && p1[`${awayTeam.name}_raw`] > 0 && 
-          p2[`${homeTeam.name}_raw`] > 0 && p2[`${awayTeam.name}_raw`] > 0) {
-        const diff1 = v1_1 - v1_2;
-        const diff2 = v2_1 - v2_2;
+      // SPP는 낮을수록 우위(Y축 반전이라 위쪽)이므로, home < away 일 때 홈 우위
+      const diff1 = v1_1 - v1_2;
+      const diff2 = v2_1 - v2_2;
 
-        if (diff1 * diff2 < 0) {
-          const t = Math.abs(diff1) / (Math.abs(diff1) + Math.abs(diff2));
-          const intersectV = v1_1 + t * (v2_1 - v1_1);
-          result.push({
-            interval: "",
-            x: i + t,
-            [homeTeam.name]: intersectV,
-            [awayTeam.name]: intersectV,
-            isIntersection: true,
-            [`${homeTeam.name}_raw`]: intersectV,
-            [`${awayTeam.name}_raw`]: intersectV
-          });
-        }
+      if (diff1 * diff2 < 0) {
+        const t = Math.abs(diff1) / (Math.abs(diff1) + Math.abs(diff2));
+        const intersectV = v1_1 + t * (v2_1 - v1_1);
+        result.push({
+          interval: "",
+          x: i + t,
+          [homeTeam.name]: intersectV,
+          [awayTeam.name]: intersectV,
+          isIntersection: true,
+          [`${homeTeam.name}_raw`]: intersectV,
+          [`${awayTeam.name}_raw`]: intersectV
+        });
       }
     }
     result.push(withX[withX.length - 1]);
@@ -130,8 +128,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
     return result.map(d => {
       const hVal = Number(d[homeTeam.name]);
       const aVal = Number(d[awayTeam.name]);
-      // SPP는 낮을수록 우위이므로 hVal < aVal 일 때 홈팀 우위 (차트 상단)
-      // 겹치는 구간을 없애기 위해 Strictly Less/Greater 조건을 사용
+      // SPP는 낮을수록 우위 (Y축 반전)
       const homeIsLeading = hVal < aVal;
       const awayIsLeading = aVal < hVal;
       

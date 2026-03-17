@@ -29,11 +29,11 @@ export function MatchTrajectoryChart({ data, isTournamentView, allMatchesPoints 
   const { homeTeam, awayTeam, quarterlyStats, matchStats } = data
 
   const processTeamData = (team: Team, isHome: boolean) => {
-    // 1. 궤적 점들 (단일 경기면 쿼터별, 대회 모드면 경기별)
+    // 1. 점들 (단일 경기면 쿼터별, 대회 모드면 경기별)
     let trajectory = [];
     
     if (isTournamentView) {
-      // 대회 모드: 홈 팀(선택된 팀)에 대해서만 경기별 궤적 생성
+      // 대회 모드: 홈 팀(선택된 팀)에 대해서만 경기별 점 생성
       if (isHome && allMatchesPoints) {
         trajectory = allMatchesPoints.map((p, idx) => ({
           name: `M${String(idx + 1).padStart(2, '0')}`,
@@ -45,7 +45,6 @@ export function MatchTrajectoryChart({ data, isTournamentView, allMatchesPoints 
           color: team.color
         })).filter(p => p.x > 0);
       } else {
-        // 어웨이 팀(대회 평균 등)은 궤적을 그리지 않음 (단일 점만 표시)
         trajectory = [];
       }
     } else {
@@ -163,7 +162,6 @@ export function MatchTrajectoryChart({ data, isTournamentView, allMatchesPoints 
               <ReferenceLine x={50} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={2} opacity={0.4} />
               <ReferenceLine y={100} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={2} opacity={0.4} />
 
-              {/* 홈 팀 궤적: 점선 제거 */}
               <Scatter 
                 name={homeTeam.name} 
                 data={homeData.trajectory} 
@@ -174,7 +172,6 @@ export function MatchTrajectoryChart({ data, isTournamentView, allMatchesPoints 
                 <LabelList dataKey="name" position="top" offset={20} style={{ fill: homeTeam.color, fontSize: 16, fontWeight: '900' }} />
               </Scatter>
 
-              {/* 어웨이 팀 궤적: 점선 제거 */}
               {!isTournamentView && (
                 <Scatter 
                   name={awayTeam.name} 
@@ -187,12 +184,10 @@ export function MatchTrajectoryChart({ data, isTournamentView, allMatchesPoints 
                 </Scatter>
               )}
 
-              {/* 홈 팀 전체 평균 (큰 원) */}
               <Scatter name={`${homeTeam.name} Avg`} data={homeData.total} fill={homeTeam.color} fillOpacity={0.2} stroke={homeTeam.color} strokeWidth={2} shape="circle">
                 <LabelList dataKey="name" position="top" offset={45} style={{ fill: homeTeam.color, fontSize: 24, fontWeight: '950', opacity: 0.3 }} />
               </Scatter>
 
-              {/* 대회 전체 평균 (큰 사각형) */}
               <Scatter name={`${awayTeam.name} Avg`} data={awayData.total} fill={awayTeam.color} fillOpacity={0.2} stroke={awayTeam.color} strokeWidth={2} shape="square">
                 <LabelList dataKey="name" position="bottom" offset={45} style={{ fill: awayTeam.color, fontSize: 24, fontWeight: '950', opacity: 0.3 }} />
               </Scatter>

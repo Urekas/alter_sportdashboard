@@ -291,26 +291,7 @@ export function Dashboard() {
         {viewMode === 'manage' ? (
           <TournamentManager onViewMatch={handleViewMatchFromDB} />
         ) : viewMode === 'tournament' ? (
-          <div className="space-y-12">
-            <TournamentDashboard tournamentId={activeTournamentId} />
-            {activeTournamentId && (
-              <div className="page-break space-y-8">
-                <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                  <MessageSquare className="h-6 w-6" /> 분석 연구원 comment
-                </div>
-                <Card className="border-2 shadow-sm">
-                  <CardContent className="pt-6">
-                    <Textarea 
-                      placeholder="여기에 대회 전술에 대한 분석관의 직접적인 코멘트를 입력하세요..." 
-                      className="min-h-[200px] text-base leading-relaxed resize-none border-none focus-visible:ring-0 p-0"
-                      value={researcherComment}
-                      onChange={(e) => setResearcherComment(e.target.value)}
-                    />
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-          </div>
+          <TournamentDashboard tournamentId={activeTournamentId} />
         ) : !matchData ? (
           <div className="py-20 text-center bg-card rounded-xl border-2 border-dashed border-muted-foreground/25">
             <Activity className="w-16 h-16 text-muted-foreground/40 mx-auto mb-4" />
@@ -369,6 +350,7 @@ export function Dashboard() {
               <BuildUpEfficiencyChart data={matchData} />
             </div>
 
+            {/* 공격 점유 및 속도 및 서클 진입과 압박 분석을 하나의 섹션으로 묶어 PDF 출력 시 페이지 넘김 방지 */}
             <div className="page-break space-y-8">
               <div className="space-y-8">
                 <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
