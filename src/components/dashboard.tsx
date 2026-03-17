@@ -90,6 +90,7 @@ export function Dashboard() {
     if (!matchData) return;
     setIsAiLoading(true);
     try {
+      // Create a clean version of data for AI without circular references or non-serializable objects
       const sanitizedStats = JSON.parse(JSON.stringify(matchData));
       
       const result = await analyzeMatch({
@@ -354,7 +355,7 @@ export function Dashboard() {
             <div className="page-break space-y-8">
               <div className="space-y-8">
                 <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                  <Target className="h-6 w-6" /> 공격 궤적 및 서클 진입 분석
+                  <Target className="h-6 w-6" /> 공격 점유 및 속도 및 서클 진입 분석
                 </div>
                 <MatchTrajectoryChart data={matchData} />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

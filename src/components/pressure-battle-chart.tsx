@@ -130,13 +130,15 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
     return result.map(d => {
       const hVal = Number(d[homeTeam.name]);
       const aVal = Number(d[awayTeam.name]);
-      // SPP는 낮을수록 우위이므로 hVal <= aVal 일 때 홈팀 우위 (차트 상단)
-      const homeIsLeading = hVal <= aVal; 
+      // SPP는 낮을수록 우위이므로 hVal < aVal 일 때 홈팀 우위 (차트 상단)
+      // 겹치는 구간을 없애기 위해 Strictly Less/Greater 조건을 사용
+      const homeIsLeading = hVal < aVal;
+      const awayIsLeading = aVal < hVal;
       
       return {
         ...d,
         homeLead: homeIsLeading ? [aVal, hVal] : [hVal, hVal],
-        awayLead: !homeIsLeading ? [hVal, aVal] : [aVal, aVal],
+        awayLead: awayIsLeading ? [hVal, aVal] : [aVal, aVal],
       };
     });
   }, [data, homeTeam, awayTeam, isMatchTrend, maxY]);
@@ -204,6 +206,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
                 return <circle key={key} cx={cx} cy={cy} r={6} fill={homeTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
+              connectNulls
             />
             <Line 
               type="linear" 
@@ -216,6 +219,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
                 return <circle key={key} cx={cx} cy={cy} r={6} fill={awayTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
+              connectNulls
             />
           </ComposedChart>
         </ResponsiveContainer>

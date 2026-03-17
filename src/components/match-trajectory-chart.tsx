@@ -107,9 +107,9 @@ export function MatchTrajectoryChart({ data, isTournamentView, allMatchesPoints 
   return (
     <Card className="w-full border-2 shadow-xl">
       <CardHeader className="pb-2 bg-muted/20 border-b">
-        <CardTitle className="text-2xl font-black text-primary italic">Match Trajectory Analysis (공격 전술 궤적)</CardTitle>
+        <CardTitle className="text-2xl font-black text-primary italic">Match Trajectory Analysis (공격 점유 및 속도 분석)</CardTitle>
         <CardDescription className="text-sm font-bold text-muted-foreground mt-1">
-          {isTournamentView ? '경기별 궤적 흐름 및 대회 전체 평균 비교' : '쿼터별 궤적 흐름'} (상단 0s일수록 효율적 / 하단 450s일수록 비효율적)
+          공격 점유 및 속도 분석 (상단 0s일수록 효율적 / 하단 450s일수록 비효율적)
         </CardDescription>
       </CardHeader>
       <CardContent>
