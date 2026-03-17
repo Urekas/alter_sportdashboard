@@ -153,7 +153,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
       <CardHeader>
         <CardTitle>{isMatchTrend ? 'Pressure Battle Trend (경기별 SPP 추이)' : 'Pressure Battle (3분 단위 SPP 추이)'}</CardTitle>
         <CardDescription>
-          시각적으로 상단(낮은 SPP, 높은 압박 강도)에 위치한 팀의 색상으로 격차가 표시됩니다. 데이터가 없는 경우(0s) 최하단에 표시됩니다.
+          시각적으로 상단(낮은 SPP, 높은 압박 강도)에 위치한 팀이 우위에 있음을 나타냅니다. 데이터가 없는 경우(0s) 최하단에 표시됩니다.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -191,27 +191,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               </ReferenceLine>
             ))}
 
-            <Area
-              type="linear"
-              dataKey="homeLead"
-              fill={homeTeam.color}
-              fillOpacity={0.3}
-              stroke="none"
-              legendType="none"
-              tooltipType="none"
-              connectNulls
-            />
-
-            <Area
-              type="linear"
-              dataKey="awayLead"
-              fill={awayTeam.color}
-              fillOpacity={0.3}
-              stroke="none"
-              legendType="none"
-              tooltipType="none"
-              connectNulls
-            />
+            {/* 음영(Area) 제거됨 */}
 
             <Line 
               type="linear" 

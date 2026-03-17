@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useMemo } from "react"
@@ -162,24 +163,24 @@ export function MatchTrajectoryChart({ data, isTournamentView, allMatchesPoints 
               <ReferenceLine x={50} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={2} opacity={0.4} />
               <ReferenceLine y={100} stroke="hsl(var(--foreground))" strokeDasharray="5 5" strokeWidth={2} opacity={0.4} />
 
-              {/* 홈 팀 궤적: 대회 모드에서는 점선 없이 점만 표시 */}
+              {/* 홈 팀 궤적: 점선 제거 */}
               <Scatter 
                 name={homeTeam.name} 
                 data={homeData.trajectory} 
                 fill={homeTeam.color} 
-                line={isTournamentView ? false : { stroke: homeTeam.color, strokeWidth: 5, strokeDasharray: '10 6' }} 
+                line={false} 
                 shape="circle"
               >
                 <LabelList dataKey="name" position="top" offset={20} style={{ fill: homeTeam.color, fontSize: 16, fontWeight: '900' }} />
               </Scatter>
 
-              {/* 어웨이 팀 궤적: 단일 경기 모드에서만 표시 (대회 모드에서는 전체 평균 점만) */}
+              {/* 어웨이 팀 궤적: 점선 제거 */}
               {!isTournamentView && (
                 <Scatter 
                   name={awayTeam.name} 
                   data={awayData.trajectory} 
                   fill={awayTeam.color} 
-                  line={{ stroke: awayTeam.color, strokeWidth: 5, strokeDasharray: '10 6' }} 
+                  line={false} 
                   shape="square"
                 >
                   <LabelList dataKey="name" position="bottom" offset={20} style={{ fill: awayTeam.color, fontSize: 16, fontWeight: '900' }} />
