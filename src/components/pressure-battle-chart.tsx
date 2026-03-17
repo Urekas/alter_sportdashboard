@@ -129,6 +129,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
       const hVal = Number(d[homeTeam.name]);
       const aVal = Number(d[awayTeam.name]);
       // SPP는 낮을수록 우위 (Y축 반전)
+      // homeLead: [bottomValue, topValue] in data space. Bottom is larger, Top is smaller.
       const homeIsLeading = hVal < aVal;
       const awayIsLeading = aVal < hVal;
       
@@ -198,9 +199,9 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               stroke={homeTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { key, cx, cy, payload } = props;
+                const { cx, cy, payload } = props;
                 if (payload.isIntersection) return null;
-                return <circle key={key} cx={cx} cy={cy} r={6} fill={homeTeam.color} />;
+                return <circle key={cx} cx={cx} cy={cy} r={6} fill={homeTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
               connectNulls
@@ -211,9 +212,9 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               stroke={awayTeam.color} 
               strokeWidth={3} 
               dot={(props: any) => {
-                const { key, cx, cy, payload } = props;
+                const { cx, cy, payload } = props;
                 if (payload.isIntersection) return null;
-                return <circle key={key} cx={cx} cy={cy} r={6} fill={awayTeam.color} />;
+                return <circle key={cx} cx={cx} cy={cy} r={6} fill={awayTeam.color} />;
               }}
               activeDot={{ r: 8 }} 
               connectNulls

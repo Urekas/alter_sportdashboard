@@ -17,7 +17,7 @@ import {
   Label
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import type { AttackThreatDataPoint, Team, Event as MatchEvent } from "@/lib/types"
+import type { AttackThreatDataPoint, Team, MatchEvent } from "@/lib/types"
 import { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
 
 interface AttackThreatChartProps {
@@ -68,13 +68,13 @@ const CustomDot = (props: any) => {
         return null;
     }
 
-    const teamGoals = payload.goals ? payload.goals.filter(g => g.team === teamName) : [];
+    const teamGoals = payload.goals ? payload.goals.filter((g: any) => g.team === teamName) : [];
 
     return (
         <g>
             <circle cx={cx} cy={cy} r={4} fill={color} />
             
-            {teamGoals.map((goal, index) => (
+            {teamGoals.map((goal: any, index: number) => (
                  <g key={goal.time.minute * 60 + goal.time.second} transform={`translate(${cx}, ${cy - index * 18})`}>
                      <defs>
                         <filter id="shadow-sm" x="-50%" y="-50%" width="200%" height="200%">
@@ -107,7 +107,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam, events = [] }: Att
     originalData.sort((a,b) => a.x - b.x);
 
     const maxTime = Math.max(...originalData.map(p => p.x));
-    let baseData = []; // This will be our resampled data
+    let baseData = []; 
 
     for (let time = 0; time <= maxTime; time += TIME_INTERVAL) {
         const p_after = originalData.find(p => p.x >= time);
@@ -119,10 +119,10 @@ export function AttackThreatChart({ data, homeTeam, awayTeam, events = [] }: Att
 
         let homeValue, awayValue;
 
-        if (p_before.x === p_after.x) { // Exact match
+        if (p_before.x === p_after.x) { 
             homeValue = Number(p_before[homeTeam.name]);
             awayValue = Number(p_before[awayTeam.name]);
-        } else { // Interpolate
+        } else { 
             const t = (time - p_before.x) / (p_after.x - p_before.x);
             homeValue = Number(p_before[homeTeam.name]) + t * (Number(p_after[homeTeam.name]) - Number(p_before[homeTeam.name]));
             awayValue = Number(p_before[awayTeam.name]) + t * (Number(p_after[awayTeam.name]) - Number(p_before[awayTeam.name]));
@@ -133,7 +133,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam, events = [] }: Att
             x: time,
             [homeTeam.name]: homeValue,
             [awayTeam.name]: awayValue,
-            goals: []
+            goals: [] as any[]
         });
     }
 
@@ -142,14 +142,14 @@ export function AttackThreatChart({ data, homeTeam, awayTeam, events = [] }: Att
         let awayScore = 0;
         const sortedGoals = [...events]
             .filter(e => e.type === 'goal')
-            .sort((a, b) => (a.time.minute * 60 + a.time.second) - (b.time.minute * 60 + b.time.second));
+            .sort((a, b) => (a.time * 60) - (b.time * 60));
 
         sortedGoals.forEach(goal => {
             if (goal.team === homeTeam.name) homeScore++;
             else if (goal.team === awayTeam.name) awayScore++;
             const currentScore = `${homeScore} - ${awayScore}`;
 
-            const timeInMinutes = goal.time.minute + (goal.time.second / 60);
+            const timeInMinutes = goal.time / 60;
             
             let k = Math.ceil(timeInMinutes / TIME_INTERVAL);
             if (timeInMinutes > 0 && k === 0) { 
@@ -159,7 +159,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam, events = [] }: Att
 
             const targetDataPoint = baseData.find(p => p.x === targetX);
             if (targetDataPoint) {
-                targetDataPoint.goals.push({...goal, score: currentScore });
+                targetDataPoint.goals.push({...goal, score: currentScore, time: { minute: Math.floor(goal.time/60), second: Math.floor(goal.time%60) } });
             }
         });
     }

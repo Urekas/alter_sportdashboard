@@ -290,191 +290,184 @@ export function Dashboard() {
       <main className="printable-area">
         {viewMode === 'manage' ? (
           <TournamentManager onViewMatch={handleViewMatchFromDB} />
+        ) : viewMode === 'tournament' ? (
+          <TournamentDashboard tournamentId={activeTournamentId} />
+        ) : !matchData ? (
+          <div className="py-20 text-center bg-card rounded-xl border-2 border-dashed border-muted-foreground/25">
+            <Activity className="w-16 h-16 text-muted-foreground/40 mx-auto mb-4" />
+            <h2 className="text-2xl font-semibold mb-2 font-headline">분석을 시작하세요</h2>
+            <p className="text-muted-foreground mb-6">데이터를 업로드하여 심층 분석 리포트를 생성하세요.</p>
+            <div className="flex justify-center gap-3">
+              <Button onClick={() => fileInputRef.current?.click()}>파일 업로드</Button>
+              <Button variant="secondary" onClick={handleLoadMockData}>데모 데이터</Button>
+            </div>
+          </div>
         ) : (
           <div className="space-y-12">
-            {viewMode === 'tournament' ? (
-              <TournamentDashboard tournamentId={activeTournamentId} />
-            ) : !matchData ? (
-              <div className="py-20 text-center bg-card rounded-xl border-2 border-dashed border-muted-foreground/25">
-                <Activity className="w-16 h-16 text-muted-foreground/40 mx-auto mb-4" />
-                <h2 className="text-2xl font-semibold mb-2 font-headline">분석을 시작하세요</h2>
-                <p className="text-muted-foreground mb-6">데이터를 업로드하여 심층 분석 리포트를 생성하세요.</p>
-                <div className="flex justify-center gap-3">
-                  <Button onClick={() => fileInputRef.current?.click()}>파일 업로드</Button>
-                  <Button variant="secondary" onClick={handleLoadMockData}>데모 데이터</Button>
-                </div>
+            <div className="border-b-4 border-primary pb-4 mb-8 flex justify-between items-end">
+              <div>
+                <h2 className="text-xl font-bold text-muted-foreground uppercase tracking-widest block print:text-primary print:text-2xl print:mb-2">{tournamentName || "Tournament Report"}</h2>
+                <h1 className="text-4xl font-black italic tracking-tighter text-foreground mt-1 font-headline print:text-3xl">{matchData.matchName || "Match Performance Analysis"}</h1>
               </div>
-            ) : (
-              <div className="space-y-12">
-                <div className="border-b-4 border-primary pb-4 mb-8 flex justify-between items-end">
-                  <div>
-                    <h2 className="text-xl font-bold text-muted-foreground uppercase tracking-widest block print:text-primary print:text-2xl print:mb-2">{tournamentName || "Tournament Report"}</h2>
-                    <h1 className="text-4xl font-black italic tracking-tighter text-foreground mt-1 font-headline print:text-3xl">{matchData.matchName || "Match Performance Analysis"}</h1>
-                  </div>
-                  <Button variant="outline" size="sm" className="print-hidden border-primary text-primary font-bold h-9" onClick={handleAiAnalysis} disabled={isAiLoading}>
-                    {isAiLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <BrainCircuit className="h-4 w-4 mr-2" />}
-                    AI 전술 분석 실행
-                  </Button>
-                </div>
+              <Button variant="outline" size="sm" className="print-hidden border-primary text-primary font-bold h-9" onClick={handleAiAnalysis} disabled={isAiLoading}>
+                {isAiLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <BrainCircuit className="h-4 w-4 mr-2" />}
+                AI 전술 분석 실행
+              </Button>
+            </div>
 
-                <div className="page-break space-y-8">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {[matchData.homeTeam, matchData.awayTeam].map((team, i) => (
-                      <div key={team.name} className="space-y-3">
-                        <div className="flex items-center gap-2 font-bold text-xl" style={{ color: team.color }}>
-                          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: team.color }} />
-                          {team.name} ({i === 0 ? '홈' : '어웨이'})
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <StatsCard title="SPP (압박 지수)" value={i === 0 ? matchData.matchStats.home.spp : matchData.matchStats.away.spp} icon={<TrendingDown className="h-4 w-4" />} isTime />
-                          <StatsCard title="빌드업 정체 비율" value={i === 0 ? matchData.matchStats.home.buildUpStagnation : matchData.matchStats.away.buildUpStagnation} icon={<ShieldCheck className="h-4 w-4" />} isPercentage />
-                          <StatsCard title="공격 점유율" value={i === 0 ? matchData.matchStats.home.possession : matchData.matchStats.away.possession} icon={<Target className="h-4 w-4" />} isPercentage />
-                          <StatsCard title="CE 소요 시간" value={i === 0 ? matchData.matchStats.home.timePerCE : matchData.matchStats.away.timePerCE} icon={<Activity className="h-4 w-4" />} isTime />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <BasicMatchStats data={matchData} />
-                </div>
-
-                <div className="page-break space-y-8">
-                  <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                    <Activity className="h-6 w-6" /> 쿼터별 상세 데이터
-                  </div>
-                  <QuarterlyStatsTable data={matchData} />
-                </div>
-
-                <div className="page-break space-y-8">
-                  <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                    <Sword className="h-6 w-6" /> 공격 성능 분석
-                  </div>
-                  <AttackThreatChart data={matchData.attackThreatData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
-                  <BuildUpEfficiencyChart data={matchData} />
-                </div>
-
-                <div className="page-break space-y-8">
-                  <div className="space-y-8">
-                    <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                      <Target className="h-6 w-6" /> 공격 점유 및 속도 및 서클 진입 분석
+            <div className="page-break space-y-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {[matchData.homeTeam, matchData.awayTeam].map((team, i) => (
+                  <div key={team.name} className="space-y-3">
+                    <div className="flex items-center gap-2 font-bold text-xl" style={{ color: team.color }}>
+                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: team.color }} />
+                      {team.name} ({i === 0 ? '홈' : '어웨이'})
                     </div>
-                    <MatchTrajectoryChart data={matchData} />
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <CircleEntryAnalysis teamName={matchData.homeTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.homeTeam.name)} teamColor={matchData.homeTeam.color} />
-                      <CircleEntryAnalysis teamName={matchData.awayTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.awayTeam.name)} teamColor={matchData.awayTeam.color} />
+                    <div className="grid grid-cols-2 gap-3">
+                      <StatsCard title="SPP (압박 지수)" value={i === 0 ? matchData.matchStats.home.spp : matchData.matchStats.away.spp} icon={<TrendingDown className="h-4 w-4" />} isTime />
+                      <StatsCard title="빌드업 정체 비율" value={i === 0 ? matchData.matchStats.home.buildUpStagnation : matchData.matchStats.away.buildUpStagnation} icon={<ShieldCheck className="h-4 w-4" />} isPercentage />
+                      <StatsCard title="공격 점유율" value={i === 0 ? matchData.matchStats.home.possession : matchData.matchStats.away.possession} icon={<Target className="h-4 w-4" />} isPercentage />
+                      <StatsCard title="CE 소요 시간" value={i === 0 ? matchData.matchStats.home.timePerCE : matchData.matchStats.away.timePerCE} icon={<Activity className="h-4 w-4" />} isTime />
                     </div>
                   </div>
-
-                  <div className="pt-8 space-y-8 border-t-2 border-dashed">
-                    <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                      <Shield className="h-6 w-6" /> 압박 분석
-                    </div>
-                    <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
-                    <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
-                  </div>
-                </div>
-
-                {aiAnalysis && (
-                  <div className="page-break space-y-8">
-                    <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                      <Sparkles className="h-6 w-6" /> AI 전술 분석 리포트
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <Card className="border-2 border-primary/20">
-                        <CardHeader className="bg-primary/5">
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <Info className="h-5 w-5 text-primary" /> 분석 요약
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-6">
-                          <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.summary}</p>
-                        </CardContent>
-                      </Card>
-                      <Card className="border-2 border-primary/20">
-                        <CardHeader className="bg-emerald-500/5">
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <Target className="h-5 w-5 text-emerald-600" /> 전술적 주요 포인트
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-6">
-                          <ul className="space-y-3">
-                            {aiAnalysis.tacticalAnalysis.map((point, idx) => (
-                              <li key={idx} className="flex gap-2 text-sm">
-                                <span className="font-bold text-emerald-600 shrink-0">{idx + 1}.</span>
-                                <span className="text-muted-foreground">{point}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </CardContent>
-                      </Card>
-                      <Card className="border-2 border-primary/20">
-                        <CardHeader className="bg-blue-500/5">
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <Activity className="h-5 w-5 text-blue-600" /> 팀의 강점
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-6">
-                          <ul className="space-y-3">
-                            {aiAnalysis.strengths.map((s, idx) => (
-                              <li key={idx} className="flex gap-2 text-sm">
-                                <div className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1.5 shrink-0" />
-                                <span className="text-muted-foreground">{s}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </CardContent>
-                      </Card>
-                      <Card className="border-2 border-primary/20">
-                        <CardHeader className="bg-orange-500/5">
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <TrendingDown className="h-5 w-5 text-orange-600" /> 개선 필요 사항
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-6">
-                          <ul className="space-y-3">
-                            {aiAnalysis.weaknesses.map((w, idx) => (
-                              <li key={idx} className="flex gap-2 text-sm">
-                                <div className="w-1.5 h-1.5 rounded-full bg-orange-600 mt-1.5 shrink-0" />
-                                <span className="text-muted-foreground">{w}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </CardContent>
-                      </Card>
-                    </div>
-                    <Card className="bg-primary text-primary-foreground border-none shadow-xl">
-                      <CardContent className="p-6 flex items-center gap-4">
-                        <div className="bg-white/20 p-3 rounded-xl">
-                          <Sparkles className="h-8 w-8 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-widest opacity-80">최종 분석 한줄평 (Verdict)</p>
-                          <p className="text-xl font-black italic mt-1">"{aiAnalysis.verdict}"</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                )}
+                ))}
               </div>
-            )}
+              <BasicMatchStats data={matchData} />
+            </div>
 
-            {/* 분석 연구원 코멘트 섹션 (데이터가 있을 때만 노출) */}
-            {(matchData || (viewMode === 'tournament' && activeTournamentId)) && (
-              <div className="page-break space-y-8 mt-12">
+            <div className="page-break space-y-8">
+              <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+                <Activity className="h-6 w-6" /> 쿼터별 상세 데이터
+              </div>
+              <QuarterlyStatsTable data={matchData} />
+            </div>
+
+            <div className="page-break space-y-8">
+              <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+                <Sword className="h-6 w-6" /> 공격 성능 분석
+              </div>
+              <AttackThreatChart data={matchData.attackThreatData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
+              <BuildUpEfficiencyChart data={matchData} />
+            </div>
+
+            <div className="page-break space-y-8">
+              <div className="space-y-8">
                 <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                  <MessageSquare className="h-6 w-6" /> 분석 연구원 comment
+                  <Target className="h-6 w-6" /> 공격 점유 및 속도 및 서클 진입 분석
                 </div>
-                <Card className="border-2 shadow-sm">
-                  <CardContent className="pt-6">
-                    <Textarea 
-                      placeholder="여기에 경기 전술에 대한 분석관의 직접적인 코멘트를 입력하세요..." 
-                      className="min-h-[200px] text-base leading-relaxed resize-none border-none focus-visible:ring-0 p-0"
-                      value={researcherComment}
-                      onChange={(e) => setResearcherComment(e.target.value)}
-                    />
+                <MatchTrajectoryChart data={matchData} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <CircleEntryAnalysis teamName={matchData.homeTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.homeTeam.name)} teamColor={matchData.homeTeam.color} />
+                  <CircleEntryAnalysis teamName={matchData.awayTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.awayTeam.name)} teamColor={matchData.awayTeam.color} />
+                </div>
+              </div>
+
+              <div className="pt-8 space-y-8 border-t-2 border-dashed">
+                <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+                  <Shield className="h-6 w-6" /> 압박 분석
+                </div>
+                <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
+                <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
+              </div>
+            </div>
+
+            {aiAnalysis && (
+              <div className="page-break space-y-8">
+                <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+                  <Sparkles className="h-6 w-6" /> AI 전술 분석 리포트
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card className="border-2 border-primary/20">
+                    <CardHeader className="bg-primary/5">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Info className="h-5 w-5 text-primary" /> 분석 요약
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.summary}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-2 border-primary/20">
+                    <CardHeader className="bg-emerald-500/5">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Target className="h-5 w-5 text-emerald-600" /> 전술적 주요 포인트
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <ul className="space-y-3">
+                        {aiAnalysis.tacticalAnalysis.map((point, idx) => (
+                          <li key={idx} className="flex gap-2 text-sm">
+                            <span className="font-bold text-emerald-600 shrink-0">{idx + 1}.</span>
+                            <span className="text-muted-foreground">{point}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-2 border-primary/20">
+                    <CardHeader className="bg-blue-500/5">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Activity className="h-5 w-5 text-blue-600" /> 팀의 강점
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <ul className="space-y-3">
+                        {aiAnalysis.strengths.map((s, idx) => (
+                          <li key={idx} className="flex gap-2 text-sm">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1.5 shrink-0" />
+                            <span className="text-muted-foreground">{s}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-2 border-primary/20">
+                    <CardHeader className="bg-orange-500/5">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <TrendingDown className="h-5 w-5 text-orange-600" /> 개선 필요 사항
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <ul className="space-y-3">
+                        {aiAnalysis.weaknesses.map((w, idx) => (
+                          <li key={idx} className="flex gap-2 text-sm">
+                            <div className="w-1.5 h-1.5 rounded-full bg-orange-600 mt-1.5 shrink-0" />
+                            <span className="text-muted-foreground">{w}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                </div>
+                <Card className="bg-primary text-primary-foreground border-none shadow-xl">
+                  <CardContent className="p-6 flex items-center gap-4">
+                    <div className="bg-white/20 p-3 rounded-xl">
+                      <Sparkles className="h-8 w-8 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest opacity-80">최종 분석 한줄평 (Verdict)</p>
+                      <p className="text-xl font-black italic mt-1">"{aiAnalysis.verdict}"</p>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
             )}
+
+            <div className="page-break space-y-8">
+              <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+                <MessageSquare className="h-6 w-6" /> 분석 연구원 comment
+              </div>
+              <Card className="border-2 shadow-sm">
+                <CardContent className="pt-6">
+                  <Textarea 
+                    placeholder="여기에 경기 전술에 대한 분석관의 직접적인 코멘트를 입력하세요..." 
+                    className="min-h-[200px] text-base leading-relaxed resize-none border-none focus-visible:ring-0 p-0"
+                    value={researcherComment}
+                    onChange={(e) => setResearcherComment(e.target.value)}
+                  />
+                </CardContent>
+              </Card>
+            </div>
           </div>
         )}
       </main>

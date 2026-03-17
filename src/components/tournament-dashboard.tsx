@@ -2,8 +2,8 @@
 'use client';
 
 import React, { useState, useMemo } from "react";
-import { Trophy, Activity, Grid3X3, Loader2, FileDown, Sword, Shield, TrendingUp, Target, TrendingDown, ShieldCheck, BrainCircuit, Sparkles, Info } from "lucide-react";
-import type { MatchData, TeamMatchStats, QuarterStats } from "@/lib/types";
+import { Trophy, Activity, Grid3X3, Loader2, FileDown, Sword, Shield, TrendingUp, Target, TrendingDown, ShieldCheck, BrainCircuit, Sparkles, Info, MessageSquare } from "lucide-react";
+import type { MatchData, TeamMatchStats } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BasicMatchStats } from "./basic-match-stats";
@@ -22,6 +22,7 @@ import { useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import { mapZone } from "@/lib/parser";
 import { analyzeMatch, type MatchAnalysisOutput } from "@/ai/flows/match-analysis-flow";
+import { Textarea } from "@/components/ui/textarea";
 
 interface TournamentDashboardProps {
   tournamentId: string;
@@ -38,6 +39,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
   const [opponentColor, setOpponentColor] = useState("#ef4444");
   const [aiAnalysis, setAiAnalysis] = useState<MatchAnalysisOutput | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [researcherComment, setResearcherComment] = useState("");
   const db = useFirestore();
   const { toast } = useToast();
 
@@ -411,7 +413,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
       <div className="page-break space-y-8">
         <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-          <TrendingUp className="h-6 w-6" /> 매치 트래직토리 (대회 전체 흐름)
+          <TrendingUp className="h-6 w-6" /> 공격 점유 및 속도 분석 (대회 전체 흐름)
         </div>
         <MatchTrajectoryChart 
           data={mockMatch} 
@@ -498,6 +500,22 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
           <Card className="bg-primary text-primary-foreground border-none shadow-xl"><CardContent className="p-6 flex items-center gap-4"><div className="bg-white/20 p-3 rounded-xl"><Sparkles className="h-8 w-8 text-white" /></div><div><p className="text-xs font-bold uppercase tracking-widest opacity-80">최종 분석 한줄평 (Verdict)</p><p className="text-xl font-black italic mt-1">"{aiAnalysis.verdict}"</p></div></CardContent></Card>
         </div>
       )}
+
+      <div className="page-break space-y-8">
+        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+          <MessageSquare className="h-6 w-6" /> 분석 연구원 comment
+        </div>
+        <Card className="border-2 shadow-sm">
+          <CardContent className="pt-6">
+            <Textarea 
+              placeholder="여기에 대회 전체 성과에 대한 분석관의 직접적인 코멘트를 입력하세요..." 
+              className="min-h-[200px] text-base leading-relaxed resize-none border-none focus-visible:ring-0 p-0"
+              value={researcherComment}
+              onChange={(e) => setResearcherComment(e.target.value)}
+            />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
