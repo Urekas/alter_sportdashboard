@@ -37,7 +37,6 @@ const CustomTooltip = ({ active, payload, homeTeam, awayTeam }: TooltipProps<Val
 
     const formatValue = (val: any) => {
       const num = Number(val);
-      // 데이터가 실제 maxY와 같은지 확인 (0인 경우 시각적 보정을 위해 maxY를 할당함)
       if (num === 0 || dataPoint[`${homeTeam.name}_isZero`] || dataPoint[`${awayTeam.name}_isZero`]) {
          return "압박 없음";
       }
@@ -62,7 +61,6 @@ const CustomTooltip = ({ active, payload, homeTeam, awayTeam }: TooltipProps<Val
 export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: PressureBattleChartProps) {
   const isMatchTrend = data.some(d => d.interval.startsWith('M'));
 
-  // Y축 최대값 미리 계산 (0을 제외한 데이터 중 최대값 기준)
   const maxY = useMemo(() => {
     const vals = data.flatMap(d => [Number(d[homeTeam.name]), Number(d[awayTeam.name])]).filter(v => v > 0);
     const maxVal = vals.length > 0 ? Math.max(...vals) : 15;
@@ -82,7 +80,6 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
       ];
     }
 
-    // 0값을 maxY로 치환 (시각적으로 하단에 배치하기 위함)
     const processedBaseData = baseData.map(d => {
       const hVal = Number(d[homeTeam.name]);
       const aVal = Number(d[awayTeam.name]);
@@ -108,7 +105,6 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
 
       result.push(p1);
 
-      // 둘 다 실제 데이터가 있는 경우에만 교차점 계산
       if (p1[`${homeTeam.name}_raw`] > 0 && p1[`${awayTeam.name}_raw`] > 0 && 
           p2[`${homeTeam.name}_raw`] > 0 && p2[`${awayTeam.name}_raw`] > 0) {
         const diff1 = v1_1 - v1_2;
@@ -122,7 +118,9 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
             x: i + t,
             [homeTeam.name]: intersectV,
             [awayTeam.name]: intersectV,
-            isIntersection: true
+            isIntersection: true,
+            [`${homeTeam.name}_raw`]: intersectV,
+            [`${awayTeam.name}_raw`]: intersectV
           });
         }
       }
@@ -132,6 +130,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
     return result.map(d => {
       const hVal = Number(d[homeTeam.name]);
       const aVal = Number(d[awayTeam.name]);
+      // SPP는 낮을수록 우위이므로 hVal <= aVal 일 때 홈팀 우위 (차트 상단)
       const homeIsLeading = hVal <= aVal; 
       
       return {
@@ -153,7 +152,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
       <CardHeader>
         <CardTitle>{isMatchTrend ? 'Pressure Battle Trend (경기별 SPP 추이)' : 'Pressure Battle (3분 단위 SPP 추이)'}</CardTitle>
         <CardDescription>
-          시각적으로 상단(낮은 SPP, 높은 압박 강도)에 위치한 팀이 우위에 있음을 나타냅니다. 데이터가 없는 경우(0s) 최하단에 표시됩니다.
+          상단에 위치한 팀의 색상으로 격차가 표시됩니다. (낮은 SPP = 높은 압박 강도)
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -191,7 +190,8 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               </ReferenceLine>
             ))}
 
-            {/* 음영(Area) 제거됨 */}
+            <Area type="linear" dataKey="homeLead" fill={homeTeam.color} fillOpacity={0.3} stroke="none" legendType="none" tooltipType="none" connectNulls />
+            <Area type="linear" dataKey="awayLead" fill={awayTeam.color} fillOpacity={0.3} stroke="none" legendType="none" tooltipType="none" connectNulls />
 
             <Line 
               type="linear" 

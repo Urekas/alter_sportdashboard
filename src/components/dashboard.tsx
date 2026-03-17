@@ -4,7 +4,7 @@
 import React, { useState, useRef, useEffect } from "react"
 import { 
   Upload, FileDown, TrendingDown, Target, Activity, ShieldCheck, 
-  Sword, Shield, Trophy, Save, Plus, BrainCircuit, Loader2, Sparkles, Info
+  Sword, Shield, Trophy, Save, Plus, BrainCircuit, Loader2, Sparkles, Info, MessageSquare
 } from "lucide-react"
 import type { MatchData, MatchEvent, Tournament } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
@@ -29,6 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { analyzeMatch, type MatchAnalysisOutput } from "@/ai/flows/match-analysis-flow"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Textarea } from "@/components/ui/textarea"
 
 export function Dashboard() {
   const [viewMode, setViewMode] = useState<'single' | 'tournament' | 'manage'>('single')
@@ -50,6 +51,7 @@ export function Dashboard() {
 
   const [aiAnalysis, setAiAnalysis] = useState<MatchAnalysisOutput | null>(null)
   const [isAiLoading, setIsAiLoading] = useState(false)
+  const [researcherComment, setResearcherComment] = useState("")
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
@@ -80,6 +82,7 @@ export function Dashboard() {
       );
       setMatchData(newData);
       setAiAnalysis(null);
+      setResearcherComment("");
     }
   }, [parsedEvents, homeTeamName, awayTeamName, homeColor, awayColor, tournamentName, matchName]);
 
@@ -87,7 +90,6 @@ export function Dashboard() {
     if (!matchData) return;
     setIsAiLoading(true);
     try {
-      // Server Action 직렬화 에러 방지를 위해 Timestamp 등 복잡한 객체 세탁 (Golden Rule)
       const sanitizedStats = JSON.parse(JSON.stringify(matchData));
       
       const result = await analyzeMatch({
@@ -149,6 +151,7 @@ export function Dashboard() {
     setAwayTeamName(mockMatchData.awayTeam.name);
     setTournamentName("데모 대회");
     setMatchName("Korea vs Netherlands (Demo)");
+    setResearcherComment("");
     toast({ title: "데모 데이터 로드됨" });
   }
 
@@ -185,6 +188,7 @@ export function Dashboard() {
     setMatchName(data.matchName || "");
     setViewMode('single');
     setAiAnalysis(null);
+    setResearcherComment("");
   }
 
   return (
@@ -323,7 +327,7 @@ export function Dashboard() {
                     <div className="grid grid-cols-2 gap-3">
                       <StatsCard title="SPP (압박 지수)" value={i === 0 ? matchData.matchStats.home.spp : matchData.matchStats.away.spp} icon={<TrendingDown className="h-4 w-4" />} isTime />
                       <StatsCard title="빌드업 정체 비율" value={i === 0 ? matchData.matchStats.home.buildUpStagnation : matchData.matchStats.away.buildUpStagnation} icon={<ShieldCheck className="h-4 w-4" />} isPercentage />
-                      <StatsCard title="공격 점유율" value={i === 0 ? matchData.matchStats.home.attackPossession : matchData.matchStats.away.attackPossession} icon={<Target className="h-4 w-4" />} isPercentage />
+                      <StatsCard title="공격 점유율" value={i === 0 ? matchData.matchStats.home.possession : matchData.matchStats.away.possession} icon={<Target className="h-4 w-4" />} isPercentage />
                       <StatsCard title="CE 소요 시간" value={i === 0 ? matchData.matchStats.home.timePerCE : matchData.matchStats.away.timePerCE} icon={<Activity className="h-4 w-4" />} isTime />
                     </div>
                   </div>
@@ -359,7 +363,6 @@ export function Dashboard() {
                 </div>
               </div>
 
-              {/* PDF 출력 최적화: 서클 진입 분석 뒤에 바로 압박 분석이 이어지도록 page-break 없이 배치 (Golden State) */}
               <div className="pt-8 space-y-8 border-t-2 border-dashed">
                 <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                   <Shield className="h-6 w-6" /> 압박 분석
@@ -450,6 +453,23 @@ export function Dashboard() {
                 </Card>
               </div>
             )}
+
+            {/* 분석 연구원 코멘트 섹션 */}
+            <div className="page-break space-y-8">
+              <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+                <MessageSquare className="h-6 w-6" /> 분석 연구원 comment
+              </div>
+              <Card className="border-2 shadow-sm">
+                <CardContent className="pt-6">
+                  <Textarea 
+                    placeholder="여기에 경기 전술에 대한 분석관의 직접적인 코멘트를 입력하세요..." 
+                    className="min-h-[200px] text-base leading-relaxed resize-none border-none focus-visible:ring-0 p-0"
+                    value={researcherComment}
+                    onChange={(e) => setResearcherComment(e.target.value)}
+                  />
+                </CardContent>
+              </Card>
+            </div>
           </div>
         )}
       </main>
