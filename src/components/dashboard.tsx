@@ -468,6 +468,54 @@ export function Dashboard() {
                 </CardContent>
               </Card>
             </div>
+
+            <div className="break-inside-avoid pt-12 border-t-4 border-muted mt-12">
+              <div className="flex items-center gap-2 text-2xl font-bold text-muted-foreground mb-6">
+                <Info className="h-6 w-6" /> 지표 정의 및 산출 가이드 (Metrics Definition)
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <Card className="bg-muted/10 border-none shadow-none">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold text-primary uppercase">SPP (Seconds Per Press)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs leading-relaxed text-muted-foreground">상대 팀의 빌드업 시간(우리 팀의 수비 상황)을 우리 팀의 압박 시도 횟수(상대 실책 유도 + 본인 파울 발생)로 나눈 값입니다. 수치가 낮을수록 압박 강도가 강하고 공격적임을 의미합니다.</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-muted/10 border-none shadow-none">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold text-primary uppercase">공격 점유율 (Attack Possession)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs leading-relaxed text-muted-foreground">양 팀의 공격 구역(ATT) 점유 시간 총합 대비 해당 팀의 공격 구역 점유 비중을 나타냅니다. 실질적인 위협 지역에서의 제어력을 평가합니다.</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-muted/10 border-none shadow-none">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold text-primary uppercase">빌드업 성공률 (Build25 Ratio)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs leading-relaxed text-muted-foreground">우리 팀의 전체 빌드업 시도 중 상대방 25m 구역(A25) 진입에 성공한 비율입니다. 팀의 후방 빌드업 전개 능력과 전진 패스 효율성을 나타냅니다.</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-muted/10 border-none shadow-none">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold text-primary uppercase">빌드업 정체 비율 (Stagnation Rate)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs leading-relaxed text-muted-foreground">팀의 전체 점유 시간 중 공격 구역(ATT)에 진입하지 못하고 후방 및 미드필드에 머무른 시간의 비중입니다. 높을수록 공격 전개 속도가 느림을 의미합니다.</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-muted/10 border-none shadow-none">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold text-primary uppercase">CE 1회당 소요 시간 (Time per CE)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs leading-relaxed text-muted-foreground">슈팅 서클 진입(Circle Entry) 1회를 기록하기 위해 평균적으로 소요된 팀 점유 시간입니다. 수치가 낮을수록 더 빠르고 직선적인 공격이 이루어졌음을 나타냅니다.</p>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </div>
         )}
       </main>
