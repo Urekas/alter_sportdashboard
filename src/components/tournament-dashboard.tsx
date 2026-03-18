@@ -139,6 +139,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
     const teamRanks = {
         goals: getRank('goals', 'desc'),
+        goalsAllowed: getRank('goalsAllowed', 'asc'), // 적을수록 높은 순위
         shots: getRank('shots', 'desc'),
         pcs: getRank('pcs', 'desc'),
         pcSuccessRate: getRank('pcSuccessRate', 'desc'),
@@ -348,7 +349,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             </div>
              <div className="grid grid-cols-2 gap-3">
               <StatsCard title="득점" value={mockMatch.matchStats.home.goals.field + mockMatch.matchStats.home.goals.pc} rank={teamRanks?.goals} icon={<Sword className="h-4 w-4" />} />
-              <StatsCard title="실점" value={mockMatch.matchStats.home.goalsAllowed} icon={<ShieldCheck className="h-4 w-4" />} />
+              <StatsCard title="실점" value={mockMatch.matchStats.home.goalsAllowed} rank={teamRanks?.goalsAllowed} icon={<ShieldCheck className="h-4 w-4" />} />
               <StatsCard title="공격 점유율" value={mockMatch.matchStats.home.attackPossession} rank={teamRanks?.attackPossession} icon={<Target className="h-4 w-4" />} isPercentage />
               <StatsCard title="압박 지수 (SPP)" value={mockMatch.matchStats.home.spp} rank={teamRanks?.spp} icon={<TrendingDown className="h-4 w-4" />} isTime />
             </div>
@@ -503,7 +504,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="border-2 border-primary/20"><CardHeader className="bg-primary/5"><CardTitle className="text-lg flex items-center gap-2"><Info className="h-5 w-5 text-primary" /> 분석 요약</CardTitle></CardHeader><CardContent className="pt-6"><p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.summary}</p></CardContent></Card>
-            <Card className="border-2 border-primary/20"><CardHeader className="bg-emerald-500/5"><CardTitle className="text-lg flex items-center gap-2"><Target className="h-5 w-5 text-emerald-600" /> 전술적 주요 포인트</Target></CardHeader><CardContent className="pt-6"><ul className="space-y-3">{aiAnalysis.tacticalAnalysis.map((point, idx) => (<li key={idx} className="flex gap-2 text-sm"><span className="font-bold text-emerald-600 shrink-0">{idx + 1}.</span><span className="text-muted-foreground">{point}</span></li>))}</ul></CardContent></Card>
+            <Card className="border-2 border-primary/20"><CardHeader className="bg-emerald-500/5"><CardTitle className="text-lg flex items-center gap-2"><Target className="h-5 w-5 text-emerald-600" /> 전술적 주요 포인트</CardTitle></CardHeader><CardContent className="pt-6"><ul className="space-y-3">{aiAnalysis.tacticalAnalysis.map((point, idx) => (<li key={idx} className="flex gap-2 text-sm"><span className="font-bold text-emerald-600 shrink-0">{idx + 1}.</span><span className="text-muted-foreground">{point}</span></li>))}</ul></CardContent></Card>
             <Card className="border-2 border-primary/20"><CardHeader className="bg-blue-500/5"><CardTitle className="text-lg flex items-center gap-2"><TrendingUp className="h-5 w-5 text-blue-600" /> 팀의 강점 (Strengths)</CardTitle></CardHeader><CardContent className="pt-6"><ul className="space-y-3">{aiAnalysis.strengths.map((s, idx) => (<li key={idx} className="flex gap-2 text-sm"><div className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1.5 shrink-0" /><span className="text-muted-foreground">{s}</span></li>))}</ul></CardContent></Card>
             <Card className="border-2 border-primary/20"><CardHeader className="bg-orange-500/5"><CardTitle className="text-lg flex items-center gap-2"><TrendingDown className="h-5 w-5 text-orange-600" /> 개선 필요 사항 (Weaknesses)</CardTitle></CardHeader><CardContent className="pt-6"><ul className="space-y-3">{aiAnalysis.weaknesses.map((w, idx) => (<li key={idx} className="flex gap-2 text-sm"><div className="w-1.5 h-1.5 rounded-full bg-orange-600 mt-1.5 shrink-0" /><span className="text-muted-foreground">{w}</span></li>))}</ul></CardContent></Card>
           </div>
