@@ -452,7 +452,11 @@ export function Dashboard() {
                 </Card>
               </div>
             )}
+          </div>
+        )}
 
+        {(matchData || viewMode === 'tournament') && (
+          <div className="mt-12 space-y-12">
             <div className="break-inside-avoid space-y-8">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <MessageSquare className="h-6 w-6" /> 분석 연구원 comment
@@ -460,7 +464,7 @@ export function Dashboard() {
               <Card className="border-2 shadow-sm">
                 <CardContent className="pt-6">
                   <Textarea 
-                    placeholder="여기에 경기 전술에 대한 분석관의 직접적인 코멘트를 입력하세요..." 
+                    placeholder="여기에 경기/대회 전술에 대한 분석관의 직접적인 코멘트를 입력하세요..." 
                     className="min-h-[200px] text-base leading-relaxed resize-none border-none focus-visible:ring-0 p-0"
                     value={researcherComment}
                     onChange={(e) => setResearcherComment(e.target.value)}
@@ -469,7 +473,7 @@ export function Dashboard() {
               </Card>
             </div>
 
-            <div className="break-inside-avoid pt-12 border-t-4 border-muted mt-12">
+            <div className="break-inside-avoid pt-12 border-t-4 border-muted">
               <div className="flex items-center gap-2 text-2xl font-bold text-muted-foreground mb-6">
                 <Info className="h-6 w-6" /> 지표 정의 및 산출 가이드 (Metrics Definition)
               </div>

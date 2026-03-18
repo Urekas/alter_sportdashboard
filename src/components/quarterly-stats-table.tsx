@@ -96,7 +96,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
       <CardHeader>
         <CardTitle>쿼터별 경기 통계 (Quarterly Match Stats)</CardTitle>
         <CardDescription>
-          지표별 상단: {homeTeam.name} / 하단: {awayTeam.name} (진한 구분선으로 지표 구분)
+          지표별 상단: {homeTeam.name} / 하단: {awayTeam.name} (대회 누적 시 평균 수치로 표시)
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -110,12 +110,12 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
                 </TableHead>
               ))}
               <TableHead className="text-center font-bold border-x bg-muted/50 text-foreground">
-                경기 전체
+                전체 평균
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {/* 득점 섹션 */}
+            {/* 득점 섹션 - 누적 평균 고려하여 소수점 1자리 표시 */}
             <TableRow className="bg-primary/5">
               <TableCell className="pl-6 text-sm font-medium">득점 (PC/전체득점) ({homeTeam.name})</TableCell>
               {quarterlyStats.map(q => {
@@ -128,7 +128,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
                     className="text-center border-x"
                     style={winnerClass === "home-win" ? { color: homeTeam.color, fontWeight: 'bold' } : {}}
                   >
-                    {safeVal(q.home.goals?.pc)} / {safeVal(hTot)}
+                    {safeVal(q.home.goals?.pc, 1)} / {safeVal(hTot, 1)}
                   </TableCell>
                 );
               })}
@@ -136,7 +136,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
                 className="text-center border-x bg-muted/30 font-bold"
                 style={getWinnerClass(matchStats.home.goals.field + matchStats.home.goals.pc, matchStats.away.goals.field + matchStats.away.goals.pc) === "home-win" ? { color: homeTeam.color } : {}}
               >
-                {safeVal(matchStats.home.goals.pc)} / {safeVal(matchStats.home.goals.field + matchStats.home.goals.pc)}
+                {safeVal(matchStats.home.goals.pc, 1)} / {safeVal(matchStats.home.goals.field + matchStats.home.goals.pc, 1)}
               </TableCell>
             </TableRow>
             <TableRow className="bg-chart-2/5 border-b-[4px] border-b-foreground/30">
@@ -151,7 +151,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
                     className="text-center border-x"
                     style={winnerClass === "away-win" ? { color: awayTeam.color, fontWeight: 'bold' } : {}}
                   >
-                    {safeVal(q.away.goals?.pc)} / {safeVal(aTot)}
+                    {safeVal(q.away.goals?.pc, 1)} / {safeVal(aTot, 1)}
                   </TableCell>
                 );
               })}
@@ -159,16 +159,16 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
                 className="text-center border-x bg-muted/30 font-bold"
                 style={getWinnerClass(matchStats.home.goals.field + matchStats.home.goals.pc, matchStats.away.goals.field + matchStats.away.goals.pc) === "away-win" ? { color: awayTeam.color } : {}}
               >
-                {safeVal(matchStats.away.goals.pc)} / {safeVal(matchStats.away.goals.field + matchStats.away.goals.pc)}
+                {safeVal(matchStats.away.goals.pc, 1)} / {safeVal(matchStats.away.goals.field + matchStats.away.goals.pc, 1)}
               </TableCell>
             </TableRow>
 
-            {/* 나머지 지표 섹션들 */}
-            {renderStatRows("슈팅", "shots")}
-            {renderStatRows("페널티코너 (PC)", "pcs")}
+            {/* 나머지 지표 섹션들 - 슈팅 소수점 1자리 표시 */}
+            {renderStatRows("슈팅", "shots", 1)}
+            {renderStatRows("페널티코너 (PC)", "pcs", 1)}
             {renderStatRows("PC 성공률 (%)", "pcSuccessRate", 1)}
-            {renderStatRows("서클 진입 (CE)", "circleEntries")}
-            {renderStatRows("25y 진입 (A25)", "twentyFiveEntries")}
+            {renderStatRows("서클 진입 (CE)", "circleEntries", 1)}
+            {renderStatRows("25y 진입 (A25)", "twentyFiveEntries", 1)}
             {renderStatRows("전체 점유율 (%)", "possession", 1)}
             {renderStatRows("공격 점유율 (%)", "attackPossession", 1)}
             {renderStatRows("빌드업 정체 비율 (%)", "buildUpStagnation", 1)}

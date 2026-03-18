@@ -22,7 +22,6 @@ import { useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import { mapZone } from "@/lib/parser";
 import { analyzeMatch, type MatchAnalysisOutput } from "@/ai/flows/match-analysis-flow";
-import { Textarea } from "@/components/ui/textarea";
 
 interface TournamentDashboardProps {
   tournamentId: string;
@@ -39,7 +38,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
   const [opponentColor, setOpponentColor] = useState("#ef4444");
   const [aiAnalysis, setAiAnalysis] = useState<MatchAnalysisOutput | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
-  const [researcherComment, setResearcherComment] = useState("");
   const db = useFirestore();
   const { toast } = useToast();
 
@@ -130,8 +128,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
 
     const getRank = (metric: string, order: 'asc' | 'desc') => {
         const sorted = [...allTeamsStats].sort((a, b) => {
-            const valA = (metric === 'goals' ? a.stats.goals.field + a.stats.goals.pc : a.stats[metric]) as number;
-            const valB = (metric === 'goals' ? b.stats.goals.field + b.stats.goals.pc : b.stats[metric]) as number;
+            const valA = (metric === 'goals' ? a.stats.goals.field + a.stats.goals.pc : metric === 'goalsAllowed' ? a.stats.goalsAllowed : a.stats[metric]) as number;
+            const valB = (metric === 'goals' ? b.stats.goals.field + b.stats.goals.pc : metric === 'goalsAllowed' ? b.stats.goalsAllowed : b.stats[metric]) as number;
             return order === 'asc' ? valA - valB : valB - valA;
         });
         const rank = sorted.findIndex(t => t.name === currentTeam) + 1;
@@ -399,7 +397,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               selectedTeamName={currentTeam}
               selectedColor={selectedTeamColor}
               data={allTeamsStats.map((t, i) => ({ name: t.name, x: t.stats.possession, y: t.stats.circleEntries, color: getTeamColor(t.name, i) }))}
-              labels={{ tr: "점유율 ↑ ,서클진입 ↑", tl: "점유율 ↓ ,서클진입 ↑", br: "점유율 ↑ ,서클진입 ↓", bl: "점유율 ↓ ,서클진입 ↓" }}
+              labels={{ tr: "Dominant", tl: "Efficient", br: "Inefficient", bl: "Defensive" }}
             />
           </div>
           <div className="break-inside-avoid">
@@ -413,7 +411,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                selectedTeamName={currentTeam}
                selectedColor={selectedTeamColor}
                data={allTeamsStats.map((t, i) => ({ name: t.name, x: t.stats.circleEntries, y: t.stats.threat, color: getTeamColor(t.name, i) }))}
-               labels={{ tr: "서클진입 ↑, 슈팅+PC ↑", tl: "서클진입 ↓, 슈팅+PC ↑", br: "서클진입 ↑, 슈팅+PC ↓", bl: "서클진입 ↓, 슈팅+PC ↓" }}
+               labels={{ tr: "Lethal", tl: "Sharp", br: "Wasteful", bl: "Low Impact" }}
             />
           </div>
         </div>
@@ -472,7 +470,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                 y: t.stats.allowedCircleEntries, 
                 color: getTeamColor(t.name, i) 
               }))}
-              labels={{ tr: "서클허용 ↓, 허용 점유율 ↓", tl: "서클허용 ↓, 허용 점유율 ↑", br: "서클허용 ↑, 허용 점유율 ↓", bl: "서클허용 ↓, 허용 점유율 ↓" }}
+              labels={{ tr: "Weak", tl: "Vulnerable", br: "Resilient", bl: "Fortress" }}
             />
           </div>
           <div className="break-inside-avoid">
@@ -492,7 +490,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                 y: t.stats.allowedThreat, 
                 color: getTeamColor(t.name, i) 
               }))}
-              labels={{ tr: "서클허용 ↓, 슈팅+PC허용 ↓", tl: "서클허용 ↑, 슈팅+PC허용 ↓", br: "서클허용 ↓, 슈팅+PC허용 ↑", bl: "서클허용 ↑, 슈팅+PC허용 ↑" }}
+              labels={{ tr: "Brittle", tl: "Passive", br: "Solid", bl: "Impenetrable" }}
             />
           </div>
         </div>
@@ -512,70 +510,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
           <Card className="bg-primary text-primary-foreground border-none shadow-xl"><CardContent className="p-6 flex items-center gap-4"><div className="bg-white/20 p-3 rounded-xl"><Sparkles className="h-8 w-8 text-white" /></div><div><p className="text-xs font-bold uppercase tracking-widest opacity-80">최종 분석 한줄평 (Verdict)</p><p className="text-xl font-black italic mt-1">"{aiAnalysis.verdict}"</p></div></CardContent></Card>
         </div>
       )}
-
-      <div className="break-inside-avoid space-y-8">
-        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-          <MessageSquare className="h-6 w-6" /> 분석 연구원 comment
-        </div>
-        <Card className="border-2 shadow-sm">
-          <CardContent className="pt-6">
-            <Textarea 
-              placeholder="여기에 대회 전체 성과에 대한 분석관의 직접적인 코멘트를 입력하세요..." 
-              className="min-h-[200px] text-base leading-relaxed resize-none border-none focus-visible:ring-0 p-0"
-              value={researcherComment}
-              onChange={(e) => setResearcherComment(e.target.value)}
-            />
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="break-inside-avoid pt-12 border-t-4 border-muted mt-12">
-        <div className="flex items-center gap-2 text-2xl font-bold text-muted-foreground mb-6">
-          <Info className="h-6 w-6" /> 지표 정의 및 산출 가이드 (Metrics Definition)
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Card className="bg-muted/10 border-none shadow-none">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-bold text-primary uppercase">SPP (Seconds Per Press)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs leading-relaxed text-muted-foreground">상대 팀의 빌드업 시간(우리 팀의 수비 상황)을 우리 팀의 압박 시도 횟수(상대 실책 유도 + 본인 파울 발생)로 나눈 값입니다. 수치가 낮을수록 압박 강도가 강하고 공격적임을 의미합니다.</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-muted/10 border-none shadow-none">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-bold text-primary uppercase">공격 점유율 (Attack Possession)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs leading-relaxed text-muted-foreground">양 팀의 공격 구역(ATT) 점유 시간 총합 대비 해당 팀의 공격 구역 점유 비중을 나타냅니다. 실질적인 위협 지역에서의 제어력을 평가합니다.</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-muted/10 border-none shadow-none">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-bold text-primary uppercase">빌드업 성공률 (Build25 Ratio)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs leading-relaxed text-muted-foreground">우리 팀의 전체 빌드업 시도 중 상대방 25m 구역(A25) 진입에 성공한 비율입니다. 팀의 후방 빌드업 전개 능력과 전진 패스 효율성을 나타냅니다.</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-muted/10 border-none shadow-none">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-bold text-primary uppercase">빌드업 정체 비율 (Stagnation Rate)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs leading-relaxed text-muted-foreground">팀의 전체 점유 시간 중 공격 구역(ATT)에 진입하지 못하고 후방 및 미드필드에 머무른 시간의 비중입니다. 높을수록 공격 전개 속도가 느림을 의미합니다.</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-muted/10 border-none shadow-none">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-bold text-primary uppercase">CE 1회당 소요 시간 (Time per CE)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs leading-relaxed text-muted-foreground">슈팅 서클 진입(Circle Entry) 1회를 기록하기 위해 평균적으로 소요된 팀 점유 시간입니다. 수치가 낮을수록 더 빠르고 직선적인 공격이 이루어졌음을 나타냅니다.</p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
     </div>
   )
 }
