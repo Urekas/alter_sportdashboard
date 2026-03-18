@@ -166,7 +166,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     const pressureData = matchTrendData.map(d => ({ interval: d.interval, [currentTeam]: d[currentTeam], ["상대팀"]: d["상대팀"] }));
     const attackThreatData = matchTrendData.map(d => ({ interval: d.interval, [currentTeam]: d.threat, ["상대팀"]: d.oppThreat }));
     
-    // 정밀 타격: 압박 데이터 집계 로직 복구
     const calculatePressureStatsForMatch = (match: MatchData, teamSide: 'home' | 'away') => {
       const zones = Array(6).fill(null).map(() => ({ count: 0, success: 0 }));
       const mapping = [
@@ -186,8 +185,6 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
           const pressingTeamName = isHomePressing ? match.homeTeam.name : match.awayTeam.name;
           const buildingTeamName = isHomePressing ? match.awayTeam.name : match.homeTeam.name;
 
-          // 골든 로직: 빌드업 팀에 따라 체크할 구역 매핑
-          // Home(빌드업)은 25/50 구역, Away(빌드업)은 100/75 구역
           const isBuildingHome = buildingTeamName === match.homeTeam.name;
           const buildZoneToMatch = isBuildingHome ? 'myZone' : 'oppZone';
           const buildLaneToMatch = isBuildingHome ? 'myLane' : 'oppLane';
@@ -418,7 +415,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             const isH = m.homeTeam.name === currentTeam;
             return {
               homeX: isH ? m.matchStats.home.attackPossession : m.matchStats.away.attackPossession,
-              homeY: isH ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE,
+              homeY: iH ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE,
               homeRawTime: isH ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE
             };
           })} 
