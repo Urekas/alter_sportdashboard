@@ -25,9 +25,10 @@ interface PressureBattleChartProps {
   homeTeam: Team
   awayTeam: Team
   height?: number
+  fontSize?: number
 }
 
-const CustomTooltip = ({ active, payload, homeTeam, awayTeam }: TooltipProps<ValueType, NameType> & { homeTeam: Team, awayTeam: Team }) => {
+const CustomTooltip = ({ active, payload, homeTeam, awayTeam, fontSize = 12 }: TooltipProps<ValueType, NameType> & { homeTeam: Team, awayTeam: Team, fontSize?: number }) => {
   if (active && payload && payload.length) {
     const dataPoint = payload[0].payload;
     if (dataPoint.isIntersection) return null;
@@ -44,8 +45,8 @@ const CustomTooltip = ({ active, payload, homeTeam, awayTeam }: TooltipProps<Val
     };
 
     return (
-      <div className="bg-card p-3 border rounded-lg shadow-lg text-sm">
-        <p className="font-bold text-base mb-2">{`${dataPoint.interval}`}</p>
+      <div className="bg-card p-3 border rounded-lg shadow-lg" style={{ fontSize: `${fontSize}px` }}>
+        <p className="font-bold mb-2" style={{ fontSize: `${fontSize + 2}px` }}>{`${dataPoint.interval}`}</p>
         {homePayload && <p style={{ color: homePayload.color }}>
           {`${homePayload.name} SPP: ${dataPoint[`${homeTeam.name}_raw`] === 0 ? '압박 없음' : formatValue(homePayload.value)}`}
         </p>}
@@ -58,7 +59,7 @@ const CustomTooltip = ({ active, payload, homeTeam, awayTeam }: TooltipProps<Val
   return null;
 };
 
-export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: PressureBattleChartProps) {
+export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350, fontSize = 10 }: PressureBattleChartProps) {
   const isMatchTrend = data.some(d => d.interval.startsWith('M'));
 
   const maxY = useMemo(() => {
@@ -105,7 +106,6 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
 
       result.push(p1);
 
-      // SPP는 낮을수록 우위(Y축 반전이라 위쪽)이므로, home < away 일 때 홈 우위
       const diff1 = v1_1 - v1_2;
       const diff2 = v2_1 - v2_2;
 
@@ -128,8 +128,6 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
     return result.map(d => {
       const hVal = Number(d[homeTeam.name]);
       const aVal = Number(d[awayTeam.name]);
-      // SPP는 낮을수록 우위 (Y축 반전)
-      // homeLead: [bottomValue, topValue] in data space. Bottom is larger, Top is smaller.
       const homeIsLeading = hVal < aVal;
       const awayIsLeading = aVal < hVal;
       
@@ -165,17 +163,18 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
               domain={[0, 'dataMax']}
               ticks={chartData.filter(d => !d.isIntersection).map(d => d.x)}
               tickFormatter={(val) => chartData.find(d => d.x === val)?.interval || ""}
-              tick={{ fontSize: 10 }}
+              tick={{ fontSize }}
               height={isMatchTrend ? 60 : 30}
             />
             <YAxis 
               reversed 
               domain={[0, maxY]} 
-              label={{ value: 'SPP (s)', angle: -90, position: 'insideLeft' }} 
+              label={{ value: 'SPP (s)', angle: -90, position: 'insideLeft', style: { fontSize: fontSize + 2 } }} 
               tickFormatter={(val) => val === maxY ? "None" : val}
+              tick={{ fontSize }}
             />
-            <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
-            <Legend verticalAlign="top" height={36} />
+            <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} fontSize={fontSize + 2} />} />
+            <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: fontSize + 2 }} />
             
             {!isMatchTrend && quarterBoundaries.map((b, i) => (
               <ReferenceLine 
@@ -186,7 +185,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350 }: 
                 strokeWidth={1}
                 opacity={0.5}
               >
-                <Label value={b.label} position="top" offset={10} style={{ fontSize: '10px', fontWeight: 'bold', fill: 'hsl(var(--muted-foreground))' }} />
+                <Label value={b.label} position="top" offset={10} style={{ fontSize: `${fontSize}px`, fontWeight: 'bold', fill: 'hsl(var(--muted-foreground))' }} />
               </ReferenceLine>
             ))}
 

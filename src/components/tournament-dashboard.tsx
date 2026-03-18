@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useMemo } from "react";
-import { Trophy, Activity, Grid3X3, Loader2, FileDown, Sword, Shield, TrendingUp, Target, TrendingDown, ShieldCheck, BrainCircuit, Sparkles, Info, MessageSquare } from "lucide-react";
+import { Trophy, Activity, Grid3X3, Loader2, FileDown, Sword, Shield, TrendingUp, Target, TrendingDown, ShieldCheck, BrainCircuit, Sparkles, Info, MessageSquare, Settings2 } from "lucide-react";
 import type { MatchData, TeamMatchStats } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import { mapZone } from "@/lib/parser";
@@ -38,6 +40,12 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
   const [opponentColor, setOpponentColor] = useState("#ef4444");
   const [aiAnalysis, setAiAnalysis] = useState<MatchAnalysisOutput | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  
+  // 차트 조절용 상태 추가
+  const [quadHeight, setQuadHeight] = useState(450);
+  const [pressureHeight, setPressureHeight] = useState(400);
+  const [chartFontSize, setChartFontSize] = useState(12);
+
   const db = useFirestore();
   const { toast } = useToast();
 
@@ -182,23 +190,25 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
           if (!zoneInfo) return;
 
           const isHomePressing = teamSide === 'home';
-          const pressingTeamName = isHomePressing ? match.homeTeam.name : match.awayTeam.name;
           const buildingTeamName = isHomePressing ? match.awayTeam.name : match.homeTeam.name;
+          const pressingTeamName = isHomePressing ? match.homeTeam.name : match.awayTeam.name;
 
           const isBuildingHome = buildingTeamName === match.homeTeam.name;
           const buildZoneToMatch = isBuildingHome ? 'myZone' : 'oppZone';
           const buildLaneToMatch = isBuildingHome ? 'myLane' : 'oppLane';
 
-          const isOppError = e.team === buildingTeamName && (e.type === 'turnover' || e.type === 'foul');
-          const isOppTurnover = e.team === buildingTeamName && e.type === 'turnover';
-          const isPressingFoul = e.team === pressingTeamName && e.type === 'foul';
+          if (zoneInfo.zoneBand === m[buildZoneToMatch] && zoneInfo.lane === m[buildLaneToMatch]) {
+              const isOppError = e.team === buildingTeamName && (e.type === 'turnover' || e.type === 'foul');
+              const isOppTurnover = e.team === buildingTeamName && e.type === 'turnover';
+              const isPressingFoul = e.team === pressingTeamName && e.type === 'foul';
 
-          mapping.forEach((m, idx) => {
-              if (zoneInfo.zoneBand === m[buildZoneToMatch] && zoneInfo.lane === m[buildLaneToMatch]) {
-                  if (isOppError || isPressingFoul) zones[idx].count++;
-                  if (isOppTurnover) zones[idx].success++;
-              }
-          });
+              mapping.forEach((m, idx) => {
+                  if (zoneInfo.zoneBand === m[buildZoneToMatch] && zoneInfo.lane === m[buildLaneToMatch]) {
+                      if (isOppError || isPressingFoul) zones[idx].count++;
+                      if (isOppTurnover) zones[idx].success++;
+                  }
+              });
+          }
       });
       return zones;
     };
@@ -288,6 +298,27 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     }
   };
 
+  const ChartSettingsControls = ({ h, setH, f, setF }: { h: number, setH: (v: number) => void, f: number, setF: (v: number) => void }) => (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="icon" className="h-8 w-8 print-hidden ml-2"><Settings2 className="h-4 w-4" /></Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64">
+        <div className="space-y-4">
+          <h4 className="font-bold text-sm">차트 표시 설정</h4>
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs"><Label>글꼴 크기</Label><span className="font-bold">{f}px</span></div>
+            <Slider value={[f]} min={8} max={24} step={1} onValueChange={([v]) => setF(v)} />
+          </div>
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs"><Label>차트 높이</Label><span className="font-bold">{h}px</span></div>
+            <Slider value={[h]} min={300} max={1000} step={10} onValueChange={([v]) => setH(v)} />
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+
   if (loading) return <div className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />대회 데이터를 불러오는 중...</div>;
   if (!analysisData) return <div className="py-20 text-center">대회에 등록된 경기가 없습니다.</div>;
 
@@ -374,6 +405,9 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         />
         <div className="space-y-8 mt-6">
           <div className="break-inside-avoid">
+            <div className="flex items-center mb-2">
+              <ChartSettingsControls h={quadHeight} setH={setQuadHeight} f={chartFontSize} setF={setChartFontSize} />
+            </div>
             <TacticalQuadrantChart
               title="서클진입 효율"
               description="점유율 대비 서클 진입 생성 빈도"
@@ -385,6 +419,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               selectedColor={selectedTeamColor}
               data={allTeamsStats.map((t, i) => ({ name: t.name, x: t.stats.possession, y: t.stats.circleEntries, color: getTeamColor(t.name, i) }))}
               labels={{ tr: "서클진입↑, 점유율↑", tl: "서클진입↓, 점유율↑", br: "서클진입↑, 점유율↓", bl: "서클진입↓, 점유율↓" }}
+              height={quadHeight}
+              fontSize={chartFontSize}
             />
           </div>
           <div className="break-inside-avoid">
@@ -399,6 +435,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                selectedColor={selectedTeamColor}
                data={allTeamsStats.map((t, i) => ({ name: t.name, x: t.stats.circleEntries, y: t.stats.threat, color: getTeamColor(t.name, i) }))}
                labels={{ tr: "서클진입↑, 슈팅+PC↑", tl: "서클진입↑, 슈팅+PC↓", br: "서클진입↓, 슈팅+PC↑", bl: "서클진입↓, 슈팅+PC↓" }}
+               height={quadHeight}
+               fontSize={chartFontSize}
             />
           </div>
         </div>
@@ -415,7 +453,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             const isH = m.homeTeam.name === currentTeam;
             return {
               homeX: isH ? m.matchStats.home.attackPossession : m.matchStats.away.attackPossession,
-              homeY: iH ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE,
+              homeY: isH ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE,
               homeRawTime: isH ? m.matchStats.home.timePerCE : m.matchStats.away.timePerCE
             };
           })} 
@@ -426,7 +464,18 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
           <Shield className="h-6 w-6" /> 압박 분석
         </div>
-        <PressureBattleChart data={mockMatch.pressureData} homeTeam={{ name: currentTeam, color: selectedTeamColor }} awayTeam={{ name: '상대팀', color: opponentColor }} />
+        <div className="space-y-4">
+          <div className="flex items-center">
+            <ChartSettingsControls h={pressureHeight} setH={setPressureHeight} f={chartFontSize} setF={setChartFontSize} />
+          </div>
+          <PressureBattleChart 
+            data={mockMatch.pressureData} 
+            homeTeam={{ name: currentTeam, color: selectedTeamColor }} 
+            awayTeam={{ name: '상대팀', color: opponentColor }} 
+            height={pressureHeight}
+            fontSize={chartFontSize}
+          />
+        </div>
         <div className="mt-6">
           <PressureAnalysisMap
               homeTeam={{ name: currentTeam, color: selectedTeamColor }}
@@ -458,6 +507,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                 color: getTeamColor(t.name, i) 
               }))}
               labels={{ tr: "서클허용↓, 상대 점유율↓", tl: "서클허용↓, 상대 점유율↑", br: "서클허용↑, 상대 점유율↓", bl: "서클허용↑, 상대 점유율↑" }}
+              height={quadHeight}
+              fontSize={chartFontSize}
             />
           </div>
           <div className="break-inside-avoid">
@@ -478,6 +529,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                 color: getTeamColor(t.name, i) 
               }))}
               labels={{ tr: "서클진입↓, 슈팅+PC↓", tl: "서클진입↓, 슈팅+PC↑", br: "서클진입↓, 슈팅+PC↑", bl: "서클진입↓, 슈팅+PC↓" }}
+              height={quadHeight}
+              fontSize={chartFontSize}
             />
           </div>
         </div>
