@@ -234,7 +234,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam, events = [] }: Att
                     allowDecimals={false}
                 />
                 <YAxis 
-                  label={{ value: '공격 위협도', angle: -90, position: 'insideLeft' }} 
+                  label={{ value: '공격 위협도(슈팅+PC)', angle: -90, position: 'insideLeft' }} 
                   allowDecimals={false} 
                   domain={[0, 8]}
                 />

@@ -22,7 +22,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
 
   const safeVal = (val: any, decimals: number = 0) => {
     const num = typeof val === 'number' ? val : parseFloat(val);
-    if (isNaN(num)) return decimals === 0 ? "0" : "0.0";
+    if (isNaN(num)) return decimals === 0 ? "0" : "0.00";
     return decimals === 0 ? Math.round(num).toString() : num.toFixed(decimals);
   };
 
@@ -115,7 +115,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {/* 득점 섹션 - 누적 평균 고려하여 소수점 1자리 표시 */}
+            {/* 득점 섹션 - 누적 평균 고려하여 소수점 2자리 표시 */}
             <TableRow className="bg-primary/5">
               <TableCell className="pl-6 text-sm font-medium">득점 (PC/전체득점) ({homeTeam.name})</TableCell>
               {quarterlyStats.map(q => {
@@ -128,7 +128,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
                     className="text-center border-x"
                     style={winnerClass === "home-win" ? { color: homeTeam.color, fontWeight: 'bold' } : {}}
                   >
-                    {safeVal(q.home.goals?.pc, 1)} / {safeVal(hTot, 1)}
+                    {safeVal(q.home.goals?.pc, 2)} / {safeVal(hTot, 2)}
                   </TableCell>
                 );
               })}
@@ -136,7 +136,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
                 className="text-center border-x bg-muted/30 font-bold"
                 style={getWinnerClass(matchStats.home.goals.field + matchStats.home.goals.pc, matchStats.away.goals.field + matchStats.away.goals.pc) === "home-win" ? { color: homeTeam.color } : {}}
               >
-                {safeVal(matchStats.home.goals.pc, 1)} / {safeVal(matchStats.home.goals.field + matchStats.home.goals.pc, 1)}
+                {safeVal(matchStats.home.goals.pc, 2)} / {safeVal(matchStats.home.goals.field + matchStats.home.goals.pc, 2)}
               </TableCell>
             </TableRow>
             <TableRow className="bg-chart-2/5 border-b-[4px] border-b-foreground/30">
@@ -151,7 +151,7 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
                     className="text-center border-x"
                     style={winnerClass === "away-win" ? { color: awayTeam.color, fontWeight: 'bold' } : {}}
                   >
-                    {safeVal(q.away.goals?.pc, 1)} / {safeVal(aTot, 1)}
+                    {safeVal(q.away.goals?.pc, 2)} / {safeVal(aTot, 2)}
                   </TableCell>
                 );
               })}
@@ -159,12 +159,12 @@ export function QuarterlyStatsTable({ data }: QuarterlyStatsTableProps) {
                 className="text-center border-x bg-muted/30 font-bold"
                 style={getWinnerClass(matchStats.home.goals.field + matchStats.home.goals.pc, matchStats.away.goals.field + matchStats.away.goals.pc) === "away-win" ? { color: awayTeam.color } : {}}
               >
-                {safeVal(matchStats.away.goals.pc, 1)} / {safeVal(matchStats.away.goals.field + matchStats.away.goals.pc, 1)}
+                {safeVal(matchStats.away.goals.pc, 2)} / {safeVal(matchStats.away.goals.field + matchStats.away.goals.pc, 2)}
               </TableCell>
             </TableRow>
 
-            {/* 나머지 지표 섹션들 - 슈팅 소수점 1자리 표시 */}
-            {renderStatRows("슈팅", "shots", 1)}
+            {/* 나머지 지표 섹션들 - 슈팅 소수점 2자리 표시 */}
+            {renderStatRows("슈팅", "shots", 2)}
             {renderStatRows("페널티코너 (PC)", "pcs", 1)}
             {renderStatRows("PC 성공률 (%)", "pcSuccessRate", 1)}
             {renderStatRows("서클 진입 (CE)", "circleEntries", 1)}

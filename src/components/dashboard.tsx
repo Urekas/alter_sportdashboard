@@ -463,12 +463,17 @@ export function Dashboard() {
               </div>
               <Card className="border-2 shadow-sm">
                 <CardContent className="pt-6">
-                  <Textarea 
-                    placeholder="여기에 경기/대회 전술에 대한 분석관의 직접적인 코멘트를 입력하세요..." 
-                    className="min-h-[200px] text-base leading-relaxed resize-none border-none focus-visible:ring-0 p-0"
-                    value={researcherComment}
-                    onChange={(e) => setResearcherComment(e.target.value)}
-                  />
+                  <div className="relative">
+                    <Textarea 
+                      placeholder="여기에 경기/대회 전술에 대한 분석관의 직접적인 코멘트를 입력하세요..." 
+                      className="min-h-[200px] text-base leading-relaxed resize-y border-none focus-visible:ring-0 p-0 print:hidden"
+                      value={researcherComment}
+                      onChange={(e) => setResearcherComment(e.target.value)}
+                    />
+                    <div className="hidden print:block whitespace-pre-wrap text-base leading-relaxed min-h-[200px]">
+                      {researcherComment || "입력된 코멘트가 없습니다."}
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>

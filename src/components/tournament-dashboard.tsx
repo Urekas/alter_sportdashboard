@@ -378,7 +378,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         <div className="space-y-8 mt-6">
           <div className="break-inside-avoid">
             <TacticalQuadrantChart
-              title="공격 생성 효율"
+              title="서클진입 효율"
               description="점유율 대비 서클 진입 생성 빈도"
               xAxisLabel="Possession (%)"
               yAxisLabel="Circle Entries"
@@ -387,12 +387,12 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               selectedTeamName={currentTeam}
               selectedColor={selectedTeamColor}
               data={allTeamsStats.map((t, i) => ({ name: t.name, x: t.stats.possession, y: t.stats.circleEntries, color: getTeamColor(t.name, i) }))}
-              labels={{ tr: "Dominant", tl: "Efficient", br: "Inefficient", bl: "Defensive" }}
+              labels={{ tr: "서클진입↑, 점유율↑", tl: "서클진입↓, 점유율↑", br: "서클진입↑, 점유율↓", bl: "서클진입↓, 점유율↓" }}
             />
           </div>
           <div className="break-inside-avoid">
             <TacticalQuadrantChart
-               title="피니싱 효율"
+               title="공격 효율"
                description="서클 진입 대비 위협 창출"
                xAxisLabel="Circle Entries"
                yAxisLabel="Threat (Shots+PC)"
@@ -401,7 +401,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                selectedTeamName={currentTeam}
                selectedColor={selectedTeamColor}
                data={allTeamsStats.map((t, i) => ({ name: t.name, x: t.stats.circleEntries, y: t.stats.threat, color: getTeamColor(t.name, i) }))}
-               labels={{ tr: "Lethal", tl: "Sharp", br: "Wasteful", bl: "Low Impact" }}
+               labels={{ tr: "서클진입↑, 슈팅+PC↑", tl: "서클진입↑, 슈팅+PC↓", br: "서클진입↓, 슈팅+PC↑", bl: "서클진입↓, 슈팅+PC↓" }}
             />
           </div>
         </div>
@@ -445,7 +445,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         <div className="space-y-8 mt-6">
           <div className="break-inside-avoid">
             <TacticalQuadrantChart
-              title="수비 복원력"
+              title="서클 허용 억제력"
               description="상대 점유 허용 대비 서클 진입 허용"
               xAxisLabel="Allowed Possession (%)"
               yAxisLabel="Allowed Circle Entries"
@@ -460,7 +460,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                 y: t.stats.allowedCircleEntries, 
                 color: getTeamColor(t.name, i) 
               }))}
-              labels={{ tr: "Weak", tl: "Vulnerable", br: "Resilient", bl: "Fortress" }}
+              labels={{ tr: "서클허용↓, 상대 점유율↓", tl: "서클허용↓, 상대 점유율↑", br: "서클허용↑, 상대 점유율↓", bl: "서클허용↑, 상대 점유율↑" }}
             />
           </div>
           <div className="break-inside-avoid">
@@ -480,7 +480,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                 y: t.stats.allowedThreat, 
                 color: getTeamColor(t.name, i) 
               }))}
-              labels={{ tr: "Brittle", tl: "Passive", br: "Solid", bl: "Impenetrable" }}
+              labels={{ tr: "서클진입↓, 슈팅+PC↓", tl: "서클진입↓, 슈팅+PC↑", br: "서클진입↓, 슈팅+PC↑", bl: "서클진입↓, 슈팅+PC↓" }}
             />
           </div>
         </div>
