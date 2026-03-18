@@ -80,10 +80,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         };
 
         if (relevantMatches.length === 0) {
-           return {
-              ...statsSum,
-              timePerCE: 0,
-           };
+           return { ...statsSum, timePerCE: 0 };
         }
 
         relevantMatches.forEach(m => {
@@ -111,12 +108,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         const div = count || 1;
         const aggregated = Object.fromEntries(
             Object.entries(statsSum).map(([key, value]) => {
-                if (key === 'goals') {
-                    return [key, { field: value.field / div, pc: value.pc / div }];
-                }
-                if (typeof value === 'number') {
-                    return [key, value / div];
-                }
+                if (key === 'goals') return [key, { field: value.field / div, pc: value.pc / div }];
+                if (typeof value === 'number') return [key, value / div];
                 return [key, value];
             })
         ) as any;
@@ -173,6 +166,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
     const pressureData = matchTrendData.map(d => ({ interval: d.interval, [currentTeam]: d[currentTeam], ["상대팀"]: d["상대팀"] }));
     const attackThreatData = matchTrendData.map(d => ({ interval: d.interval, [currentTeam]: d.threat, ["상대팀"]: d.oppThreat }));
     
+    // 정밀 타격: 압박 데이터 집계 로직 복구
     const calculatePressureStatsForMatch = (match: MatchData, teamSide: 'home' | 'away') => {
       const zones = Array(6).fill(null).map(() => ({ count: 0, success: 0 }));
       const mapping = [
@@ -188,30 +182,26 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
           const zoneInfo = mapZone(e.locationLabel || e.code);
           if (!zoneInfo) return;
 
-          if (teamSide === 'home') {
-              const isOpponentError = e.team === match.awayTeam.name && (e.type === 'turnover' || e.type === 'foul');
-              const isMyFoul = e.team === match.homeTeam.name && e.type === 'foul';
-              if (!isOpponentError && !isMyFoul) return;
-              mapping.forEach((m, idx) => {
-                  if (zoneInfo.zoneBand === m.oppZone && zoneInfo.lane === m.oppLane) {
-                      if (isOpponentError || isMyFoul) zones[idx].count++;
-                      if (isOpponentError) zones[idx].success++;
-                  }
-              });
-          } else {
-              const isMyTeamError = e.team === match.homeTeam.name && (e.type === 'turnover' || e.type === 'foul');
-              const isOppTeamFoul = e.team === match.awayTeam.name && e.type === 'foul';
-              if (!isMyTeamError && !isOppTeamFoul) return;
-              mapping.forEach((m, idx) => {
-                  if (isMyTeamError && zoneInfo.zoneBand === m.oppZone && zoneInfo.lane === m.oppLane) {
-                      zones[idx].count++;
-                      zones[idx].success++;
-                  }
-                  if (isOppTeamFoul && zoneInfo.zoneBand === m.myZone && zoneInfo.lane === m.myLane) {
-                      zones[idx].count++;
-                  }
-              });
-          }
+          const isHomePressing = teamSide === 'home';
+          const pressingTeamName = isHomePressing ? match.homeTeam.name : match.awayTeam.name;
+          const buildingTeamName = isHomePressing ? match.awayTeam.name : match.homeTeam.name;
+
+          // 골든 로직: 빌드업 팀에 따라 체크할 구역 매핑
+          // Home(빌드업)은 25/50 구역, Away(빌드업)은 100/75 구역
+          const isBuildingHome = buildingTeamName === match.homeTeam.name;
+          const buildZoneToMatch = isBuildingHome ? 'myZone' : 'oppZone';
+          const buildLaneToMatch = isBuildingHome ? 'myLane' : 'oppLane';
+
+          const isOppError = e.team === buildingTeamName && (e.type === 'turnover' || e.type === 'foul');
+          const isOppTurnover = e.team === buildingTeamName && e.type === 'turnover';
+          const isPressingFoul = e.team === pressingTeamName && e.type === 'foul';
+
+          mapping.forEach((m, idx) => {
+              if (zoneInfo.zoneBand === m[buildZoneToMatch] && zoneInfo.lane === m[buildLaneToMatch]) {
+                  if (isOppError || isPressingFoul) zones[idx].count++;
+                  if (isOppTurnover) zones[idx].success++;
+              }
+          });
       });
       return zones;
     };
@@ -228,7 +218,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             teamPressureStats[i].count += stat.count;
             teamPressureStats[i].success += stat.success;
         });
-        opponentPressureStats.forEach((stat, i) => {
+        opponentStatsForMatch.forEach((stat, i) => {
             opponentPressureStats[i].count += stat.count;
             opponentPressureStats[i].success += stat.success;
         });
