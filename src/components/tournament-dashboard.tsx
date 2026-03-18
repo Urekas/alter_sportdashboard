@@ -77,7 +77,8 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             allowedThreat: 0, allowedCircleEntries: 0, allowedPossession: 0,
             goals: { field: 0, pc: 0 },
             pcSuccessRate: 0,
-            build25Ratio: 0
+            build25Ratio: 0,
+            goalsAllowed: 0
         };
 
         if (relevantMatches.length === 0) {
@@ -105,6 +106,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             statsSum.allowedThreat += (opp.shots + opp.pcs);
             statsSum.allowedCircleEntries += opp.circleEntries; 
             statsSum.allowedPossession += opp.possession;
+            statsSum.goalsAllowed += (opp.goals.field + opp.goals.pc);
         });
 
         const count = relevantMatches.length;
@@ -118,17 +120,17 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
                 }
                 return [key, value];
             })
-        ) as TeamMatchStats;
+        ) as any;
 
         return aggregated;
     };
     
     const allTeamsStats = allTeams.map(teamName => ({ name: teamName, stats: aggregateStats(matches, teamName) }));
 
-    const getRank = (metric: keyof TeamMatchStats, order: 'asc' | 'desc') => {
+    const getRank = (metric: string, order: 'asc' | 'desc') => {
         const sorted = [...allTeamsStats].sort((a, b) => {
-            const valA = a.stats[metric] as number;
-            const valB = b.stats[metric] as number;
+            const valA = (metric === 'goals' ? a.stats.goals.field + a.stats.goals.pc : a.stats[metric]) as number;
+            const valB = (metric === 'goals' ? b.stats.goals.field + b.stats.goals.pc : b.stats[metric]) as number;
             return order === 'asc' ? valA - valB : valB - valA;
         });
         const rank = sorted.findIndex(t => t.name === currentTeam) + 1;
@@ -226,7 +228,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
             teamPressureStats[i].count += stat.count;
             teamPressureStats[i].success += stat.success;
         });
-        opponentStatsForMatch.forEach((stat, i) => {
+        opponentPressureStats.forEach((stat, i) => {
             opponentPressureStats[i].count += stat.count;
             opponentPressureStats[i].success += stat.success;
         });
@@ -333,7 +335,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         </div>
       </div>
 
-      <div className="page-break space-y-8">
+      <div className="break-inside-avoid space-y-8">
         <div className="mb-6 hidden print:block border-b-2 pb-4">
           <h1 className="text-4xl font-black italic text-primary uppercase tracking-tighter">{tournamentName}</h1>
           <p className="text-muted-foreground font-bold">Cumulative Performance Analysis: {currentTeam}</p>
@@ -345,10 +347,10 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               {currentTeam} (누적 평균)
             </div>
              <div className="grid grid-cols-2 gap-3">
-              <StatsCard title="SPP (압박 지수)" value={mockMatch.matchStats.home.spp} rank={teamRanks?.spp} icon={<TrendingDown className="h-4 w-4" />} isTime />
-              <StatsCard title="빌드업 정체 비율" value={mockMatch.matchStats.home.buildUpStagnation} rank={teamRanks?.buildUpStagnation} icon={<ShieldCheck className="h-4 w-4" />} isPercentage />
+              <StatsCard title="득점" value={mockMatch.matchStats.home.goals.field + mockMatch.matchStats.home.goals.pc} rank={teamRanks?.goals} icon={<Sword className="h-4 w-4" />} />
+              <StatsCard title="실점" value={mockMatch.matchStats.home.goalsAllowed} icon={<ShieldCheck className="h-4 w-4" />} />
               <StatsCard title="공격 점유율" value={mockMatch.matchStats.home.attackPossession} rank={teamRanks?.attackPossession} icon={<Target className="h-4 w-4" />} isPercentage />
-              <StatsCard title="CE 소요 시간" value={mockMatch.matchStats.home.timePerCE} rank={teamRanks?.timePerCE} icon={<Activity className="h-4 w-4" />} isTime />
+              <StatsCard title="압박 지수 (SPP)" value={mockMatch.matchStats.home.spp} rank={teamRanks?.spp} icon={<TrendingDown className="h-4 w-4" />} isTime />
             </div>
           </div>
           <div className="space-y-3">
@@ -357,24 +359,24 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               대회 전체 평균
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <StatsCard title="SPP (압박 지수)" value={mockMatch.matchStats.away.spp} icon={<TrendingDown className="h-4 w-4" />} isTime />
-              <StatsCard title="빌드업 정체 비율" value={mockMatch.matchStats.away.buildUpStagnation} icon={<ShieldCheck className="h-4 w-4" />} isPercentage />
+              <StatsCard title="득점" value={mockMatch.matchStats.away.goals.field + mockMatch.matchStats.away.goals.pc} icon={<Sword className="h-4 w-4" />} />
+              <StatsCard title="실점" value={mockMatch.matchStats.away.goalsAllowed} icon={<ShieldCheck className="h-4 w-4" />} />
               <StatsCard title="공격 점유율" value={mockMatch.matchStats.away.attackPossession} icon={<Target className="h-4 w-4" />} isPercentage />
-              <StatsCard title="CE 소요 시간" value={mockMatch.matchStats.away.timePerCE} icon={<Activity className="h-4 w-4" />} isTime />
+              <StatsCard title="압박 지수 (SPP)" value={mockMatch.matchStats.away.spp} icon={<TrendingDown className="h-4 w-4" />} isTime />
             </div>
           </div>
         </div>
         <BasicMatchStats data={mockMatch} ranks={teamRanks} />
       </div>
 
-      <div className="page-break space-y-8">
+      <div className="break-inside-avoid space-y-8">
         <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
           <Activity className="h-6 w-6" /> 쿼터별 상세 데이터 (평균)
         </div>
         <QuarterlyStatsTable data={mockMatch} />
       </div>
 
-      <div className="page-break space-y-8">
+      <div className="break-inside-avoid space-y-8">
         <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
           <Sword className="h-6 w-6" /> 공격 성능 분석
         </div>
@@ -383,35 +385,39 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
           homeTeam={{ name: currentTeam, color: selectedTeamColor }} 
           awayTeam={{ name: '상대팀', color: opponentColor }} 
         />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-          <TacticalQuadrantChart
-            title="공격 생성 효율"
-            description="점유율 대비 서클 진입 생성 빈도"
-            xAxisLabel="Possession (%)"
-            yAxisLabel="Circle Entries"
-            avgX={globalAvg.possession}
-            avgY={globalAvg.circleEntries}
-            selectedTeamName={currentTeam}
-            selectedColor={selectedTeamColor}
-            data={allTeamsStats.map((t, i) => ({ name: t.name, x: t.stats.possession, y: t.stats.circleEntries, color: getTeamColor(t.name, i) }))}
-            labels={{ tr: "Dominant", tl: "Efficient", br: "Inefficient", bl: "Defensive" }}
-          />
-          <TacticalQuadrantChart
-             title="피니싱 효율"
-             description="서클 진입 대비 위협 창출"
-             xAxisLabel="Circle Entries"
-             yAxisLabel="Threat (Shots+PC)"
-             avgX={globalAvg.circleEntries}
-             avgY={globalAvg.threat}
-             selectedTeamName={currentTeam}
-             selectedColor={selectedTeamColor}
-             data={allTeamsStats.map((t, i) => ({ name: t.name, x: t.stats.circleEntries, y: t.stats.threat, color: getTeamColor(t.name, i) }))}
-             labels={{ tr: "Lethal", tl: "Sharp", br: "Wasteful", bl: "Low Impact" }}
-          />
+        <div className="space-y-8 mt-6">
+          <div className="break-inside-avoid">
+            <TacticalQuadrantChart
+              title="공격 생성 효율"
+              description="점유율 대비 서클 진입 생성 빈도"
+              xAxisLabel="Possession (%)"
+              yAxisLabel="Circle Entries"
+              avgX={globalAvg.possession}
+              avgY={globalAvg.circleEntries}
+              selectedTeamName={currentTeam}
+              selectedColor={selectedTeamColor}
+              data={allTeamsStats.map((t, i) => ({ name: t.name, x: t.stats.possession, y: t.stats.circleEntries, color: getTeamColor(t.name, i) }))}
+              labels={{ tr: "점유율 ↑ ,서클진입 ↑", tl: "점유율 ↓ ,서클진입 ↑", br: "점유율 ↑ ,서클진입 ↓", bl: "점유율 ↓ ,서클진입 ↓" }}
+            />
+          </div>
+          <div className="break-inside-avoid">
+            <TacticalQuadrantChart
+               title="피니싱 효율"
+               description="서클 진입 대비 위협 창출"
+               xAxisLabel="Circle Entries"
+               yAxisLabel="Threat (Shots+PC)"
+               avgX={globalAvg.circleEntries}
+               avgY={globalAvg.threat}
+               selectedTeamName={currentTeam}
+               selectedColor={selectedTeamColor}
+               data={allTeamsStats.map((t, i) => ({ name: t.name, x: t.stats.circleEntries, y: t.stats.threat, color: getTeamColor(t.name, i) }))}
+               labels={{ tr: "서클진입 ↑, 슈팅+PC ↑", tl: "서클진입 ↓, 슈팅+PC ↑", br: "서클진입 ↑, 슈팅+PC ↓", bl: "서클진입 ↓, 슈팅+PC ↓" }}
+            />
+          </div>
         </div>
       </div>
 
-      <div className="page-break space-y-8">
+      <div className="break-inside-avoid space-y-8">
         <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
           <TrendingUp className="h-6 w-6" /> 공격 점유 및 속도 분석 (대회 전체 흐름)
         </div>
@@ -429,7 +435,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         />
       </div>
 
-      <div className="page-break space-y-8">
+      <div className="break-inside-avoid space-y-8">
         <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
           <Shield className="h-6 w-6" /> 압박 분석
         </div>
@@ -446,54 +452,58 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               awayTitle="상대팀 누적 압박"
           />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-          <TacticalQuadrantChart
-            title="수비 복원력"
-            description="상대 점유 허용 대비 서클 진입 허용"
-            xAxisLabel="Allowed Possession (%)"
-            yAxisLabel="Allowed Circle Entries"
-            avgX={globalAvg.allowedPossession}
-            avgY={globalAvg.allowedCircleEntries}
-            reversedX reversedY
-            selectedTeamName={currentTeam}
-            selectedColor={selectedTeamColor}
-            data={allTeamsStats.map((t, i) => ({ 
-              name: t.name, 
-              x: t.stats.allowedPossession, 
-              y: t.stats.allowedCircleEntries, 
-              color: getTeamColor(t.name, i) 
-            }))}
-            labels={{ tr: "Weak", tl: "Vulnerable", br: "Resilient", bl: "Fortress" }}
-          />
-          <TacticalQuadrantChart
-            title="서클 수비 효율"
-            description="서클 허용 대비 위협 허용 억제"
-            xAxisLabel="Allowed Circle Entries"
-            yAxisLabel="Allowed Threat (Shots+PC)"
-            avgX={globalAvg.allowedCircleEntries}
-            avgY={globalAvg.allowedThreat}
-            reversedX reversedY
-            selectedTeamName={currentTeam}
-            selectedColor={selectedTeamColor}
-            data={allTeamsStats.map((t, i) => ({ 
-              name: t.name, 
-              x: t.stats.allowedCircleEntries, 
-              y: t.stats.allowedThreat, 
-              color: getTeamColor(t.name, i) 
-            }))}
-            labels={{ tr: "Brittle", tl: "Passive", br: "Solid", bl: "Impenetrable" }}
-          />
+        <div className="space-y-8 mt-6">
+          <div className="break-inside-avoid">
+            <TacticalQuadrantChart
+              title="수비 복원력"
+              description="상대 점유 허용 대비 서클 진입 허용"
+              xAxisLabel="Allowed Possession (%)"
+              yAxisLabel="Allowed Circle Entries"
+              avgX={globalAvg.allowedPossession}
+              avgY={globalAvg.allowedCircleEntries}
+              reversedX reversedY
+              selectedTeamName={currentTeam}
+              selectedColor={selectedTeamColor}
+              data={allTeamsStats.map((t, i) => ({ 
+                name: t.name, 
+                x: t.stats.allowedPossession, 
+                y: t.stats.allowedCircleEntries, 
+                color: getTeamColor(t.name, i) 
+              }))}
+              labels={{ tr: "서클허용 ↓, 허용 점유율 ↓", tl: "서클허용 ↓, 허용 점유율 ↑", br: "서클허용 ↑, 허용 점유율 ↓", bl: "서클허용 ↓, 허용 점유율 ↓" }}
+            />
+          </div>
+          <div className="break-inside-avoid">
+            <TacticalQuadrantChart
+              title="서클 수비 효율"
+              description="서클 허용 대비 위협 허용 억제"
+              xAxisLabel="Allowed Circle Entries"
+              yAxisLabel="Allowed Threat (Shots+PC)"
+              avgX={globalAvg.allowedCircleEntries}
+              avgY={globalAvg.allowedThreat}
+              reversedX reversedY
+              selectedTeamName={currentTeam}
+              selectedColor={selectedTeamColor}
+              data={allTeamsStats.map((t, i) => ({ 
+                name: t.name, 
+                x: t.stats.allowedCircleEntries, 
+                y: t.stats.allowedThreat, 
+                color: getTeamColor(t.name, i) 
+              }))}
+              labels={{ tr: "서클허용 ↓, 슈팅+PC허용 ↓", tl: "서클허용 ↑, 슈팅+PC허용 ↓", br: "서클허용 ↓, 슈팅+PC허용 ↑", bl: "서클허용 ↑, 슈팅+PC허용 ↑" }}
+            />
+          </div>
         </div>
       </div>
 
       {aiAnalysis && (
-        <div className="page-break space-y-8">
+        <div className="break-inside-avoid space-y-8">
           <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
             <Sparkles className="h-6 w-6" /> AI 누적 전술 분석 리포트
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="border-2 border-primary/20"><CardHeader className="bg-primary/5"><CardTitle className="text-lg flex items-center gap-2"><Info className="h-5 w-5 text-primary" /> 분석 요약</CardTitle></CardHeader><CardContent className="pt-6"><p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.summary}</p></CardContent></Card>
-            <Card className="border-2 border-primary/20"><CardHeader className="bg-emerald-500/5"><CardTitle className="text-lg flex items-center gap-2"><Target className="h-5 w-5 text-emerald-600" /> 전술적 주요 포인트</CardTitle></CardHeader><CardContent className="pt-6"><ul className="space-y-3">{aiAnalysis.tacticalAnalysis.map((point, idx) => (<li key={idx} className="flex gap-2 text-sm"><span className="font-bold text-emerald-600 shrink-0">{idx + 1}.</span><span className="text-muted-foreground">{point}</span></li>))}</ul></CardContent></Card>
+            <Card className="border-2 border-primary/20"><CardHeader className="bg-emerald-500/5"><CardTitle className="text-lg flex items-center gap-2"><Target className="h-5 w-5 text-emerald-600" /> 전술적 주요 포인트</Target></CardHeader><CardContent className="pt-6"><ul className="space-y-3">{aiAnalysis.tacticalAnalysis.map((point, idx) => (<li key={idx} className="flex gap-2 text-sm"><span className="font-bold text-emerald-600 shrink-0">{idx + 1}.</span><span className="text-muted-foreground">{point}</span></li>))}</ul></CardContent></Card>
             <Card className="border-2 border-primary/20"><CardHeader className="bg-blue-500/5"><CardTitle className="text-lg flex items-center gap-2"><TrendingUp className="h-5 w-5 text-blue-600" /> 팀의 강점 (Strengths)</CardTitle></CardHeader><CardContent className="pt-6"><ul className="space-y-3">{aiAnalysis.strengths.map((s, idx) => (<li key={idx} className="flex gap-2 text-sm"><div className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1.5 shrink-0" /><span className="text-muted-foreground">{s}</span></li>))}</ul></CardContent></Card>
             <Card className="border-2 border-primary/20"><CardHeader className="bg-orange-500/5"><CardTitle className="text-lg flex items-center gap-2"><TrendingDown className="h-5 w-5 text-orange-600" /> 개선 필요 사항 (Weaknesses)</CardTitle></CardHeader><CardContent className="pt-6"><ul className="space-y-3">{aiAnalysis.weaknesses.map((w, idx) => (<li key={idx} className="flex gap-2 text-sm"><div className="w-1.5 h-1.5 rounded-full bg-orange-600 mt-1.5 shrink-0" /><span className="text-muted-foreground">{w}</span></li>))}</ul></CardContent></Card>
           </div>
@@ -501,7 +511,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
         </div>
       )}
 
-      <div className="page-break space-y-8">
+      <div className="break-inside-avoid space-y-8">
         <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
           <MessageSquare className="h-6 w-6" /> 분석 연구원 comment
         </div>

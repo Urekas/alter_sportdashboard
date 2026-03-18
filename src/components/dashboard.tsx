@@ -315,7 +315,7 @@ export function Dashboard() {
               </Button>
             </div>
 
-            <div className="page-break space-y-8">
+            <div className="break-inside-avoid space-y-8">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {[matchData.homeTeam, matchData.awayTeam].map((team, i) => (
                   <div key={team.name} className="space-y-3">
@@ -324,9 +324,9 @@ export function Dashboard() {
                       {team.name} ({i === 0 ? '홈' : '어웨이'})
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <StatsCard title="SPP (압박 지수)" value={i === 0 ? matchData.matchStats.home.spp : matchData.matchStats.away.spp} icon={<TrendingDown className="h-4 w-4" />} isTime />
-                      <StatsCard title="빌드업 정체 비율" value={i === 0 ? matchData.matchStats.home.buildUpStagnation : matchData.matchStats.away.buildUpStagnation} icon={<ShieldCheck className="h-4 w-4" />} isPercentage />
-                      <StatsCard title="공격 점유율" value={i === 0 ? matchData.matchStats.home.possession : matchData.matchStats.away.possession} icon={<Target className="h-4 w-4" />} isPercentage />
+                      <StatsCard title="득점" value={i === 0 ? matchData.matchStats.home.goals.field + matchData.matchStats.home.goals.pc : matchData.matchStats.away.goals.field + matchData.matchStats.away.goals.pc} icon={<Sword className="h-4 w-4" />} />
+                      <StatsCard title="압박 지수 (SPP)" value={i === 0 ? matchData.matchStats.home.spp : matchData.matchStats.away.spp} icon={<TrendingDown className="h-4 w-4" />} isTime />
+                      <StatsCard title="공격 점유율" value={i === 0 ? matchData.matchStats.home.attackPossession : matchData.matchStats.away.attackPossession} icon={<Target className="h-4 w-4" />} isPercentage />
                       <StatsCard title="CE 소요 시간" value={i === 0 ? matchData.matchStats.home.timePerCE : matchData.matchStats.away.timePerCE} icon={<Activity className="h-4 w-4" />} isTime />
                     </div>
                   </div>
@@ -335,14 +335,14 @@ export function Dashboard() {
               <BasicMatchStats data={matchData} />
             </div>
 
-            <div className="page-break space-y-8">
+            <div className="break-inside-avoid space-y-8">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Activity className="h-6 w-6" /> 쿼터별 상세 데이터
               </div>
               <QuarterlyStatsTable data={matchData} />
             </div>
 
-            <div className="page-break space-y-8">
+            <div className="break-inside-avoid space-y-8">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Sword className="h-6 w-6" /> 공격 성능 분석
               </div>
@@ -350,10 +350,10 @@ export function Dashboard() {
               <BuildUpEfficiencyChart data={matchData} />
             </div>
 
-            <div className="page-break space-y-8">
+            <div className="break-inside-avoid space-y-8">
               <div className="space-y-8">
                 <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                  <Target className="h-6 w-6" /> 공격 점유 및 속도 및 서클 진입 분석
+                  <Target className="h-6 w-6" /> 공격 점유 및 속도 분석
                 </div>
                 <MatchTrajectoryChart data={matchData} />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -372,7 +372,7 @@ export function Dashboard() {
             </div>
 
             {aiAnalysis && (
-              <div className="page-break space-y-8">
+              <div className="break-inside-avoid space-y-8">
                 <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                   <Sparkles className="h-6 w-6" /> AI 전술 분석 리포트
                 </div>
@@ -453,7 +453,7 @@ export function Dashboard() {
               </div>
             )}
 
-            <div className="page-break space-y-8">
+            <div className="break-inside-avoid space-y-8">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <MessageSquare className="h-6 w-6" /> 분석 연구원 comment
               </div>
