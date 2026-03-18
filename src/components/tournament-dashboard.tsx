@@ -41,7 +41,7 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
   const [aiAnalysis, setAiAnalysis] = useState<MatchAnalysisOutput | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   
-  // 차트 조절용 상태 추가
+  // 차트 조절용 상태
   const [quadHeight, setQuadHeight] = useState(450);
   const [pressureHeight, setPressureHeight] = useState(400);
   const [chartFontSize, setChartFontSize] = useState(12);
@@ -194,21 +194,24 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
           const pressingTeamName = isHomePressing ? match.homeTeam.name : match.awayTeam.name;
 
           const isBuildingHome = buildingTeamName === match.homeTeam.name;
-          const buildZoneToMatch = isBuildingHome ? 'myZone' : 'oppZone';
-          const buildLaneToMatch = isBuildingHome ? 'myLane' : 'oppLane';
+          const buildZoneToMatchKey = isBuildingHome ? 'myZone' : 'oppZone';
+          const buildLaneToMatchKey = isBuildingHome ? 'myLane' : 'oppLane';
 
-          if (zoneInfo.zoneBand === m[buildZoneToMatch] && zoneInfo.lane === m[buildLaneToMatch]) {
-              const isOppError = e.team === buildingTeamName && (e.type === 'turnover' || e.type === 'foul');
-              const isOppTurnover = e.team === buildingTeamName && e.type === 'turnover';
-              const isPressingFoul = e.team === pressingTeamName && e.type === 'foul';
+          const isOppError = e.team === buildingTeamName && (e.type === 'turnover' || e.type === 'foul');
+          const isOppTurnover = e.team === buildingTeamName && e.type === 'turnover';
+          const isPressingFoul = e.team === pressingTeamName && e.type === 'foul';
 
-              mapping.forEach((m, idx) => {
-                  if (zoneInfo.zoneBand === m[buildZoneToMatch] && zoneInfo.lane === m[buildLaneToMatch]) {
-                      if (isOppError || isPressingFoul) zones[idx].count++;
-                      if (isOppTurnover) zones[idx].success++;
-                  }
-              });
-          }
+          if (!isOppError && !isPressingFoul) return;
+
+          mapping.forEach((m, idx) => {
+              const targetZone = m[buildZoneToMatchKey as keyof typeof m];
+              const targetLane = m[buildLaneToMatchKey as keyof typeof m];
+              
+              if (zoneInfo.zoneBand === targetZone && zoneInfo.lane === targetLane) {
+                  zones[idx].count++;
+                  if (isOppTurnover) zones[idx].success++;
+              }
+          });
       });
       return zones;
     };
