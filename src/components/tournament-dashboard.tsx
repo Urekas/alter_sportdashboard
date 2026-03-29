@@ -12,6 +12,7 @@ import { PressureBattleChart } from "./pressure-battle-chart";
 import { TacticalQuadrantChart } from "./tactical-quadrant-charts";
 import { MatchTrajectoryChart } from "./match-trajectory-chart";
 import { QuarterlyStatsTable } from "./quarterly-stats-table";
+import { TournamentRadarChart } from "./tournament-radar-chart";
 import { PressureAnalysisMap } from "./pressure-analysis-map";
 import { StatsCard } from "./stats-card";
 import { useToast } from "@/hooks/use-toast";
@@ -386,6 +387,41 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
               <StatsCard title="압박 지수 (SPP)" value={mockMatch.matchStats.away.spp} icon={<TrendingDown className="h-4 w-4" />} isTime />
             </div>
           </div>
+        </div>
+        <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <TournamentRadarChart 
+            type="overall"
+            title="종합 밸런스"
+            currentTeam={currentTeam}
+            opponentTeam="대회 전체 평균"
+            currentTeamColor={selectedTeamColor}
+            opponentColor={opponentColor}
+            allTeamsStats={allTeamsStats}
+            globalAvg={globalAvg}
+            mockMatchHomeStats={mockMatch.matchStats.home}
+          />
+          <TournamentRadarChart 
+            type="attack"
+            title="공격 세부 지표"
+            currentTeam={currentTeam}
+            opponentTeam="대회 전체 평균"
+            currentTeamColor={selectedTeamColor}
+            opponentColor={opponentColor}
+            allTeamsStats={allTeamsStats}
+            globalAvg={globalAvg}
+            mockMatchHomeStats={mockMatch.matchStats.home}
+          />
+          <TournamentRadarChart 
+            type="defense"
+            title="수비 및 압박 지표"
+            currentTeam={currentTeam}
+            opponentTeam="대회 전체 평균"
+            currentTeamColor={selectedTeamColor}
+            opponentColor={opponentColor}
+            allTeamsStats={allTeamsStats}
+            globalAvg={globalAvg}
+            mockMatchHomeStats={mockMatch.matchStats.home}
+          />
         </div>
         <BasicMatchStats data={mockMatch} ranks={teamRanks} />
       </div>

@@ -25,6 +25,7 @@ interface AttackThreatChartProps {
   homeTeam: Team
   awayTeam: Team
   events?: MatchEvent[]
+  videoMatchId?: string
 }
 
 const CustomTooltip = ({ active, payload, homeTeam, awayTeam }: TooltipProps<ValueType, NameType> & { homeTeam: Team, awayTeam: Team }) => {
@@ -90,7 +91,23 @@ const CustomDot = (props: any) => {
 };
 
 
-export function AttackThreatChart({ data, homeTeam, awayTeam, events = [] }: AttackThreatChartProps) {
+interface ChartDataPoint {
+  interval: string;
+  x: number;
+  [key: string]: string | number | any[] | boolean | undefined;
+  isIntersection?: boolean;
+  goals?: any[];
+}
+
+export function AttackThreatChart({ data, homeTeam, awayTeam, events = [], videoMatchId }: AttackThreatChartProps) {
+  const handlePointClick = (data: any) => {
+    if (!videoMatchId) return;
+    const timeInSeconds = data.activePayload?.[0]?.payload?.x * 60;
+    if (isNaN(timeInSeconds)) return;
+    
+    // Open Alter_sportsplay with matchId and time parameters
+    window.open(`/Alter_sportsplay/index.html?matchId=${videoMatchId}&time=${timeInSeconds}`, '_blank');
+  };
   const isMatchTrend = data.some(d => d.interval.startsWith('M'));
   const TIME_INTERVAL = 3;
 
@@ -102,12 +119,12 @@ export function AttackThreatChart({ data, homeTeam, awayTeam, events = [] }: Att
     const originalData = data.map(d => ({
       ...d,
       x: parseInt(d.interval.replace("'", "")),
-    }));
-    originalData.unshift({ interval: "0'", [homeTeam.name]: 0, [awayTeam.name]: 0, x: 0 });
+    })) as ChartDataPoint[];
+    originalData.unshift({ interval: "0'", [homeTeam.name]: 0, [awayTeam.name]: 0, x: 0 } as ChartDataPoint);
     originalData.sort((a,b) => a.x - b.x);
 
     const maxTime = Math.max(...originalData.map(p => p.x));
-    let baseData = []; 
+    let baseData: ChartDataPoint[] = []; 
 
     for (let time = 0; time <= maxTime; time += TIME_INTERVAL) {
         const p_after = originalData.find(p => p.x >= time);
@@ -159,6 +176,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam, events = [] }: Att
 
             const targetDataPoint = baseData.find(p => p.x === targetX);
             if (targetDataPoint) {
+                if (!targetDataPoint.goals) targetDataPoint.goals = [];
                 targetDataPoint.goals.push({...goal, score: currentScore, time: { minute: Math.floor(goal.time/60), second: Math.floor(goal.time%60) } });
             }
         });
@@ -219,14 +237,14 @@ export function AttackThreatChart({ data, homeTeam, awayTeam, events = [] }: Att
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={350}>
-            <ComposedChart data={chartData} margin={{ top: 30, right: 30, left: 20, bottom: isMatchTrend ? 50 : 20 }}>
+            <ComposedChart data={chartData} margin={{ top: 30, right: 30, left: 20, bottom: isMatchTrend ? 50 : 20 }} onClick={handlePointClick}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                 <XAxis
                     type="number"
                     dataKey="x"
                     domain={[0, 'dataMax']}
-                    ticks={chartData.filter(d => d.interval && !d.isIntersection).map(d => d.x)}
-                    tickFormatter={(val) => chartData.find(d => d.x === val)?.interval || ""}
+                    ticks={chartData.filter((d: ChartDataPoint) => d.interval && !d.isIntersection).map((d: ChartDataPoint) => d.x)}
+                    tickFormatter={(val) => chartData.find((d: ChartDataPoint) => d.x === val)?.interval || ""}
                     tick={{ fontSize: 10 }}
                     height={isMatchTrend ? 60 : 30}
                     angle={isMatchTrend ? -45 : 0}

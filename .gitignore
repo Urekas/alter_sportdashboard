@@ -43,3 +43,10 @@ next-env.d.ts
 # firebase
 firebase-debug.log
 firestore-debug.log
+
+# agents
+.agents/
+.agent/
+_agents/
+_agent/
+.gemini/

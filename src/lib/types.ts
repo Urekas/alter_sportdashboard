@@ -82,6 +82,7 @@ export interface MatchData {
   };
   quarterlyStats: QuarterStats[];
   uploadedAt?: any;
+  videoMatchId?: string;
 }
 
 export interface Tournament {

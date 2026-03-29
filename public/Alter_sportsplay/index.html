@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>Alter_sportsplay</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+</head>
+<body>
+  <!-- 좌측 패널 (Explorer + Admin) -->
+  <aside id="left-panel" class="panel">
+    <div class="panel-header">
+      <h2>Explorer</h2>
+      <button id="toggle-left-btn" class="toggle-btn" title="패널 숨기기">◄</button>
+    </div>
+    
+    <!-- Step 9: Left Panel Tabs -->
+    <div class="tab-headers">
+      <button class="tab-btn active" id="tab-btn-library">Library</button>
+      <button class="tab-btn" id="tab-btn-admin">Admin & List</button>
+    </div>
+    
+    <!-- Library Tab -->
+    <div id="tab-library" class="tab-content active" style="padding: 10px; display: flex; flex-direction: column; overflow-y: auto; height: calc(100% - 85px);">
+      <h3 style="margin-bottom:10px; border-bottom:1px solid #334; padding-bottom:5px;">클립 라이브러리 (필터)</h3>
+      <div class="library-filters" style="display:flex; flex-direction:column; gap:8px; margin-bottom: 10px;">
+        <select id="filter-competition"><option value="">모든 경기 (Match)</option></select>
+        <select id="filter-team"><option value="">모든 팀 (Team)</option></select>
+        <div style="max-height: 120px; overflow-y: auto; background: var(--bg-dark); border: 1px solid var(--border-color); padding: 5px; border-radius: 4px;" id="filter-code-container">
+            <!-- 코드는 체크박스 멀티셀렉트로 주입됨 -->
+            <label style="color:#888; font-size: 0.8em;">검색 대기중...</label>
+        </div>
+      </div>
+      <button id="btn-create-playlist" class="primary-btn" style="background-color: #4caf50; display: none; margin-bottom: 10px;">🛒 <span id="cart-count">0</span>개 장바구니로 Playlist 생성</button>
+      
+      <div class="library-results" style="flex: 1; overflow-y: auto; border-top: 1px solid var(--border-color); padding-top: 10px;">
+         <ul id="library-results-ul" class="list-container">
+           <li style="color: var(--text-muted); font-size: 0.9em;">위젯 로딩중...</li>
+         </ul>
+      </div>
+    </div>
+    
+    <!-- Admin Tab -->
+    <div id="tab-admin" class="tab-content" style="display:none; padding:10px; overflow-y:auto; height: calc(100% - 85px);">
+      <div class="admin-section">
+      <h3>Admin: 매치 등록</h3>
+      <form id="match-form">
+        <label>연동할 대회: 
+          <select id="match-tournament-select" required>
+            <option value="">대회 Loading...</option>
+          </select>
+        </label>
+        <label>대회명/경기명: <input type="text" id="match-name" required placeholder="예: 아시안게임 결승"></label>
+        <label>경기 날짜: <input type="date" id="match-date" required></label>
+        <label>홈 팀 (텍스트 교체용): <input type="text" id="home-team" required placeholder="예: KOR"></label>
+        <label>어웨이 팀 (텍스트 교체용): <input type="text" id="away-team" required placeholder="예: JPN"></label>
+        <label>전술캠 URL (YouTube): <input type="url" id="tactical-url"></label>
+        <label>전술캠 Offset (초): <input type="number" step="0.1" id="tactical-offset" value="0.0"></label>
+        <label>중계캠 URL (YouTube): <input type="url" id="broadcast-url"></label>
+        <label>중계캠 Offset (초): <input type="number" step="0.1" id="broadcast-offset" value="0.0"></label>
+        <label>XML/CSV 데이터 (자동 파싱용): <input type="file" id="event-data-file" accept=".xml,.csv"></label>
+        <button type="submit" class="primary-btn">경기 등록 및 파싱</button>
+      </form>
+    </div>
+
+    <!-- DB에서 불러올 경기 목록 -->
+    <div class="match-list">
+      <h3>경기 목록</h3>
+      <input type="text" placeholder="경기 검색..." id="search-match">
+      <ul id="matches-ul" class="list-container">
+        <!-- JS 렌더링 영역 -->
+        <li style="color: var(--text-muted); font-size: 0.9em;">아직 등록된 경기가 없습니다.</li>
+      </ul>
+    </div>
+
+    <!-- Step 9: 저장된 플레이리스트 목록 -->
+    <div class="playlist-list" style="padding: 20px; border-top: 1px solid var(--border-color);">
+      <h3 style="color: var(--accent);">저장된 플레이리스트</h3>
+      <ul id="playlists-ul" class="list-container">
+        <li style="color: var(--text-muted); font-size: 0.9em;">저장된 플레이리스트가 없습니다.</li>
+      </ul>
+    </div>
+    </div>
+    </div>
+  </aside>
+
+  <!-- 중앙 메인 (Workspace) -->
+  <main id="main-panel">
+    <div class="workspace-header">
+      <button id="show-left-btn" class="show-btn hidden" title="Explorer 표시">► Explorer</button>
+      <h1>Workspace</h1>
+      <a href="/" class="primary-btn" style="background-color: var(--accent); margin-left: 15px; text-decoration: none; font-size: 0.8rem; display: flex; align-items: center; gap: 5px;">
+        <i class="fa-solid fa-house"></i> 대시보드 홈
+      </a>
+      <div class="camera-toggles" style="display:flex; gap:10px; margin-left: 20px;">
+          <button id="cam1-btn" class="primary-btn active" style="padding: 5px 15px;">전술캠 (Cam 1)</button>
+          <button id="cam2-btn" class="primary-btn" style="padding: 5px 15px; background-color: #444;">중계캠 (Cam 2)</button>
+      </div>
+      <button id="show-right-btn" class="show-btn hidden" style="margin-left: auto;" title="Code Viewer 표시">Code Viewer ◄</button>
+    </div>
+    <div class="video-container" id="video-container" style="position: relative;">
+      <div id="player-wrapper-1" class="player-wrapper active" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; transition: opacity 0.2s;"><div id="youtube-player-1" style="width:100%; height:100%;"></div></div>
+      <div id="player-wrapper-2" class="player-wrapper" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0; pointer-events: none; transition: opacity 0.2s;"><div id="youtube-player-2" style="width:100%; height:100%;"></div></div>
+      <canvas id="drawing-canvas"></canvas>
+    </div>
+  </main>
+
+  <!-- 우측 패널 (Code Viewer) -->
+  <aside id="right-panel" class="panel">
+    <div class="panel-header">
+      <button id="toggle-right-btn" class="toggle-btn" title="패널 숨기기">►</button>
+      <h2>Code Viewer</h2>
+    </div>
+    <!-- Code Viewer Tools -->
+    <div class="code-tools">
+      <input type="text" id="event-search" placeholder="🔍 이벤트 검색 (코드/라벨)...">
+    </div>
+    <div class="event-list">
+      <ul id="events-ul" class="list-container">
+        <!-- 이벤트 코드 파싱 렌더링 영역 -->
+        <li style="color: var(--text-muted); font-size: 0.9em;">이벤트 데이터가 없습니다.</li>
+      </ul>
+    </div>
+  </aside>
+
+  <!-- 하단 패널 (Controller) -->
+  <footer id="bottom-panel">
+    <div class="controls playback-controls">
+      <button id="play-pause-btn" class="control-btn">▶️ 재생/정지</button>
+      <button id="speed-btn" class="control-btn">1x 배속</button>
+      <input type="range" id="timeline" min="0" max="100" value="0">
+    </div>
+    
+    <div class="controls drawing-controls">
+      <button id="view-mode-btn" class="control-btn highlight">👀 시청</button>
+      <button id="draw-mode-btn" class="control-btn">✏️ 그리기</button>
+      
+      <span class="draw-tools">
+        <!-- 기본 도구 -->
+        <button id="tool-select" class="control-btn" title="선택 (Pointer)"><i class="fa-solid fa-arrow-pointer"></i></button>
+        <button id="tool-freedraw" class="control-btn highlight" title="자유 곡선 (Freehand)"><i class="fa-solid fa-pen"></i></button>
+        <button id="tool-text" class="control-btn" title="텍스트 입력 (Text)"><i class="fa-solid fa-font"></i></button>
+        <button id="tool-playertag" class="control-btn" title="선수 태그 (Player Tag)"><i class="fa-solid fa-user-tag"></i></button>
+        <button id="tool-highlight" class="control-btn" title="하이라이트 (Spotlight)"><i class="fa-regular fa-circle-dot"></i></button>
+
+        <!-- 선/도형 도구 -->
+        <button id="tool-arrow" class="control-btn" title="점선 화살표 (Dashed Arrow)"><i class="fa-solid fa-arrow-right-long"></i></button>
+        <button id="tool-curve" class="control-btn" title="곡선 화살표 (Curved Arrow)"><i class="fa-solid fa-reply"></i></button>
+        <button id="tool-polyline" class="control-btn" title="다중 선 (Polyline)"><i class="fa-solid fa-project-diagram"></i></button>
+        <button id="tool-polygon" class="control-btn" title="다각형 (Polygon)"><i class="fa-solid fa-draw-polygon"></i></button>
+
+        <!-- 제어 및 액션 -->
+        <input type="color" id="tool-color" value="#ff2a2a" title="색상 (Color)">
+        <button id="tool-delete" class="control-btn" title="선택 객체 지우기 (Delete)"><i class="fa-solid fa-eraser"></i></button>
+        <button id="tool-undo" class="control-btn" title="실행 취소 (Undo)"><i class="fa-solid fa-rotate-left"></i></button>
+        <button id="tool-clear" class="control-btn" title="전체 지우기 (Clear All)"><i class="fa-solid fa-trash-can"></i></button>
+        
+        <div class="separator"></div>
+        <button id="tool-save" class="control-btn" title="DB 저장 (Save)" style="color:#4caf50;"><i class="fa-solid fa-floppy-disk"></i> 저장</button>
+        <button id="tool-capture" class="control-btn" title="스냅샷 캡처 (Capture)"><i class="fa-solid fa-camera"></i> 캡처</button>
+        <button id="tool-record" class="control-btn action-record" title="영상 추출 (Record)"><i class="fa-solid fa-video"></i> 영상 추출</button>
+      </span>
+    </div>
+  </footer>
+  
+  <!-- Step 9: Playlist Modal -->
+  <div id="playlist-modal" class="modal-overlay">
+    <div class="modal-content">
+      <h3>새 플레이리스트 만들기</h3>
+      <p style="color:var(--text-muted); font-size:0.9rem;">선택된 <strong id="modal-cart-count" style="color:var(--accent);">0</strong>개의 클립 그룹 저장</p>
+      <input type="text" id="playlist-title" placeholder="플레이리스트 제목 입력" autofocus>
+      <div class="modal-actions">
+        <button id="modal-btn-cancel" class="btn-cancel">취소</button>
+        <button id="modal-btn-confirm" class="btn-confirm">저장 및 반영</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 스크립트 모듈 로드 -->
+  <script type="module" src="firebase-config.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

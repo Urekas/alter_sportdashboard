@@ -4,7 +4,7 @@
 import React, { useState, useRef, useEffect } from "react"
 import { 
   Upload, FileDown, TrendingDown, Target, Activity, ShieldCheck, 
-  Sword, Shield, Trophy, Save, Plus, BrainCircuit, Loader2, Sparkles, Info, MessageSquare
+  Sword, Shield, Trophy, Save, Plus, BrainCircuit, Loader2, Sparkles, Info, MessageSquare, Video
 } from "lucide-react"
 import type { MatchData, MatchEvent, Tournament } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
@@ -23,6 +23,7 @@ import { TournamentDashboard } from "./tournament-dashboard"
 import { TournamentManager } from "./tournament-manager"
 import { parseXMLData, parseCSVData, createMatchDataFromUpload } from "@/lib/parser"
 import { TournamentService } from "@/lib/tournament-service"
+import { db } from "@/lib/firebase"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -113,7 +114,7 @@ export function Dashboard() {
       return;
     }
     try {
-      const id = await TournamentService.createTournament(newTournamentName, new Date().toISOString());
+      const id = await TournamentService.createTournament(db, newTournamentName, new Date().toISOString());
       await fetchTournaments();
       setActiveTournamentId(id);
       setTournamentName(newTournamentName);
@@ -309,10 +310,24 @@ export function Dashboard() {
                 <h2 className="text-xl font-bold text-muted-foreground uppercase tracking-widest block print:text-primary print:text-2xl print:mb-2">{tournamentName || "Tournament Report"}</h2>
                 <h1 className="text-4xl font-black italic tracking-tighter text-foreground mt-1 font-headline print:text-3xl">{matchData.matchName || "Match Performance Analysis"}</h1>
               </div>
-              <Button variant="outline" size="sm" className="print-hidden border-primary text-primary font-bold h-9" onClick={handleAiAnalysis} disabled={isAiLoading}>
-                {isAiLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <BrainCircuit className="h-4 w-4 mr-2" />}
-                AI 전술 분석 실행
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="print-hidden border-orange-500 text-orange-500 font-bold h-9" 
+                  onClick={() => window.open('/Alter_sportsplay/index.html', '_blank')}>
+                  <Video className="h-4 w-4 mr-2" />
+                  비디오 분석 도구
+                </Button>
+                <Button variant="outline" size="sm" className="print-hidden border-primary text-primary font-bold h-9" onClick={handleAiAnalysis} disabled={isAiLoading}>
+                  {isAiLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <BrainCircuit className="h-4 w-4 mr-2" />}
+                  AI 전술 분석 실행
+                </Button>
+                {matchData.videoMatchId && (
+                  <Button variant="outline" size="sm" className="print-hidden border-orange-500 text-orange-500 font-bold h-9" 
+                    onClick={() => window.open(`/Alter_sportsplay/index.html?matchId=${matchData.videoMatchId}`, '_blank')}>
+                    <Video className="h-4 w-4 mr-2" />
+                    비디오 분석 보기
+                  </Button>
+                )}
+              </div>
             </div>
 
             <div className="break-inside-avoid space-y-8">
@@ -346,7 +361,7 @@ export function Dashboard() {
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Sword className="h-6 w-6" /> 공격 성능 분석
               </div>
-              <AttackThreatChart data={matchData.attackThreatData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
+              <AttackThreatChart data={matchData.attackThreatData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} videoMatchId={matchData.videoMatchId} />
               <BuildUpEfficiencyChart data={matchData} />
             </div>
 
