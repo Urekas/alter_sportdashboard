@@ -16,8 +16,18 @@ const tournamentSelect = document.getElementById('match-tournament-select');
 
 // Forms and Inputs
 const matchForm = document.getElementById('match-form');
-const eventDataFile = document.getElementById('event-data-file');
 const submitBtn = matchForm.querySelector('button[type="submit"]');
+
+tournamentSelect.addEventListener('change', () => {
+  const newNameInput = document.getElementById('new-tournament-name');
+  if (tournamentSelect.value === 'new') {
+    newNameInput.style.display = 'block';
+    newNameInput.required = true;
+  } else {
+    newNameInput.style.display = 'none';
+    newNameInput.required = false;
+  }
+});
 
 // --- Layout Toggles ---
 
@@ -55,8 +65,21 @@ matchForm.addEventListener('submit', async (e) => {
     return;
   }
   
-  const tournamentId = tournamentSelect.value;
-  if (!tournamentId) {
+  let tournamentId = tournamentSelect.value;
+  if (tournamentId === 'new') {
+    const newName = document.getElementById('new-tournament-name').value;
+    if (!newName) {
+      alert("새 대회 이름을 입력해주세요.");
+      return;
+    }
+    try {
+      const tRef = await addDoc(collection(db, "tournaments"), { name: newName, createdAt: new Date().toISOString() });
+      tournamentId = tRef.id;
+    } catch(err) {
+      alert("새 대회 생성 중 오류가 발생했습니다.");
+      return;
+    }
+  } else if (!tournamentId) {
     alert("연동할 대회를 선택해주세요.");
     return;
   }
@@ -239,6 +262,12 @@ async function loadTournaments() {
       option.textContent = data.name || "Unnamed Tournament";
       tournamentSelect.appendChild(option);
     });
+    
+    // Custom option for new tournament
+    const newOption = document.createElement('option');
+    newOption.value = "new";
+    newOption.textContent = "+ 새 대회 직접 입력";
+    tournamentSelect.appendChild(newOption);
   } catch (err) {
     console.error("Failed to load tournaments:", err);
     tournamentSelect.innerHTML = '<option value="">대회 로드 실패</option>';

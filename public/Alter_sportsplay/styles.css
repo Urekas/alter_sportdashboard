@@ -23,21 +23,22 @@ body {
   grid-template-areas: 
     "left main right"
     "left bottom right";
-  grid-template-columns: var(--panel-width) 1fr var(--panel-width);
+  grid-template-columns: var(--panel-width) minmax(600px, 1fr) var(--panel-width);
   grid-template-rows: 1fr var(--bottom-height);
   transition: grid-template-columns 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 /* Toggle Animations via CSS Grid Changes */
 body.hide-left {
-  grid-template-columns: 0px 1fr var(--panel-width);
+  grid-template-columns: 0px minmax(600px, 1fr) var(--panel-width);
 }
 body.hide-right {
-  grid-template-columns: var(--panel-width) 1fr 0px;
+  grid-template-columns: var(--panel-width) minmax(600px, 1fr) 0px;
 }
 body.hide-left.hide-right {
-  grid-template-columns: 0px 1fr 0px;
+  grid-template-columns: 0px minmax(600px, 1fr) 0px;
 }
 
 /* Base Panel Styles */

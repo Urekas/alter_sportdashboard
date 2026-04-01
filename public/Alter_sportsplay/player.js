@@ -17,7 +17,7 @@ const eventsUl = document.getElementById('events-ul');
 export function initPlayer() {
   // 기본 유튜브 비디오 ID를 로드하여 플레이어를 초기화합니다.
   // 실제 프로젝트에서는 Matches 컬렉션의 video_urls 값을 가져와야 합니다.
-  player = new YT.Player('youtube-player', {
+  player = new YT.Player('youtube-player-1', {
     height: '100%',
     width: '100%',
     videoId: '6KHm8HpKHzw', // 사용자가 요청한 필드하키 영상 ID
