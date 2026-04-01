@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 206 33% 95%; /* Light Gray */
+    --foreground: 209 25% 20%; /* Dark Gray-Blue for text */
+    --card: 0 0% 100%; /* White cards for contrast */
+    --card-foreground: 209 25% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 209 25% 20%;
+    --primary: 221 100% 50%; /* Vivid Blue */
+    --primary-foreground: 0 0% 100%; /* White text */
+    --secondary: 210 20% 88%;
+    --secondary-foreground: 221 83% 53%;
+    --muted: 210 20% 88%;
+    --muted-foreground: 215 25% 55%;
+    --accent: 47 91% 44%; /* Mustard Yellow */
+    --accent-foreground: 221 83% 53%; /* Vivid Blue on yellow */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 214 20% 85%; /* Slightly darker gray for borders */
+    --input: 214 20% 85%;
+    --ring: 221 100% 50%; /* Vivid Blue for focus rings */
+    --chart-1: 221 100% 50%; /* primary - vivid blue */
+    --chart-2: 10 80% 55%; /* away team red/orange */
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 209 25% 15%;
+    --foreground: 0 0% 98%;
+    --card: 209 25% 20%;
+    --card-foreground: 0 0% 98%;
+    --popover: 209 25% 15%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 47 91% 44%; /* Accent becomes primary in dark mode */
+    --primary-foreground: 221 83% 53%;
+    --secondary: 210 10% 30%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 210 10% 30%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 221 83% 53%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 210 10% 30%;
+    --input: 210 10% 30%;
+    --ring: 47 91% 44%;
+    --chart-1: 47 91% 44%;
+    --chart-2: 10 80% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .print-hidden {
+    @media print {
+      display: none !important;
+    }
+  }
+  .page-break {
+    @media print {
+      break-after: page;
+      page-break-after: always;
+    }
+  }
+  .break-inside-avoid {
+    @media print {
+      break-inside: avoid;
+    }
+  }
+}
+
+@media print {
+  body {
+    background-color: white !important;
+  }
+  .printable-area {
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #eee !important;
+  }
+}

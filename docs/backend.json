@@ -1,0 +1,291 @@
+{
+  "entities": {
+    "Tournament": {
+      "title": "Tournament",
+      "type": "object",
+      "description": "Represents a sports tournament containing multiple matches.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "object" }
+      },
+      "required": ["id", "name"]
+    },
+    "Team": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Team",
+      "type": "object",
+      "description": "Represents a sports team participating in matches, storing core team information.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Team entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The official name of the team."
+        },
+        "coachName": {
+          "type": "string",
+          "description": "The name of the team's head coach."
+        },
+        "country": {
+          "type": "string",
+          "description": "The country the team represents."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    },
+    "Player": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Player",
+      "type": "object",
+      "description": "Represents a player within a team, detailing individual player attributes.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Player entity."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The first name of the player."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The last name of the player."
+        },
+        "jerseyNumber": {
+          "type": "number",
+          "description": "The jersey number worn by the player."
+        },
+        "position": {
+          "type": "string",
+          "description": "The primary playing position of the player (e.g., 'Forward', 'Defender')."
+        },
+        "teamId": {
+          "type": "string",
+          "description": "Reference to the Team the player belongs to. (Relationship: Team 1:N Player)"
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "teamId"
+      ]
+    },
+    "Match": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Match",
+      "type": "object",
+      "description": "Represents a single match played between two teams, including basic match details and outcome.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Match entity."
+        },
+        "matchDate": {
+          "type": "string",
+          "description": "The date and time when the match took place.",
+          "format": "date-time"
+        },
+        "location": {
+          "type": "string",
+          "description": "The venue or location where the match was played."
+        },
+        "homeTeamId": {
+          "type": "string",
+          "description": "Reference to the Home Team. (Relationship: Team 1:N Match)"
+        },
+        "awayTeamId": {
+          "type": "string",
+          "description": "Reference to the Away Team. (Relationship: Team 1:N Match)"
+        },
+        "homeScore": {
+          "type": "number",
+          "description": "The final score of the home team."
+        },
+        "awayScore": {
+          "type": "number",
+          "description": "The final score of the away team."
+        },
+        "tournamentId": {
+          "type": "string",
+          "description": "Reference to the Tournament this match belongs to."
+        }
+      },
+      "required": [
+        "id",
+        "matchDate",
+        "homeTeamId",
+        "awayTeamId",
+        "homeScore",
+        "awayScore"
+      ]
+    },
+    "MatchEvent": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MatchEvent",
+      "type": "object",
+      "description": "Represents a specific event or action occurring during a match, such as a pass, shot, or turnover.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the MatchEvent entity."
+        },
+        "matchId": {
+          "type": "string",
+          "description": "Reference to the Match in which this event occurred. (Relationship: Match 1:N MatchEvent)"
+        },
+        "teamId": {
+          "type": "string",
+          "description": "Reference to the Team that performed this event. (Relationship: Team 1:N MatchEvent)"
+        },
+        "playerId": {
+          "type": "string",
+          "description": "Reference to the Player who performed this event, if applicable. (Relationship: Player 1:N MatchEvent)"
+        },
+        "eventType": {
+          "type": "string",
+          "description": "The type of event (e.g., 'Pass', 'Shot', 'Turnover', 'Press', 'Circle Entry', 'Goal')."
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "The time in seconds from the start of the match when the event occurred."
+        },
+        "xCoordinate": {
+          "type": "number",
+          "description": "The X-coordinate on the pitch where the event occurred (normalized, e.g., 0-1)."
+        },
+        "yCoordinate": {
+          "type": "number",
+          "description": "The Y-coordinate on the pitch where the event occurred (normalized, e.g., 0-1)."
+        },
+        "zone": {
+          "type": "string",
+          "description": "The specific zone on the pitch where the event occurred (e.g., 'Attack Left', 'Midfield Center')."
+        },
+        "outcome": {
+          "type": "string",
+          "description": "The outcome of the event (e.g., 'Successful', 'Unsuccessful', 'Goal', 'Saved', 'Turnover')."
+        }
+      },
+      "required": [
+        "id",
+        "matchId",
+        "teamId",
+        "eventType",
+        "timestamp",
+        "xCoordinate",
+        "yCoordinate",
+        "zone",
+        "outcome"
+      ]
+    },
+    "TeamMatchPerformance": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "TeamMatchPerformance",
+      "type": "object",
+      "description": "Stores computed tactical metrics and statistics for a specific team within a specific match, derived from match events.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the TeamMatchPerformance entity."
+        },
+        "matchId": {
+          "type": "string",
+          "description": "Reference to the Match for which these metrics are calculated. (Relationship: Match 1:N TeamMatchPerformance)"
+        },
+        "teamId": {
+          "type": "string",
+          "description": "Reference to the Team whose performance is being recorded. (Relationship: Team 1:N TeamMatchPerformance)"
+        },
+        "calculatedAt": {
+          "type": "string",
+          "description": "The date and time when these performance metrics were calculated.",
+          "format": "date-time"
+        },
+        "secondsPerPress": {
+          "type": "number",
+          "description": "The 'Seconds Per Press' (SPP) metric for the team in this match."
+        },
+        "build25Ratio": {
+          "type": "number",
+          "description": "The 'Build25 Ratio' metric for the team in this match."
+        },
+        "circleEntryEfficiency": {
+          "type": "number",
+          "description": "The overall circle entry efficiency for the team in this match."
+        },
+        "circleEntriesTotal": {
+          "type": "number",
+          "description": "The total number of circle entries made by the team."
+        }
+      },
+      "required": [
+        "id",
+        "matchId",
+        "teamId",
+        "calculatedAt",
+        "secondsPerPress",
+        "build25Ratio",
+        "circleEntryEfficiency",
+        "circleEntriesTotal"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/tournaments/{tournamentId}",
+        "definition": {
+          "entityName": "Tournament",
+          "schema": { "$ref": "#/backend/entities/Tournament" },
+          "description": "Root collection for sports tournaments."
+        }
+      },
+      {
+        "path": "/teams/{teamId}",
+        "definition": {
+          "entityName": "Team",
+          "schema": {
+            "$ref": "#/backend/entities/Team"
+          },
+          "description": "Root collection for all sports teams.",
+          "params": [
+            {
+              "name": "teamId",
+              "description": "Unique identifier for a specific Team."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/matches/{matchId}",
+        "definition": {
+          "entityName": "Match",
+          "schema": {
+            "$ref": "#/backend/entities/Match"
+          },
+          "description": "Root collection for all matches played.",
+          "params": [
+            {
+              "name": "matchId",
+              "description": "Unique identifier for a specific Match."
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

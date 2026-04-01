@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * FIELD FOCUS - MVP SECURITY RULES
+     * 개발 및 프로토타이핑을 위해 모든 경로에 대해 읽기/쓰기를 일시적으로 허용합니다.
+     */
+
+    match /{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+}
