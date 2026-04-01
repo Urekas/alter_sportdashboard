@@ -1,6 +1,6 @@
-import { db, collection, addDoc, writeBatch, doc, getDocs, orderBy, query, where } from './firebase-config.js';
+import { db, collection, addDoc, writeBatch, doc, getDocs, orderBy, query, where, getDoc } from './firebase-config.js';
 import { mapZone, detectQuarter, createMatchDataForDashboard } from './analysis-utils.js';
-import { initPlayer, fetchAndRenderEvents, player, isPlayerReady } from './player.js';
+import { initPlayer, fetchAndRenderEvents, player, isPlayerReady, updateCurrentPlaylist, allEvents } from './player.js';
 import { initDrawingBoard } from './drawing.js';
 import { initLibrary } from './library.js';
 
@@ -274,6 +274,48 @@ async function loadTournaments() {
   }
 }
 
+export function extractVideoId(url) {
+  if (!url) return null;
+  const match = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return match ? match[1] : null;
+}
+
+export function loadMatchForAnalysis(matchId, matchData) {
+    console.log(`Loading match for analysis: ${matchData.match_name}`);
+    
+    // 1. YouTube 비디오 ID 추출 (tactical_cam 우선)
+    const url = matchData.video_urls?.tactical_cam || matchData.video_urls?.broadcast_cam;
+    const videoId = extractVideoId(url);
+    
+    if (videoId) {
+        if (isPlayerReady && player && typeof player.loadVideoById === 'function') {
+            player.loadVideoById(videoId);
+        } else {
+            window.targetVideoId = videoId;
+        }
+    } else {
+        alert("해당 경기에는 등록된 유튜브 영상 URL이 없습니다.");
+    }
+    
+    // 2. 이벤트 필터링
+    const searchInput = document.getElementById('event-search');
+    if (searchInput) searchInput.value = "";
+    
+    const applyFilter = () => {
+        if (allEvents && allEvents.length > 0) {
+            const filtered = allEvents.filter(ev => ev.match_id === matchId);
+            updateCurrentPlaylist(filtered);
+            alert(`'${matchData.match_name}' 경기(비디오 및 이벤트)를 로드했습니다.`);
+        }
+    };
+    
+    if (allEvents && allEvents.length > 0) {
+        applyFilter();
+    } else {
+        setTimeout(applyFilter, 1500);
+    }
+}
+
 async function fetchAndRenderMatches() {
   const matchesUl = document.getElementById('matches-ul');
   try {
@@ -301,10 +343,8 @@ async function fetchAndRenderMatches() {
         </div>
       `;
       
-      // 비디오 분석 버튼 클릭 시 매치 로드 (기존 로직 유지)
       li.querySelector('.analyze-btn').addEventListener('click', () => {
-         // 실제로는 player.js의 비디오 ID 교체 로직 등이 필요함
-         alert(`'${data.match_name}' 경기를 분석 모드로 전환합니다.`);
+         loadMatchForAnalysis(docSnap.id, data);
       });
       
       matchesUl.appendChild(li);
@@ -321,8 +361,15 @@ async function handleUrlParams() {
 
   if (matchId) {
     console.log(`URL Param detected: matchId=${matchId}`);
-    // 실제로는 해당 matchId의 이벤트를 필터링해서 보여주거나, 비디오 URL을 로드해야 함
-    // (현재는 전체 이벤트를 보여주는 방식이므로, 차후에 필터 기능을 강화할 수 있음)
+    try {
+        const docRef = doc(db, "Matches", matchId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            loadMatchForAnalysis(matchId, docSnap.data());
+        }
+    } catch(e) {
+        console.error("URL Param match fetch error:", e);
+    }
   }
 
   if (time && !isNaN(parseFloat(time))) {
