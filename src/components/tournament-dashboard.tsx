@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useMemo } from "react";
-import { Trophy, Activity, Grid3X3, Loader2, FileDown, Sword, Shield, TrendingUp, Target, TrendingDown, ShieldCheck, BrainCircuit, Sparkles, Info, MessageSquare, Settings2 } from "lucide-react";
+import { Trophy, Activity, Grid3X3, Loader2, FileDown, Sword, Shield, TrendingUp, Target, TrendingDown, ShieldCheck, BrainCircuit, Sparkles, Info, MessageSquare, Settings2, Video } from "lucide-react";
 import type { MatchData, TeamMatchStats } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -349,6 +349,10 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
           </div>
         </div>
         <div className="flex gap-2 print-hidden">
+          <Button variant="outline" className="border-orange-500 text-orange-500 font-bold h-11" onClick={() => window.open('/Alter_sportsplay/index.html', '_blank')}>
+            <Video className="h-5 w-5 mr-2" />
+            비디오 분석 도구
+          </Button>
           <Button variant="outline" className="border-primary text-primary font-bold h-11" onClick={handleAiAnalysis} disabled={isAiLoading}>
             {isAiLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <BrainCircuit className="h-4 w-4 mr-2" />}
             대회 누적 AI 분석

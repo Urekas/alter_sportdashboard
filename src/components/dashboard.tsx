@@ -195,7 +195,18 @@ export function Dashboard() {
     <div className="p-4 md:p-6 lg:p-8">
       <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 print-hidden gap-4">
         <div>
-          <h1 className="text-4xl font-bold text-primary italic tracking-tight font-headline">Field Focus</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-4xl font-bold text-primary italic tracking-tight font-headline">Field Focus</h1>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-8 border-orange-500 text-orange-500 font-bold hover:bg-orange-500/10"
+              onClick={() => window.open('/Alter_sportsplay/index.html', '_blank')}
+            >
+              <Video className="h-4 w-4 mr-2" />
+              비디오 분석 도구
+            </Button>
+          </div>
           <div className="flex gap-4 mt-1">
             {['single', 'tournament', 'manage'].map((mode) => (
               <Button 

@@ -53,6 +53,10 @@ export function MatchDashboard({ match }: MatchDashboardProps) {
           </div>
         </div>
         <div className="flex gap-2 print-hidden">
+          <Button variant="outline" className="border-orange-500 text-orange-500 font-bold h-11" onClick={() => window.open('/Alter_sportsplay/index.html', '_blank')}>
+            <Video className="h-5 w-5 mr-2" />
+            비디오 분석 도구
+          </Button>
           <Button variant="outline" className="border-primary text-primary font-bold h-11" onClick={handleAiAnalysis} disabled={isAiLoading}>
             {isAiLoading ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <BrainCircuit className="h-5 w-5 mr-2" />}
             AI 분석
