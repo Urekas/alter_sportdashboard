@@ -230,6 +230,20 @@ function playCurrentIndexInQueue() {
   }
 }
 
+export function getActiveEventId() {
+  if (currentPlaylistIndex >= 0 && currentPlaylistIndex < currentPlaylist.length) {
+    return currentPlaylist[currentPlaylistIndex].id;
+  }
+  return null;
+}
+
+export function updateEventDrawingLocal(eventId, drawingJson) {
+  const ev = allEvents.find(e => e.id === eventId);
+  if (ev) ev.tactical_drawing = drawingJson;
+  const pEv = currentPlaylist.find(e => e.id === eventId);
+  if (pEv) pEv.tactical_drawing = drawingJson;
+}
+
 // 시간 추적 (종료 시간 도달 시 자동 넘김 로직)
 function startTrackingTime() {
   if (checkTimeInterval) clearInterval(checkTimeInterval);

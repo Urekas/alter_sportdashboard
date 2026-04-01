@@ -340,6 +340,21 @@ body.hide-left.hide-right {
   margin-left: auto;
 }
 
+.secondary-btn {
+  background-color: #444;
+  color: #ccc;
+  border: 1px solid #555;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 5px 10px;
+}
+
+.secondary-btn:hover {
+  background-color: #555;
+  color: #fff;
+}
+
 .draw-tools {
   display: inline-flex;
   gap: 8px;
@@ -355,6 +370,25 @@ body.hide-left.hide-right {
 .draw-tools.active {
   opacity: 1;
   pointer-events: auto;
+}
+
+/* Property controls styling for sliders in footer */
+.draw-tools input[type="range"] {
+  height: 4px;
+  background: #555;
+  border-radius: 2px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.draw-tools input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
 }
 
 input[type="color"] {

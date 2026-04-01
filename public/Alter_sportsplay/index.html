@@ -32,7 +32,14 @@
             <label style="color:#888; font-size: 0.8em;">검색 대기중...</label>
         </div>
       </div>
-      <button id="btn-create-playlist" class="primary-btn" style="background-color: #4caf50; display: none; margin-bottom: 10px;">🛒 <span id="cart-count">0</span>개 장바구니로 Playlist 생성</button>
+      <div style="display:flex; gap:5px; margin-bottom: 10px;">
+        <button id="btn-select-all" class="secondary-btn" style="flex:1; font-size:0.75rem; padding:5px;">Check All (전체 선택)</button>
+        <button id="btn-deselect-all" class="secondary-btn" style="flex:1; font-size:0.75rem; padding:5px;">Clear All (전체 해제)</button>
+      </div>
+      <div style="display:flex; gap:5px; margin-bottom:10px;">
+        <button id="btn-create-playlist" class="primary-btn" style="flex:3; background-color: #4caf50; display: none;">🛒 <span id="cart-count">0</span> Playlist 생성</button>
+        <button id="btn-batch-capture" class="primary-btn" style="flex:2; background-color: #e67e22; display: none;" title="선택된 클립들을 고화질 시퀀스 영상으로 추출">🎬 선택 캡처</button>
+      </div>
       
       <div class="library-results" style="flex: 1; overflow-y: auto; border-top: 1px solid var(--border-color); padding-top: 10px;">
          <ul id="library-results-ul" class="list-container">
@@ -157,6 +164,20 @@
         <button id="tool-undo" class="control-btn" title="실행 취소 (Undo)"><i class="fa-solid fa-rotate-left"></i></button>
         <button id="tool-clear" class="control-btn" title="전체 지우기 (Clear All)"><i class="fa-solid fa-trash-can"></i></button>
         
+        <div class="separator"></div>
+        <!-- tacticalboard style property controls -->
+        <div class="prop-group" style="display:flex; align-items:center; gap:8px; margin: 0 10px;">
+          <button id="tool-dash" class="control-btn" title="점선 토글"><i class="fa-solid fa-ellipsis"></i></button>
+          <div class="slider-container" style="display:flex; align-items:center; gap:5px; color:#aaa; font-size:0.7rem;">
+            <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+            <input type="range" id="tool-size" min="5" max="100" value="40" style="width:60px;">
+          </div>
+          <div class="slider-container" style="display:flex; align-items:center; gap:5px; color:#aaa; font-size:0.7rem;">
+            <i class="fa-solid fa-circle-half-stroke"></i>
+            <input type="range" id="tool-opacity" min="0" max="100" value="20" style="width:60px;">
+          </div>
+        </div>
+
         <div class="separator"></div>
         <button id="tool-save" class="control-btn" title="DB 저장 (Save)" style="color:#4caf50;"><i class="fa-solid fa-floppy-disk"></i> 저장</button>
         <button id="tool-capture" class="control-btn" title="스냅샷 캡처 (Capture)"><i class="fa-solid fa-camera"></i> 캡처</button>

@@ -21,6 +21,10 @@ const modalBtnCancel = document.getElementById('modal-btn-cancel');
 const modalBtnConfirm = document.getElementById('modal-btn-confirm');
 const modalCartCount = document.getElementById('modal-cart-count');
 
+const btnSelectAll = document.getElementById('btn-select-all');
+const btnDeselectAll = document.getElementById('btn-deselect-all');
+const btnBatchCapture = document.getElementById('btn-batch-capture');
+
 // State
 let matchesData = {}; // match_id -> match object
 let playlistCart = new Set(); // store selected event docs (or IDs)
@@ -29,6 +33,7 @@ export async function initLibrary() {
     setupTabs();
     await fetchMatches();
     setupModals();
+    setupSelectionControls();
     
     // Listen for custom event or give a small delay to ensure allEvents is loaded
     // Since app.js calls fetchAndRenderEvents, we wait for it.
@@ -182,9 +187,44 @@ function updateCartUI() {
 
     if (count > 0) {
         btnCreatePlaylist.style.display = 'block';
+        btnBatchCapture.style.display = 'block';
     } else {
         btnCreatePlaylist.style.display = 'none';
+        btnBatchCapture.style.display = 'none';
     }
+}
+
+function setupSelectionControls() {
+    btnSelectAll.addEventListener('click', () => {
+        // 현재 리스트에 보이는 모든 클립들을 추가
+        const cbs = document.querySelectorAll('.clip-checkbox');
+        cbs.forEach(cb => {
+            if (!cb.checked) {
+                cb.checked = true;
+                playlistCart.add(cb.value);
+                cb.closest('.clip-item').classList.add('selected');
+            }
+        });
+        updateCartUI();
+    });
+
+    btnDeselectAll.addEventListener('click', () => {
+        const cbs = document.querySelectorAll('.clip-checkbox');
+        cbs.forEach(cb => {
+            if (cb.checked) {
+                cb.checked = false;
+                playlistCart.delete(cb.value);
+                cb.closest('.clip-item').classList.remove('selected');
+            }
+        });
+        updateCartUI();
+    });
+
+    btnBatchCapture.addEventListener('click', () => {
+        if(confirm(`${playlistCart.size}개의 클립을 하나의 시퀀스로 추출하시겠습니까?\n(유튜브 영상의 경우 '이 탭 공유' 권한이 필요합니다.)`)) {
+            startBatchCapture();
+        }
+    });
 }
 
 function setupModals() {
@@ -307,4 +347,107 @@ function loadSelectedPlaylist(eventIds, title) {
     titleLi.style.cssText = "padding:10px; background:#1e1e2f; border-bottom:2px solid var(--accent); color:var(--accent); font-weight:bold; position:sticky; top:0; z-index:10;";
     titleLi.innerHTML = `<i class="fa-solid fa-play-circle"></i> loaded Playlist: ${title}`;
     eventsUl.prepend(titleLi);
+}
+
+// --- Batch Video Capture Logic ---
+// Ported/Adapted from tacticalboard startCleanRecording
+async function startBatchCapture() {
+    const selectedEvents = allEvents.filter(ev => playlistCart.has(ev.id))
+                                   .sort((a, b) => a.start_time - b.start_time);
+    
+    if (selectedEvents.length === 0) return;
+
+    const preRoll = parseFloat(prompt("분석 지점 [몇 초 전]부터 영상을 재생할까요?", "2.0")) || 2.0;
+    const postRoll = parseFloat(prompt("클립 종료 후 [보너스 재생]을 몇 초 할까요?", "1.0")) || 1.0;
+
+    const videoContainer = document.getElementById('video-container');
+    const canvas = window._fabricCanvas;
+    if(!canvas) return;
+
+    // Use Screen Capture API for YouTube
+    let screenStream = null;
+    let screenVideo = null;
+
+    try {
+        alert("시퀀스 추출을 시작합니다.\n반드시 [이 탭(현재 탭)]을 선택하고 공유를 허용해주세요.");
+        screenStream = await navigator.mediaDevices.getDisplayMedia({ 
+            preferCurrentTab: true, 
+            video: { displaySurface: 'browser' } 
+        });
+        screenVideo = document.createElement('video');
+        screenVideo.srcObject = screenStream;
+        screenVideo.muted = true;
+        screenVideo.play();
+        await new Promise(r => screenVideo.onloadedmetadata = r);
+    } catch (e) {
+        return alert("화면 공유 권한이 거부되어 캡처를 취소합니다.");
+    }
+
+    const recCanvas = document.createElement('canvas');
+    recCanvas.width = canvas.width;
+    recCanvas.height = canvas.height;
+    const ctx = recCanvas.getContext('2d');
+
+    const stream = recCanvas.captureStream(60);
+    const options = { mimeType: 'video/webm; codecs=vp9', videoBitsPerSecond: 12000000 };
+    const recorder = new MediaRecorder(stream, options);
+    const chunks = [];
+
+    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+    recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const a = document.createElement('a'); 
+        a.href = URL.createObjectURL(blob);
+        a.download = `SportsPlay_Batch_${Date.now()}.webm`; 
+        a.click();
+        if (screenStream) screenStream.getTracks().forEach(t => t.stop());
+        alert("영상 추출이 완료되었습니다.");
+    };
+
+    let isRecordingLoop = true;
+    function renderComposite() {
+        if (!isRecordingLoop) return;
+        
+        // Match capture rect to player container
+        const rect = videoContainer.getBoundingClientRect();
+        const scaleX = screenVideo.videoWidth / window.innerWidth;
+        const scaleY = screenVideo.videoHeight / window.innerHeight;
+        
+        const cropX = rect.left * scaleX;
+        const cropY = rect.top * scaleY;
+        const cropW = rect.width * scaleX;
+        const cropH = rect.height * scaleY;
+
+        ctx.drawImage(screenVideo, cropX, cropY, cropW, cropH, 0, 0, recCanvas.width, recCanvas.height);
+        // Draw annotations (if any)
+        ctx.drawImage(canvas.getElement(), 0, 0, recCanvas.width, recCanvas.height);
+        
+        requestAnimationFrame(renderComposite);
+    }
+
+    recorder.start();
+    renderComposite();
+
+    const { player } = await import('./player.js');
+
+    for (let ev of selectedEvents) {
+        const targetTime = Math.max(0, ev.start_time - preRoll);
+        const duration = ev.duration + preRoll + postRoll;
+
+        // Seek and Play
+        if (player && typeof player.seekTo === 'function') {
+            player.seekTo(targetTime, true);
+            player.playVideo();
+            
+            // Wait for duration
+            await new Promise(res => setTimeout(res, duration * 1000));
+            player.pauseVideo();
+        }
+        
+        // Optional: clear canvas between clips?
+        // if(confirmClear) canvas.clear();
+    }
+
+    isRecordingLoop = false;
+    recorder.stop();
 }
