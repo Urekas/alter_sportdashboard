@@ -1,5 +1,6 @@
 import { db, collection, addDoc, writeBatch, doc, getDocs, orderBy, query, getDoc } from './firebase-config.js';
-import { mapZone, detectQuarter, createMatchDataForDashboard } from './analysis-utils.js';
+import { detectQuarter, createMatchDataForDashboard } from './analysis-utils.js';
+
 import { initPlayer, fetchAndRenderEvents, player, isPlayerReady, updateCurrentPlaylist, allEvents } from './player.js';
 import { initDrawingBoard } from './drawing.js';
 import { initLibrary } from './library.js';
