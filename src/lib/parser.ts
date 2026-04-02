@@ -73,9 +73,11 @@ export const detectQuarter = (ungroupedText: string, startTime: number): string 
 };
 
 export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { home: string, away: string } } => {
+  // UTF-16 디코딩 후 남아있는 BOM 문자(U+FEFF) 제거
+  const cleanedText = xmlText.replace(/^\uFEFF/, '');
   const parser = new DOMParser();
-  const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-  let detectedTeams = detectRealTeamNames(xmlText);
+  const xmlDoc = parser.parseFromString(cleanedText, "text/xml");
+  let detectedTeams = detectRealTeamNames(cleanedText);
   const instances = xmlDoc.getElementsByTagName("instance");
   const events: MatchEvent[] = [];
 
@@ -121,8 +123,82 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
   return { events, teams: { home: detectedTeams?.home.trim() || "Home", away: detectedTeams?.away.trim() || "Away" } };
 };
 
+// hh:mm:ss.xx 또는 mm:ss.xx 형식의 타임코드를 초 단위로 변환
+const timecodeToSeconds = (tc: string): number => {
+  const clean = tc.replace(/"/g, '').trim();
+  const parts = clean.split(':').map(parseFloat);
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return parseFloat(clean) || 0;
+};
+
+// 헤더 없는 타임코드 형식 CSV 파싱 (KOR v POL.csv 유형)
+// 포맷: "hh:mm:ss.xx","hh:mm:ss.xx","code",[labels...]
+const parseTimecodeCSV = (lines: string[], splitLine: (l: string) => string[]): { events: MatchEvent[], teams: { home: string, away: string } } => {
+  const allText = lines.join(' ');
+  let detectedTeams = detectRealTeamNames(allText);
+
+  const events: MatchEvent[] = [];
+
+  // 시작 오프셋: 첫 번째 레코드의 시작 시간을 기준으로 정규화
+  let baseOffset = 0;
+  const firstRow = splitLine(lines[0]);
+  if (firstRow[0] && /^\d{1,2}:\d{2}/.test(firstRow[0].replace(/"/g, '').trim())) {
+    baseOffset = timecodeToSeconds(firstRow[0]);
+  }
+
+  lines.forEach((line, idx) => {
+    const row = splitLine(line);
+    if (row.length < 3) return;
+
+    const startRaw = row[0].replace(/"/g, '').trim();
+    const endRaw = row[1].replace(/"/g, '').trim();
+    const code = row[2].replace(/"/g, '').trim();
+
+    // 타임코드 패턴이 아니면 스킵
+    if (!/^\d{1,2}:\d{2}/.test(startRaw)) return;
+
+    const startTime = timecodeToSeconds(startRaw) - baseOffset;
+    const endTime = timecodeToSeconds(endRaw) - baseOffset;
+
+    if (!detectedTeams) detectedTeams = detectRealTeamNames(code + ' ' + row.slice(3).join(' '));
+
+    const team = extractTeamName(code, detectedTeams).trim();
+    if (team === 'Unknown') return;
+
+    // 라벨들: 코드 다음 컬럼들
+    const labels = row.slice(3).map(c => c.replace(/"/g, '').trim()).filter(Boolean);
+    const ungroupedText = labels.join(' ');
+
+    // (지) 접두사 제거 후 위치 라벨 찾기
+    const locLabel = labels.find(l => /[lrc]_/i.test(l) || /zone/i.test(l) || /^\(지\)/.test(l))?.replace(/^\([가-힣]+\)\s*/, '') || '';
+    const resultLabel = labels.find(l => /^\(결\)/.test(l))?.replace(/^\([가-힣]+\)\s*/, '') || '';
+
+    const quarter = detectQuarter(ungroupedText, startTime);
+    const zoneInfo = mapZone(locLabel || code);
+
+    events.push({
+      id: `tc-${idx}`,
+      team,
+      type: /foul|파울/i.test(code) ? 'foul' : /턴오버|turnover|TO/i.test(code) ? 'turnover' : 'sequence',
+      quarter,
+      time: Math.max(0, startTime),
+      duration: Math.max(0, endTime - startTime),
+      x: zoneInfo.x,
+      y: zoneInfo.y,
+      locationLabel: locLabel,
+      resultLabel,
+      code
+    });
+  });
+
+  return { events, teams: { home: detectedTeams?.home.trim() || 'Home', away: detectedTeams?.away.trim() || 'Away' } };
+};
+
 export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { home: string, away: string } } => {
-  const lines = csvText.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
+  // BOM 문자 제거
+  const cleanText = csvText.replace(/^\uFEFF/, '');
+  const lines = cleanText.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
   if (lines.length < 2) return { events: [], teams: { home: "", away: "" } };
 
   // 구분자(콤마 vs 탭) 자동 감지
@@ -131,6 +207,13 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
     if (delimiter === '\t') return line.split('\t').map(item => item.trim());
     return line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(item => item.replace(/^"|"$/g, '').trim());
   };
+
+  // 첫 번째 셀이 타임코드 형식인지 감지 (헤더 없는 형식 자동 분기)
+  const firstCell = lines[0].split(/,|\t/)[0].replace(/"/g, '').trim();
+  const isTimecodeFormat = /^\d{1,2}:\d{2}:\d{2}/.test(firstCell);
+  if (isTimecodeFormat) {
+    return parseTimecodeCSV(lines, splitCSVLine);
+  }
 
   const headers = splitCSVLine(lines[0]);
   const getColIdx = (colNames: string[]) => headers.findIndex(h => {
@@ -151,7 +234,7 @@ export const parseCSVData = (csvText: string): { events: MatchEvent[], teams: { 
     id: getColIdx(["Instance", "ID"])
   };
 
-  let detectedTeams = detectRealTeamNames(csvText);
+  let detectedTeams = detectRealTeamNames(cleanText);
   const events: MatchEvent[] = [];
 
   for (let i = 1; i < lines.length; i++) {
