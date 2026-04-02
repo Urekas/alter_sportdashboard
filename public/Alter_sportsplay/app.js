@@ -1,7 +1,7 @@
 import { db, collection, addDoc, writeBatch, doc, getDocs, orderBy, query, getDoc } from './firebase-config.js';
 import { detectQuarter, createMatchDataForDashboard } from './analysis-utils.js';
 
-import { initPlayer, fetchAndRenderEvents, player, isPlayerReady, updateCurrentPlaylist, allEvents } from './player.js';
+import { initPlayer, fetchAndRenderEvents, updateCurrentPlaylist, allEvents, loadVideoInCam } from './player.js';
 import { initDrawingBoard } from './drawing.js';
 import { initLibrary } from './library.js';
 
@@ -13,18 +13,18 @@ export function extractVideoId(url) {
 }
 
 export function loadMatchForAnalysis(matchId, matchData) {
-    console.log(`Loading match for analysis: ${matchData.match_name}`);
+    console.log(`Loading match: ${matchData.match_name}`);
     const urls = matchData.video_urls || {};
 
+    // loadVideoInCam: ES Module 내부 player 참조 사용 (window.player 아님)
     const id1 = extractVideoId(urls.tactical_cam1 || urls.tactical_cam || '');
-    if(id1) {
-        if(window._p1Ready && window.player) window.player.loadVideoById(id1);
-        else window.targetVideoId = id1;
-    }
+    if(id1) loadVideoInCam(1, id1);
+
     const id2 = extractVideoId(urls.tactical_cam2 || '');
-    if(id2 && window.player2) { try { window.player2.loadVideoById(id2); } catch(e) {} }
+    if(id2) loadVideoInCam(2, id2);
+
     const id3 = extractVideoId(urls.broadcast_cam || '');
-    if(id3 && window.player3) { try { window.player3.loadVideoById(id3); } catch(e) {} }
+    if(id3) loadVideoInCam(3, id3);
 
     const searchInput = document.getElementById('event-search');
     if(searchInput) searchInput.value = '';
@@ -38,29 +38,78 @@ export function loadMatchForAnalysis(matchId, matchData) {
     else setTimeout(applyFilter, 1500);
 }
 
-// --- XML 파싱 ---
+// BOM 감지 + 인코딩 자동 처리 (UTF-16 LE/BE, UTF-8 BOM, UTF-8 지원)
+async function readFileWithEncoding(file) {
+  const buf = await file.arrayBuffer();
+  const u8 = new Uint8Array(buf);
+  // UTF-16 LE BOM: FF FE
+  if (u8[0] === 0xFF && u8[1] === 0xFE) return new TextDecoder('utf-16le').decode(buf.slice(2));
+  // UTF-16 BE BOM: FE FF
+  if (u8[0] === 0xFE && u8[1] === 0xFF) return new TextDecoder('utf-16be').decode(buf.slice(2));
+  // UTF-8 BOM: EF BB BF
+  if (u8[0] === 0xEF && u8[1] === 0xBB && u8[2] === 0xBF) return new TextDecoder('utf-8').decode(buf.slice(3));
+  return new TextDecoder('utf-8').decode(buf);
+}
+
+// XML 파싱 (BOM 제거 후 DOMParser)
 function parseSportsCodeXML(xmlText, matchId, homeTeam, awayTeam) {
+  // UTF-16 LE BOM(﻿) 잔여 제거 및 주요 태그(start, end, code, label 등) 소문자 강제 정규화
+  let cleanXml = xmlText.replace(/^\uFEFF/, '');
+  cleanXml = cleanXml.replace(/<\/?(instance|clip|start|end|code|id|label|group|text)(?=>|\s)/gi, match => match.toLowerCase());
+  
   const parser = new DOMParser();
-  const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-  const instances = xmlDoc.getElementsByTagName('instance');
+  const xmlDoc = parser.parseFromString(cleanXml, 'text/xml');
+
+  // 파서 에러 확인
+  const parseError = xmlDoc.querySelector('parsererror');
+  if (parseError) {
+    console.error('XML parse error:', parseError.textContent);
+    return [];
+  }
+
+  // Sportscode는 버전/설정에 따라 instance 또는 clip 태그를 사용함
+  let instances = xmlDoc.getElementsByTagName('instance');
+  if (instances.length === 0) {
+    instances = xmlDoc.getElementsByTagName('clip');
+  }
+  
+  console.log(`XML 파싱 시작: ${instances.length}개의 데이터 요소를 발견했습니다.`);
   const events = [];
+  
   for (let i = 0; i < instances.length; i++) {
     const inst = instances[i];
-    const start = parseFloat(inst.querySelector('start')?.textContent) || 0;
-    const end   = parseFloat(inst.querySelector('end')?.textContent) || 0;
-    let codeText = (inst.querySelector('code')?.textContent || '')
+    
+    // start/end 노드 탐색 (태그 소문자 정규화 덕분에 단순 검색 가능)
+    const startNode = inst.querySelector('start');
+    const endNode   = inst.querySelector('end');
+    
+    const start = startNode ? parseFloat(startNode.textContent) : 0;
+    const end   = endNode ? parseFloat(endNode.textContent) : 0;
+    
+    // 코드 노드 (code 또는 id 또는 Label 내의 Code)
+    const codeNode = inst.querySelector('code') || inst.querySelector('id') || inst.querySelector('label[group="Code"] text') || inst.querySelector('label[group="code"] text');
+    let codeText = (codeNode ? codeNode.textContent : `Event_${i+1}`)
                     .replace(/HOME/g, homeTeam).replace(/AWAY/g, awayTeam);
+    
     const labelNodes = inst.querySelectorAll('label');
     const labels = {};
     for (let j = 0; j < labelNodes.length; j++) {
-      const group = labelNodes[j].querySelector('group')?.textContent || `Group_${j}`;
-      let text = (labelNodes[j].querySelector('text')?.textContent || '')
-                  .replace(/HOME/g, homeTeam).replace(/AWAY/g, awayTeam);
+      const groupNode = labelNodes[j].querySelector('group');
+      const textNode  = labelNodes[j].querySelector('text');
+      
+      const group = groupNode ? groupNode.textContent : `Group_${j}`;
+      let text = textNode ? textNode.textContent : "";
+      text = text.replace(/HOME/g, homeTeam).replace(/AWAY/g, awayTeam);
       labels[group] = text;
     }
+    
+    // 팀 유추 로직 강화
     let team = 'Unknown';
     if (codeText.includes(homeTeam)) team = homeTeam;
     else if (codeText.includes(awayTeam)) team = awayTeam;
+    else if (labels['Team'] === homeTeam || labels['TEAM'] === homeTeam) team = homeTeam;
+    else if (labels['Team'] === awayTeam || labels['TEAM'] === awayTeam) team = awayTeam;
+
     events.push({
       match_id: matchId, code: codeText, team,
       start_time: start, end_time: end,
@@ -68,8 +117,10 @@ function parseSportsCodeXML(xmlText, matchId, homeTeam, awayTeam) {
       labels, created_at: new Date().toISOString()
     });
   }
+  console.log(`파싱 완료: 총 ${events.length}개의 이벤트를 추출했습니다.`);
   return events;
 }
+
 
 async function uploadEventsBatch(events) {
   const BATCH_SIZE = 400;
@@ -143,8 +194,9 @@ async function handleUrlParams() {
   if(time && !isNaN(parseFloat(time))) {
     const t = parseFloat(time);
     const check = setInterval(() => {
-      if(window._p1Ready && window.player?.seekTo) {
-        window.player.seekTo(t, true); window.player.playVideo(); clearInterval(check);
+      const pl = window._activeSportsplayPlayer;
+      if(pl && typeof pl.seekTo === 'function') {
+        pl.seekTo(t, true); pl.playVideo(); clearInterval(check);
       }
     }, 500);
     setTimeout(() => clearInterval(check), 5000);
@@ -216,7 +268,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const videoMatchId = videoMatchRef.id;
 
       const file = eventDataFile.files[0];
-      const textData = await file.text();
+      // UTF-16 LE/BE BOM 감지 인코딩 처리
+      const textData = await readFileWithEncoding(file);
       const parsedEvents = parseSportsCodeXML(textData, videoMatchId, matchMetadata.home_team, matchMetadata.away_team);
 
       if(parsedEvents.length === 0) {

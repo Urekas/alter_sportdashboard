@@ -21,7 +21,7 @@ const eventsUl     = document.getElementById('events-ul') || document.createElem
 // 1. YouTube IFrame API Initialization (3 players)
 export function initPlayer() {
   const pv = { playsinline:1, controls:1, rel:0, disablekb:1 };
-  const initialVideoId = window.targetVideoId || '6KHm8HpKHzw';
+  const initialVideoId = window.targetVideoId || '';
 
   player = new YT.Player('youtube-player-1', {
     height:'100%', width:'100%', videoId: initialVideoId,
@@ -78,6 +78,11 @@ function onPlayerReady(event) {
   window._p1Ready = true;
   window._activeSportsplayPlayer = player; // 기본 활성 플레이어 = cam1
   console.log("YouTube Player 1 is ready.");
+  
+  if (window.targetVideoId) {
+    player.loadVideoById(window.targetVideoId);
+    window.targetVideoId = null; // consume it
+  }
 }
 
 
@@ -93,8 +98,21 @@ function onPlayerStateChange(event) {
 }
 
 export function pausePlayer() {
-  if (isPlayerReady && player && typeof player.pauseVideo === 'function') {
-    player.pauseVideo();
+  const activePlayer = window._activeSportsplayPlayer;
+  if (activePlayer && typeof activePlayer.pauseVideo === 'function') {
+    activePlayer.pauseVideo();
+  }
+}
+
+// 카메라별 영상 로드 (app.js에서 사용 - ES Module 내부 참조)
+export function loadVideoInCam(cam, videoId) {
+  if (!videoId) return;
+  const pl = cam === 1 ? player : cam === 2 ? player2 : player3;
+  if (pl && typeof pl.loadVideoById === 'function') {
+    pl.loadVideoById(videoId);
+  } else if (cam === 1) {
+    // 플레이어 아직 준비 안 된 경우 → 초기화 시 로드
+    window.targetVideoId = videoId;
   }
 }
 
