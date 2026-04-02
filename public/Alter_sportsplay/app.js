@@ -1,7 +1,7 @@
-import { db, collection, addDoc, writeBatch, doc, getDocs, orderBy, query, getDoc } from './firebase-config.js';
+import { db, collection, addDoc, writeBatch, doc, getDocs, orderBy, query, getDoc, deleteDoc, where } from './firebase-config.js';
 import { detectQuarter, createMatchDataForDashboard } from './analysis-utils.js';
 
-import { initPlayer, fetchAndRenderEvents, updateCurrentPlaylist, allEvents, loadVideoInCam } from './player.js';
+import { initPlayer, fetchAndRenderEvents, updateCurrentPlaylist, allEvents, loadVideoInCam, setActiveMatch, activeMatchId } from './player.js';
 import { initDrawingBoard } from './drawing.js';
 import { initLibrary } from './library.js';
 
@@ -30,9 +30,8 @@ export function loadMatchForAnalysis(matchId, matchData) {
     if(searchInput) searchInput.value = '';
 
     const applyFilter = () => {
-        if(allEvents && allEvents.length > 0) {
-            updateCurrentPlaylist(allEvents.filter(ev => ev.match_id === matchId));
-        }
+        // player.js의 setActiveMatch를 호출하여 해당 매치 데이터만 표시하도록 격리
+        setActiveMatch(matchId);
     };
     if(allEvents && allEvents.length > 0) applyFilter();
     else setTimeout(applyFilter, 1500);
@@ -49,6 +48,56 @@ async function readFileWithEncoding(file) {
   // UTF-8 BOM: EF BB BF
   if (u8[0] === 0xEF && u8[1] === 0xBB && u8[2] === 0xBF) return new TextDecoder('utf-8').decode(buf.slice(3));
   return new TextDecoder('utf-8').decode(buf);
+}
+
+// CSV 파싱 (Sportscode CSV 형식 지원)
+function parseCSVEvents(csvText, matchId, homeTeam, awayTeam) {
+  const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== "");
+  if (lines.length < 2) return [];
+
+  // 헤더 분석 (코드, 시작, 종료, 라벨 등)
+  const header = lines[0].split(',').map(h => h.trim());
+  const rows = lines.slice(1);
+  const events = [];
+
+  rows.forEach((row, i) => {
+    // 따옴표 내 쉼표가 있을 수 있으므로 복잡한 split 처리 필요할 수 있음
+    const cols = row.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || row.split(',');
+    const item = {};
+    header.forEach((h, idx) => {
+      let val = cols[idx] ? cols[idx].replace(/^"|"$/g, '').trim() : "";
+      item[h] = val;
+    });
+
+    const start = parseFloat(item['Start'] || item['start_time'] || item['start'] || 0);
+    const end   = parseFloat(item['End'] || item['end_time'] || item['end'] || 0);
+    let codeText = (item['Code'] || item['code'] || `Event_${i+1}`)
+                    .replace(/HOME/g, homeTeam).replace(/AWAY/g, awayTeam);
+    
+    // 나머지 컬럼들을 라벨로 처리
+    const labels = {};
+    Object.keys(item).forEach(key => {
+        if (!['Start', 'End', 'Code', 'start_time', 'end_time', 'code'].includes(key)) {
+            labels[key] = item[key].replace(/HOME/g, homeTeam).replace(/AWAY/g, awayTeam);
+        }
+    });
+
+    let team = 'Unknown';
+    if (codeText.includes(homeTeam)) team = homeTeam;
+    else if (codeText.includes(awayTeam)) team = awayTeam;
+    else if (labels['Team'] === homeTeam || labels['TEAM'] === homeTeam) team = homeTeam;
+    else if (labels['Team'] === awayTeam || labels['TEAM'] === awayTeam) team = awayTeam;
+
+    events.push({
+      match_id: matchId, code: codeText, team,
+      start_time: start, end_time: end,
+      duration: parseFloat((end - start).toFixed(2)),
+      labels, created_at: new Date().toISOString()
+    });
+  });
+
+  console.log(`CSV 파싱 완료: ${events.length}개 이벤트 추출`);
+  return events;
 }
 
 // XML 파싱 (BOM 제거 후 DOMParser)
@@ -80,15 +129,16 @@ function parseSportsCodeXML(xmlText, matchId, homeTeam, awayTeam) {
     const inst = instances[i];
     
     // start/end 노드 탐색 (태그 소문자 정규화 덕분에 단순 검색 가능)
+    // 태그 값뿐만 아니라 속성(Attributes)으로 되어있는 경우도 대응
     const startNode = inst.querySelector('start');
     const endNode   = inst.querySelector('end');
     
-    const start = startNode ? parseFloat(startNode.textContent) : 0;
-    const end   = endNode ? parseFloat(endNode.textContent) : 0;
+    const start = startNode ? parseFloat(startNode.textContent) : (parseFloat(inst.getAttribute('start')) || 0);
+    const end   = endNode ? parseFloat(endNode.textContent) : (parseFloat(inst.getAttribute('end')) || 0);
     
     // 코드 노드 (code 또는 id 또는 Label 내의 Code)
     const codeNode = inst.querySelector('code') || inst.querySelector('id') || inst.querySelector('label[group="Code"] text') || inst.querySelector('label[group="code"] text');
-    let codeText = (codeNode ? codeNode.textContent : `Event_${i+1}`)
+    let codeText = (codeNode ? codeNode.textContent : (inst.getAttribute('code') || `Event_${i+1}`))
                     .replace(/HOME/g, homeTeam).replace(/AWAY/g, awayTeam);
     
     const labelNodes = inst.querySelectorAll('label');
@@ -97,8 +147,8 @@ function parseSportsCodeXML(xmlText, matchId, homeTeam, awayTeam) {
       const groupNode = labelNodes[j].querySelector('group');
       const textNode  = labelNodes[j].querySelector('text');
       
-      const group = groupNode ? groupNode.textContent : `Group_${j}`;
-      let text = textNode ? textNode.textContent : "";
+      const group = groupNode ? groupNode.textContent : (labelNodes[j].getAttribute('group') || `Group_${j}`);
+      let text = textNode ? textNode.textContent : (labelNodes[j].getAttribute('text') || "");
       text = text.replace(/HOME/g, homeTeam).replace(/AWAY/g, awayTeam);
       labels[group] = text;
     }
@@ -153,6 +203,43 @@ async function loadTournaments(tournamentSelect) {
   }
 }
 
+async function deleteMatchWithEvents(matchId, matchName) {
+  if (!confirm(`'${matchName}' 경기를 삭제하시겠습니까? 관련한 모든 분석 이벤트 데이터가 함께 영구 삭제됩니다.`)) return;
+  
+  try {
+    // 1. 해당 매치의 모든 이벤트 검색 및 삭제
+    const q = query(collection(db, 'Events'), where('match_id', '==', matchId));
+    const snapshot = await getDocs(q);
+    
+    if (!snapshot.empty) {
+      const batch = writeBatch(db);
+      snapshot.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+      console.log(`${snapshot.size}개의 하위 이벤트가 삭제되었습니다.`);
+    }
+
+    // 2. Matches 문서 삭제 (Sportsplay 내부용)
+    await deleteDoc(doc(db, 'Matches', matchId));
+    
+    // 3. 대시보드 연동용 'matches' 문서 삭제 시도 (videoMatchId 기반)
+    const qDash = query(collection(db, 'matches'), where('videoMatchId', '==', matchId));
+    const snapDash = await getDocs(qDash);
+    if (!snapDash.empty) {
+      const batchDash = writeBatch(db);
+      snapDash.forEach(d => batchDash.delete(d.ref));
+      await batchDash.commit();
+    }
+    
+    alert('경기가 성공적으로 삭제되었습니다.');
+    if (activeMatchId === matchId) setActiveMatch(null);
+    fetchAndRenderMatches();
+    fetchAndRenderEvents();
+  } catch(err) {
+    console.error('삭제 오류:', err);
+    alert('삭제 중 오류가 발생했습니다.');
+  }
+}
+
 async function fetchAndRenderMatches() {
   const matchesUl = document.getElementById('matches-ul');
   if(!matchesUl) return;
@@ -160,22 +247,35 @@ async function fetchAndRenderMatches() {
     const q = query(collection(db, 'Matches'), orderBy('created_at', 'desc'));
     const snapshot = await getDocs(q);
     matchesUl.innerHTML = '';
-    if(snapshot.empty) { matchesUl.innerHTML = '<li>아직 등록된 경기가 없습니다.</li>'; return; }
+    if(snapshot.empty) { matchesUl.innerHTML = '<li style="padding:10px;color:#888;">아직 등록된 경기가 없습니다.</li>'; return; }
+    
     snapshot.forEach(docSnap => {
       const data = docSnap.data();
       const li = document.createElement('li');
       li.className = 'match-item';
       li.innerHTML = `
         <div class="match-info">
-          <strong>${data.match_name}</strong>
-          <span>${data.match_date} (${data.home_team} vs ${data.away_team})</span>
+          <strong style="color:var(--accent); display:block;">${data.match_name}</strong>
+          <span style="font-size:0.8rem; color:#aaa;">${data.match_date || '날짜 미상'} (${data.home_team} vs ${data.away_team})</span>
         </div>
-        <div class="match-actions">
-          <button class="small-btn analyze-btn" title="비디오 분석">🎬</button>
-          <a href="/?matchId=${docSnap.id}" target="_blank" class="small-btn stats-btn" title="통계 대시보드">📊</a>
+        <div class="match-actions" style="display:flex; gap:4px;">
+          <button class="small-btn analyze-btn" title="비디오 분석 시작" style="background:#2ecc71;">🎬</button>
+          <button class="small-btn delete-match-btn" title="매치 삭제" style="background:#e74c3c;">🗑️</button>
         </div>
       `;
-      li.querySelector('.analyze-btn').addEventListener('click', () => loadMatchForAnalysis(docSnap.id, data));
+      
+      li.querySelector('.analyze-btn').addEventListener('click', () => {
+        loadMatchForAnalysis(docSnap.id, data);
+        // 분석 탭으로 자동 전환 (UX 개선)
+        const tabScenes = document.getElementById('tab-btn-scenes');
+        if(tabScenes) tabScenes.click();
+      });
+
+      li.querySelector('.delete-match-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteMatchWithEvents(docSnap.id, data.match_name);
+      });
+
       matchesUl.appendChild(li);
     });
   } catch(err) { console.error('Failed to load matches:', err); }
@@ -268,9 +368,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       const videoMatchId = videoMatchRef.id;
 
       const file = eventDataFile.files[0];
+      const isCSV = file.name.toLowerCase().endsWith('.csv');
+      
       // UTF-16 LE/BE BOM 감지 인코딩 처리
       const textData = await readFileWithEncoding(file);
-      const parsedEvents = parseSportsCodeXML(textData, videoMatchId, matchMetadata.home_team, matchMetadata.away_team);
+      
+      const parsedEvents = isCSV 
+        ? parseCSVEvents(textData, videoMatchId, matchMetadata.home_team, matchMetadata.away_team)
+        : parseSportsCodeXML(textData, videoMatchId, matchMetadata.home_team, matchMetadata.away_team);
 
       if(parsedEvents.length === 0) {
         alert('파싱된 이벤트가 없습니다. XML 포맷을 확인해주세요.');

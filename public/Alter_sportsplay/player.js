@@ -10,7 +10,7 @@ let currentPlaylistIndex = -1;
 let playingSingleClip = false;
 let checkTimeInterval = null;
 let currentClipEnd = 0;
-let activeCam = 1; // 현재 활성 카메라 (1/2/3)
+export let activeMatchId = null; // 현재 분석 중인 경기 ID
 let isPlayer2Ready = false;
 let isPlayer3Ready = false;
 
@@ -160,13 +160,22 @@ export function applyFiltersAndRender() {
   const searchText = searchInput ? searchInput.value.toLowerCase() : '';
   
   currentPlaylist = allEvents.filter(ev => {
-    // 코드, 라벨, 팀 텍스트 기반 통합 검색
+    // 1. 현재 선택된 경기(activeMatchId) 데이터만 표시 (격리)
+    if (activeMatchId && ev.match_id !== activeMatchId) return false;
+    
+    // 2. 검색어 필터링
     const rawSearchTarget = `${ev.code || ''} ${JSON.stringify(ev.labels || {})} ${ev.team || ''}`.toLowerCase();
     if (searchText && !rawSearchTarget.includes(searchText)) return false;
-    return true; /* Checkboxes can be added here later */
+    
+    return true;
   });
   
   renderCodeViewer(currentPlaylist);
+}
+
+export function setActiveMatch(matchId) {
+  activeMatchId = matchId;
+  applyFiltersAndRender();
 }
 
 export function updateCurrentPlaylist(newList) {
@@ -188,7 +197,7 @@ export function renderCodeViewer(events) {
     playOrganizerPlaylist(events);
   });
 
-  // --- Grouping by Code ---
+  // --- Grouping by Code (Sorted Alphabetically) ---
   const grouped = {};
   events.forEach((ev, idx) => {
     const code = ev.code || "Uncategorized";
@@ -196,7 +205,11 @@ export function renderCodeViewer(events) {
     grouped[code].push({ event: ev, playlistIndex: idx });
   });
 
-  for (const [code, items] of Object.entries(grouped)) {
+  // 가나다/알파벳 순으로 코드명 정렬
+  const sortedCodes = Object.keys(grouped).sort((a, b) => a.localeCompare(b, 'ko'));
+
+  for (const code of sortedCodes) {
+    const items = grouped[code];
     const groupLi = document.createElement('li');
     groupLi.className = 'event-group';
     groupLi.innerHTML = `

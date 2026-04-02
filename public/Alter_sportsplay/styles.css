@@ -420,6 +420,18 @@ input[type="color"] {
 }
 .canvas-container.draw-mode {
   pointer-events: auto !important; /* Draw Mode Active */
+  z-index: 1000 !important; /* 분석 시 유튜브 UI 간섭 방지 */
+}
+
+/* 드로잉 모드 활성화 시 하단 컨트롤바 간섭 최소화 */
+body.drawing-active .playback-controls {
+  opacity: 0.3;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+body.drawing-active .playback-controls:hover {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* --- Step 9 CSS: Advanced Clip Library & Playlist Modal --- */

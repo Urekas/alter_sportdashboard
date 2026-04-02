@@ -206,6 +206,7 @@ export function initDrawingBoard() {
     viewModeBtn?.addEventListener('click',()=>{
         currentMode='view'; canvas.isDrawingMode=false;
         document.querySelector('.canvas-container')?.classList.remove('draw-mode');
+        document.body.classList.remove('drawing-active');
         drawToolsEl?.classList.remove('active');
         viewModeBtn.classList.add('highlight');
         drawModeBtn?.classList.remove('highlight');
@@ -218,6 +219,7 @@ export function initDrawingBoard() {
         pausePlayer();
         currentMode='draw';
         document.querySelector('.canvas-container')?.classList.add('draw-mode');
+        document.body.classList.add('drawing-active');
         drawToolsEl?.classList.add('active');
         drawModeBtn.classList.add('highlight');
         viewModeBtn?.classList.remove('highlight');
