@@ -15,8 +15,8 @@ let isPlayer2Ready = false;
 let isPlayer3Ready = false;
 
 const playPauseBtn = document.getElementById('play-pause-btn');
-const speedBtn = document.getElementById('speed-btn');
-const eventsUl = document.getElementById('events-ul');
+const speedBtn     = document.getElementById('speed-btn');
+const eventsUl     = document.getElementById('events-ul') || document.createElement('ul');
 
 // 1. YouTube IFrame API Initialization (3 players)
 export function initPlayer() {
@@ -342,32 +342,24 @@ function highlightActiveItem(index) {
   }
 }
 
-playPauseBtn.addEventListener('click', () => {
+playPauseBtn?.addEventListener('click', () => {
   if (!isPlayerReady) return;
   const state = player.getPlayerState();
-  if (state === YT.PlayerState.PLAYING) {
-    player.pauseVideo();
-  } else {
-    player.playVideo();
-  }
+  if (state === YT.PlayerState.PLAYING) player.pauseVideo(); else player.playVideo();
 });
 
 let currentSpeed = 1;
-speedBtn.addEventListener('click', () => {
+speedBtn?.addEventListener('click', () => {
   if (!isPlayerReady) return;
-  // 1x -> 1.5x -> 2x -> 0.5x 로테이션
   currentSpeed = currentSpeed === 1 ? 1.5 : (currentSpeed === 1.5 ? 2 : (currentSpeed === 2 ? 0.5 : 1));
   player.setPlaybackRate(currentSpeed);
-  speedBtn.textContent = `${currentSpeed}x 배속`;
+  if(speedBtn) speedBtn.textContent = `${currentSpeed}x 배속`;
 });
 
-// 타임라인 수동 스크러빙 (유저가 직접 막대를 조정할 때 반영)
 const timelineInput = document.getElementById('timeline');
-timelineInput.addEventListener('input', (e) => {
+timelineInput?.addEventListener('input', (e) => {
   if (!isPlayerReady || !player.getDuration) return;
   const duration = player.getDuration();
-  if (duration > 0) {
-    const seekTime = (e.target.value / 100) * duration;
-    player.seekTo(seekTime, true);
-  }
+  if (duration > 0) player.seekTo((e.target.value / 100) * duration, true);
 });
+
