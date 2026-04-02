@@ -55,20 +55,9 @@ export async function initLibrary() {
 }
 
 function setupTabs() {
-    tabBtnLibrary.addEventListener('click', () => {
-        tabBtnLibrary.classList.add('active');
-        tabBtnAdmin.classList.remove('active');
-        tabLibrary.style.display = 'flex';
-        tabAdmin.style.display = 'none';
-    });
-
-    tabBtnAdmin.addEventListener('click', () => {
-        tabBtnAdmin.classList.add('active');
-        tabBtnLibrary.classList.remove('active');
-        tabAdmin.style.display = 'block';
-        tabLibrary.style.display = 'none';
-    });
+    // 탭 전환은 index.html 인라인 스크립트에서 처리 (모듈 로딩 순서 독립)
 }
+
 
 async function fetchMatches() {
     try {

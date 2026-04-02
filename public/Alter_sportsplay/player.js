@@ -75,9 +75,11 @@ function switchCam(n) {
 
 function onPlayerReady(event) {
   isPlayerReady = true;
+  window._p1Ready = true;
   window._activeSportsplayPlayer = player; // 기본 활성 플레이어 = cam1
   console.log("YouTube Player 1 is ready.");
 }
+
 
 function onPlayerStateChange(event) {
   // YT.PlayerState.PLAYING = 1, PAUSED = 2

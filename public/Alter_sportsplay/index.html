@@ -264,19 +264,79 @@
   <script type="module" src="app.js"></script>
 
   <script>
-    // 우측 패널 탭 전환
-    document.getElementById('tab-btn-scenes')?.addEventListener('click',()=>{
-      document.querySelectorAll('.right-tab-btn').forEach(b=>b.classList.remove('active'));
-      document.querySelectorAll('.right-tab-content').forEach(c=>c.classList.remove('active'));
-      document.getElementById('tab-btn-scenes').classList.add('active');
-      document.getElementById('right-tab-scenes').classList.add('active');
-    });
-    document.getElementById('tab-btn-events')?.addEventListener('click',()=>{
-      document.querySelectorAll('.right-tab-btn').forEach(b=>b.classList.remove('active'));
-      document.querySelectorAll('.right-tab-content').forEach(c=>c.classList.remove('active'));
-      document.getElementById('tab-btn-events').classList.add('active');
-      document.getElementById('right-tab-events').classList.add('active');
+    // ============================================================
+    // UI 토글: 모듈 로딩과 무관하게 직접 처리
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', function () {
+
+      // ── 좌측 패널 탭 (Library / Admin & List) ──
+      const tabBtnLibrary = document.getElementById('tab-btn-library');
+      const tabBtnAdmin   = document.getElementById('tab-btn-admin');
+      const tabLibrary    = document.getElementById('tab-library');
+      const tabAdmin      = document.getElementById('tab-admin');
+
+      function showLibraryTab() {
+        tabBtnLibrary.classList.add('active');
+        tabBtnAdmin.classList.remove('active');
+        tabLibrary.style.display = 'flex';
+        tabAdmin.style.display   = 'none';
+      }
+      function showAdminTab() {
+        tabBtnAdmin.classList.add('active');
+        tabBtnLibrary.classList.remove('active');
+        tabAdmin.style.display   = 'block';
+        tabLibrary.style.display = 'none';
+      }
+
+      tabBtnLibrary?.addEventListener('click', showLibraryTab);
+      tabBtnAdmin?.addEventListener('click', showAdminTab);
+
+      // ── 좌측 패널 접기/펴기 ──
+      const body       = document.body;
+      const toggleLeft = document.getElementById('toggle-left-btn');
+      const showLeft   = document.getElementById('show-left-btn');
+
+      function toggleLeftPanel() {
+        body.classList.toggle('hide-left');
+        if (body.classList.contains('hide-left')) {
+          showLeft?.classList.remove('hidden');
+        } else {
+          showLeft?.classList.add('hidden');
+        }
+      }
+      toggleLeft?.addEventListener('click', toggleLeftPanel);
+      showLeft?.addEventListener('click', toggleLeftPanel);
+
+      // ── 우측 패널 접기/펴기 ──
+      const toggleRight = document.getElementById('toggle-right-btn');
+      const showRight   = document.getElementById('show-right-btn');
+
+      function toggleRightPanel() {
+        body.classList.toggle('hide-right');
+        if (body.classList.contains('hide-right')) {
+          showRight?.classList.remove('hidden');
+        } else {
+          showRight?.classList.add('hidden');
+        }
+      }
+      toggleRight?.addEventListener('click', toggleRightPanel);
+      showRight?.addEventListener('click', toggleRightPanel);
+
+      // ── 우측 패널 탭 (Scenes / Events) ──
+      document.getElementById('tab-btn-scenes')?.addEventListener('click', function () {
+        document.querySelectorAll('.right-tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.right-tab-content').forEach(c => c.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('right-tab-scenes')?.classList.add('active');
+      });
+      document.getElementById('tab-btn-events')?.addEventListener('click', function () {
+        document.querySelectorAll('.right-tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.right-tab-content').forEach(c => c.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('right-tab-events')?.classList.add('active');
+      });
     });
   </script>
+
 </body>
 </html>
