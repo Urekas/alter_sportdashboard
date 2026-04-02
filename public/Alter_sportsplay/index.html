@@ -6,191 +6,252 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+  <style>
+    /* 우측 패널 탭 */
+    .right-tabs { display:flex; border-bottom:1px solid var(--border-color); background:var(--bg-dark); flex-shrink:0; }
+    .right-tab-btn { flex:1; padding:10px 5px; background:none; border:none; color:#888; cursor:pointer; font-size:0.8rem; font-family:inherit; transition:0.2s; }
+    .right-tab-btn:hover { color:#ccc; }
+    .right-tab-btn.active { color:var(--accent); border-bottom:2px solid var(--accent); background:#1e1e2f; }
+    .right-tab-content { display:none; flex:1; overflow-y:auto; }
+    .right-tab-content.active { display:block; }
+    /* 색상 팔레트 */
+    .color-palette { display:flex; align-items:center; gap:6px; margin:0 4px; }
+    .color-dot { width:22px; height:22px; border-radius:50%; cursor:pointer; border:2px solid transparent; transition:transform 0.15s; flex-shrink:0; position:relative; overflow:hidden; }
+    .color-dot:hover { transform:scale(1.15); }
+    .color-dot.selected { border-color:#fff; box-shadow:0 0 0 2px var(--bg-dark); transform:scale(1.15); }
+    .dot-custom-input { opacity:0; position:absolute; inset:0; cursor:pointer; width:100%; height:100%; }
+    /* 완료 버튼 */
+    #tool-finish { display:none; color:#2ecc71; border-color:#2ecc71 !important; animation:finishPulse 0.5s; }
+    @keyframes finishPulse { from{transform:scale(0.8);opacity:0;} to{transform:scale(1);opacity:1;} }
+    #tool-finish.show { display:inline-flex !important; }
+    /* scene list */
+    #scene-list-ul { list-style:none; margin:0; padding:0; }
+    #scene-list-ul li:hover { background:rgba(255,255,255,0.03); }
+  </style>
 </head>
 <body>
-  <!-- 좌측 패널 (Explorer + Admin) -->
+  <!-- 좌측 패널 -->
   <aside id="left-panel" class="panel">
     <div class="panel-header">
       <h2>Explorer</h2>
       <button id="toggle-left-btn" class="toggle-btn" title="패널 숨기기">◄</button>
     </div>
-    
-    <!-- Step 9: Left Panel Tabs -->
+
     <div class="tab-headers">
       <button class="tab-btn active" id="tab-btn-library">Library</button>
-      <button class="tab-btn" id="tab-btn-admin">Admin & List</button>
+      <button class="tab-btn" id="tab-btn-admin">Admin &amp; List</button>
     </div>
-    
+
     <!-- Library Tab -->
-    <div id="tab-library" class="tab-content active" style="padding: 10px; display: flex; flex-direction: column; overflow-y: auto; height: calc(100% - 85px);">
-      <h3 style="margin-bottom:10px; border-bottom:1px solid #334; padding-bottom:5px;">클립 라이브러리 (필터)</h3>
-      <div class="library-filters" style="display:flex; flex-direction:column; gap:8px; margin-bottom: 10px;">
+    <div id="tab-library" class="tab-content active" style="padding:10px;display:flex;flex-direction:column;overflow-y:auto;height:calc(100% - 85px);">
+      <h3 style="margin-bottom:10px;border-bottom:1px solid #334;padding-bottom:5px;">클립 라이브러리 (필터)</h3>
+      <div class="library-filters" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
         <select id="filter-competition"><option value="">모든 경기 (Match)</option></select>
         <select id="filter-team"><option value="">모든 팀 (Team)</option></select>
-        <div style="max-height: 120px; overflow-y: auto; background: var(--bg-dark); border: 1px solid var(--border-color); padding: 5px; border-radius: 4px;" id="filter-code-container">
-            <!-- 코드는 체크박스 멀티셀렉트로 주입됨 -->
-            <label style="color:#888; font-size: 0.8em;">검색 대기중...</label>
+        <div style="max-height:120px;overflow-y:auto;background:var(--bg-dark);border:1px solid var(--border-color);padding:5px;border-radius:4px;" id="filter-code-container">
+          <label style="color:#888;font-size:0.8em;">검색 대기중...</label>
         </div>
       </div>
-      <div style="display:flex; gap:5px; margin-bottom: 10px;">
-        <button id="btn-select-all" class="secondary-btn" style="flex:1; font-size:0.75rem; padding:5px;">Check All (전체 선택)</button>
-        <button id="btn-deselect-all" class="secondary-btn" style="flex:1; font-size:0.75rem; padding:5px;">Clear All (전체 해제)</button>
+      <div style="display:flex;gap:5px;margin-bottom:10px;">
+        <button id="btn-select-all" class="secondary-btn" style="flex:1;font-size:0.75rem;padding:5px;">Check All (전체 선택)</button>
+        <button id="btn-deselect-all" class="secondary-btn" style="flex:1;font-size:0.75rem;padding:5px;">Clear All (전체 해제)</button>
       </div>
-      <div style="display:flex; gap:5px; margin-bottom:10px;">
-        <button id="btn-create-playlist" class="primary-btn" style="flex:3; background-color: #4caf50; display: none;">🛒 <span id="cart-count">0</span> Playlist 생성</button>
-        <button id="btn-batch-capture" class="primary-btn" style="flex:2; background-color: #e67e22; display: none;" title="선택된 클립들을 고화질 시퀀스 영상으로 추출">🎬 선택 캡처</button>
+      <div style="display:flex;gap:5px;margin-bottom:10px;">
+        <button id="btn-create-playlist" class="primary-btn" style="flex:3;background-color:#4caf50;display:none;">🛒 <span id="cart-count">0</span> Playlist 생성</button>
+        <button id="btn-batch-capture" class="primary-btn" style="flex:2;background-color:#e67e22;display:none;" title="선택된 클립들을 고화질 시퀀스 영상으로 추출">🎬 선택 캡처</button>
       </div>
-      
-      <div class="library-results" style="flex: 1; overflow-y: auto; border-top: 1px solid var(--border-color); padding-top: 10px;">
-         <ul id="library-results-ul" class="list-container">
-           <li style="color: var(--text-muted); font-size: 0.9em;">위젯 로딩중...</li>
-         </ul>
+      <div class="library-results" style="flex:1;overflow-y:auto;border-top:1px solid var(--border-color);padding-top:10px;">
+        <ul id="library-results-ul" class="list-container">
+          <li style="color:var(--text-muted);font-size:0.9em;">위젯 로딩중...</li>
+        </ul>
       </div>
     </div>
-    
+
     <!-- Admin Tab -->
-    <div id="tab-admin" class="tab-content" style="display:none; padding:10px; overflow-y:auto; height: calc(100% - 85px);">
+    <div id="tab-admin" class="tab-content" style="display:none;padding:10px;overflow-y:auto;height:calc(100% - 85px);">
       <div class="admin-section">
-      <h3>Admin: 매치 등록</h3>
-      <form id="match-form">
-        <label>연동할 대회: 
-          <select id="match-tournament-select" required>
-            <option value="">대회 Loading...</option>
-          </select>
-          <input type="text" id="new-tournament-name" placeholder="새 대회 이름 입력 (엔터 제외)" style="display: none; margin-top: 5px;">
-        </label>
-        <label>대회명/경기명: <input type="text" id="match-name" required placeholder="예: 아시안게임 결승"></label>
-        <label>경기 날짜: <input type="date" id="match-date" required></label>
-        <label>홈 팀 (텍스트 교체용): <input type="text" id="home-team" required placeholder="예: KOR"></label>
-        <label>어웨이 팀 (텍스트 교체용): <input type="text" id="away-team" required placeholder="예: JPN"></label>
-        <label>전술캠 URL (YouTube): <input type="url" id="tactical-url"></label>
-        <label>전술캠 Offset (초): <input type="number" step="0.1" id="tactical-offset" value="0.0"></label>
-        <label>중계캠 URL (YouTube): <input type="url" id="broadcast-url"></label>
-        <label>중계캠 Offset (초): <input type="number" step="0.1" id="broadcast-offset" value="0.0"></label>
-        <label>XML/CSV 데이터 (자동 파싱용): <input type="file" id="event-data-file" accept=".xml,.csv"></label>
-        <button type="submit" class="primary-btn">경기 등록 및 파싱</button>
-      </form>
-    </div>
-
-    <!-- DB에서 불러올 경기 목록 -->
-    <div class="match-list">
-      <h3>경기 목록</h3>
-      <input type="text" placeholder="경기 검색..." id="search-match">
-      <ul id="matches-ul" class="list-container">
-        <!-- JS 렌더링 영역 -->
-        <li style="color: var(--text-muted); font-size: 0.9em;">아직 등록된 경기가 없습니다.</li>
-      </ul>
-    </div>
-
-    <!-- Step 9: 저장된 플레이리스트 목록 -->
-    <div class="playlist-list" style="padding: 20px; border-top: 1px solid var(--border-color);">
-      <h3 style="color: var(--accent);">저장된 플레이리스트</h3>
-      <ul id="playlists-ul" class="list-container">
-        <li style="color: var(--text-muted); font-size: 0.9em;">저장된 플레이리스트가 없습니다.</li>
-      </ul>
-    </div>
-    </div>
+        <h3>Admin: 매치 등록</h3>
+        <form id="match-form">
+          <label>연동할 대회:
+            <select id="match-tournament-select" required>
+              <option value="">대회 Loading...</option>
+            </select>
+            <input type="text" id="new-tournament-name" placeholder="새 대회 이름 입력" style="display:none;margin-top:5px;">
+          </label>
+          <label>대회명/경기명: <input type="text" id="match-name" required placeholder="예: 아시안게임 결승"></label>
+          <label>경기 날짜: <input type="date" id="match-date" required></label>
+          <label>홈 팀: <input type="text" id="home-team" required placeholder="예: KOR"></label>
+          <label>어웨이 팀: <input type="text" id="away-team" required placeholder="예: JPN"></label>
+          <label>전술캠1 URL (YouTube): <input type="url" id="tactical-url"></label>
+          <label>전술캠1 Offset (초): <input type="number" step="0.1" id="tactical-offset" value="0.0"></label>
+          <label>전술캠2 URL (YouTube): <input type="url" id="tactical-url-2"></label>
+          <label>전술캠2 Offset (초): <input type="number" step="0.1" id="tactical-offset-2" value="0.0"></label>
+          <label>중계캠 URL (YouTube): <input type="url" id="broadcast-url"></label>
+          <label>중계캠 Offset (초): <input type="number" step="0.1" id="broadcast-offset" value="0.0"></label>
+          <label>XML/CSV 데이터: <input type="file" id="event-data-file" accept=".xml,.csv"></label>
+          <button type="submit" class="primary-btn">경기 등록 및 파싱</button>
+        </form>
+      </div>
+      <div class="match-list">
+        <h3>경기 목록</h3>
+        <input type="text" placeholder="경기 검색..." id="search-match">
+        <ul id="matches-ul" class="list-container">
+          <li style="color:var(--text-muted);font-size:0.9em;">아직 등록된 경기가 없습니다.</li>
+        </ul>
+      </div>
+      <div class="playlist-list" style="padding:20px;border-top:1px solid var(--border-color);">
+        <h3 style="color:var(--accent);">저장된 플레이리스트</h3>
+        <ul id="playlists-ul" class="list-container">
+          <li style="color:var(--text-muted);font-size:0.9em;">저장된 플레이리스트가 없습니다.</li>
+        </ul>
+      </div>
     </div>
   </aside>
 
-  <!-- 중앙 메인 (Workspace) -->
+  <!-- 중앙 메인 -->
   <main id="main-panel">
     <div class="workspace-header">
       <button id="show-left-btn" class="show-btn hidden" title="Explorer 표시">► Explorer</button>
       <h1>Workspace</h1>
-      <a href="/" class="primary-btn" style="background-color: var(--accent); margin-left: 15px; text-decoration: none; font-size: 0.8rem; display: flex; align-items: center; gap: 5px;">
+      <a href="/" class="primary-btn" style="background-color:var(--accent);margin-left:15px;text-decoration:none;font-size:0.8rem;display:flex;align-items:center;gap:5px;">
         <i class="fa-solid fa-house"></i> 대시보드 홈
       </a>
-      <div class="camera-toggles" style="display:flex; gap:10px; margin-left: 20px;">
-          <button id="cam1-btn" class="primary-btn active" style="padding: 5px 15px;">전술캠 (Cam 1)</button>
-          <button id="cam2-btn" class="primary-btn" style="padding: 5px 15px; background-color: #444;">중계캠 (Cam 2)</button>
+      <div class="camera-toggles" style="display:flex;gap:6px;margin-left:20px;">
+        <button id="cam1-btn" class="primary-btn active" style="padding:5px 12px;font-size:0.8rem;">전술캠1</button>
+        <button id="cam2-btn" class="primary-btn" style="padding:5px 12px;font-size:0.8rem;background:#444;">전술캠2</button>
+        <button id="cam3-btn" class="primary-btn" style="padding:5px 12px;font-size:0.8rem;background:#444;">중계캠</button>
       </div>
-      <button id="show-right-btn" class="show-btn hidden" style="margin-left: auto;" title="Code Viewer 표시">Code Viewer ◄</button>
+      <button id="show-right-btn" class="show-btn hidden" style="margin-left:auto;" title="Code Viewer 표시">Code Viewer ◄</button>
     </div>
-    <div class="video-container" id="video-container" style="position: relative;">
-      <div id="player-wrapper-1" class="player-wrapper active" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; transition: opacity 0.2s;"><div id="youtube-player-1" style="width:100%; height:100%;"></div></div>
-      <div id="player-wrapper-2" class="player-wrapper" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0; pointer-events: none; transition: opacity 0.2s;"><div id="youtube-player-2" style="width:100%; height:100%;"></div></div>
+    <div class="video-container" id="video-container" style="position:relative;">
+      <div id="player-wrapper-1" class="player-wrapper active" style="position:absolute;width:100%;height:100%;top:0;left:0;transition:opacity 0.2s;">
+        <div id="youtube-player-1" style="width:100%;height:100%;"></div>
+      </div>
+      <div id="player-wrapper-2" class="player-wrapper" style="position:absolute;width:100%;height:100%;top:0;left:0;opacity:0;pointer-events:none;transition:opacity 0.2s;">
+        <div id="youtube-player-2" style="width:100%;height:100%;"></div>
+      </div>
+      <div id="player-wrapper-3" class="player-wrapper" style="position:absolute;width:100%;height:100%;top:0;left:0;opacity:0;pointer-events:none;transition:opacity 0.2s;">
+        <div id="youtube-player-3" style="width:100%;height:100%;"></div>
+      </div>
       <canvas id="drawing-canvas"></canvas>
     </div>
   </main>
 
-  <!-- 우측 패널 (Code Viewer) -->
+  <!-- 우측 패널 -->
   <aside id="right-panel" class="panel">
     <div class="panel-header">
       <button id="toggle-right-btn" class="toggle-btn" title="패널 숨기기">►</button>
-      <h2>Code Viewer</h2>
+      <h2>Viewer</h2>
     </div>
-    <!-- Code Viewer Tools -->
-    <div class="code-tools">
-      <input type="text" id="event-search" placeholder="🔍 이벤트 검색 (코드/라벨)...">
+
+    <!-- 탭 헤더 -->
+    <div class="right-tabs">
+      <button class="right-tab-btn active" id="tab-btn-scenes"><i class="fa-solid fa-images"></i> Scenes</button>
+      <button class="right-tab-btn" id="tab-btn-events"><i class="fa-solid fa-list"></i> Events</button>
     </div>
-    <div class="event-list">
-      <ul id="events-ul" class="list-container">
-        <!-- 이벤트 코드 파싱 렌더링 영역 -->
-        <li style="color: var(--text-muted); font-size: 0.9em;">이벤트 데이터가 없습니다.</li>
+
+    <!-- Scenes 탭 -->
+    <div class="right-tab-content active" id="right-tab-scenes" style="padding:5px;">
+      <ul id="scene-list-ul" class="list-container" style="padding:5px;">
+        <li style="color:var(--text-muted);font-size:0.9em;padding:10px;">저장된 장면 없음<br><small>💾 저장 버튼으로 추가하세요</small></li>
       </ul>
+    </div>
+
+    <!-- Events 탭 -->
+    <div class="right-tab-content" id="right-tab-events">
+      <div class="code-tools">
+        <input type="text" id="event-search" placeholder="🔍 이벤트 검색 (코드/라벨)...">
+      </div>
+      <div class="event-list">
+        <ul id="events-ul" class="list-container">
+          <li style="color:var(--text-muted);font-size:0.9em;">이벤트 데이터가 없습니다.</li>
+        </ul>
+      </div>
     </div>
   </aside>
 
-  <!-- 하단 패널 (Controller) -->
+  <!-- 하단 패널 -->
   <footer id="bottom-panel">
     <div class="controls playback-controls">
       <button id="play-pause-btn" class="control-btn">▶️ 재생/정지</button>
       <button id="speed-btn" class="control-btn">1x 배속</button>
       <input type="range" id="timeline" min="0" max="100" value="0">
     </div>
-    
+
     <div class="controls drawing-controls">
       <button id="view-mode-btn" class="control-btn highlight">👀 시청</button>
       <button id="draw-mode-btn" class="control-btn">✏️ 그리기</button>
-      
+
       <span class="draw-tools">
         <!-- 기본 도구 -->
-        <button id="tool-select" class="control-btn" title="선택 (Pointer)"><i class="fa-solid fa-arrow-pointer"></i></button>
-        <button id="tool-freedraw" class="control-btn highlight" title="자유 곡선 (Freehand)"><i class="fa-solid fa-pen"></i></button>
-        <button id="tool-text" class="control-btn" title="텍스트 입력 (Text)"><i class="fa-solid fa-font"></i></button>
-        <button id="tool-playertag" class="control-btn" title="선수 태그 (Player Tag)"><i class="fa-solid fa-user-tag"></i></button>
-        <button id="tool-highlight" class="control-btn" title="하이라이트 (Spotlight)"><i class="fa-regular fa-circle-dot"></i></button>
+        <button id="tool-select" class="control-btn" title="선택 (S)"><i class="fa-solid fa-arrow-pointer"></i></button>
+        <button id="tool-freedraw" class="control-btn highlight" title="자유 펜 (P)"><i class="fa-solid fa-pen"></i></button>
+        <button id="tool-text" class="control-btn" title="텍스트 (T)"><i class="fa-solid fa-font"></i></button>
+        <button id="tool-playertag" class="control-btn" title="선수 태그"><i class="fa-solid fa-tag"></i></button>
+        <button id="tool-highlight" class="control-btn" title="하이라이트 Spot (H)"><i class="fa-regular fa-circle"></i></button>
 
-        <!-- 선/도형 도구 -->
-        <button id="tool-arrow" class="control-btn" title="점선 화살표 (Dashed Arrow)"><i class="fa-solid fa-arrow-right-long"></i></button>
-        <button id="tool-curve" class="control-btn" title="곡선 화살표 (Curved Arrow)"><i class="fa-solid fa-reply"></i></button>
-        <button id="tool-polyline" class="control-btn" title="다중 선 (Polyline)"><i class="fa-solid fa-project-diagram"></i></button>
-        <button id="tool-polygon" class="control-btn" title="다각형 (Polygon)"><i class="fa-solid fa-draw-polygon"></i></button>
+        <!-- 선/도형 -->
+        <button id="tool-arrow" class="control-btn" title="화살표 (A)"><i class="fa-solid fa-arrow-right-long"></i></button>
+        <button id="tool-curve" class="control-btn" title="곡선 화살표 (C)"><i class="fa-solid fa-arrow-turn-up"></i></button>
+        <button id="tool-polyline" class="control-btn" title="다중 선 (L)"><i class="fa-solid fa-share-nodes"></i></button>
+        <button id="tool-polygon" class="control-btn" title="다각형 (G)"><i class="fa-solid fa-draw-polygon"></i></button>
+        <!-- 완료 버튼 (polyline/polygon 중에만 표시) -->
+        <button id="tool-finish" class="control-btn" title="도형 완성 (더블클릭도 가능)"><i class="fa-solid fa-check"></i></button>
 
-        <!-- 제어 및 액션 -->
-        <input type="color" id="tool-color" value="#ff2a2a" title="색상 (Color)">
-        <button id="tool-delete" class="control-btn" title="선택 객체 지우기 (Delete)"><i class="fa-solid fa-eraser"></i></button>
-        <button id="tool-undo" class="control-btn" title="실행 취소 (Undo)"><i class="fa-solid fa-rotate-left"></i></button>
-        <button id="tool-clear" class="control-btn" title="전체 지우기 (Clear All)"><i class="fa-solid fa-trash-can"></i></button>
-        
+        <!-- 색상 팔레트 -->
+        <div class="color-palette">
+          <div class="color-dot selected" data-color="#ffffff" style="background:#fff;" title="흰색"></div>
+          <div class="color-dot" data-color="#e63946" style="background:#e63946;" title="빨강"></div>
+          <div class="color-dot" data-color="#ffbe0b" style="background:#ffbe0b;" title="노랑"></div>
+          <div class="color-dot" data-color="#3a86ff" style="background:#3a86ff;" title="파랑"></div>
+          <div class="color-dot" data-color="#2ecc71" style="background:#2ecc71;" title="초록"></div>
+          <div class="color-dot" data-color="#000000" style="background:#000;border:1px solid #555;" title="검정"></div>
+          <!-- 커스텀 색상 1 -->
+          <div class="color-dot" style="background:linear-gradient(135deg,#eee,#999);" title="커스텀 색상1">
+            <input type="color" class="dot-custom-input" title="커스텀 색상 선택">
+          </div>
+          <!-- 커스텀 색상 2 -->
+          <div class="color-dot" style="background:linear-gradient(135deg,#f90,#c00);" title="커스텀 색상2">
+            <input type="color" class="dot-custom-input" title="커스텀 색상 선택">
+          </div>
+          <!-- 색상 직접 입력 -->
+          <input type="color" id="tool-color" value="#ffffff" title="색상" style="width:22px;height:22px;border:none;background:none;cursor:pointer;padding:0;">
+        </div>
+
+        <!-- 속성 -->
         <div class="separator"></div>
-        <!-- tacticalboard style property controls -->
-        <div class="prop-group" style="display:flex; align-items:center; gap:8px; margin: 0 10px;">
+        <div class="prop-group" style="display:flex;align-items:center;gap:6px;margin:0 6px;">
           <button id="tool-dash" class="control-btn" title="점선 토글"><i class="fa-solid fa-ellipsis"></i></button>
-          <div class="slider-container" style="display:flex; align-items:center; gap:5px; color:#aaa; font-size:0.7rem;">
+          <button id="tool-nodemode" class="control-btn" title="노드 모드 (Spot/Point 전환)"><i class="fa-solid fa-circle-nodes"></i></button>
+          <button id="tool-palm" class="control-btn" title="팜 리젝션 (펜 전용)"><i class="fa-solid fa-hand-pointer"></i></button>
+          <div class="slider-container" style="display:flex;align-items:center;gap:4px;color:#aaa;font-size:0.7rem;">
             <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
             <input type="range" id="tool-size" min="5" max="100" value="40" style="width:60px;">
           </div>
-          <div class="slider-container" style="display:flex; align-items:center; gap:5px; color:#aaa; font-size:0.7rem;">
+          <div class="slider-container" style="display:flex;align-items:center;gap:4px;color:#aaa;font-size:0.7rem;">
             <i class="fa-solid fa-circle-half-stroke"></i>
             <input type="range" id="tool-opacity" min="0" max="100" value="20" style="width:60px;">
           </div>
         </div>
 
+        <!-- 액션 -->
         <div class="separator"></div>
-        <button id="tool-save" class="control-btn" title="DB 저장 (Save)" style="color:#4caf50;"><i class="fa-solid fa-floppy-disk"></i> 저장</button>
-        <button id="tool-capture" class="control-btn" title="스냅샷 캡처 (Capture)"><i class="fa-solid fa-camera"></i> 캡처</button>
-        <button id="tool-record" class="control-btn action-record" title="영상 추출 (Record)"><i class="fa-solid fa-video"></i> 영상 추출</button>
+        <button id="tool-delete" class="control-btn" title="선택 삭제 (Delete)"><i class="fa-solid fa-trash"></i></button>
+        <button id="tool-undo" class="control-btn" title="되돌리기"><i class="fa-solid fa-rotate-left"></i></button>
+        <button id="tool-clear" class="control-btn" title="전체 지우기"><i class="fa-solid fa-eraser"></i></button>
+        <div class="separator"></div>
+        <button id="tool-save" class="control-btn" title="장면 저장 (우측 목록에 추가)" style="color:#4caf50;"><i class="fa-solid fa-floppy-disk"></i> 저장</button>
+        <button id="tool-capture" class="control-btn" title="스냅샷 캡처"><i class="fa-solid fa-camera"></i> 캡처</button>
+        <button id="tool-record" class="control-btn action-record" title="저장된 장면으로 영상 추출"><i class="fa-solid fa-clapperboard"></i> 영상 추출</button>
       </span>
     </div>
   </footer>
-  
-  <!-- Step 9: Playlist Modal -->
+
+  <!-- Playlist Modal -->
   <div id="playlist-modal" class="modal-overlay">
     <div class="modal-content">
       <h3>새 플레이리스트 만들기</h3>
-      <p style="color:var(--text-muted); font-size:0.9rem;">선택된 <strong id="modal-cart-count" style="color:var(--accent);">0</strong>개의 클립 그룹 저장</p>
+      <p style="color:var(--text-muted);font-size:0.9rem;">선택된 <strong id="modal-cart-count" style="color:var(--accent);">0</strong>개의 클립 그룹 저장</p>
       <input type="text" id="playlist-title" placeholder="플레이리스트 제목 입력" autofocus>
       <div class="modal-actions">
         <button id="modal-btn-cancel" class="btn-cancel">취소</button>
@@ -199,8 +260,23 @@
     </div>
   </div>
 
-  <!-- 스크립트 모듈 로드 -->
   <script type="module" src="firebase-config.js"></script>
   <script type="module" src="app.js"></script>
+
+  <script>
+    // 우측 패널 탭 전환
+    document.getElementById('tab-btn-scenes')?.addEventListener('click',()=>{
+      document.querySelectorAll('.right-tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.right-tab-content').forEach(c=>c.classList.remove('active'));
+      document.getElementById('tab-btn-scenes').classList.add('active');
+      document.getElementById('right-tab-scenes').classList.add('active');
+    });
+    document.getElementById('tab-btn-events')?.addEventListener('click',()=>{
+      document.querySelectorAll('.right-tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.right-tab-content').forEach(c=>c.classList.remove('active'));
+      document.getElementById('tab-btn-events').classList.add('active');
+      document.getElementById('right-tab-events').classList.add('active');
+    });
+  </script>
 </body>
 </html>

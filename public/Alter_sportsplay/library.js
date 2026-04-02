@@ -35,13 +35,23 @@ export async function initLibrary() {
     setupModals();
     setupSelectionControls();
     
-    // Listen for custom event or give a small delay to ensure allEvents is loaded
-    // Since app.js calls fetchAndRenderEvents, we wait for it.
-    setTimeout(() => {
-        populateFilters();
-        applyLibraryFilters();
-        fetchAndRenderPlaylists();
-    }, 1500); // 1.5s delay to assure allEvents is fetched. More robust way would be a Promise or event dispatcher.
+    // allEvents 로드 대기 (최대 5초, 폴백 포함)
+    let waited = 0;
+    const waitForEvents = setInterval(() => {
+        waited += 500;
+        if (allEvents && allEvents.length > 0) {
+            clearInterval(waitForEvents);
+            populateFilters();
+            applyLibraryFilters();
+            fetchAndRenderPlaylists();
+        } else if (waited >= 5000) {
+            clearInterval(waitForEvents);
+            // 5초 후에도 데이터 없으면 폴백
+            libraryResultsUl.innerHTML = '<li style="color:var(--text-muted);font-size:0.9em;padding:10px;">등록된 이벤트가 없습니다.<br><small>Admin 탭에서 경기를 먼저 등록하세요.</small></li>';
+            filterCodeContainer.innerHTML = '<label style="color:#888;font-size:0.8em;">데이터 없음</label>';
+            fetchAndRenderPlaylists();
+        }
+    }, 500);
 }
 
 function setupTabs() {

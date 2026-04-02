@@ -92,11 +92,13 @@ matchForm.addEventListener('submit', async (e) => {
     away_team: document.getElementById('away-team').value,
     tournament_id: tournamentId,
     video_urls: {
-      tactical_cam: document.getElementById('tactical-url').value,
+      tactical_cam1: document.getElementById('tactical-url').value,
+      tactical_cam2: document.getElementById('tactical-url-2').value,
       broadcast_cam: document.getElementById('broadcast-url').value
     },
     video_offsets: {
-      tactical_cam: parseFloat(document.getElementById('tactical-offset').value) || 0,
+      tactical_cam1: parseFloat(document.getElementById('tactical-offset').value) || 0,
+      tactical_cam2: parseFloat(document.getElementById('tactical-offset-2').value) || 0,
       broadcast_cam: parseFloat(document.getElementById('broadcast-offset').value) || 0
     },
     rosters: { home: [], away: [] },
@@ -282,38 +284,43 @@ export function extractVideoId(url) {
 
 export function loadMatchForAnalysis(matchId, matchData) {
     console.log(`Loading match for analysis: ${matchData.match_name}`);
-    
-    // 1. YouTube 비디오 ID 추출 (tactical_cam 우선)
-    const url = matchData.video_urls?.tactical_cam || matchData.video_urls?.broadcast_cam;
-    const videoId = extractVideoId(url);
-    
-    if (videoId) {
-        if (isPlayerReady && player && typeof player.loadVideoById === 'function') {
-            player.loadVideoById(videoId);
-        } else {
-            window.targetVideoId = videoId;
-        }
-    } else {
-        alert("해당 경기에는 등록된 유튜브 영상 URL이 없습니다.");
+
+    const urls = matchData.video_urls || {};
+
+    // cam1: 전술캠1
+    const url1 = urls.tactical_cam1 || urls.tactical_cam || '';
+    const id1 = extractVideoId(url1);
+    if(id1) {
+        const loadFn = (p) => { if(p && typeof p.loadVideoById==='function') p.loadVideoById(id1); };
+        if(window.isPlayerReady && window.player) loadFn(window.player);
+        else window.targetVideoId = id1;
     }
-    
-    // 2. 이벤트 필터링
+
+    // cam2: 전술캠2
+    const url2 = urls.tactical_cam2 || '';
+    const id2 = extractVideoId(url2);
+    if(id2 && window.player2) {
+        try { window.player2.loadVideoById(id2); } catch(e) { console.log('cam2 not ready yet:', e); }
+    }
+
+    // cam3: 중계캠
+    const url3 = urls.broadcast_cam || '';
+    const id3 = extractVideoId(url3);
+    if(id3 && window.player3) {
+        try { window.player3.loadVideoById(id3); } catch(e) { console.log('cam3 not ready yet:', e); }
+    }
+
     const searchInput = document.getElementById('event-search');
-    if (searchInput) searchInput.value = "";
-    
+    if(searchInput) searchInput.value = '';
+
     const applyFilter = () => {
-        if (allEvents && allEvents.length > 0) {
+        if(allEvents && allEvents.length > 0) {
             const filtered = allEvents.filter(ev => ev.match_id === matchId);
             updateCurrentPlaylist(filtered);
-            alert(`'${matchData.match_name}' 경기(비디오 및 이벤트)를 로드했습니다.`);
         }
     };
-    
-    if (allEvents && allEvents.length > 0) {
-        applyFilter();
-    } else {
-        setTimeout(applyFilter, 1500);
-    }
+    if(allEvents && allEvents.length > 0) applyFilter();
+    else setTimeout(applyFilter, 1500);
 }
 
 async function fetchAndRenderMatches() {

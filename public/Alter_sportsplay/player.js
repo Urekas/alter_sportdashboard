@@ -1,42 +1,82 @@
 import { db, collection, getDocs, query, orderBy, limit } from './firebase-config.js';
 
-export let player;
+export let player;       // cam1 (전술캠1)
+export let player2;      // cam2 (전술캠2)
+export let player3;      // cam3 (중계캠)
 export let isPlayerReady = false;
 export let allEvents = [];
 export let currentPlaylist = [];
 let currentPlaylistIndex = -1;
-let playingSingleClip = false; // Flag to indicate if we are playing one clip or the playlist queue
+let playingSingleClip = false;
 let checkTimeInterval = null;
 let currentClipEnd = 0;
+let activeCam = 1; // 현재 활성 카메라 (1/2/3)
+let isPlayer2Ready = false;
+let isPlayer3Ready = false;
 
 const playPauseBtn = document.getElementById('play-pause-btn');
 const speedBtn = document.getElementById('speed-btn');
 const eventsUl = document.getElementById('events-ul');
 
-// 1. YouTube IFrame API Initialization (Workspace)
+// 1. YouTube IFrame API Initialization (3 players)
 export function initPlayer() {
-  // 기본 유튜브 비디오 ID를 로드하여 플레이어를 초기화합니다.
+  const pv = { playsinline:1, controls:1, rel:0, disablekb:1 };
   const initialVideoId = window.targetVideoId || '6KHm8HpKHzw';
+
   player = new YT.Player('youtube-player-1', {
-    height: '100%',
-    width: '100%',
-    videoId: initialVideoId,
-    playerVars: {
-      'playsinline': 1,
-      'controls': 1,
-      'rel': 0,
-      'disablekb': 1
-    },
-    events: {
-      'onReady': onPlayerReady,
-      'onStateChange': onPlayerStateChange
-    }
+    height:'100%', width:'100%', videoId: initialVideoId,
+    playerVars: pv,
+    events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange }
   });
+
+  player2 = new YT.Player('youtube-player-2', {
+    height:'100%', width:'100%', videoId: '',
+    playerVars: pv,
+    events: { 'onReady': ()=>{ isPlayer2Ready=true; } }
+  });
+
+  player3 = new YT.Player('youtube-player-3', {
+    height:'100%', width:'100%', videoId: '',
+    playerVars: pv,
+    events: { 'onReady': ()=>{ isPlayer3Ready=true; } }
+  });
+
+  // 카메라 전환 버튼
+  document.getElementById('cam1-btn')?.addEventListener('click',()=>switchCam(1));
+  document.getElementById('cam2-btn')?.addEventListener('click',()=>switchCam(2));
+  document.getElementById('cam3-btn')?.addEventListener('click',()=>switchCam(3));
+}
+
+function switchCam(n) {
+  activeCam = n;
+  const wrappers = [null,
+    document.getElementById('player-wrapper-1'),
+    document.getElementById('player-wrapper-2'),
+    document.getElementById('player-wrapper-3')
+  ];
+  const btns = [null,
+    document.getElementById('cam1-btn'),
+    document.getElementById('cam2-btn'),
+    document.getElementById('cam3-btn')
+  ];
+  [1,2,3].forEach(i=>{
+    if(wrappers[i]){
+      wrappers[i].style.opacity = (i===n)?'1':'0';
+      wrappers[i].style.pointerEvents = (i===n)?'auto':'none';
+    }
+    btns[i]?.classList.toggle('active', i===n);
+    const style = (i===n)?'' : 'background:#444';
+    if(btns[i]) btns[i].style.backgroundColor = (i===n)?'' : '#444';
+  });
+  // 활성 플레이어를 전역에 노출 (drawing.js에서 사용)
+  const activePlayer = n===1?player : n===2?player2 : player3;
+  window._activeSportsplayPlayer = activePlayer;
 }
 
 function onPlayerReady(event) {
   isPlayerReady = true;
-  console.log("YouTube Player is ready.");
+  window._activeSportsplayPlayer = player; // 기본 활성 플레이어 = cam1
+  console.log("YouTube Player 1 is ready.");
 }
 
 function onPlayerStateChange(event) {
