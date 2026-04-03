@@ -1,9 +1,9 @@
-import { db, collection, getDocs, addDoc } from './firebase-config.js';
-import { allEvents, updateCurrentPlaylist } from './player.js';
+import { db, collection, getDocs, addDoc, doc, updateDoc, deleteDoc } from './firebase-config.js';
+import { allEvents, updateCurrentPlaylist, playlistCart, updateCartUI } from './player.js';
 
 // State (모듈 레벨 - DOM 접근 없음)
 let matchesData = {};
-let playlistCart = new Set();
+let currentEditingPlaylistId = null; // 현재 편집 중인 플레이리스트 ID
 
 export async function initLibrary() {
     // 모든 DOM 접근을 함수 내부에서 수행 (null-safe)
@@ -32,56 +32,120 @@ export async function initLibrary() {
     await fetchMatches(filterCompetition);
 
     // ── 플레이리스트 모달 ──
-    btnCreatePlaylist?.addEventListener('click', () => {
+    const playlistSelectExisting = document.getElementById('playlist-select-existing');
+    const plSaveModes = document.querySelectorAll('input[name="pl-save-mode"]');
+    
+    const openPlaylistModal = async () => {
         playlistModal?.classList.add('active');
-        playlistTitle?.focus();
-    });
+        if(playlistTitle) playlistTitle.value = '';
+        if(playlistSelectExisting) {
+            playlistSelectExisting.innerHTML = '<option value="">플레이리스트 선택...</option>';
+            const querySnapshot = await getDocs(collection(db, 'Playlists'));
+            querySnapshot.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.id; opt.textContent = d.data().title;
+                if(currentEditingPlaylistId === d.id) opt.selected = true;
+                playlistSelectExisting.appendChild(opt);
+            });
+        }
+        // 초기 포커스 및 모드 설정
+        if(currentEditingPlaylistId) {
+            document.querySelector('input[name="pl-save-mode"][value="update"]').checked = true;
+            if(playlistSelectExisting) playlistSelectExisting.disabled = false;
+            if(playlistTitle) playlistTitle.disabled = true;
+        } else {
+            document.querySelector('input[name="pl-save-mode"][value="new"]').checked = true;
+            if(playlistSelectExisting) playlistSelectExisting.disabled = true;
+            if(playlistTitle) playlistTitle.disabled = false;
+        }
+    };
+
+    plSaveModes.forEach(radio => radio.addEventListener('change', (e) => {
+        if(e.target.value === 'new') {
+            if(playlistSelectExisting) playlistSelectExisting.disabled = true;
+            if(playlistTitle) { playlistTitle.disabled = false; playlistTitle.focus(); }
+        } else {
+            if(playlistSelectExisting) { playlistSelectExisting.disabled = false; playlistSelectExisting.focus(); }
+            if(playlistTitle) playlistTitle.disabled = true;
+        }
+    }));
+
+    btnCreatePlaylist?.addEventListener('click', openPlaylistModal);
+    document.getElementById('btn-create-playlist-right')?.addEventListener('click', openPlaylistModal);
+    
     modalBtnCancel?.addEventListener('click', () => {
         playlistModal?.classList.remove('active');
-        if(playlistTitle) playlistTitle.value = '';
+        currentEditingPlaylistId = null;
     });
+
     modalBtnConfirm?.addEventListener('click', async () => {
-        const title = playlistTitle?.value.trim();
-        if(!title) { alert('플레이리스트 제목을 입력해주세요.'); return; }
+        const mode = document.querySelector('input[name="pl-save-mode"]:checked')?.value;
+        const eventIds = Array.from(playlistCart);
+        
         modalBtnConfirm.disabled = true;
         modalBtnConfirm.textContent = '저장 중...';
+        
         try {
-            await addDoc(collection(db, 'Playlists'), {
-                title, event_ids: Array.from(playlistCart), created_at: new Date().toISOString()
-            });
-            alert('플레이리스트가 생성되었습니다!');
+            if(mode === 'new') {
+                const title = playlistTitle?.value.trim();
+                if(!title) { alert('플레이리스트 제목을 입력해주세요.'); return; }
+                await addDoc(collection(db, 'Playlists'), {
+                    title, event_ids: eventIds, created_at: new Date().toISOString()
+                });
+                alert('새 플레이리스트가 생성되었습니다!');
+            } else {
+                const targetId = playlistSelectExisting?.value;
+                if(!targetId) { alert('업데이트할 플레이리스트를 선택해주세요.'); return; }
+                const targetTitle = playlistSelectExisting.options[playlistSelectExisting.selectedIndex].text;
+                // 기존 데이터 가져오기 (병합 여부 확인)
+                if(confirm(`'${targetTitle}' 플레이리스트를 현재 선택된 내용으로 덮어씌울까요?`)) {
+                    await updateDoc(doc(db, 'Playlists', targetId), {
+                        event_ids: eventIds, updated_at: new Date().toISOString()
+                    });
+                    alert('업데이트 완료!');
+                } else {
+                    return; // 취소 시 중단
+                }
+            }
             playlistCart.clear();
-            updateCartUI(cartCountSpan, modalCartCount, btnCreatePlaylist, btnBatchCapture);
-            applyLibraryFilters(filterCompetition, filterTeam, libraryResultsUl, cartCountSpan, modalCartCount, btnCreatePlaylist, btnBatchCapture);
+            currentEditingPlaylistId = null;
+            updateCartUI();
+            applyLibraryFilters(filterCompetition, filterTeam, libraryResultsUl);
             playlistModal?.classList.remove('active');
-            if(playlistTitle) playlistTitle.value = '';
             fetchAndRenderPlaylists(playlistsUl);
         } catch(e) {
-            console.error('Error creating playlist:', e);
+            console.error('Error saving playlist:', e);
             alert('오류가 발생했습니다.');
         } finally {
             if(modalBtnConfirm) { modalBtnConfirm.disabled=false; modalBtnConfirm.textContent='저장 및 반영'; }
         }
     });
 
+
     // ── 선택 컨트롤 ──
-    btnSelectAll?.addEventListener('click', () => {
-        document.querySelectorAll('.clip-checkbox').forEach(cb => {
+    const selectAllClips = () => {
+        document.querySelectorAll('.clip-checkbox, .event-checkbox').forEach(cb => {
             if(!cb.checked){ cb.checked=true; playlistCart.add(cb.value); cb.closest('.clip-item')?.classList.add('selected'); }
         });
-        updateCartUI(cartCountSpan, modalCartCount, btnCreatePlaylist, btnBatchCapture);
-    });
-    btnDeselectAll?.addEventListener('click', () => {
-        document.querySelectorAll('.clip-checkbox').forEach(cb => {
+        updateCartUI();
+    };
+    const deselectAllClips = () => {
+        document.querySelectorAll('.clip-checkbox, .event-checkbox').forEach(cb => {
             if(cb.checked){ cb.checked=false; playlistCart.delete(cb.value); cb.closest('.clip-item')?.classList.remove('selected'); }
         });
-        updateCartUI(cartCountSpan, modalCartCount, btnCreatePlaylist, btnBatchCapture);
-    });
-    btnBatchCapture?.addEventListener('click', () => {
+        updateCartUI();
+    };
+    const triggerBatchCapture = () => {
+        if(playlistCart.size === 0) { alert('선택된 항목이 없습니다.'); return; }
         if(confirm(`${playlistCart.size}개의 클립을 시퀀스로 추출하시겠습니까?`)) {
             startBatchCapture();
         }
-    });
+    };
+
+    btnSelectAll?.addEventListener('click', selectAllClips);
+    btnDeselectAll?.addEventListener('click', deselectAllClips);
+    btnBatchCapture?.addEventListener('click', triggerBatchCapture);
+    document.getElementById('btn-batch-capture-right')?.addEventListener('click', triggerBatchCapture);
 
     // ── 필터 변경 이벤트 ──
     filterCompetition?.addEventListener('change', () => applyLibraryFilters(filterCompetition, filterTeam, libraryResultsUl, cartCountSpan, modalCartCount, btnCreatePlaylist, btnBatchCapture));
@@ -213,8 +277,13 @@ function updateCartUI(cartCountSpan, modalCartCount, btnCreatePlaylist, btnBatch
 
 async function fetchAndRenderPlaylists(playlistsUl) {
     if(!playlistsUl) return;
+    const playlistSelectExisting = document.getElementById('playlist-select-existing');
     try {
         playlistsUl.innerHTML = '<li style="color:var(--text-muted);font-size:0.9em;">불러오는 중...</li>';
+        if(playlistSelectExisting) {
+            playlistSelectExisting.innerHTML = '<option value="">플레이리스트 선택...</option>';
+            playlistSelectExisting.disabled = true;
+        }
         const querySnapshot = await getDocs(collection(db, 'Playlists'));
         playlistsUl.innerHTML = '';
         if(querySnapshot.empty) {
@@ -223,14 +292,59 @@ async function fetchAndRenderPlaylists(playlistsUl) {
         }
         querySnapshot.forEach((d) => {
             const data = d.data();
+            if(playlistSelectExisting) {
+                const opt = document.createElement('option');
+                opt.value = d.id; opt.textContent = data.title;
+                playlistSelectExisting.appendChild(opt);
+                playlistSelectExisting.disabled = false;
+            }
             const li = document.createElement('li');
             li.className = 'playlist-item';
-            li.style.cssText = 'padding:12px;border-bottom:1px solid var(--border-color);cursor:pointer;transition:background-color 0.2s;display:flex;flex-direction:column;gap:5px;';
+            li.style.cssText = 'padding:10px; border-bottom:1px solid var(--border-color); cursor:pointer; transition:background-color 0.2s; display:flex; align-items:center; justify-content:space-between; gap:10px;';
             li.innerHTML = `
-                <div style="font-weight:bold;color:var(--text-main);"><i class="fa-solid fa-list-check" style="margin-right:8px;color:var(--accent);"></i>${data.title}</div>
-                <div style="font-size:0.8rem;color:var(--text-muted);">${data.event_ids?.length || 0} Clips (${data.created_at ? data.created_at.split('T')[0] : 'N/A'})</div>
+                <div style="flex:1;">
+                    <div style="font-weight:bold; color:var(--text-main); font-size:0.9rem;">
+                        <i class="fa-solid fa-list-check" style="margin-right:8px; color:var(--accent);"></i>${data.title}
+                    </div>
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:3px;">
+                        ${data.event_ids?.length || 0} Clips | ${data.created_at ? data.created_at.split('T')[0] : 'N/A'}
+                    </div>
+                </div>
+                <div style="display:flex; gap:6px;">
+                    <button class="small-btn edit-pl-btn" title="편집 (카트로 불러오기)" style="background:#3498db;"><i class="fa-solid fa-pen-to-square"></i></button>
+                    <button class="small-btn delete-pl-btn" title="삭제" style="background:#e74c3c;"><i class="fa-solid fa-trash-can"></i></button>
+                </div>
             `;
-            li.addEventListener('click', () => loadSelectedPlaylist(data.event_ids, data.title));
+            
+            // 전체 바디 클릭 시 플레이어에 로드
+            li.addEventListener('click', (e) => {
+                if(e.target.closest('button')) return;
+                loadSelectedPlaylist(data.event_ids, data.title);
+            });
+
+            // 편집 버튼: 카트에 담기
+            li.querySelector('.edit-pl-btn').addEventListener('click', () => {
+                if(confirm(`'${data.title}' 플레이리스트의 내용을 편집하시겠습니까?\n현재 카트의 내용은 비워지고 플레이리스트 항목들이 채워집니다.`)) {
+                    playlistCart.clear();
+                    data.event_ids.forEach(id => playlistCart.add(id));
+                    currentEditingPlaylistId = d.id;
+                    const playlistTitle = document.getElementById('playlist-title');
+                    if(playlistTitle) playlistTitle.value = data.title;
+                    updateCartUI();
+                    alert(`'${data.title}' 편집 모드가 활성화되었습니다.`);
+                }
+            });
+
+            // 삭제 버튼
+            li.querySelector('.delete-pl-btn').addEventListener('click', async () => {
+                if(confirm(`'${data.title}' 플레이리스트를 삭제하시겠습니까?`)) {
+                    try {
+                        await deleteDoc(doc(db, 'Playlists', d.id));
+                        li.remove();
+                    } catch(err) { console.error('Delete PL error:', err); }
+                }
+            });
+
             li.addEventListener('mouseover', () => li.style.background = '#252538');
             li.addEventListener('mouseout',  () => li.style.background = '');
             playlistsUl.appendChild(li);

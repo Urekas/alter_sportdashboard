@@ -11,6 +11,7 @@ let playingSingleClip = false;
 let checkTimeInterval = null;
 let currentClipEnd = 0;
 export let activeMatchId = null; // 현재 분석 중인 경기 ID
+export const playlistCart = new Set(); // 공유 선택 카트 (이벤트 ID 저장)
 let isPlayer2Ready = false;
 let isPlayer3Ready = false;
 
@@ -183,18 +184,62 @@ export function updateCurrentPlaylist(newList) {
   renderCodeViewer(currentPlaylist);
 }
 
+export function updateCartUI() {
+  const count = playlistCart.size;
+  const cartCountValFields = document.querySelectorAll('.cart-count-val');
+  const cartCountSpan = document.getElementById('cart-count'); // Legacy ID for compat
+  const btnCreatePlaylist = document.getElementById('btn-create-playlist');
+  const btnBatchCapture = document.getElementById('btn-batch-capture');
+  const btnCreatePlaylistRight = document.getElementById('btn-create-playlist-right');
+  const btnBatchCaptureRight = document.getElementById('btn-batch-capture-right');
+  const modalCartCount = document.getElementById('modal-cart-count');
+
+  if (cartCountValFields) cartCountValFields.forEach(el => el.textContent = count);
+  if (cartCountSpan) cartCountSpan.textContent = count;
+  if (modalCartCount) modalCartCount.textContent = count;
+  
+  const display = count > 0 ? 'block' : 'none';
+  if (btnCreatePlaylist) btnCreatePlaylist.style.display = display;
+  if (btnBatchCapture)   btnBatchCapture.style.display   = display;
+  if (btnCreatePlaylistRight) btnCreatePlaylistRight.style.display = display;
+  if (btnBatchCaptureRight)   btnBatchCaptureRight.style.display   = display;
+}
+
 export function renderCodeViewer(events) {
   eventsUl.innerHTML = '';
   
-  // 오거나이저 전체 연속 재생 버튼
   const organizerHeader = document.createElement('li');
   organizerHeader.style.padding = '10px';
   organizerHeader.style.borderBottom = '1px solid var(--border-color)';
-  organizerHeader.innerHTML = `<button id="btn-play-all" class="primary-btn" style="width:100%; margin-top:0;">📝 필터링된 이벤트 전체 재생 (Organizer)</button>`;
+  organizerHeader.innerHTML = `
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <button id="btn-play-all" class="primary-btn" style="width:100%; margin-top:0; background:#34495e;">📝 필터링 전체 재생 (Organizer)</button>
+      <div style="display:flex; gap:5px;">
+        <button id="btn-right-select-all" class="secondary-btn" style="flex:1; font-size:0.75rem;">전체 선택</button>
+        <button id="btn-right-deselect-all" class="secondary-btn" style="flex:1; font-size:0.75rem;">전체 해제</button>
+      </div>
+    </div>
+  `;
   eventsUl.appendChild(organizerHeader);
   
   document.getElementById('btn-play-all').addEventListener('click', () => {
     playOrganizerPlaylist(events);
+  });
+
+  document.getElementById('btn-right-select-all').addEventListener('click', () => {
+    events.forEach(ev => {
+        playlistCart.add(ev.id);
+    });
+    renderCodeViewer(events); // Re-render to show checks
+    updateCartUI();
+  });
+
+  document.getElementById('btn-right-deselect-all').addEventListener('click', () => {
+    events.forEach(ev => {
+        playlistCart.delete(ev.id);
+    });
+    renderCodeViewer(events);
+    updateCartUI();
   });
 
   // --- Grouping by Code (Sorted Alphabetically) ---
@@ -231,22 +276,28 @@ export function renderCodeViewer(events) {
       const ev = obj.event;
       const index = obj.playlistIndex;
       
-      const li = document.createElement('div');
-      li.className = 'event-item';
-      li.dataset.index = index;
-      
-      const labelText = ev.labels && Object.keys(ev.labels).length > 0 
-          ? Object.values(ev.labels).join(' / ') 
-          : ev.code;
-      
+      const isChecked = playlistCart.has(ev.id);
       li.innerHTML = `
-        <div class="event-label">${labelText}</div>
-        <div class="event-team">${ev.team}</div>
-        <div class="event-time">${ev.start_time.toFixed(1)}s ~ ${ev.end_time.toFixed(1)}s</div>
+        <label class="clip-checkbox-container" style="margin-right:10px;">
+          <input type="checkbox" class="event-checkbox" value="${ev.id}" ${isChecked ? 'checked' : ''}>
+          <span class="checkmark"></span>
+        </label>
+        <div class="event-details" style="flex:1; cursor:pointer;">
+          <div class="event-label">${labelText}</div>
+          <div class="event-team">${ev.team}</div>
+          <div class="event-time">${ev.start_time.toFixed(1)}s ~ ${ev.end_time.toFixed(1)}s</div>
+        </div>
       `;
       
-      // 클릭 시 단일 재생
-      li.addEventListener('click', () => {
+      const cb = li.querySelector('.event-checkbox');
+      cb.addEventListener('change', (e) => {
+          if(e.target.checked) playlistCart.add(ev.id);
+          else playlistCart.delete(ev.id);
+          updateCartUI();
+      });
+
+      // 클릭 시 단일 재생 (체크박스 영역 제외)
+      li.querySelector('.event-details').addEventListener('click', (e) => {
         playSingleClip(index);
       });
       

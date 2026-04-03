@@ -157,10 +157,13 @@
       </ul>
     </div>
 
-    <!-- Events 탭 -->
     <div class="right-tab-content" id="right-tab-events">
-      <div class="code-tools">
+      <div class="code-tools" style="padding:10px; display:flex; flex-direction:column; gap:8px; border-bottom:1px solid var(--border-color);">
         <input type="text" id="event-search" placeholder="🔍 이벤트 검색 (코드/라벨)...">
+        <div style="display:flex; gap:5px;">
+          <button id="btn-create-playlist-right" class="primary-btn" style="flex:1; margin:0; padding:8px; background-color:#4caf50; display:none;">🛒 <span class="cart-count-val">0</span> Playlist</button>
+          <button id="btn-batch-capture-right" class="primary-btn" style="flex:1; margin:0; padding:8px; background-color:#e67e22; display:none;">🎬 선택 캡처</button>
+        </div>
       </div>
       <div class="event-list">
         <ul id="events-ul" class="list-container">
