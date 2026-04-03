@@ -276,6 +276,14 @@ export function renderCodeViewer(events) {
       const ev = obj.event;
       const index = obj.playlistIndex;
       
+      const li = document.createElement('div');
+      li.className = 'event-item';
+      li.dataset.index = index;
+
+      const labelText = ev.labels && Object.keys(ev.labels).length > 0 
+          ? Object.values(ev.labels).join(' / ') 
+          : ev.code;
+
       const isChecked = playlistCart.has(ev.id);
       li.innerHTML = `
         <label class="clip-checkbox-container" style="margin-right:10px;">
