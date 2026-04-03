@@ -21,7 +21,7 @@ const eventsUl     = document.getElementById('events-ul') || document.createElem
 
 // 1. YouTube IFrame API Initialization (3 players)
 export function initPlayer() {
-  const pv = { playsinline:1, controls:1, rel:0, disablekb:1 };
+  const pv = { playsinline:1, controls:0, rel:0, disablekb:1, modestbranding:1, showinfo:0 };
   const initialVideoId = window.targetVideoId || '';
 
   player = new YT.Player('youtube-player-1', {
