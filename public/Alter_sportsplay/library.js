@@ -9,20 +9,47 @@ let currentEditingPlaylistId = null;
 // 내부 헬퍼: DOM 없이 호출 가능한 순수 필터/렌더 함수
 // ──────────────────────────────────────────────
 function _applyFilters() {
-    const filterCompetition = document.getElementById('filter-competition');
-    const filterTeam        = document.getElementById('filter-team');
-    const libraryResultsUl  = document.getElementById('library-results-ul');
+    const filterCompetitionContainer = document.getElementById('filter-competition-container');
+    const filterTeamContainer        = document.getElementById('filter-team-container');
+    const filterDateStart            = document.getElementById('filter-date-start');
+    const filterDateEnd              = document.getElementById('filter-date-end');
+    const libraryResultsUl           = document.getElementById('library-results-ul');
     if (!libraryResultsUl) return;
 
-    const selectedMatch = filterCompetition?.value || '';
-    const selectedTeam  = filterTeam?.value || '';
-    const selectedCodes = Array.from(document.querySelectorAll('.filter-code-cb:checked')).map(cb => cb.value);
+    const selectedMatches = Array.from(filterCompetitionContainer?.querySelectorAll('.filter-match-cb:checked') || []).map(cb => cb.value);
+    const selectedTeams   = Array.from(filterTeamContainer?.querySelectorAll('.filter-team-cb:checked') || []).map(cb => cb.value);
+    const selectedCodes   = Array.from(document.querySelectorAll('.filter-code-cb:checked')).map(cb => cb.value);
+
+    const startDateStr = filterDateStart?.value || '';
+    const endDateStr   = filterDateEnd?.value || '';
+
+    // Update counts
+    const countMatchSpan = document.getElementById('filter-competition-count');
+    const countTeamSpan  = document.getElementById('filter-team-count');
+    const countCodeSpan  = document.getElementById('filter-code-count');
+    if (countMatchSpan) countMatchSpan.textContent = selectedMatches.length;
+    if (countTeamSpan) countTeamSpan.textContent = selectedTeams.length;
+    if (countCodeSpan) countCodeSpan.textContent = selectedCodes.length;
 
     const filtered = allEvents.filter(ev => {
-        if (selectedMatch && ev.match_id !== selectedMatch) return false;
-        if (selectedTeam  && ev.team !== selectedTeam) return false;
+        const matchInfo = matchesData[ev.match_id];
+        if (startDateStr || endDateStr) {
+            if (!matchInfo || !matchInfo.match_date) return false;
+            const mDate = matchInfo.match_date.split('T')[0];
+            if (startDateStr && mDate < startDateStr) return false;
+            if (endDateStr && mDate > endDateStr) return false;
+        }
+        if (selectedMatches.length > 0 && !selectedMatches.includes(ev.match_id)) return false;
+        if (selectedTeams.length > 0 && !selectedTeams.includes(ev.team)) return false;
         if (selectedCodes.length > 0 && !selectedCodes.includes(ev.code)) return false;
         return true;
+    });
+
+    // 가나다 순으로 정렬 표시 (코드명 기준 정렬 후 시간 순)
+    filtered.sort((a, b) => {
+        const codeCmp = a.code.localeCompare(b.code, 'ko');
+        if (codeCmp !== 0) return codeCmp;
+        return a.start_time - b.start_time;
     });
 
     _renderResults(filtered, libraryResultsUl);
@@ -66,9 +93,9 @@ function _renderResults(filteredEvents, libraryResultsUl) {
 }
 
 function _populateFilters() {
-    const filterTeam          = document.getElementById('filter-team');
-    const filterCodeContainer = document.getElementById('filter-code-container');
-    const filterCompetition   = document.getElementById('filter-competition');
+    const filterTeamContainer          = document.getElementById('filter-team-container');
+    const filterCodeContainer          = document.getElementById('filter-code-container');
+    const filterCompetitionContainer   = document.getElementById('filter-competition-container');
     if (!filterCodeContainer) return;
 
     const teams = new Set();
@@ -78,32 +105,53 @@ function _populateFilters() {
         if (ev.code) codes.add(ev.code);
     });
 
-    // Team 옵션 (중복 방지)
-    if (filterTeam) {
-        const existingTeams = new Set(Array.from(filterTeam.options).map(o => o.value).filter(v => v));
-        teams.forEach(team => {
-            if (!existingTeams.has(team)) {
-                const opt = document.createElement('option');
-                opt.value = team; opt.textContent = team;
-                filterTeam.appendChild(opt);
-            }
+    // Match 체크박스
+    if (filterCompetitionContainer) {
+        filterCompetitionContainer.innerHTML = '';
+        Object.keys(matchesData).forEach(matchId => {
+            const data = matchesData[matchId];
+            const label = document.createElement('label');
+            label.className = 'filter-code-label';
+            label.style.display = 'flex'; label.style.gap = '5px';
+            label.innerHTML = `<input type="checkbox" value="${matchId}" class="filter-match-cb"> <span>${data.match_name} <small style="color:#aaa">(${data.match_date ? data.match_date.split('T')[0] : '날짜 모름'})</small></span>`;
+            filterCompetitionContainer.appendChild(label);
         });
     }
 
-    // Code 체크박스
+    // Team 체크박스
+    if (filterTeamContainer) {
+        filterTeamContainer.innerHTML = '';
+        if (teams.size === 0) filterTeamContainer.innerHTML = '<label style="color:#888;font-size:0.8em;">팀 없음</label>';
+        teams.forEach(team => {
+            const label = document.createElement('label');
+            label.className = 'filter-code-label';
+            label.style.display = 'flex'; label.style.gap = '5px';
+            label.innerHTML = `<input type="checkbox" value="${team}" class="filter-team-cb"> ${team}`;
+            filterTeamContainer.appendChild(label);
+        });
+    }
+
+    // Code 체크박스 (가나다 정렬)
     filterCodeContainer.innerHTML = '';
     if (codes.size === 0) {
         filterCodeContainer.innerHTML = '<label style="color:#888;font-size:0.8em;">이벤트 없음</label>';
     }
-    codes.forEach(code => {
+    const sortedCodes = Array.from(codes).sort((a, b) => a.localeCompare(b, 'ko'));
+    sortedCodes.forEach(code => {
         const label = document.createElement('label');
         label.className = 'filter-code-label';
+        label.style.display = 'flex'; label.style.gap = '5px';
         label.innerHTML = `<input type="checkbox" value="${code}" class="filter-code-cb"> ${code}`;
         filterCodeContainer.appendChild(label);
     });
-    document.querySelectorAll('.filter-code-cb').forEach(cb =>
+
+    document.querySelectorAll('.filter-match-cb, .filter-team-cb, .filter-code-cb').forEach(cb =>
         cb.addEventListener('change', _applyFilters)
     );
+    const dateStart = document.getElementById('filter-date-start');
+    const dateEnd   = document.getElementById('filter-date-end');
+    if (dateStart) dateStart.addEventListener('change', _applyFilters);
+    if (dateEnd)   dateEnd.addEventListener('change', _applyFilters);
 }
 
 // ──────────────────────────────────────────────
@@ -116,8 +164,8 @@ export async function initLibrary() {
         return;
     }
 
-    const filterCompetition   = document.getElementById('filter-competition');
-    const filterTeam          = document.getElementById('filter-team');
+    const filterCompetitionContainer   = document.getElementById('filter-competition-container');
+    const filterTeamContainer          = document.getElementById('filter-team-container');
     const filterCodeContainer = document.getElementById('filter-code-container');
     const btnCreatePlaylist   = document.getElementById('btn-create-playlist');
     const playlistsUl         = document.getElementById('playlists-ul');
@@ -130,11 +178,7 @@ export async function initLibrary() {
     const btnBatchCapture     = document.getElementById('btn-batch-capture');
 
     // ── 경기 데이터 로드 ──
-    await fetchMatches(filterCompetition);
-
-    // ── 필터 변경 이벤트 ──
-    filterCompetition?.addEventListener('change', _applyFilters);
-    filterTeam?.addEventListener('change', _applyFilters);
+    await fetchMatches();
 
     // ── allEvents 폴링 (최대 8초 대기) ──
     let waited = 0;
@@ -269,17 +313,14 @@ export async function initLibrary() {
 // ──────────────────────────────────────────────
 // 비공개 유틸 함수들
 // ──────────────────────────────────────────────
-async function fetchMatches(filterCompetition) {
+async function fetchMatches() {
     try {
         const querySnapshot = await getDocs(collection(db, 'Matches'));
+        matchesData = {};
         querySnapshot.forEach((d) => {
             const data = d.data();
             data.id = d.id;
             matchesData[d.id] = data;
-            const option = document.createElement('option');
-            option.value = d.id;
-            option.textContent = data.match_name + ` (${data.match_date ? data.match_date.split('T')[0] : ''})`;
-            filterCompetition?.appendChild(option);
         });
     } catch (e) {
         console.error('Error fetching Matches:', e);

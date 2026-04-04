@@ -381,13 +381,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         alert('파싱된 이벤트가 없습니다. XML 포맷을 확인해주세요.');
       } else {
         await uploadEventsBatch(parsedEvents);
-        const dashboardEvents = parsedEvents.map((ev,i) => ({
-          id: `ev-${i}-${Date.now()}`, team: ev.team, time: ev.start_time,
-          duration: ev.duration, code: ev.code,
-          quarter: detectQuarter(Object.values(ev.labels).join(' '), ev.start_time),
-          locationLabel: ev.labels['Location'] || ev.labels['Zone'] || '',
-          resultLabel: ev.labels['Result'] || ev.labels['Outcome'] || '',
-        }));
+        const dashboardEvents = parsedEvents.map((ev,i) => {
+          let eventType = 'sequence';
+          const codeUpper = ev.code.toUpperCase();
+          const labelsValsStr = Object.values(ev.labels).join(' ').toUpperCase();
+          
+          if (codeUpper.includes('턴오버') || codeUpper.includes('TURNOVER') || labelsValsStr.includes('TURNOVER') || labelsValsStr.includes('턴오버') || codeUpper.includes('프레스') || codeUpper.includes('압박')) {
+             eventType = 'turnover';
+          }
+          else if (codeUpper.includes('파울') || codeUpper.includes('FOUL') || labelsValsStr.includes('FOUL') || labelsValsStr.includes('파울')) {
+             eventType = 'foul';
+          }
+
+          const locLabel = ev.labels['Location'] || ev.labels['Zone'] || ev.labels['지역'] || ev.labels['구역'] || '';
+          const resLabel = ev.labels['Result'] || ev.labels['Outcome'] || ev.labels['결과'] || '';
+
+          return {
+            id: `ev-${i}-${Date.now()}`, team: ev.team, time: ev.start_time,
+            duration: ev.duration, code: ev.code,
+            type: eventType,
+            quarter: detectQuarter(Object.values(ev.labels).join(' '), ev.start_time),
+            locationLabel: locLabel,
+            resultLabel: resLabel,
+          };
+        });
         const dashData = createMatchDataForDashboard(dashboardEvents, matchMetadata.home_team, matchMetadata.away_team, tournamentId, matchMetadata.match_name);
         await addDoc(collection(db, 'matches'), { ...dashData, videoMatchId, uploadedAt: new Date().toISOString() });
         alert(`업로드 완료!\n- 이벤트: ${parsedEvents.length}개\n- 비디오 매치 ID: ${videoMatchId}`);
