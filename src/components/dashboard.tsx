@@ -420,76 +420,55 @@ export function Dashboard() {
                   <Sparkles className="h-6 w-6" /> AI 전술 분석 리포트
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card className="border-2 border-primary/20">
+                  <Card className="border-2 border-primary/20 md:col-span-2">
                     <CardHeader className="bg-primary/5">
                       <CardTitle className="text-lg flex items-center gap-2">
-                        <Info className="h-5 w-5 text-primary" /> 분석 요약
+                        <Info className="h-5 w-5 text-primary" /> 경기 최종 결과 요약
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
-                      <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.summary}</p>
+                      <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.matchSummary}</p>
                     </CardContent>
                   </Card>
                   <Card className="border-2 border-primary/20">
                     <CardHeader className="bg-emerald-500/5">
                       <CardTitle className="text-lg flex items-center gap-2">
-                        <Target className="h-5 w-5 text-emerald-600" /> 전술적 주요 포인트
+                        <Target className="h-5 w-5 text-emerald-600" /> 핵심 성능 지표 (KPI) 분석
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
-                      <ul className="space-y-3">
-                        {aiAnalysis.tacticalAnalysis.map((point, idx) => (
-                          <li key={idx} className="flex gap-2 text-sm">
-                            <span className="font-bold text-emerald-600 shrink-0">{idx + 1}.</span>
-                            <span className="text-muted-foreground">{point}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.kpiAnalysis}</p>
                     </CardContent>
                   </Card>
                   <Card className="border-2 border-primary/20">
                     <CardHeader className="bg-blue-500/5">
                       <CardTitle className="text-lg flex items-center gap-2">
-                        <Activity className="h-5 w-5 text-blue-600" /> 팀의 강점
+                        <Activity className="h-5 w-5 text-blue-600" /> 데이터 해석 및 전술
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
-                      <ul className="space-y-3">
-                        {aiAnalysis.strengths.map((s, idx) => (
-                          <li key={idx} className="flex gap-2 text-sm">
-                            <div className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1.5 shrink-0" />
-                            <span className="text-muted-foreground">{s}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.dataInterpretation}</p>
                     </CardContent>
                   </Card>
-                  <Card className="border-2 border-primary/20">
+                  <Card className="border-2 border-primary/20 md:col-span-2">
                     <CardHeader className="bg-orange-500/5">
                       <CardTitle className="text-lg flex items-center gap-2">
-                        <TrendingDown className="h-5 w-5 text-orange-600" /> 개선 필요 사항
+                        <TrendingDown className="h-5 w-5 text-orange-600" /> 쿼터별 세부 특징
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
-                      <ul className="space-y-3">
-                        {aiAnalysis.weaknesses.map((w, idx) => (
-                          <li key={idx} className="flex gap-2 text-sm">
-                            <div className="w-1.5 h-1.5 rounded-full bg-orange-600 mt-1.5 shrink-0" />
-                            <span className="text-muted-foreground">{w}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.quarterlyAnalysis}</p>
                     </CardContent>
                   </Card>
                 </div>
                 <Card className="bg-primary text-primary-foreground border-none shadow-xl">
                   <CardContent className="p-6 flex items-center gap-4">
-                    <div className="bg-white/20 p-3 rounded-xl">
+                    <div className="bg-white/20 p-3 rounded-xl shrink-0">
                       <Sparkles className="h-8 w-8 text-white" />
                     </div>
                     <div>
-                      <p className="text-xs font-bold uppercase tracking-widest opacity-80">최종 분석 한줄평 (Verdict)</p>
-                      <p className="text-xl font-black italic mt-1">"{aiAnalysis.verdict}"</p>
+                      <p className="text-xs font-bold uppercase tracking-widest opacity-80">최종 분석 (Final Verdict)</p>
+                      <p className="text-lg font-bold mt-1 text-white border-l-4 border-white/40 pl-3 py-1 whitespace-pre-wrap">{aiAnalysis.finalVerdict}</p>
                     </div>
                   </CardContent>
                 </Card>

@@ -18,11 +18,11 @@ const MatchAnalysisInputSchema = z.object({
 export type MatchAnalysisInput = z.infer<typeof MatchAnalysisInputSchema>;
 
 const MatchAnalysisOutputSchema = z.object({
-  summary: z.string().describe('전체적인 경기/대회 요약 (2-3문장)'),
-  tacticalAnalysis: z.array(z.string()).describe('주요 전술적 포인트 3-4가지'),
-  strengths: z.array(z.string()).describe('강점'),
-  weaknesses: z.array(z.string()).describe('개선점'),
-  verdict: z.string().describe('최종 평가 한줄평'),
+  matchSummary: z.string().describe('1. 경기 최종 결과 요약 (경기명, 최종 스코어, 공격 점유율, 핵심적인 경기 지배력 평가)'),
+  kpiAnalysis: z.string().describe('2. 핵심 성능 지표 (KPI) 분석 (압도적인 압박 강도, 안정적인 빌드업, 서클 진입 효율, 페널티코너 상황, 슈팅 갯수 등)'),
+  dataInterpretation: z.string().describe('3. 주요 그래프 및 데이터 해석 (위협도 추이, 점유 및 속도, 압박 성공률, 서클 진입 방향)'),
+  quarterlyAnalysis: z.string().describe('4. 쿼터별 세부 특징 (1~4쿼터 핵심 스탯 바탕의 전술적 특징)'),
+  finalVerdict: z.string().describe('5. 최종 분석 (데이터 지배력과 실제 스코어 상관관계, 잘된 점, 개선점)'),
 });
 
 export type MatchAnalysisOutput = z.infer<typeof MatchAnalysisOutputSchema>;
@@ -31,43 +31,33 @@ const analysisPrompt = ai.definePrompt({
   name: 'matchAnalysisPrompt',
   input: { schema: MatchAnalysisInputSchema },
   output: { schema: MatchAnalysisOutputSchema },
-  prompt: `# Role
-당신은 국가대표팀 퍼포먼스 분석관입니다. 
-당신의 임무는 제공된 '경기 데이터 리포트'를 해석하여 감독이 전술적 의사결정을 내릴 수 있도록 돕는 것입니다.
+  prompt: `당신은 국가대표팀 스포츠 과학 현장지원을 담당하는 전문 비디오 분석관이다. 제공되는 경기 데이터(통계표 및 수치)를 바탕으로 [Field Focus | Hockey Analytics] 형식의 경기별 상세 분석 보고서를 작성하라.
+
+[작성 가이드라인]
+- 문체: 객관적이고 전문적인 '~다'체를 사용한다.
+- 분석 관점: 단순 수치 나열을 넘어 지표 간의 인과관계를 분석한다. (예: 낮은 SPP가 상대의 빌드업 무력화로 이어진 점 등)
+- 지표 해석 기준:
+  * SPP (압박 지수): 수치가 낮을수록 압박 강도가 강함. 상대 수치와 비교하여 압박의 우위를 기술한다.
+  * CE 1회당 시간: 수치가 낮을수록 공격 전개가 빠르고 직선적임을 의미한다.
+  * 빌드업 정체 비율: 수치가 높을수록 공격 전개 속도가 느리고 지공 위주임을 의미한다.
+
+[보고서 필수 구조]
+1. 경기 최종 결과 요약: 경기명, 최종 스코어, 공격 점유율, 핵심적인 경기 지배력 평가를 요약하여 서술한다.
+2. 핵심 성능 지표 (KPI) 분석: 다음 지표를 중심으로 분석 내용을 기술한다: 압도적인 압박 강도(SPP), 안정적인 빌드업(성공률), 서클 진입 효율(CE 시간), 페널티코너 상황(PC 성공률), 슈팅 갯수 등.
+3. 주요 그래프 및 데이터 해석: 
+   - 공격 위협도 추이 (Attack Threat Trend): 시간대별 주도권 변화 설명.
+   - 공격 점유 및 속도 분석 (Match Trajectory): 쿼터별 효율성(Direct/Efficient/Slow/Inefficient) 분류.
+   - 압박 성공률 상세: 전체 성공률(%) 및 주요 구역(50C, 50R 등) 성과 기술.
+   - 서클 진입 방향 및 효율: 좌/중/우 진입 횟수와 성공률을 대조하여 효율적인 공격 경로 도출.
+4. 쿼터별 세부 특징: 1쿼터~4쿼터까지 각 쿼터의 핵심 스탯(점유율, 속도, SPP 등)을 바탕으로 해당 시간대의 전술적 특징을 정의한다.
+5. 최종 분석: 데이터상의 지배력과 실제 스코어 사이의 상관관계를 분석한다. 잘된 점(고무적인 지표)과 개선이 필요한 점(전술적 숙제)을 명확히 정리하며 마무리한다.
 
 # Context
 - 경기: {{matchName}}
-- 스코어 및 결과: {{stats.scoreResult}} (예: 2-2 Draw)
-- 분석 팀: {{homeTeam.name}} (Blue/Home) vs {{awayTeam.name}} (Red/Away)
+- 분석 팀: {{homeTeam.name}} (Home) vs {{awayTeam.name}} (Away)
 
-# Data Analysis Instructions (Step-by-Step)
-
-## 1. Momentum & Flow (모멘텀 그래프 해석)
-- 경기 흐름 그래프(Momentum Chart)를 분석하십시오. 
-- 우리 팀이 주도권을 완전히 장악했던 시간대(Peak)와 상대에게 밀렸던 시간대(Valley)를 식별하십시오.
-- *가이드:* "2쿼터 중반부터 점유율이 급격히 상승했으나, 실질적인 슈팅으로 연결되지 못했습니다"와 같이 서술하세요.
-
-## 2. Efficiency Quadrant (산점도 해석)
-- [서클 진입 횟수(X축)] 대비 [슈팅/득점 기대값(Y축)] 데이터를 확인하십시오.
-- 우리 팀이 4분면 중 어디에 위치합니까?
-  - **High Entry / Low Shot:** "공격 작업은 활발했으나 문전 세밀함 부족 (결정력 문제)"
-  - **Low Entry / High Shot:** "제한된 기회 속에서 높은 효율 (카운터 어택 적중)"
-  - **High Entry / High Shot:** "압도적인 경기력"
-  - **Low Entry / Low Shot:** "공격 전개 자체의 실패"
-
-## 3. Spatial Pressing (존 데이터 & 압박 맵 해석)
-- 수비 성공(Recovery) 위치를 분석하십시오.
-- **High Press:** 상대 진영(Zone 7,8,9)에서의 탈취가 많았다면 전방 압박이 유효했음을 칭찬하십시오.
-- **Mid Block:** 미드필드(Zone 4,5,6)에서의 차단이 많았다면 허리 싸움에서의 우위를 언급하십시오.
-- **Low Block:** 우리 진영(Zone 1,2,3)에서의 수비 수치가 높다면, 라인이 너무 밀리지 않았는지 우려를 표하십시오.
-
-## 4. Synthesis (종합 결론)
-- 위 3가지 요소를 종합하여 승리/패배/무승부의 원인을 **한 문장으로 정의**하십시오.
-- 예: "전방 압박(High Press)을 통해 모멘텀은 확보했으나(Graph), 서클 내부에서의 결정력 부재(Scatter Plot)로 인해 무승부에 그침."
-
-# Tone
-- 감정적인 표현을 배제하고, 철저히 **데이터에 기반한 인과관계**만 서술하십시오.
-- 보고서는 **'현상(Fact) -> 원인(Reason) -> 제언(Suggestion)'** 구조를 유지하세요`,
+# Data JSON:
+{{stats}}`,
 });
 
 export async function analyzeMatch(input: MatchAnalysisInput): Promise<MatchAnalysisOutput> {
