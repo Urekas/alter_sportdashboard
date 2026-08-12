@@ -35,7 +35,9 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
   const [newName, setNewName] = useState("")
   const [newCategory, setNewCategory] = useState("")
   const [newStartDate, setNewStartDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [viewBy, setViewBy] = useState<'category' | 'country'>('category')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(null)
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null)
   const [replaceMatchId, setReplaceMatchId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -88,6 +90,35 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
       }))
       .sort((a, b) => b.year.localeCompare(a.year));
   }, [selectedCategory, tournaments]);
+
+  // 국가대표 경기라 팀 이름 자체가 국가명입니다 — 별도 매핑 없이 바로 집계합니다.
+  const countries = useMemo(() => {
+    if (!rawMatches) return [];
+    const map = new Map<string, number>();
+    rawMatches.forEach(m => {
+      [m.homeTeam?.name, m.awayTeam?.name].forEach(name => {
+        if (!name) return;
+        map.set(name, (map.get(name) || 0) + 1);
+      });
+    });
+    return Array.from(map.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [rawMatches]);
+
+  // 선택된 국가가 (홈이든 어웨이든) 출전한 모든 경기를 대회를 가로질러 모읍니다.
+  const countryMatches = useMemo(() => {
+    if (!selectedCountry || !rawMatches) return [];
+    const tournamentNameById = new Map(tournaments.map(t => [t.id, t.name]));
+    return rawMatches
+      .filter(m => m.homeTeam?.name === selectedCountry || m.awayTeam?.name === selectedCountry)
+      .map(m => ({ ...m, resolvedTournamentName: m.tournamentName || tournamentNameById.get(m.tournamentId || "") || "" }))
+      .sort((a, b) => {
+        const ta = a.uploadedAt?.seconds || 0;
+        const tb = b.uploadedAt?.seconds || 0;
+        return tb - ta;
+      });
+  }, [selectedCountry, rawMatches, tournaments]);
 
   const handleCreate = async () => {
     if (!newName.trim() || !db) return
@@ -308,6 +339,98 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
     </Dialog>
   )
 
+  const renderViewToggle = () => (
+    <div className="flex p-1 bg-muted/40 rounded-lg w-fit gap-1">
+      <Button
+        variant={viewBy === 'category' ? 'default' : 'ghost'} size="sm"
+        onClick={() => { setViewBy('category'); setSelectedCountry(null); }}
+        className="h-8 text-xs font-bold"
+      >카테고리별</Button>
+      <Button
+        variant={viewBy === 'country' ? 'default' : 'ghost'} size="sm"
+        onClick={() => { setViewBy('country'); setSelectedCategory(null); }}
+        className="h-8 text-xs font-bold"
+      >국가별</Button>
+    </div>
+  )
+
+  // 국가별 보기: 선택된 국가가 출전한 모든 경기를 대회 가로질러 모아보기
+  if (viewBy === 'country') {
+    if (selectedCountry) {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => setSelectedCountry(null)}>
+              <ArrowLeft className="h-6 w-6" />
+            </Button>
+            <div>
+              <h2 className="text-3xl font-black italic text-primary uppercase tracking-tighter">{selectedCountry}</h2>
+              <p className="text-muted-foreground font-bold">대회를 가로질러 모은 전체 경기 ({countryMatches.length})</p>
+            </div>
+          </div>
+          <Card className="border-2 shadow-xl">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader><TableRow className="bg-muted/20"><TableHead className="pl-6 font-black uppercase text-xs">대회</TableHead><TableHead className="font-black uppercase text-xs">경기</TableHead><TableHead className="text-center font-black uppercase text-xs">스코어</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {countryMatches.length === 0 ? (
+                    <TableRow><TableCell colSpan={3} className="text-center py-20 text-muted-foreground italic">경기 기록이 없습니다.</TableCell></TableRow>
+                  ) : (
+                    countryMatches.map((m, idx) => {
+                      const isHome = m.homeTeam?.name === selectedCountry;
+                      const opponent = isHome ? m.awayTeam?.name : m.homeTeam?.name;
+                      const myGoals = isHome ? m.matchStats.home.goals.field + m.matchStats.home.goals.pc : m.matchStats.away.goals.field + m.matchStats.away.goals.pc;
+                      const oppGoals = isHome ? m.matchStats.away.goals.field + m.matchStats.away.goals.pc : m.matchStats.home.goals.field + m.matchStats.home.goals.pc;
+                      return (
+                        <TableRow key={m.id || idx} className="hover:bg-muted/5 cursor-pointer group" onClick={() => onViewMatch?.(m)}>
+                          <TableCell className="pl-6 text-xs text-muted-foreground font-bold">{m.resolvedTournamentName || '-'}</TableCell>
+                          <TableCell>
+                            <p className="font-bold text-base flex items-center gap-2">{m.matchName || `${m.homeTeam?.name} vs ${m.awayTeam?.name}`} <Eye className="h-3 w-3 opacity-0 group-hover:opacity-100" /></p>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase">{selectedCountry} vs {opponent}</p>
+                          </TableCell>
+                          <TableCell className="text-center"><span className="font-black text-primary bg-primary/10 px-3 py-1 rounded-full text-sm">{myGoals} : {oppGoals}</span></TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
+      )
+    }
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div><h2 className="text-3xl font-black italic text-primary uppercase tracking-tighter">Tournament Master</h2><p className="text-muted-foreground font-bold">국가를 선택해 전체 대회의 경기를 확인하세요</p></div>
+        </div>
+        {renderViewToggle()}
+        {countries.length === 0 ? (
+          <p className="text-center py-20 text-muted-foreground italic">경기 데이터가 없습니다.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {countries.map((c) => (
+              <Card
+                key={c.name}
+                className="border-2 shadow-sm hover:shadow-lg hover:border-primary/50 transition-all cursor-pointer"
+                onClick={() => setSelectedCountry(c.name)}
+              >
+                <CardContent className="p-6 flex items-center gap-4">
+                  <div className="bg-primary/10 p-3 rounded-xl"><Trophy className="h-6 w-6 text-primary" /></div>
+                  <div>
+                    <p className="font-black text-lg tracking-tight">{c.name}</p>
+                    <p className="text-xs text-muted-foreground font-bold">{c.count}경기 출전</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   // 2단계: 카테고리 안에서 대회 목록 (연도별 그룹)
   if (selectedCategory) {
     return (
@@ -396,6 +519,7 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
         <div><h2 className="text-3xl font-black italic text-primary uppercase tracking-tighter">Tournament Master</h2><p className="text-muted-foreground font-bold">카테고리를 선택해 대회 목록을 확인하세요</p></div>
         {renderNewTournamentDialog()}
       </div>
+      {renderViewToggle()}
       {loadingTourneys ? (
         <p className="text-center py-20 text-muted-foreground italic">데이터 로딩 중...</p>
       ) : categories.length === 0 ? (
