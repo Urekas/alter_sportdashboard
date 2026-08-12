@@ -31,6 +31,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { analyzeMatch, type MatchAnalysisOutput } from "@/ai/flows/match-analysis-flow"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { MatchSummaryBar } from "./match-summary-bar"
+import { TurnoverZoneMap } from "./turnover-zone-map"
 
 export function Dashboard() {
   const [viewMode, setViewMode] = useState<'single' | 'tournament' | 'manage'>('single')
@@ -209,7 +212,7 @@ export function Dashboard() {
   }
 
   return (
-    <div className="p-4 md:p-6 lg:p-8">
+    <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto print:max-w-none">
       <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 print-hidden gap-4">
         <div>
           <div className="flex items-center gap-4">
@@ -358,6 +361,8 @@ export function Dashboard() {
               </div>
             </div>
 
+            <MatchSummaryBar data={matchData} />
+
             <div className="break-inside-avoid space-y-8">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {[matchData.homeTeam, matchData.awayTeam].map((team, i) => (
@@ -378,17 +383,36 @@ export function Dashboard() {
               <BasicMatchStats data={matchData} />
             </div>
 
-            <div className="break-inside-avoid space-y-8">
-              <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                <Activity className="h-6 w-6" /> 쿼터별 상세 데이터
+            <div className="break-inside-avoid print:block">
+              <Accordion type="single" collapsible className="print:hidden">
+                <AccordionItem value="quarterly" className="border-none">
+                  <AccordionTrigger className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2 hover:no-underline [&>svg]:h-6 [&>svg]:w-6">
+                    <span className="flex items-center gap-2"><Activity className="h-6 w-6" /> 쿼터별 상세 데이터</span>
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-4">
+                    <QuarterlyStatsTable data={matchData} />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+              {/* 인쇄 시에는 접힘 상태와 무관하게 항상 표시 */}
+              <div className="hidden print:block space-y-8">
+                <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+                  <Activity className="h-6 w-6" /> 쿼터별 상세 데이터
+                </div>
+                <QuarterlyStatsTable data={matchData} />
               </div>
-              <QuarterlyStatsTable data={matchData} />
             </div>
 
             <div className="break-inside-avoid space-y-8">
               <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
                 <Sword className="h-6 w-6" /> 공격 성능 분석
               </div>
+              {matchData.videoMatchId && (
+                <div className="print-hidden flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2 -mt-4">
+                  <Video className="h-3.5 w-3.5 text-orange-500" />
+                  아래 그래프의 지점을 클릭하면 해당 장면 영상이 열려요
+                </div>
+              )}
               <AttackThreatChart data={matchData.attackThreatData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} videoMatchId={matchData.videoMatchId} />
               <BuildUpEfficiencyChart data={matchData} />
             </div>
@@ -410,7 +434,8 @@ export function Dashboard() {
                   <Shield className="h-6 w-6" /> 압박 분석
                 </div>
                 <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
-                <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
+                <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} isCompact />
+                <TurnoverZoneMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
               </div>
             </div>
 

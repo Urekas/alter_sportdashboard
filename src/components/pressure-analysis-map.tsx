@@ -203,7 +203,8 @@ export function PressureAnalysisMap({
         <CardDescription className={isCompact ? "text-[10px]" : ""}>압박 시도 대비 순수 성공 분석. {isTournament ? `대회 평균 수치.` : '경기 실제 수치.'}</CardDescription>
       </CardHeader>
       <CardContent className={isCompact ? "p-2 md:p-4" : "p-4 md:p-6"}>
-        <div className="grid grid-cols-2 gap-4">
+        {/* 한눈에 들어오도록 지도 전체 너비를 제한합니다 */}
+        <div className="grid grid-cols-2 gap-4 max-w-xl mx-auto">
           {renderHalfPitch(zoneStats.home, homeTeam, true, zoneStats.globalMaxCount, hCount)}
           {renderHalfPitch(zoneStats.away, awayTeam, false, zoneStats.globalMaxCount, aCount)}
         </div>
