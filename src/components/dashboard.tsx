@@ -2,9 +2,10 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from "react"
-import { 
-  Upload, FileDown, TrendingDown, Target, Activity, ShieldCheck, 
-  Sword, Shield, Trophy, Save, Plus, BrainCircuit, Loader2, Sparkles, Info, MessageSquare, Video
+import {
+  Upload, FileDown, TrendingDown, Target, Activity, ShieldCheck,
+  Sword, Shield, Trophy, Save, Plus, BrainCircuit, Loader2, Sparkles, Info, MessageSquare, Video,
+  ChevronLeft, ChevronRight
 } from "lucide-react"
 import type { MatchData, MatchEvent, Tournament } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
@@ -52,6 +53,8 @@ export function Dashboard() {
   const [activeTournamentId, setActiveTournamentId] = useState<string>("")
   const [isNewTournamentDialogOpen, setIsNewTournamentDialogOpen] = useState(false)
   const [newTournamentName, setNewTournamentName] = useState("")
+
+  const [siblingMatches, setSiblingMatches] = useState<MatchData[]>([])
 
   const [aiAnalysis, setAiAnalysis] = useState<MatchAnalysisOutput | null>(null)
   const [isAiLoading, setIsAiLoading] = useState(false)
@@ -202,13 +205,37 @@ export function Dashboard() {
     }
   }
 
-  const handleViewMatchFromDB = (data: MatchData) => {
+  const handleViewMatchFromDB = async (data: MatchData) => {
+    // 업로드 플로우용 상태를 비워서, 아래에서 tournamentName/matchName을 바꿀 때
+    // 업로드 재계산 useEffect가 옛 데이터로 이 매치를 덮어쓰지 않도록 합니다.
+    setParsedEvents([]);
     setMatchData(data);
     setTournamentName(data.tournamentName || "");
     setMatchName(data.matchName || "");
     setViewMode('single');
     setAiAnalysis(null);
     setResearcherComment("");
+
+    if (data.tournamentId) {
+      try {
+        const matches = await TournamentService.getMatchesByTournament(data.tournamentId);
+        setSiblingMatches(matches);
+      } catch (e) {
+        console.error("Failed to fetch sibling matches", e);
+        setSiblingMatches([]);
+      }
+    } else {
+      setSiblingMatches([]);
+    }
+  }
+
+  const handleNavigateMatch = (direction: 'prev' | 'next') => {
+    if (!matchData || siblingMatches.length === 0) return;
+    const currentIndex = siblingMatches.findIndex(m => m.id === matchData.id);
+    if (currentIndex === -1) return;
+    const targetIndex = direction === 'prev' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= siblingMatches.length) return;
+    handleViewMatchFromDB(siblingMatches[targetIndex]);
   }
 
   return (
@@ -319,7 +346,35 @@ export function Dashboard() {
         </div>
       </header>
 
-      <main className="printable-area">
+      <div className="flex gap-6 items-start">
+      {matchData && siblingMatches.length > 1 && (
+        <aside className="hidden lg:block w-64 shrink-0 print-hidden sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto border rounded-lg">
+          <div className="px-3 py-2 border-b bg-muted/30 text-xs font-bold text-muted-foreground uppercase tracking-wide">
+            {tournamentName || "대회 경기 목록"} ({siblingMatches.length})
+          </div>
+          <div className="flex flex-col">
+            {siblingMatches.map((m, idx) => {
+              const isActive = m.id === matchData.id
+              return (
+                <button
+                  key={m.id || idx}
+                  onClick={() => handleViewMatchFromDB(m)}
+                  className={`text-left px-3 py-2 text-xs border-b last:border-b-0 hover:bg-muted/40 transition-colors ${isActive ? 'bg-primary/10 border-l-4 border-l-primary font-bold' : 'border-l-4 border-l-transparent'}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate">{m.matchName || `경기 ${idx + 1}`}</span>
+                    <span className="text-muted-foreground shrink-0">
+                      {m.matchStats.home.goals.field + m.matchStats.home.goals.pc} : {m.matchStats.away.goals.field + m.matchStats.away.goals.pc}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground truncate mt-0.5">{m.homeTeam.name} vs {m.awayTeam.name}</div>
+                </button>
+              )
+            })}
+          </div>
+        </aside>
+      )}
+      <main className="printable-area flex-1 min-w-0">
         {viewMode === 'manage' ? (
           <TournamentManager onViewMatch={handleViewMatchFromDB} />
         ) : viewMode === 'tournament' ? (
@@ -336,6 +391,32 @@ export function Dashboard() {
           </div>
         ) : (
           <div className="space-y-12">
+            {siblingMatches.length > 1 && (() => {
+              const currentIndex = siblingMatches.findIndex(m => m.id === matchData.id);
+              const prevMatch = currentIndex > 0 ? siblingMatches[currentIndex - 1] : null;
+              const nextMatch = currentIndex >= 0 && currentIndex < siblingMatches.length - 1 ? siblingMatches[currentIndex + 1] : null;
+              return (
+                <div className="print-hidden flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2 -mb-6">
+                  <Button
+                    variant="ghost" size="sm" disabled={!prevMatch}
+                    onClick={() => handleNavigateMatch('prev')}
+                    className="text-xs font-bold disabled:opacity-30"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    {prevMatch ? prevMatch.matchName || '이전 경기' : '이전 경기 없음'}
+                  </Button>
+                  <span className="text-[11px] text-muted-foreground font-mono">{currentIndex + 1} / {siblingMatches.length}</span>
+                  <Button
+                    variant="ghost" size="sm" disabled={!nextMatch}
+                    onClick={() => handleNavigateMatch('next')}
+                    className="text-xs font-bold disabled:opacity-30"
+                  >
+                    {nextMatch ? nextMatch.matchName || '다음 경기' : '다음 경기 없음'}
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              );
+            })()}
             <div className="border-b-4 border-primary pb-4 mb-8 flex justify-between items-end">
               <div>
                 <h2 className="text-xl font-bold text-muted-foreground uppercase tracking-widest block print:text-primary print:text-2xl print:mb-2">{tournamentName || "Tournament Report"}</h2>
@@ -575,6 +656,7 @@ export function Dashboard() {
           </div>
         )}
       </main>
+      </div>
 
       <Dialog open={isNewTournamentDialogOpen} onOpenChange={setIsNewTournamentDialogOpen}>
         <DialogContent>

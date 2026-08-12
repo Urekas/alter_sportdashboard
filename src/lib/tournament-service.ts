@@ -33,19 +33,23 @@ export const TournamentService = {
     }
   },
 
-  async createTournament(dbInstance: Firestore, name: string, startDate: string) {
+  async createTournament(dbInstance: Firestore, name: string, startDate: string, category?: string) {
     const docRef = await addDoc(collection(dbInstance, TOURNAMENTS_COL), {
       name,
       startDate,
+      category: category || "미분류",
       createdAt: serverTimestamp(),
     });
     return docRef.id;
   },
 
-  async updateTournament(dbInstance: Firestore, id: string, name: string) {
+  async updateTournament(dbInstance: Firestore, id: string, name: string, category?: string, startDate?: string) {
     if (!id) return;
     const docRef = doc(dbInstance, TOURNAMENTS_COL, id);
-    await updateDoc(docRef, { name });
+    const updates: Record<string, string> = { name };
+    if (category !== undefined) updates.category = category;
+    if (startDate !== undefined) updates.startDate = startDate;
+    await updateDoc(docRef, updates);
   },
 
   async addMatchToTournament(tournamentId: string, matchData: MatchData) {
@@ -60,6 +64,19 @@ export const TournamentService = {
       orderIndex: nextOrder,
       uploadedAt: serverTimestamp(),
     });
+  },
+
+  async getMatchesByTournament(tournamentId: string) {
+    if (!tournamentId) return [];
+    try {
+      const q = query(collection(db, MATCHES_COL), where('tournamentId', '==', tournamentId));
+      const snapshot = await getDocs(q);
+      const matches = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as MatchData));
+      return matches.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+    } catch (e) {
+      console.error("TournamentService.getMatchesByTournament failed:", e);
+      return [];
+    }
   },
 
   async updateMatchName(dbInstance: Firestore, matchId: string, matchName: string) {

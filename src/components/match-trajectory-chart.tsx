@@ -17,7 +17,16 @@ import {
   CartesianGrid
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { MatchData, Team } from "@/lib/types"
+
+// 차트의 4개 배경 영역(ReferenceArea)과 동일한 기준으로 사분면을 판정합니다.
+function classifyQuadrant(x: number, y: number): { label: string; className: string } {
+  if (x >= 50 && y <= 100) return { label: "효율적 지배", className: "text-emerald-600" }
+  if (x < 50 && y <= 100) return { label: "빠른 직접 공격", className: "text-teal-600" }
+  if (x >= 50 && y > 100) return { label: "느린 빌드업", className: "text-slate-500" }
+  return { label: "비효율", className: "text-indigo-600" }
+}
 
 interface MatchTrajectoryChartProps {
   data: MatchData
@@ -194,6 +203,42 @@ export function MatchTrajectoryChart({ data, isTournamentView, allMatchesPoints 
             </ScatterChart>
           </ResponsiveContainer>
         </div>
+
+        {!isTournamentView && (
+          <div className="mt-8">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>팀</TableHead>
+                  <TableHead>쿼터</TableHead>
+                  <TableHead className="text-center">공격 점유율 (%)</TableHead>
+                  <TableHead className="text-center">CE 소요시간 (s)</TableHead>
+                  <TableHead className="text-center">해당 구간</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {[homeTeam, awayTeam].flatMap((team, teamIdx) =>
+                  quarterlyStats.map((q) => {
+                    const stats = teamIdx === 0 ? q.home : q.away
+                    const x = stats.attackPossession
+                    const rawTime = stats.timePerCE
+                    const y = rawTime === 0 ? 450 : Math.min(450, rawTime)
+                    const quadrant = classifyQuadrant(x, y)
+                    return (
+                      <TableRow key={`${team.name}-${q.quarter}`}>
+                        <TableCell className="font-bold" style={{ color: team.color }}>{team.name}</TableCell>
+                        <TableCell>{q.quarter}</TableCell>
+                        <TableCell className="text-center">{x.toFixed(1)}</TableCell>
+                        <TableCell className="text-center">{rawTime > 0 ? rawTime.toFixed(1) : "진입 없음"}</TableCell>
+                        <TableCell className={`text-center font-bold ${quadrant.className}`}>{quadrant.label}</TableCell>
+                      </TableRow>
+                    )
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

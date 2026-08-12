@@ -90,4 +90,5 @@ export interface Tournament {
   name: string;
   startDate: string;
   createdAt: any;
+  category?: string; // 예: "여자대표팀", "남자대표팀" — 대회를 상위 그룹으로 묶는 용도
 }
