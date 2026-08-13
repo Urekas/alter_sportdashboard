@@ -85,6 +85,24 @@
         </div>
     </header>
 
+    <!-- SAVE-TO-DASHBOARD BAR: 지금 업로드한 원본 XML "한 개"에 태깅한 내용을 합쳐서,
+         그 경기의 대시보드 문서(rawSourceText)에 그대로 덮어씁니다. 통계/이벤트는 안 건드리고
+         원본 XML 텍스트만 갱신하므로, 나중에 대시보드에서 그 경기 XML을 다시 받으면 반영돼 있습니다.
+         한 세션에 경기를 여러 개 병합해서 올렸으면(누적) 저장을 막습니다 — 경기 하나씩만. -->
+    <div id="dashboard-save-bar" class="border-b border-gray-800 bg-gray-900/60 px-6 py-2 flex items-center gap-3 shrink-0 flex-wrap">
+        <span class="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1.5"><i class="fa-solid fa-cloud-arrow-up text-emerald-500"></i> 대시보드에 저장</span>
+        <select id="save-tournament-select" class="bg-gray-950 border border-gray-700 rounded px-2 py-1 text-xs text-white outline-none focus:border-emerald-500" disabled>
+            <option value="">대회 불러오는 중...</option>
+        </select>
+        <select id="save-match-select" class="bg-gray-950 border border-gray-700 rounded px-2 py-1 text-xs text-white outline-none focus:border-emerald-500" disabled>
+            <option value="">대회를 먼저 선택하세요</option>
+        </select>
+        <button id="btn-save-to-dashboard" class="flex items-center gap-2 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed text-white text-xs font-bold rounded shadow-lg transition-colors" disabled>
+            <i class="fa-solid fa-floppy-disk"></i> 이 경기 원본 XML에 저장
+        </button>
+        <span id="save-status-text" class="text-[10px] text-gray-500"></span>
+    </div>
+
     <!-- MAIN WORKSPACE -->
     <main class="flex-grow flex flex-row relative overflow-hidden" id="main-workspace">
         
@@ -324,6 +342,9 @@
         // 병합 export 할 수 있게 하기 위한 상태입니다. 각 인스턴스는 inst.timeline에
         // 자기가 어느 파일에서 왔는지 이미 갖고 있어서(기존 필드), 병합해도 출처가 구분됩니다.
         let loadedTimelineNames = [];
+        // 대시보드 저장용: XML로 업로드한 원본 텍스트를 출처 파일명별로 보관합니다
+        // (저장 시 이걸 기준으로 다시 파싱해서 태깅 내용만 갈아끼웁니다).
+        let originalXmlTextsBySource = {};
         
         // Layout State
         let isExpandedLayout = false;
@@ -1146,6 +1167,8 @@
             // 여러 파일을 순서대로 올려도 이전에 태깅한 데이터가 사라지지 않도록 누적합니다
             // (완전히 새로 시작하려면 "세션 초기화" 버튼 사용).
             let instanceIdCounter = instancesData.length + 1;
+            const sourceName = timelineFileName;
+            originalXmlTextsBySource[sourceName] = xmlStr; // 대시보드 저장 시 이 원본을 기준으로 다시 병합합니다.
 
             const instanceNodes = xmlDoc.querySelectorAll("instance");
             if (instanceNodes.length === 0) {
@@ -1157,14 +1180,16 @@
                 const codeNode = instNode.querySelector("code");
                 const startNode = instNode.querySelector("start");
                 const endNode = instNode.querySelector("end");
+                const idNode = instNode.querySelector("ID");
 
                 const rowName = codeNode ? codeNode.textContent.trim() : 'Unknown Row';
                 const startTime = startNode ? parseFloat(startNode.textContent) : 0;
                 const endTime = endNode ? parseFloat(endNode.textContent) : 0;
-                
+
                 let contextStrs = [];
-                let player = '', shot_type = '', shot_output = '', out_dir = '';
+                let player = '', gk_player = '', shot_type = '', shot_output = '', out_dir = '';
                 let x_loc = null, y_loc = null, x_goal = null, y_goal = null;
+                const customVals = {};
 
                 const labelNodes = instNode.querySelectorAll("label");
                 labelNodes.forEach(labelNode => {
@@ -1174,6 +1199,7 @@
                     const text = textNode ? textNode.textContent.trim() : "";
 
                     if (group === "Player") player = text;
+                    else if (group === "GK_Player") gk_player = text;
                     else if (group === "Type") shot_type = text;
                     else if (group === "Output") shot_output = text;
                     else if (group === "OUT Dir") out_dir = text;
@@ -1181,6 +1207,10 @@
                     else if (group === "Y_Loc" && text !== "") y_loc = parseFloat(text);
                     else if (group === "X_Goal" && text !== "") x_goal = parseFloat(text);
                     else if (group === "Y_Goal" && text !== "") y_goal = parseFloat(text);
+                    else if (taggingTemplate.customFields && taggingTemplate.customFields.some(cf => cf.name === group)) {
+                        const cf = taggingTemplate.customFields.find(cf => cf.name === group);
+                        customVals[cf.id] = text;
+                    }
                     else {
                         if (text !== "") contextStrs.push(text);
                     }
@@ -1188,10 +1218,12 @@
 
                 instancesData.push({
                     id: instanceIdCounter++,
-                    timeline: timelineFileName, rowName: rowName,
+                    originalXmlId: idNode ? idNode.textContent.trim() : null,
+                    timeline: sourceName, rowName: rowName,
                     startTime: startTime, duration: endTime - startTime,
-                    context: contextStrs.join(', '), player: player, shot_type: shot_type, shot_output: shot_output, out_dir: out_dir,
-                    x_loc: x_loc, y_loc: y_loc, x_goal: x_goal, y_goal: y_goal
+                    context: contextStrs.join(', '), player: player, gk_player: gk_player, shot_type: shot_type, shot_output: shot_output, out_dir: out_dir,
+                    x_loc: x_loc, y_loc: y_loc, x_goal: x_goal, y_goal: y_goal,
+                    custom_fields: customVals
                 });
             });
 
@@ -1638,6 +1670,193 @@
             link.setAttribute("href", url); link.setAttribute("download", filename);
             document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
+
+        // --- 대시보드 저장(원본 XML에 태깅 내용 병합) ---
+        // 업로드했던 원본 XML(sourceName)을 다시 파싱해서, 관리 대상 그룹(Player/GK_Player/Type/
+        // Output/OUT Dir/X_Loc/Y_Loc/X_Goal/Y_Goal/커스텀필드)만 지금 태깅한 값으로 갈아끼우고,
+        // 그 외 원본 라벨(컨텍스트 등)은 그대로 둡니다. 인스턴스는 원본의 <ID> 값으로 매칭합니다.
+        const MANAGED_XML_GROUPS = ["Player", "GK_Player", "Type", "Output", "OUT Dir", "X_Loc", "Y_Loc", "X_Goal", "Y_Goal"];
+        function buildMergedXmlForSave(sourceName) {
+            const originalXml = originalXmlTextsBySource[sourceName];
+            if (!originalXml) return null;
+
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(originalXml, "text/xml");
+            const managed = new Set(MANAGED_XML_GROUPS);
+            if (taggingTemplate.customFields) taggingTemplate.customFields.forEach(cf => managed.add(cf.name));
+
+            const addLabel = (instNode, group, text) => {
+                const labelEl = xmlDoc.createElement("label");
+                const groupEl = xmlDoc.createElement("group"); groupEl.textContent = group;
+                const textEl = xmlDoc.createElement("text"); textEl.textContent = text;
+                labelEl.appendChild(groupEl); labelEl.appendChild(textEl);
+                instNode.appendChild(labelEl);
+            };
+
+            let mergedCount = 0;
+            const instanceNodes = xmlDoc.querySelectorAll("instance");
+            instanceNodes.forEach(instNode => {
+                const idNode = instNode.querySelector("ID");
+                const origId = idNode ? idNode.textContent.trim() : null;
+                if (origId === null) return;
+                const inst = instancesData.find(i => i.timeline === sourceName && i.originalXmlId === origId);
+                if (!inst) return;
+                mergedCount++;
+
+                Array.from(instNode.querySelectorAll("label")).forEach(labelNode => {
+                    const groupNode = labelNode.querySelector("group");
+                    const g = groupNode ? groupNode.textContent.trim() : "";
+                    if (managed.has(g)) labelNode.remove();
+                });
+
+                if (inst.player) addLabel(instNode, "Player", inst.player);
+                if (inst.gk_player) addLabel(instNode, "GK_Player", inst.gk_player);
+                if (inst.shot_type) addLabel(instNode, "Type", inst.shot_type);
+                if (inst.shot_output) addLabel(instNode, "Output", inst.shot_output);
+                if (inst.out_dir) addLabel(instNode, "OUT Dir", inst.out_dir);
+                if (inst.x_loc !== null && inst.x_loc !== undefined) { addLabel(instNode, "X_Loc", String(inst.x_loc)); addLabel(instNode, "Y_Loc", String(inst.y_loc)); }
+                if (inst.x_goal !== null && inst.x_goal !== undefined) { addLabel(instNode, "X_Goal", String(inst.x_goal)); addLabel(instNode, "Y_Goal", String(inst.y_goal)); }
+                if (taggingTemplate.customFields) {
+                    taggingTemplate.customFields.forEach(cf => {
+                        const val = (inst.custom_fields && inst.custom_fields[cf.id]) ? inst.custom_fields[cf.id] : '';
+                        if (val) addLabel(instNode, cf.name, val);
+                    });
+                }
+            });
+
+            const xmlText = new XMLSerializer().serializeToString(xmlDoc);
+            return { xmlText, mergedCount, totalInstances: instanceNodes.length };
+        }
+
+        // --- 대시보드 연동 UI(대회/경기 선택 + 저장) ---
+        let dashboardTournaments = [];
+        const saveTournamentSelect = document.getElementById('save-tournament-select');
+        const saveMatchSelect = document.getElementById('save-match-select');
+        const btnSaveToDashboard = document.getElementById('btn-save-to-dashboard');
+        const saveStatusText = document.getElementById('save-status-text');
+
+        function setSaveStatus(text, isError) {
+            saveStatusText.innerText = text || '';
+            saveStatusText.className = `text-[10px] ${isError ? 'text-red-400' : 'text-gray-500'}`;
+        }
+
+        async function initDashboardSaveUI() {
+            if (!window.ShotTaggingDB) return;
+            try {
+                dashboardTournaments = await window.ShotTaggingDB.fetchTournaments();
+                saveTournamentSelect.innerHTML = '<option value="">대회 선택</option>' +
+                    dashboardTournaments.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+                saveTournamentSelect.disabled = false;
+            } catch (err) {
+                setSaveStatus('대회 목록을 불러오지 못했습니다: ' + err.message, true);
+            }
+        }
+
+        saveTournamentSelect?.addEventListener('change', async () => {
+            const tid = saveTournamentSelect.value;
+            saveMatchSelect.innerHTML = '<option value="">불러오는 중...</option>';
+            saveMatchSelect.disabled = true;
+            btnSaveToDashboard.disabled = true;
+            if (!tid) { saveMatchSelect.innerHTML = '<option value="">대회를 먼저 선택하세요</option>'; return; }
+            try {
+                const matches = await window.ShotTaggingDB.fetchMatchesForTournament(tid);
+                if (matches.length === 0) {
+                    saveMatchSelect.innerHTML = '<option value="">등록된 경기가 없습니다</option>';
+                    return;
+                }
+                saveMatchSelect.innerHTML = '<option value="">경기 선택</option>' +
+                    matches.map(m => `<option value="${m.id}">${m.matchName || (m.home + ' vs ' + m.away)}</option>`).join('');
+                saveMatchSelect.disabled = false;
+            } catch (err) {
+                setSaveStatus('경기 목록을 불러오지 못했습니다: ' + err.message, true);
+            }
+        });
+
+        saveMatchSelect?.addEventListener('change', () => {
+            btnSaveToDashboard.disabled = !saveMatchSelect.value;
+        });
+
+        btnSaveToDashboard?.addEventListener('click', async () => {
+            const matchId = saveMatchSelect.value;
+            const matchLabel = saveMatchSelect.options[saveMatchSelect.selectedIndex]?.text || '';
+            if (!matchId) return;
+
+            // 한 번에 한 경기씩만 — 여러 경기가 세션에 병합돼 있으면 저장을 막습니다.
+            if (loadedTimelineNames.length !== 1) {
+                alert(`지금 세션에 ${loadedTimelineNames.length}개 경기가 누적돼 있어요. 대시보드 저장은 경기 하나씩만 가능합니다.\n"세션 초기화" 후 저장하려는 경기의 XML 하나만 다시 업로드해주세요.`);
+                return;
+            }
+            const sourceName = loadedTimelineNames[0];
+            const merged = buildMergedXmlForSave(sourceName);
+            if (!merged) {
+                alert("저장할 원본 XML이 없습니다. SCTimeline(JSON)이 아니라 XML 파일을 업로드해주세요.");
+                return;
+            }
+            if (!confirm(`"${matchLabel}" 경기의 원본 XML을 지금 태깅한 내용(${merged.mergedCount}/${merged.totalInstances}건 매칭)으로 덮어쓸까요?\n대시보드의 통계·이벤트는 바뀌지 않고, 저장된 원본 XML 텍스트만 갱신됩니다.`)) return;
+
+            btnSaveToDashboard.disabled = true;
+            setSaveStatus('저장 중...');
+            try {
+                await window.ShotTaggingDB.saveRawXmlToMatch(matchId, merged.xmlText, `태깅결과_${sourceName}_Sportscode.xml`);
+                setSaveStatus(`저장 완료 (${merged.mergedCount}건 반영) — ${new Date().toLocaleTimeString('ko-KR')}`);
+            } catch (err) {
+                setSaveStatus('저장 실패: ' + err.message, true);
+                alert('저장 실패: ' + err.message);
+            } finally {
+                btnSaveToDashboard.disabled = !saveMatchSelect.value;
+            }
+        });
+
+        window.addEventListener('shot-tagging-db-ready', initDashboardSaveUI);
+        if (window.ShotTaggingDB) initDashboardSaveUI();
+    </script>
+
+    <!-- Firebase 연동: 대시보드(Field Focus)와 같은 프로젝트를 사용합니다. 이 태깅 도구에서
+         쓰는 값(rawSourceText)만 갱신하고, 그 외 대시보드 데이터는 건드리지 않습니다. -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, query, orderBy, where, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            "projectId": "studio-7396439909-84f0d",
+            "appId": "1:735181437174:web:9cb23a873845f7ee1e94d7",
+            "apiKey": "AIzaSyC4W6hwVEJzYH8Gq0-P5cydXY5umtppOeE",
+            "authDomain": "studio-7396439909-84f0d.firebaseapp.com",
+            "measurementId": "",
+            "messagingSenderId": "735181437174"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        async function fetchTournaments() {
+            const q = query(collection(db, 'tournaments'), orderBy('createdAt', 'desc'));
+            const snap = await getDocs(q);
+            return snap.docs.map(d => ({ id: d.id, name: d.data().name || '(이름 없음)' }));
+        }
+
+        async function fetchMatchesForTournament(tournamentId) {
+            const q = query(collection(db, 'matches'), where('tournamentId', '==', tournamentId));
+            const snap = await getDocs(q);
+            return snap.docs
+                .map(d => {
+                    const data = d.data();
+                    return { id: d.id, matchName: data.matchName || '', home: data.homeTeam?.name || '', away: data.awayTeam?.name || '', orderIndex: data.orderIndex || 0 };
+                })
+                .sort((a, b) => a.orderIndex - b.orderIndex);
+        }
+
+        // rawSourceText만 갱신합니다 — events/matchStats 등 나머지 필드는 건드리지 않습니다
+        // (통계 반영은 대시보드의 기존 "교체" 업로드 플로우를 그대로 이용).
+        async function saveRawXmlToMatch(matchId, xmlText, fileName) {
+            await updateDoc(doc(db, 'matches', matchId), {
+                rawSourceText: xmlText,
+                rawSourceFileName: fileName,
+                taggingSavedAt: new Date().toISOString()
+            });
+        }
+
+        window.ShotTaggingDB = { fetchTournaments, fetchMatchesForTournament, saveRawXmlToMatch };
+        window.dispatchEvent(new Event('shot-tagging-db-ready'));
     </script>
 </body>
 </html>
