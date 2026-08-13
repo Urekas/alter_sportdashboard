@@ -88,6 +88,17 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
   const [isSavingRules, setIsSavingRules] = useState(false)
   const [slotUploadEntry, setSlotUploadEntry] = useState<ResolvedScheduleEntry | null>(null)
   const [isUploadingSlot, setIsUploadingSlot] = useState(false)
+  const [isEditingDescription, setIsEditingDescription] = useState(false)
+  const [descriptionDraft, setDescriptionDraft] = useState("")
+  const [isSavingDescription, setIsSavingDescription] = useState(false)
+  const [editingScheduleIndex, setEditingScheduleIndex] = useState<number | null>(null)
+  const [scheduleRowDraft, setScheduleRowDraft] = useState<ScheduleEntry | null>(null)
+  const [isSavingScheduleRow, setIsSavingScheduleRow] = useState(false)
+  const [editingTeamsMatchId, setEditingTeamsMatchId] = useState<string | null>(null)
+  const [editHomeName, setEditHomeName] = useState("")
+  const [editAwayName, setEditAwayName] = useState("")
+  const [isSavingTeams, setIsSavingTeams] = useState(false)
+  const [swappingMatchId, setSwappingMatchId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const slotFileInputRef = useRef<HTMLInputElement>(null)
 
@@ -351,6 +362,124 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
     }
   }
 
+  // 일정표 배열 전체를 다시 저장하는 공용 헬퍼 — 행 수정/순서변경/삭제가 전부 이걸 씀
+  const saveSchedule = async (nextSchedule: ScheduleEntry[]) => {
+    if (!selectedTournament || !db) return;
+    await TournamentService.updateSchedule(db, selectedTournament.id, nextSchedule);
+    setSelectedTournament(prev => prev ? { ...prev, schedule: nextSchedule } : prev);
+  }
+
+  const startEditingScheduleRow = (index: number, entry: ScheduleEntry) => {
+    setEditingScheduleIndex(index);
+    setScheduleRowDraft({ ...entry });
+  }
+
+  const handleSaveScheduleRow = async () => {
+    if (editingScheduleIndex === null || !scheduleRowDraft || !selectedTournament?.schedule) return;
+    setIsSavingScheduleRow(true);
+    try {
+      const next = [...selectedTournament.schedule];
+      next[editingScheduleIndex] = scheduleRowDraft;
+      await saveSchedule(next);
+      toast({ title: "일정 수정 완료" });
+      setEditingScheduleIndex(null);
+      setScheduleRowDraft(null);
+    } catch (e: any) {
+      toast({ title: "수정 실패", description: e.message, variant: "destructive" });
+    } finally {
+      setIsSavingScheduleRow(false);
+    }
+  }
+
+  const handleDeleteScheduleRow = async (index: number) => {
+    if (!selectedTournament?.schedule) return;
+    try {
+      const next = selectedTournament.schedule.filter((_, i) => i !== index);
+      await saveSchedule(next);
+      toast({ title: "일정 삭제 완료" });
+    } catch (e: any) {
+      toast({ title: "삭제 실패", description: e.message, variant: "destructive" });
+    }
+  }
+
+  // 일정표 표시 순서를 직접 바꿉니다(matchNumber와는 별개 — 파싱 직후엔 번호순 정렬이지만, 이후엔 이 배열 순서가 곧 표시 순서)
+  const handleMoveScheduleRow = async (index: number, direction: 'up' | 'down') => {
+    if (!selectedTournament?.schedule) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= selectedTournament.schedule.length) return;
+    try {
+      const next = [...selectedTournament.schedule];
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+      await saveSchedule(next);
+    } catch (e: any) {
+      toast({ title: "순서 변경 실패", description: e.message, variant: "destructive" });
+    }
+  }
+
+  const handleStartEditDescription = () => {
+    setDescriptionDraft(selectedTournament?.description || "");
+    setIsEditingDescription(true);
+  }
+
+  const handleSaveDescription = async () => {
+    if (!selectedTournament || !db) return;
+    setIsSavingDescription(true);
+    try {
+      await TournamentService.updateTournamentDescription(db, selectedTournament.id, descriptionDraft);
+      setSelectedTournament(prev => prev ? { ...prev, description: descriptionDraft } : prev);
+      setIsEditingDescription(false);
+      toast({ title: "대회 개요 저장 완료" });
+    } catch (e: any) {
+      toast({ title: "저장 실패", description: e.message, variant: "destructive" });
+    } finally {
+      setIsSavingDescription(false);
+    }
+  }
+
+  const startEditingTeams = (m: MatchData) => {
+    setEditingTeamsMatchId(m.id!);
+    setEditHomeName(m.homeTeam.name);
+    setEditAwayName(m.awayTeam.name);
+  }
+
+  const handleSaveTeamNames = async (matchId: string) => {
+    if (!db || !editHomeName.trim() || !editAwayName.trim()) return;
+    setIsSavingTeams(true);
+    try {
+      await TournamentService.updateMatchTeamNames(db, matchId, editHomeName.trim(), editAwayName.trim());
+      setEditingTeamsMatchId(null);
+      toast({ title: "팀 이름 수정 완료" });
+    } catch (e: any) {
+      toast({ title: "수정 실패", description: e.message, variant: "destructive" });
+    } finally {
+      setIsSavingTeams(false);
+    }
+  }
+
+  // 홈/어웨이를 서로 바꿉니다 — 단순 이름 교체가 아니라, 이미 기록된 이벤트로 스탯을
+  // 통째로 재계산해서 새 홈/어웨이 자리에 맞게 넣습니다(집계가 홈/어웨이 자리별로 계산되기 때문).
+  const handleSwapHomeAway = async (m: MatchData) => {
+    if (!db || !m.id) return;
+    setSwappingMatchId(m.id);
+    try {
+      const swapped = createMatchDataFromUpload(
+        m.events,
+        m.awayTeam.name,
+        m.homeTeam.name,
+        m.awayTeam.color,
+        m.homeTeam.color,
+        m.tournamentName,
+        m.matchName
+      );
+      await TournamentService.updateMatchData(db, m.id, swapped);
+      toast({ title: "홈/어웨이 교체 완료" });
+    } catch (e: any) {
+      toast({ title: "교체 실패", description: e.message, variant: "destructive" });
+    } finally {
+      setSwappingMatchId(null);
+    }
+  }
+
   const handleDeleteTournament = async (id: string) => {
     if (!id || !db) return;
     try {
@@ -597,6 +726,28 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
             </DialogContent>
           </Dialog>
         </div>
+        <Card className="border-2 shadow-sm">
+          <CardContent className="p-4">
+            {isEditingDescription ? (
+              <div className="space-y-2">
+                <Textarea value={descriptionDraft} onChange={(e) => setDescriptionDraft(e.target.value)} className="text-sm min-h-24" placeholder="대회 개요를 적어주세요 (참가팀, 방식, 일정 등 자유롭게)" autoFocus />
+                <div className="flex justify-end gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setIsEditingDescription(false)}>취소</Button>
+                  <Button size="sm" onClick={handleSaveDescription} disabled={isSavingDescription} className="font-bold">{isSavingDescription ? "저장 중..." : "저장"}</Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start justify-between gap-3 group">
+                {selectedTournament.description ? (
+                  <p className="text-sm whitespace-pre-wrap text-muted-foreground flex-1">{selectedTournament.description}</p>
+                ) : (
+                  <p className="text-sm italic text-muted-foreground/60 flex-1">대회 개요가 아직 없어요 — 참가팀, 방식 등을 적어두면 여기 표시됩니다.</p>
+                )}
+                <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100" onClick={handleStartEditDescription}><Edit3 className="h-3.5 w-3.5" /></Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
         <input type="file" ref={fileInputRef} onChange={onFileChange} className="hidden" accept=".xml,.csv" />
         <input type="file" ref={slotFileInputRef} onChange={onSlotFileChange} className="hidden" accept=".xml,.csv" />
 
@@ -612,11 +763,33 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
             </CardHeader>
             <CardContent className="p-0">
               <Table>
-                <TableHeader><TableRow className="bg-muted/20"><TableHead className="w-10 text-center">#</TableHead><TableHead className="text-xs font-black uppercase">일시</TableHead><TableHead className="text-xs font-black uppercase">대진</TableHead><TableHead className="text-xs font-black uppercase text-center">스테이지</TableHead><TableHead className="text-xs font-black uppercase text-center">스코어</TableHead><TableHead className="text-xs font-black uppercase text-center">상태</TableHead><TableHead className="text-xs font-black uppercase text-center">데이터</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow className="bg-muted/20"><TableHead className="w-10 text-center">#</TableHead><TableHead className="text-xs font-black uppercase">일시</TableHead><TableHead className="text-xs font-black uppercase">대진</TableHead><TableHead className="text-xs font-black uppercase text-center">스테이지</TableHead><TableHead className="text-xs font-black uppercase text-center">스코어</TableHead><TableHead className="text-xs font-black uppercase text-center">상태</TableHead><TableHead className="text-xs font-black uppercase text-center">데이터</TableHead><TableHead className="text-right pr-4 font-black uppercase text-xs">관리</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {resolvedSchedule.map((s) => {
+                  {resolvedSchedule.map((s, index) => {
                     const isLinked = linkedMatchNumbers.has(s.matchNumber);
                     const teamsConfirmed = !s.homeIsRef && !s.awayIsRef;
+                    if (editingScheduleIndex === index && scheduleRowDraft) {
+                      return (
+                        <TableRow key={s.matchNumber}>
+                          <TableCell colSpan={8} className="py-3">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                              <div className="space-y-1"><Label className="text-[10px]">Match #</Label><Input type="number" className="h-8 text-xs" value={scheduleRowDraft.matchNumber} onChange={(e) => setScheduleRowDraft({ ...scheduleRowDraft, matchNumber: parseInt(e.target.value, 10) || 0 })} /></div>
+                              <div className="space-y-1"><Label className="text-[10px]">일시</Label><Input className="h-8 text-xs" value={scheduleRowDraft.dateTime} onChange={(e) => setScheduleRowDraft({ ...scheduleRowDraft, dateTime: e.target.value })} /></div>
+                              <div className="space-y-1"><Label className="text-[10px]">홈</Label><Input className="h-8 text-xs" value={scheduleRowDraft.homeRef} onChange={(e) => setScheduleRowDraft({ ...scheduleRowDraft, homeRef: e.target.value })} /></div>
+                              <div className="space-y-1"><Label className="text-[10px]">어웨이</Label><Input className="h-8 text-xs" value={scheduleRowDraft.awayRef} onChange={(e) => setScheduleRowDraft({ ...scheduleRowDraft, awayRef: e.target.value })} /></div>
+                              <div className="space-y-1"><Label className="text-[10px]">스테이지</Label><Input className="h-8 text-xs" value={scheduleRowDraft.stage} onChange={(e) => setScheduleRowDraft({ ...scheduleRowDraft, stage: e.target.value })} /></div>
+                              <div className="space-y-1"><Label className="text-[10px]">스코어</Label><Input className="h-8 text-xs" value={scheduleRowDraft.score || ''} onChange={(e) => setScheduleRowDraft({ ...scheduleRowDraft, score: e.target.value })} /></div>
+                              <div className="space-y-1"><Label className="text-[10px]">상태</Label><Input className="h-8 text-xs" value={scheduleRowDraft.status || ''} onChange={(e) => setScheduleRowDraft({ ...scheduleRowDraft, status: e.target.value })} /></div>
+                              <div className="space-y-1"><Label className="text-[10px]">경기장</Label><Input className="h-8 text-xs" value={scheduleRowDraft.venue || ''} onChange={(e) => setScheduleRowDraft({ ...scheduleRowDraft, venue: e.target.value })} /></div>
+                            </div>
+                            <div className="flex justify-end gap-2 mt-2">
+                              <Button size="sm" variant="ghost" onClick={() => { setEditingScheduleIndex(null); setScheduleRowDraft(null); }}>취소</Button>
+                              <Button size="sm" onClick={handleSaveScheduleRow} disabled={isSavingScheduleRow} className="font-bold">{isSavingScheduleRow ? "저장 중..." : "저장"}</Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
                     return (
                       <TableRow key={s.matchNumber} className={(s.homeIsRef || s.awayIsRef) ? 'opacity-60' : ''}>
                         <TableCell className="text-center text-xs text-muted-foreground">{s.matchNumber}</TableCell>
@@ -638,6 +811,14 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
                           ) : (
                             <span className="text-[10px] font-bold text-muted-foreground uppercase">미정</span>
                           )}
+                        </TableCell>
+                        <TableCell className="text-right pr-4">
+                          <div className="flex items-center justify-end gap-0.5">
+                            <Button size="icon" variant="ghost" className="h-6 w-6" disabled={index === 0} onClick={() => handleMoveScheduleRow(index, 'up')}><ArrowUp className="h-3 w-3" /></Button>
+                            <Button size="icon" variant="ghost" className="h-6 w-6" disabled={index === resolvedSchedule.length - 1} onClick={() => handleMoveScheduleRow(index, 'down')}><ArrowDown className="h-3 w-3" /></Button>
+                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => startEditingScheduleRow(index, selectedTournament.schedule![index])}><Edit3 className="h-3 w-3" /></Button>
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => handleDeleteScheduleRow(index)}><Trash2 className="h-3 w-3" /></Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -770,9 +951,25 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
                             <div className="flex items-center gap-2">
                               <div className="cursor-pointer hover:text-primary transition-colors" onClick={() => onViewMatch?.(m)}>
                                 <p className="font-bold text-base flex items-center gap-2">{m.matchName} <Eye className="h-3 w-3 opacity-0 group-hover:opacity-100" /></p>
-                                <p className="text-[10px] font-bold text-muted-foreground uppercase">{m.homeTeam.name} vs {m.awayTeam.name}</p>
+                                {editingTeamsMatchId === m.id ? (
+                                  <div className="flex items-center gap-1 mt-1" onClick={(e) => e.stopPropagation()}>
+                                    <Input value={editHomeName} onChange={(e) => setEditHomeName(e.target.value)} className="h-7 w-28 text-xs" onKeyDown={(e) => e.key === 'Enter' && handleSaveTeamNames(m.id!)} autoFocus />
+                                    <span className="text-[10px] text-muted-foreground">vs</span>
+                                    <Input value={editAwayName} onChange={(e) => setEditAwayName(e.target.value)} className="h-7 w-28 text-xs" onKeyDown={(e) => e.key === 'Enter' && handleSaveTeamNames(m.id!)} />
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-600" disabled={isSavingTeams} onClick={() => handleSaveTeamNames(m.id!)}><Save className="h-3.5 w-3.5" /></Button>
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setEditingTeamsMatchId(null)}><X className="h-3.5 w-3.5" /></Button>
+                                  </div>
+                                ) : (
+                                  <p className="text-[10px] font-bold text-muted-foreground uppercase">{m.homeTeam.name} vs {m.awayTeam.name}</p>
+                                )}
                               </div>
-                              <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); setEditingMatchId(m.id!); setEditMatchName(m.matchName || ""); }}><Edit3 className="h-3 w-3" /></Button>
+                              {editingTeamsMatchId !== m.id && (
+                                <div className="flex items-center opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7" title="경기명 수정" onClick={() => { setEditingMatchId(m.id!); setEditMatchName(m.matchName || ""); }}><Edit3 className="h-3 w-3" /></Button>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7" title="팀 이름 수정" onClick={() => startEditingTeams(m)}><Users className="h-3 w-3" /></Button>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7" title="홈/어웨이 바꾸기" disabled={swappingMatchId === m.id} onClick={() => handleSwapHomeAway(m)}><RefreshCw className={`h-3 w-3 ${swappingMatchId === m.id ? 'animate-spin' : ''}`} /></Button>
+                                </div>
+                              )}
                             </div>
                           )}
                         </TableCell>

@@ -80,6 +80,12 @@ export const TournamentService = {
     await updateDoc(docRef, { finalStandingsRules: rules });
   },
 
+  async updateTournamentDescription(dbInstance: Firestore, tournamentId: string, description: string) {
+    if (!tournamentId) return;
+    const docRef = doc(dbInstance, TOURNAMENTS_COL, tournamentId);
+    await updateDoc(docRef, { description });
+  },
+
   // 등록된 경기(MatchData)를 일정표의 "Match #"와 연결합니다 — 참조("Winner 47" 등) 자동치환의 기준 키.
   async updateMatchNumber(dbInstance: Firestore, matchId: string, matchNumber: number | null) {
     if (!matchId) return;
@@ -110,6 +116,14 @@ export const TournamentService = {
     if (!matchId) return;
     const docRef = doc(dbInstance, MATCHES_COL, matchId);
     await updateDoc(docRef, { videoMatchId });
+  },
+
+  // 팀 이름만 고쳐씁니다(오타 수정 등) — 스탯은 홈/어웨이 자리 그대로라 재계산이 필요 없습니다.
+  // 홈/어웨이 자리를 서로 바꾸는 건 다른 문제(스탯도 같이 뒤바뀌어야 함)라 updateMatchData로 처리합니다.
+  async updateMatchTeamNames(dbInstance: Firestore, matchId: string, homeName: string, awayName: string) {
+    if (!matchId) return;
+    const docRef = doc(dbInstance, MATCHES_COL, matchId);
+    await updateDoc(docRef, { 'homeTeam.name': homeName, 'awayTeam.name': awayName });
   },
 
   // events 배열 전체를 다시 씁니다 (예: 특정 이벤트의 관련 선수 메모 추가/수정 후).

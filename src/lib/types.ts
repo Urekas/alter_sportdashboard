@@ -113,6 +113,7 @@ export interface Tournament {
   id: string;
   name: string;
   startDate: string;
+  description?: string; // 대회 개요 — 사용자가 직접 작성(자동수집 아님)
   schedule?: ScheduleEntry[];
   finalStandingsRules?: Record<string, FinalStandingRule>;
   createdAt: any;
