@@ -281,25 +281,76 @@ async function fetchAndRenderMatches() {
   } catch(err) { console.error('Failed to load matches:', err); }
 }
 
+// 딥링크(matchId+time)로 들어왔을 때 진행 상태를 화면에 보여주는 배너.
+// 기존엔 아무 표시 없이 조용히 실패해서 사용자가 뭐가 잘못됐는지 알 수 없었습니다.
+function showDeepLinkStatus(message, kind) {
+  let el = document.getElementById('deeplink-status-banner');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'deeplink-status-banner';
+    el.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:9999;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:opacity .3s;';
+    document.body.appendChild(el);
+  }
+  const colors = {
+    loading: { bg: '#1e293b', color: '#fff', border: '1px solid #475569' },
+    success: { bg: '#065f46', color: '#fff', border: '1px solid #10b981' },
+    error:   { bg: '#7f1d1d', color: '#fff', border: '1px solid #ef4444' },
+  };
+  const c = colors[kind] || colors.loading;
+  el.style.background = c.bg; el.style.color = c.color; el.style.border = c.border;
+  el.style.opacity = '1';
+  el.textContent = message;
+  return el;
+}
+function hideDeepLinkStatus(delay) {
+  const el = document.getElementById('deeplink-status-banner');
+  if (!el) return;
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, delay || 0);
+}
+
 async function handleUrlParams() {
   const params = new URLSearchParams(window.location.search);
   const matchId = params.get('matchId');
   const time = params.get('time');
+
   if(matchId) {
+    if (time) showDeepLinkStatus('경기 불러오는 중...', 'loading');
     try {
       const docSnap = await getDoc(doc(db, 'Matches', matchId));
       if(docSnap.exists()) loadMatchForAnalysis(matchId, docSnap.data());
-    } catch(e) { console.error('URL param error:', e); }
+      else if (time) { showDeepLinkStatus('해당 경기를 찾을 수 없어요.', 'error'); hideDeepLinkStatus(4000); return; }
+    } catch(e) {
+      console.error('URL param error:', e);
+      if (time) { showDeepLinkStatus('경기를 불러오는 중 오류가 발생했어요.', 'error'); hideDeepLinkStatus(4000); }
+      return;
+    }
   }
+
   if(time && !isNaN(parseFloat(time))) {
     const t = parseFloat(time);
+    const mins = Math.floor(t / 60), secs = Math.floor(t % 60);
+    const label = `${mins}:${secs < 10 ? '0' + secs : secs}`;
+    showDeepLinkStatus(`${label} 지점으로 이동 준비 중...`, 'loading');
+
+    // 유튜브 플레이어(최대 3개) 초기화는 새 탭에서 처음 로드할 때 5초 넘게 걸리는 경우가 흔해서
+    // 넉넉하게(최대 20초) 기다리고, 실패하면 화면에 알려줍니다.
+    const startedAt = Date.now();
     const check = setInterval(() => {
       const pl = window._activeSportsplayPlayer;
       if(pl && typeof pl.seekTo === 'function') {
-        pl.seekTo(t, true); pl.playVideo(); clearInterval(check);
+        clearInterval(check);
+        pl.seekTo(t, true);
+        pl.playVideo();
+        showDeepLinkStatus(`${label} 지점부터 재생 중`, 'success');
+        hideDeepLinkStatus(2500);
+        return;
+      }
+      if (Date.now() - startedAt > 20000) {
+        clearInterval(check);
+        showDeepLinkStatus('영상 로딩이 오래 걸리고 있어요. 카메라 앵글이 정상 로드됐는지 확인해주세요.', 'error');
+        hideDeepLinkStatus(6000);
       }
     }, 500);
-    setTimeout(() => clearInterval(check), 5000);
   }
 }
 
