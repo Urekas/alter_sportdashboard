@@ -516,25 +516,26 @@ export function Dashboard() {
             </div>
 
             <div className="break-inside-avoid space-y-8">
-              <div className="space-y-8">
-                <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                  <Target className="h-6 w-6" /> 공격 점유 및 속도 분석
-                </div>
-                <MatchTrajectoryChart data={matchData} />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <CircleEntryAnalysis teamName={matchData.homeTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.homeTeam.name)} teamColor={matchData.homeTeam.color} />
-                  <CircleEntryAnalysis teamName={matchData.awayTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.awayTeam.name)} teamColor={matchData.awayTeam.color} />
-                </div>
+              <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+                <Target className="h-6 w-6" /> 공격 점유 및 속도 분석
               </div>
+              <MatchTrajectoryChart data={matchData} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <CircleEntryAnalysis teamName={matchData.homeTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.homeTeam.name)} teamColor={matchData.homeTeam.color} />
+                <CircleEntryAnalysis teamName={matchData.awayTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.awayTeam.name)} teamColor={matchData.awayTeam.color} />
+              </div>
+            </div>
 
-              <div className="pt-8 space-y-8 border-t-2 border-dashed">
-                <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                  <Shield className="h-6 w-6" /> 압박 분석
-                </div>
-                <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
-                <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} isCompact />
-                <TurnoverZoneMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
+            <div className="break-inside-avoid space-y-8 pt-4">
+              <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+                <Shield className="h-6 w-6" /> 압박 분석
               </div>
+              <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
+              <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} isCompact />
+            </div>
+
+            <div className="break-inside-avoid pt-4">
+              <TurnoverZoneMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
             </div>
 
             {aiAnalysis && (

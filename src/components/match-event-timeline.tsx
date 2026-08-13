@@ -109,35 +109,6 @@ export function MatchEventTimeline({ data, onEventsUpdate }: MatchEventTimelineP
   const hasEvents = timeline.some(r => r.type === 'event');
   if (!hasEvents) return null;
 
-  const timelineGrid = (
-    <div className="grid grid-cols-[1fr_64px_1fr]">
-      {timeline.map((row, i) => {
-        if (row.type === 'divider') {
-          return (
-            <div key={`d-${i}`} className="col-span-3 text-center text-[11px] font-bold text-muted-foreground bg-muted/30 rounded py-1.5 my-2">
-              {row.quarter}
-            </div>
-          );
-        }
-        const isHome = row.event.team === homeTeam.name;
-        return (
-          <div key={row.index} className="contents">
-            <div className={`border-r ${isHome ? '' : 'opacity-0'}`}>
-              {isHome && renderSide(row, 'home')}
-            </div>
-            <div className="flex flex-col items-center justify-center text-center px-1 border-r">
-              <span className="text-[10px] text-muted-foreground font-mono">{formatTime(row.event.time)}</span>
-              <span className="text-[11px] font-black">{row.scoreHome} - {row.scoreAway}</span>
-            </div>
-            <div className={!isHome ? '' : 'opacity-0'}>
-              {!isHome && renderSide(row, 'away')}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-
   const renderSide = (row: Extract<(typeof timeline)[number], { type: 'event' }>, side: 'home' | 'away') => {
     const { event, index, kind, scoreHome, scoreAway } = row;
     const meta = KIND_META[kind];
@@ -196,6 +167,35 @@ export function MatchEventTimeline({ data, onEventsUpdate }: MatchEventTimelineP
       </div>
     );
   }
+
+  const timelineGrid = (
+    <div className="grid grid-cols-[1fr_64px_1fr]">
+      {timeline.map((row, i) => {
+        if (row.type === 'divider') {
+          return (
+            <div key={`d-${i}`} className="col-span-3 text-center text-[11px] font-bold text-muted-foreground bg-muted/30 rounded py-1.5 my-2">
+              {row.quarter}
+            </div>
+          );
+        }
+        const isHome = row.event.team === homeTeam.name;
+        return (
+          <div key={row.index} className="contents">
+            <div className={`border-r ${isHome ? '' : 'opacity-0'}`}>
+              {isHome && renderSide(row, 'home')}
+            </div>
+            <div className="flex flex-col items-center justify-center text-center px-1 border-r">
+              <span className="text-[10px] text-muted-foreground font-mono">{formatTime(row.event.time)}</span>
+              <span className="text-[11px] font-black">{row.scoreHome} - {row.scoreAway}</span>
+            </div>
+            <div className={!isHome ? '' : 'opacity-0'}>
+              {!isHome && renderSide(row, 'away')}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 
   return (
     <Card>
