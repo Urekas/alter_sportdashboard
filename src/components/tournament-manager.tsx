@@ -491,10 +491,10 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
           <Card className="border-2 shadow-xl">
             <CardContent className="p-0">
               <Table>
-                <TableHeader><TableRow className="bg-muted/20"><TableHead className="pl-6 font-black uppercase text-xs">대회</TableHead><TableHead className="font-black uppercase text-xs">경기</TableHead><TableHead className="text-center font-black uppercase text-xs">스코어</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow className="bg-muted/20"><TableHead className="pl-6 font-black uppercase text-xs">대회</TableHead><TableHead className="font-black uppercase text-xs">경기</TableHead><TableHead className="text-center font-black uppercase text-xs">스코어</TableHead><TableHead className="w-12"></TableHead></TableRow></TableHeader>
                 <TableBody>
                   {countryMatchesFiltered.length === 0 ? (
-                    <TableRow><TableCell colSpan={3} className="text-center py-20 text-muted-foreground italic">조건에 맞는 경기가 없습니다.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={4} className="text-center py-20 text-muted-foreground italic">조건에 맞는 경기가 없습니다.</TableCell></TableRow>
                   ) : (
                     countryMatchesFiltered.map((m, idx) => {
                       const isHome = m.homeTeam?.name === selectedCountry;
@@ -502,13 +502,28 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
                       const myGoals = isHome ? m.matchStats.home.goals.field + m.matchStats.home.goals.pc : m.matchStats.away.goals.field + m.matchStats.away.goals.pc;
                       const oppGoals = isHome ? m.matchStats.away.goals.field + m.matchStats.away.goals.pc : m.matchStats.home.goals.field + m.matchStats.home.goals.pc;
                       return (
-                        <TableRow key={m.id || idx} className="hover:bg-muted/5 cursor-pointer group" onClick={() => onViewMatch?.(m)}>
+                        <TableRow key={m.id || idx} className="hover:bg-muted/5 cursor-pointer group" onClick={() => editingMatchId !== m.id && onViewMatch?.(m)}>
                           <TableCell className="pl-6 text-xs text-muted-foreground font-bold">{m.resolvedTournamentName || '-'}</TableCell>
                           <TableCell>
-                            <p className="font-bold text-base flex items-center gap-2">{m.matchName || `${m.homeTeam?.name} vs ${m.awayTeam?.name}`} <Eye className="h-3 w-3 opacity-0 group-hover:opacity-100" /></p>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase">{selectedCountry} vs {opponent}</p>
+                            {editingMatchId === m.id ? (
+                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                <Input value={editMatchName} onChange={(e) => setEditMatchName(e.target.value)} className="h-8 text-sm font-bold" onKeyDown={(e) => e.key === 'Enter' && handleUpdateMatchName(m.id!)} autoFocus />
+                                <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-emerald-600" onClick={() => handleUpdateMatchName(m.id!)}><Save className="h-4 w-4" /></Button>
+                                <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-destructive" onClick={() => setEditingMatchId(null)}><X className="h-4 w-4" /></Button>
+                              </div>
+                            ) : (
+                              <>
+                                <p className="font-bold text-base flex items-center gap-2">{m.matchName || `${m.homeTeam?.name} vs ${m.awayTeam?.name}`} <Eye className="h-3 w-3 opacity-0 group-hover:opacity-100" /></p>
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase">{selectedCountry} vs {opponent}</p>
+                              </>
+                            )}
                           </TableCell>
                           <TableCell className="text-center"><span className="font-black text-primary bg-primary/10 px-3 py-1 rounded-full text-sm">{myGoals} : {oppGoals}</span></TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            {editingMatchId !== m.id && (
+                              <Button size="icon" variant="ghost" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={() => { setEditingMatchId(m.id!); setEditMatchName(m.matchName || ""); }}><Edit3 className="h-3.5 w-3.5" /></Button>
+                            )}
+                          </TableCell>
                         </TableRow>
                       );
                     })
