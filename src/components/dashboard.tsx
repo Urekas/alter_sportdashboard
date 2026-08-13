@@ -36,6 +36,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { MatchSummaryBar } from "./match-summary-bar"
 import { TurnoverZoneMap } from "./turnover-zone-map"
 import { MatchEventTimeline } from "./match-event-timeline"
+import { ShotBreakdown } from "./shot-breakdown"
 
 export function Dashboard() {
   const [viewMode, setViewMode] = useState<'single' | 'tournament' | 'manage'>('single')
@@ -270,11 +271,11 @@ export function Dashboard() {
     <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto print:max-w-none">
       <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 print-hidden gap-4">
         <div>
-          <div className="flex items-center gap-4">
-            <h1 className="text-4xl font-bold text-primary italic tracking-tight font-headline">Field Focus</h1>
-            <Button 
-              variant="outline" 
-              size="sm" 
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+            <h1 className="text-3xl sm:text-4xl font-bold text-primary italic tracking-tight font-headline">Field Focus</h1>
+            <Button
+              variant="outline"
+              size="sm"
               className="h-8 border-orange-500 text-orange-500 font-bold hover:bg-orange-500/10"
               onClick={() => window.open('/Alter_sportsplay/index.html', '_blank')}
             >
@@ -282,7 +283,7 @@ export function Dashboard() {
               비디오 분석 도구
             </Button>
           </div>
-          <div className="flex gap-4 mt-1">
+          <div className="flex flex-wrap gap-2 sm:gap-4 mt-1">
             {['single', 'tournament', 'manage'].map((mode) => (
               <Button 
                 key={mode}
@@ -320,45 +321,49 @@ export function Dashboard() {
 
           {viewMode !== 'tournament' && (
             <>
-              <div className="flex items-center gap-4 border-r pr-4">
-                <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-4 w-full sm:w-auto sm:border-r sm:pr-4">
+                <div className="flex flex-col gap-1 w-full sm:w-auto">
                   <Label className="text-[10px] font-bold text-muted-foreground uppercase">대회명 / 경기명</Label>
-                  <div className="flex items-center gap-2">
-                    <Input 
-                      placeholder="대회명" 
-                      value={tournamentName} 
-                      onChange={(e) => setTournamentName(e.target.value)} 
-                      className="h-8 w-32 text-xs font-bold" 
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <Input
+                      placeholder="대회명"
+                      value={tournamentName}
+                      onChange={(e) => setTournamentName(e.target.value)}
+                      className="h-8 w-full sm:w-32 text-xs font-bold"
                     />
-                    <Input 
-                      placeholder="경기명" 
-                      value={matchName} 
-                      onChange={(e) => setMatchName(e.target.value)} 
-                      className="h-8 w-40 text-xs font-bold" 
+                    <Input
+                      placeholder="경기명"
+                      value={matchName}
+                      onChange={(e) => setMatchName(e.target.value)}
+                      className="h-8 w-full sm:w-40 text-xs font-bold"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 border-r pr-4">
-                <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-4 w-full sm:w-auto sm:border-r sm:pr-4">
+                <div className="flex flex-col gap-1 w-full sm:w-auto">
                   <Label className="text-[10px] font-bold text-muted-foreground uppercase">홈 / 어웨이 설정</Label>
-                  <div className="flex items-center gap-2">
-                    <Select value={homeTeamName} onValueChange={setHomeTeamName}>
-                      <SelectTrigger className="h-8 w-28 text-xs"><SelectValue placeholder="홈" /></SelectTrigger>
-                      <SelectContent>{detectedTeams.map(t => <SelectItem key={`h-${t}`} value={t}>{t}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <Input type="color" value={homeColor} onChange={(e) => setHomeColor(e.target.value)} className="w-6 h-6 p-0 border-none bg-transparent" />
-                    <Select value={awayTeamName} onValueChange={setAwayTeamName}>
-                      <SelectTrigger className="h-8 w-28 text-xs"><SelectValue placeholder="어웨이" /></SelectTrigger>
-                      <SelectContent>{detectedTeams.map(t => <SelectItem key={`a-${t}`} value={t}>{t}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <Input type="color" value={awayColor} onChange={(e) => setAwayColor(e.target.value)} className="w-6 h-6 p-0 border-none bg-transparent" />
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <div className="flex items-center gap-2">
+                      <Select value={homeTeamName} onValueChange={setHomeTeamName}>
+                        <SelectTrigger className="h-8 w-full sm:w-28 text-xs"><SelectValue placeholder="홈" /></SelectTrigger>
+                        <SelectContent>{detectedTeams.map(t => <SelectItem key={`h-${t}`} value={t}>{t}</SelectItem>)}</SelectContent>
+                      </Select>
+                      <Input type="color" value={homeColor} onChange={(e) => setHomeColor(e.target.value)} className="w-6 h-6 p-0 border-none bg-transparent shrink-0" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Select value={awayTeamName} onValueChange={setAwayTeamName}>
+                        <SelectTrigger className="h-8 w-full sm:w-28 text-xs"><SelectValue placeholder="어웨이" /></SelectTrigger>
+                        <SelectContent>{detectedTeams.map(t => <SelectItem key={`a-${t}`} value={t}>{t}</SelectItem>)}</SelectContent>
+                      </Select>
+                      <Input type="color" value={awayColor} onChange={(e) => setAwayColor(e.target.value)} className="w-6 h-6 p-0 border-none bg-transparent shrink-0" />
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xml,.csv" className="hidden" />
                 <Button onClick={() => fileInputRef.current?.click()} className="h-9"><Upload className="mr-2 h-4 w-4" /> 업로드</Button>
                 {matchData && (
@@ -431,33 +436,33 @@ export function Dashboard() {
               const prevMatch = currentIndex > 0 ? siblingMatches[currentIndex - 1] : null;
               const nextMatch = currentIndex >= 0 && currentIndex < siblingMatches.length - 1 ? siblingMatches[currentIndex + 1] : null;
               return (
-                <div className="print-hidden flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2 -mb-6">
+                <div className="print-hidden flex items-center justify-between gap-2 bg-muted/30 rounded-lg px-3 py-2 -mb-6">
                   <Button
                     variant="ghost" size="sm" disabled={!prevMatch}
                     onClick={() => handleNavigateMatch('prev')}
-                    className="text-xs font-bold disabled:opacity-30"
+                    className="text-xs font-bold disabled:opacity-30 min-w-0 shrink"
                   >
-                    <ChevronLeft className="h-4 w-4 mr-1" />
-                    {prevMatch ? prevMatch.matchName || '이전 경기' : '이전 경기 없음'}
+                    <ChevronLeft className="h-4 w-4 mr-1 shrink-0" />
+                    <span className="truncate">{prevMatch ? prevMatch.matchName || '이전 경기' : '이전 경기 없음'}</span>
                   </Button>
-                  <span className="text-[11px] text-muted-foreground font-mono">{currentIndex + 1} / {siblingMatches.length}</span>
+                  <span className="text-[11px] text-muted-foreground font-mono shrink-0">{currentIndex + 1} / {siblingMatches.length}</span>
                   <Button
                     variant="ghost" size="sm" disabled={!nextMatch}
                     onClick={() => handleNavigateMatch('next')}
-                    className="text-xs font-bold disabled:opacity-30"
+                    className="text-xs font-bold disabled:opacity-30 min-w-0 shrink"
                   >
-                    {nextMatch ? nextMatch.matchName || '다음 경기' : '다음 경기 없음'}
-                    <ChevronRight className="h-4 w-4 ml-1" />
+                    <span className="truncate">{nextMatch ? nextMatch.matchName || '다음 경기' : '다음 경기 없음'}</span>
+                    <ChevronRight className="h-4 w-4 ml-1 shrink-0" />
                   </Button>
                 </div>
               );
             })()}
-            <div className="border-b-4 border-primary pb-4 mb-8 flex justify-between items-end">
-              <div>
+            <div className="border-b-4 border-primary pb-4 mb-8 flex flex-col sm:flex-row justify-between sm:items-end gap-3">
+              <div className="min-w-0">
                 <h2 className="text-xl font-bold text-muted-foreground uppercase tracking-widest block print:text-primary print:text-2xl print:mb-2">{tournamentName || "Tournament Report"}</h2>
-                <h1 className="text-4xl font-black italic tracking-tighter text-foreground mt-1 font-headline print:text-3xl">{matchData.matchName || "Match Performance Analysis"}</h1>
+                <h1 className="text-2xl sm:text-4xl font-black italic tracking-tighter text-foreground mt-1 font-headline print:text-3xl break-words">{matchData.matchName || "Match Performance Analysis"}</h1>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" className="print-hidden border-orange-500 text-orange-500 font-bold h-9" 
                   onClick={() => window.open('/Alter_sportsplay/index.html', '_blank')}>
                   <Video className="h-4 w-4 mr-2" />
@@ -500,6 +505,10 @@ export function Dashboard() {
 
             <div className="break-inside-avoid pt-6">
               <BasicMatchStats data={matchData} />
+            </div>
+
+            <div className="break-inside-avoid pt-6">
+              <ShotBreakdown data={matchData} />
             </div>
 
             <div className="break-inside-avoid">

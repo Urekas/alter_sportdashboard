@@ -659,13 +659,13 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
     const hasSchedule = !!selectedTournament.schedule && selectedTournament.schedule.length > 0;
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
           <Button variant="ghost" size="icon" onClick={() => setSelectedTournament(null)}>
             <ArrowLeft className="h-6 w-6" />
           </Button>
-          <div className="flex-1">
-            <h2 className="text-3xl font-black italic text-primary uppercase tracking-tighter">{selectedTournament.name} - Match Management</h2>
-            <p className="text-muted-foreground font-bold">경기 순서 조정 및 분석 바로가기</p>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl sm:text-3xl font-black italic text-primary uppercase tracking-tighter break-words">{selectedTournament.name}<span className="hidden sm:inline"> - Match Management</span></h2>
+            <p className="text-muted-foreground font-bold text-sm sm:text-base">경기 순서 조정 및 분석 바로가기</p>
           </div>
           {knockoutStageLabels.length > 0 && (
             <Dialog open={isRulesDialogOpen} onOpenChange={setIsRulesDialogOpen}>
@@ -1067,13 +1067,13 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
 
       return (
         <div className="space-y-6">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
             <Button variant="ghost" size="icon" onClick={() => { setSelectedCountry(null); setSelectedCountryCategory('전체'); setSelectedYears(new Set()); setSelectedTournamentIds(new Set()); }}>
               <ArrowLeft className="h-6 w-6" />
             </Button>
-            <div className="flex-1">
-              <h2 className="text-3xl font-black italic text-primary uppercase tracking-tighter">{selectedCountry}</h2>
-              <p className="text-muted-foreground font-bold">{countryMatchesFiltered.length} / {countryMatches.length}경기 표시 중</p>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-xl sm:text-3xl font-black italic text-primary uppercase tracking-tighter break-words">{selectedCountry}</h2>
+              <p className="text-muted-foreground font-bold text-sm sm:text-base">{countryMatchesFiltered.length} / {countryMatches.length}경기 표시 중</p>
             </div>
             {onViewCumulative && countryMatchesFiltered.length > 0 && (
               <Button
@@ -1224,14 +1224,14 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
   if (selectedCategory) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             <Button variant="ghost" size="icon" onClick={() => setSelectedCategory(null)}>
               <ArrowLeft className="h-6 w-6" />
             </Button>
-            <div>
-              <h2 className="text-3xl font-black italic text-primary uppercase tracking-tighter">{selectedCategory}</h2>
-              <p className="text-muted-foreground font-bold">연도별 대회 목록</p>
+            <div className="min-w-0">
+              <h2 className="text-xl sm:text-3xl font-black italic text-primary uppercase tracking-tighter break-words">{selectedCategory}</h2>
+              <p className="text-muted-foreground font-bold text-sm sm:text-base">연도별 대회 목록</p>
             </div>
           </div>
           {renderNewTournamentDialog()}

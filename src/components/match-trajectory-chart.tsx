@@ -19,6 +19,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { MatchData, Team } from "@/lib/types"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 // 차트의 4개 배경 영역(ReferenceArea)과 동일한 기준으로 사분면을 판정합니다.
 function classifyQuadrant(x: number, y: number): { label: string; className: string } {
@@ -36,6 +37,7 @@ interface MatchTrajectoryChartProps {
 
 export function MatchTrajectoryChart({ data, isTournamentView, allMatchesPoints }: MatchTrajectoryChartProps) {
   const { homeTeam, awayTeam, quarterlyStats, matchStats } = data
+  const isMobile = useIsMobile()
 
   const processTeamData = (team: Team, isHome: boolean) => {
     // 1. 점들 (단일 경기면 쿼터별, 대회 모드면 경기별)
@@ -121,47 +123,47 @@ export function MatchTrajectoryChart({ data, isTournamentView, allMatchesPoints 
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-[700px] print:h-[280px] w-full mt-8">
+        <div className="h-[450px] sm:h-[700px] print:h-[280px] w-full mt-8">
           <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ top: 60, right: 80, bottom: 80, left: 60 }}>
+            <ScatterChart margin={isMobile ? { top: 40, right: 16, bottom: 50, left: 16 } : { top: 60, right: 80, bottom: 80, left: 60 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
               
               <ReferenceArea x1={50} x2={100} y1={0} y2={100} fill="#4bc0c0" fillOpacity={0.15}>
-                <Label value="Efficient Dominance" position="insideTopRight" offset={20} className="fill-emerald-700 font-black text-xs uppercase tracking-tighter" />
-              </ReferenceArea>
-              
-              <ReferenceArea x1={0} x2={50} y1={0} y2={100} fill="#4bc0c0" fillOpacity={0.08}>
-                <Label value="Direct & Fast" position="insideTopLeft" offset={20} className="fill-teal-700 font-black text-xs uppercase tracking-tighter" />
-              </ReferenceArea>
-              
-              <ReferenceArea x1={50} x2={100} y1={100} y2={450} fill="#94a3b8" fillOpacity={0.08}>
-                <Label value="Slow Buildup" position="insideBottomRight" offset={20} className="fill-slate-600 font-black text-xs uppercase tracking-tighter" />
-              </ReferenceArea>
-              
-              <ReferenceArea x1={0} x2={50} y1={100} y2={450} fill="#6366f1" fillOpacity={0.06}>
-                <Label value="Inefficient" position="insideBottomLeft" offset={20} className="fill-indigo-700 font-black text-xs uppercase tracking-tighter" />
+                <Label value="Efficient Dominance" position="insideTopRight" offset={isMobile ? 6 : 20} className={`fill-emerald-700 font-black uppercase tracking-tighter ${isMobile ? 'text-[7px]' : 'text-xs'}`} />
               </ReferenceArea>
 
-              <XAxis 
-                type="number" 
-                dataKey="x" 
-                name="Possession" 
-                unit="%" 
+              <ReferenceArea x1={0} x2={50} y1={0} y2={100} fill="#4bc0c0" fillOpacity={0.08}>
+                <Label value="Direct & Fast" position="insideTopLeft" offset={isMobile ? 6 : 20} className={`fill-teal-700 font-black uppercase tracking-tighter ${isMobile ? 'text-[7px]' : 'text-xs'}`} />
+              </ReferenceArea>
+
+              <ReferenceArea x1={50} x2={100} y1={100} y2={450} fill="#94a3b8" fillOpacity={0.08}>
+                <Label value="Slow Buildup" position="insideBottomRight" offset={isMobile ? 6 : 20} className={`fill-slate-600 font-black uppercase tracking-tighter ${isMobile ? 'text-[7px]' : 'text-xs'}`} />
+              </ReferenceArea>
+
+              <ReferenceArea x1={0} x2={50} y1={100} y2={450} fill="#6366f1" fillOpacity={0.06}>
+                <Label value="Inefficient" position="insideBottomLeft" offset={isMobile ? 6 : 20} className={`fill-indigo-700 font-black uppercase tracking-tighter ${isMobile ? 'text-[7px]' : 'text-xs'}`} />
+              </ReferenceArea>
+
+              <XAxis
+                type="number"
+                dataKey="x"
+                name="Possession"
+                unit="%"
                 domain={[0, 100]}
-                tick={{ fontSize: 14, fontWeight: 'bold' }}
+                tick={{ fontSize: isMobile ? 10 : 14, fontWeight: 'bold' }}
               >
-                <Label value="Attack Possession (%) ➝" position="bottom" offset={40} className="fill-foreground text-base font-black uppercase tracking-widest" />
+                <Label value="Attack Possession (%) ➝" position="bottom" offset={isMobile ? 20 : 40} className={`fill-foreground font-black uppercase tracking-widest ${isMobile ? 'text-[9px]' : 'text-base'}`} />
               </XAxis>
-              
-              <YAxis 
-                type="number" 
-                dataKey="y" 
-                name="CE Time" 
+
+              <YAxis
+                type="number"
+                dataKey="y"
+                name="CE Time"
                 unit="s"
                 domain={[0, 450]}
                 reversed
-                tick={{ fontSize: 13, fontWeight: 'bold' }}
-                label={{ value: 'CE Time (s) (↑ Fast / ↓ Slow)', angle: -90, position: 'insideLeft', offset: -10, className: "fill-foreground text-base font-black uppercase tracking-widest" }}
+                tick={{ fontSize: isMobile ? 9 : 13, fontWeight: 'bold' }}
+                label={{ value: isMobile ? 'CE Time (s)' : 'CE Time (s) (↑ Fast / ↓ Slow)', angle: -90, position: 'insideLeft', offset: isMobile ? 0 : -10, className: `fill-foreground font-black uppercase tracking-widest ${isMobile ? 'text-[9px]' : 'text-base'}` }}
               />
               
               <ZAxis type="number" dataKey="z" range={[300, 1500]} />
@@ -178,27 +180,27 @@ export function MatchTrajectoryChart({ data, isTournamentView, allMatchesPoints 
                 line={false} 
                 shape="circle"
               >
-                <LabelList dataKey="name" position="top" offset={20} style={{ fill: homeTeam.color, fontSize: 16, fontWeight: '900' }} />
+                <LabelList dataKey="name" position="top" offset={isMobile ? 10 : 20} style={{ fill: homeTeam.color, fontSize: isMobile ? 10 : 16, fontWeight: '900' }} />
               </Scatter>
 
               {!isTournamentView && (
-                <Scatter 
-                  name={awayTeam.name} 
-                  data={awayData.trajectory} 
-                  fill={awayTeam.color} 
-                  line={false} 
+                <Scatter
+                  name={awayTeam.name}
+                  data={awayData.trajectory}
+                  fill={awayTeam.color}
+                  line={false}
                   shape="square"
                 >
-                  <LabelList dataKey="name" position="bottom" offset={20} style={{ fill: awayTeam.color, fontSize: 16, fontWeight: '900' }} />
+                  <LabelList dataKey="name" position="bottom" offset={isMobile ? 10 : 20} style={{ fill: awayTeam.color, fontSize: isMobile ? 10 : 16, fontWeight: '900' }} />
                 </Scatter>
               )}
 
               <Scatter name={`${homeTeam.name} Avg`} data={homeData.total} fill={homeTeam.color} fillOpacity={0.2} stroke={homeTeam.color} strokeWidth={2} shape="circle">
-                <LabelList dataKey="name" position="top" offset={45} style={{ fill: homeTeam.color, fontSize: 24, fontWeight: '950', opacity: 0.3 }} />
+                <LabelList dataKey="name" position="top" offset={isMobile ? 20 : 45} style={{ fill: homeTeam.color, fontSize: isMobile ? 14 : 24, fontWeight: '950', opacity: 0.3 }} />
               </Scatter>
 
               <Scatter name={`${awayTeam.name} Avg`} data={awayData.total} fill={awayTeam.color} fillOpacity={0.2} stroke={awayTeam.color} strokeWidth={2} shape="square">
-                <LabelList dataKey="name" position="bottom" offset={45} style={{ fill: awayTeam.color, fontSize: 24, fontWeight: '950', opacity: 0.3 }} />
+                <LabelList dataKey="name" position="bottom" offset={isMobile ? 20 : 45} style={{ fill: awayTeam.color, fontSize: isMobile ? 14 : 24, fontWeight: '950', opacity: 0.3 }} />
               </Scatter>
             </ScatterChart>
           </ResponsiveContainer>

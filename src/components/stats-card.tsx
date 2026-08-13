@@ -23,13 +23,13 @@ export function StatsCard({ title, value, rank, icon, isTime, isPercentage }: St
   }, [value, isTime, isPercentage]);
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {icon && <div className="text-muted-foreground">{icon}</div>}
+    <Card className="min-w-0">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-2">
+        <CardTitle className="text-xs sm:text-sm font-medium truncate">{title}</CardTitle>
+        {icon && <div className="text-muted-foreground shrink-0">{icon}</div>}
       </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">
+      <CardContent className="p-3 sm:p-6 pt-0">
+        <div className="text-xl sm:text-2xl font-bold">
           {formattedValue}
           {rank && <span className="text-sm font-medium text-muted-foreground ml-2">({rank}위)</span>}
         </div>
