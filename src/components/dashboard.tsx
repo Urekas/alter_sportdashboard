@@ -35,6 +35,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { MatchSummaryBar } from "./match-summary-bar"
 import { TurnoverZoneMap } from "./turnover-zone-map"
+import { MatchEventTimeline } from "./match-event-timeline"
 
 export function Dashboard() {
   const [viewMode, setViewMode] = useState<'single' | 'tournament' | 'manage'>('single')
@@ -474,6 +475,10 @@ export function Dashboard() {
                 ))}
               </div>
               <BasicMatchStats data={matchData} />
+            </div>
+
+            <div className="break-inside-avoid">
+              <MatchEventTimeline data={matchData} onEventsUpdate={(events) => setMatchData(md => md ? { ...md, events } : md)} />
             </div>
 
             <div className="break-inside-avoid print:block">

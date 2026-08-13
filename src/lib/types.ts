@@ -16,6 +16,7 @@ export interface MatchEvent {
   locationLabel: string;
   resultLabel: string;
   code: string;
+  relatedPlayer?: string; // 득점자/선방·블록 선수 등, 사후에 입력하는 관련 선수 메모
 }
 
 export interface TeamMatchStats {

@@ -91,6 +91,15 @@ export const TournamentService = {
     await updateDoc(docRef, { videoMatchId });
   },
 
+  // events 배열 전체를 다시 씁니다 (예: 특정 이벤트의 관련 선수 메모 추가/수정 후).
+  // Sportscode에서 온 이벤트 id가 항상 고유하다고 보장할 수 없어서, 호출 측에서
+  // 배열 인덱스 기준으로 수정한 완성된 배열을 넘겨받는 방식으로 설계했습니다.
+  async updateEventsField(dbInstance: Firestore, matchId: string, events: MatchData['events']) {
+    if (!matchId) return;
+    const docRef = doc(dbInstance, MATCHES_COL, matchId);
+    await updateDoc(docRef, { events });
+  },
+
   async updateMatchOrder(dbInstance: Firestore, matchId: string, newOrder: number) {
     if (!matchId) return;
     const docRef = doc(dbInstance, MATCHES_COL, matchId);
