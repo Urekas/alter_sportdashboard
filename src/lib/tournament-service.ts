@@ -52,18 +52,20 @@ export const TournamentService = {
     await updateDoc(docRef, updates);
   },
 
-  async addMatchToTournament(tournamentId: string, matchData: MatchData) {
+  async addMatchToTournament(tournamentId: string, matchData: MatchData, matchNumber?: number) {
     const q = query(collection(db, MATCHES_COL), where('tournamentId', '==', tournamentId));
     const countSnapshot = await getCountFromServer(q);
     const nextOrder = countSnapshot.data().count;
 
     const { id, ...dataToSave } = matchData;
-    await addDoc(collection(db, MATCHES_COL), {
+    const docRef = await addDoc(collection(db, MATCHES_COL), {
       ...dataToSave,
       tournamentId,
       orderIndex: nextOrder,
       uploadedAt: serverTimestamp(),
+      ...(typeof matchNumber === 'number' ? { matchNumber } : {}),
     });
+    return docRef.id;
   },
 
   async updateSchedule(dbInstance: Firestore, tournamentId: string, schedule: Tournament['schedule']) {

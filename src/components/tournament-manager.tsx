@@ -6,7 +6,7 @@ import { Trophy, Database, Trash2, Edit3, Save, X, Plus, ChevronRight, RefreshCw
 import { VideoLinkDialog } from "./video-link-dialog"
 import { TournamentService } from "@/lib/tournament-service"
 import type { Tournament, MatchData, ScheduleEntry, FinalStandingRule } from "@/lib/types"
-import { resolveScheduleRefs, computePoolStandings, computeFinalStandings } from "@/lib/schedule-resolver"
+import { resolveScheduleRefs, computePoolStandings, computeFinalStandings, type ResolvedScheduleEntry } from "@/lib/schedule-resolver"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -86,7 +86,10 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
   const [isRulesDialogOpen, setIsRulesDialogOpen] = useState(false)
   const [rulesDraft, setRulesDraft] = useState<Record<string, Partial<FinalStandingRule>>>({})
   const [isSavingRules, setIsSavingRules] = useState(false)
+  const [slotUploadEntry, setSlotUploadEntry] = useState<ResolvedScheduleEntry | null>(null)
+  const [isUploadingSlot, setIsUploadingSlot] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const slotFileInputRef = useRef<HTMLInputElement>(null)
 
   const tourneyQuery = useMemoFirebase(() => db ? query(collection(db, 'tournaments')) : null, [db]);
   const matchesQuery = useMemoFirebase(() => db ? query(collection(db, 'matches')) : null, [db]);
@@ -107,6 +110,21 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
     return rawMatches.filter(m => m.tournamentId === selectedTournament.id)
       .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
   }, [selectedTournament, rawMatches]);
+
+  // 일정표 매치 번호 중 이미 실제 데이터가 업로드/연결된 것들 — "미입력 슬롯" 판별용
+  const linkedMatchNumbers = useMemo(() => {
+    return new Set(currentTournamentMatches.filter(m => typeof m.matchNumber === 'number').map(m => m.matchNumber as number));
+  }, [currentTournamentMatches]);
+
+  // 새 슬롯 업로드 시 팀 색상을 기존 경기와 맞추기 위한 팀명 -> 색상 맵
+  const teamColorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    currentTournamentMatches.forEach(m => {
+      if (!map.has(m.homeTeam.name)) map.set(m.homeTeam.name, m.homeTeam.color);
+      if (!map.has(m.awayTeam.name)) map.set(m.awayTeam.name, m.awayTeam.color);
+    });
+    return map;
+  }, [currentTournamentMatches]);
 
   // Pool 순위표: 승 3점 / 무 1점 / 패 0점, 승점 -> 득실차 -> 다득점 순으로 정렬
   const standings = useMemo(() => {
@@ -154,6 +172,17 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
     });
     return Array.from(set);
   }, [selectedTournament?.schedule]);
+
+  // 일정표 진행 현황 요약(완료/대기중/미정 개수) — "미입력 경기 슬롯" 카드에 표시
+  const scheduleUploadSummary = useMemo(() => {
+    let done = 0, pending = 0, undetermined = 0;
+    resolvedSchedule.forEach(s => {
+      if (linkedMatchNumbers.has(s.matchNumber)) done++;
+      else if (!s.homeIsRef && !s.awayIsRef) pending++;
+      else undetermined++;
+    });
+    return { done, pending, undetermined };
+  }, [resolvedSchedule, linkedMatchNumbers]);
 
   const finalStandings = useMemo(() => {
     if (!selectedTournament?.schedule) return [];
@@ -453,6 +482,50 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
     event.target.value = '';
   }
 
+  // "미입력 경기 슬롯" — 일정표에 이미 팀이 확정된(참조 미해석 아닌) 경기인데
+  // 아직 실제 XML/CSV가 업로드 안 된 행에서 바로 업로드 + matchNumber 연결까지 한번에 처리
+  const handleSlotUploadClick = (entry: ResolvedScheduleEntry) => {
+    setSlotUploadEntry(entry);
+    slotFileInputRef.current?.click();
+  }
+
+  const onSlotFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!slotUploadEntry || !event.target.files || !event.target.files[0] || !db || !selectedTournament) return;
+    const entry = slotUploadEntry;
+    const file = event.target.files[0];
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      setIsUploadingSlot(true);
+      try {
+        const ab = e.target?.result as ArrayBuffer;
+        let content = new TextDecoder('utf-8').decode(ab);
+        if ((content.match(/�/g) || []).length > 5) content = new TextDecoder('euc-kr').decode(ab);
+        const parsed = file.name.endsWith('.xml') ? parseXMLData(content) : parseCSVData(content);
+        const matchName = `M${entry.matchNumber} ${entry.homeResolved} vs ${entry.awayResolved}`;
+        const newMatchData = createMatchDataFromUpload(
+          parsed.events,
+          entry.homeResolved,
+          entry.awayResolved,
+          teamColorMap.get(entry.homeResolved) || "#0066ff",
+          teamColorMap.get(entry.awayResolved) || "#ef4444",
+          selectedTournament.name,
+          matchName
+        );
+        newMatchData.rawSourceText = content;
+        newMatchData.rawSourceFileName = file.name;
+        await TournamentService.addMatchToTournament(selectedTournament.id, newMatchData, entry.matchNumber);
+        toast({ title: `#${entry.matchNumber} 경기 업로드 및 연결 완료` });
+        setSlotUploadEntry(null);
+      } catch (err: any) {
+        toast({ title: "업로드 실패", description: err.message, variant: "destructive" });
+      } finally {
+        setIsUploadingSlot(false);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    event.target.value = '';
+  }
+
   if (selectedTournament) {
     const hasSchedule = !!selectedTournament.schedule && selectedTournament.schedule.length > 0;
     return (
@@ -525,24 +598,50 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
           </Dialog>
         </div>
         <input type="file" ref={fileInputRef} onChange={onFileChange} className="hidden" accept=".xml,.csv" />
+        <input type="file" ref={slotFileInputRef} onChange={onSlotFileChange} className="hidden" accept=".xml,.csv" />
 
         {selectedTournament.schedule && selectedTournament.schedule.length > 0 && (
           <Card className="border-2 shadow-xl">
-            <CardHeader className="bg-muted/10 border-b"><CardTitle className="text-lg flex items-center gap-2"><CalendarClock className="h-5 w-5 text-primary" /> 경기 일정 ({selectedTournament.schedule.length})</CardTitle></CardHeader>
+            <CardHeader className="bg-muted/10 border-b flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-lg flex items-center gap-2"><CalendarClock className="h-5 w-5 text-primary" /> 경기 일정 ({selectedTournament.schedule.length})</CardTitle>
+              <div className="flex items-center gap-3 text-[11px] font-bold">
+                <span className="text-emerald-600">완료 {scheduleUploadSummary.done}</span>
+                <span className="text-amber-600">대기중 {scheduleUploadSummary.pending}</span>
+                <span className="text-muted-foreground">미정 {scheduleUploadSummary.undetermined}</span>
+              </div>
+            </CardHeader>
             <CardContent className="p-0">
               <Table>
-                <TableHeader><TableRow className="bg-muted/20"><TableHead className="w-10 text-center">#</TableHead><TableHead className="text-xs font-black uppercase">일시</TableHead><TableHead className="text-xs font-black uppercase">대진</TableHead><TableHead className="text-xs font-black uppercase text-center">스테이지</TableHead><TableHead className="text-xs font-black uppercase text-center">스코어</TableHead><TableHead className="text-xs font-black uppercase text-center">상태</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow className="bg-muted/20"><TableHead className="w-10 text-center">#</TableHead><TableHead className="text-xs font-black uppercase">일시</TableHead><TableHead className="text-xs font-black uppercase">대진</TableHead><TableHead className="text-xs font-black uppercase text-center">스테이지</TableHead><TableHead className="text-xs font-black uppercase text-center">스코어</TableHead><TableHead className="text-xs font-black uppercase text-center">상태</TableHead><TableHead className="text-xs font-black uppercase text-center">데이터</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {resolvedSchedule.map((s) => (
-                    <TableRow key={s.matchNumber} className={(s.homeIsRef || s.awayIsRef) ? 'opacity-60' : ''}>
-                      <TableCell className="text-center text-xs text-muted-foreground">{s.matchNumber}</TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">{s.dateTime}</TableCell>
-                      <TableCell className="text-sm font-bold">{s.homeResolved} v {s.awayResolved}</TableCell>
-                      <TableCell className="text-center text-xs">{s.stage}</TableCell>
-                      <TableCell className="text-center text-xs font-mono">{s.score || '-'}</TableCell>
-                      <TableCell className="text-center text-[10px] uppercase font-bold text-muted-foreground">{s.status}</TableCell>
-                    </TableRow>
-                  ))}
+                  {resolvedSchedule.map((s) => {
+                    const isLinked = linkedMatchNumbers.has(s.matchNumber);
+                    const teamsConfirmed = !s.homeIsRef && !s.awayIsRef;
+                    return (
+                      <TableRow key={s.matchNumber} className={(s.homeIsRef || s.awayIsRef) ? 'opacity-60' : ''}>
+                        <TableCell className="text-center text-xs text-muted-foreground">{s.matchNumber}</TableCell>
+                        <TableCell className="text-xs whitespace-nowrap">{s.dateTime}</TableCell>
+                        <TableCell className="text-sm font-bold">{s.homeResolved} v {s.awayResolved}</TableCell>
+                        <TableCell className="text-center text-xs">{s.stage}</TableCell>
+                        <TableCell className="text-center text-xs font-mono">{s.score || '-'}</TableCell>
+                        <TableCell className="text-center text-[10px] uppercase font-bold text-muted-foreground">{s.status}</TableCell>
+                        <TableCell className="text-center">
+                          {isLinked ? (
+                            <span className="text-[10px] font-bold text-emerald-600 uppercase">완료</span>
+                          ) : teamsConfirmed ? (
+                            <Button
+                              size="sm" variant="outline"
+                              className="h-7 text-[10px] font-bold border-amber-500 text-amber-600 hover:bg-amber-50"
+                              disabled={isUploadingSlot}
+                              onClick={() => handleSlotUploadClick(s)}
+                            ><Video className="h-3 w-3 mr-1" /> {isUploadingSlot && slotUploadEntry?.matchNumber === s.matchNumber ? "업로드 중..." : "대기중"}</Button>
+                          ) : (
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase">미정</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
