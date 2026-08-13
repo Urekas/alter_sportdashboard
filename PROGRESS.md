@@ -37,7 +37,21 @@
 - ✅ Pool 순위표 (승점/득실차 자동계산, 대회 관리 화면에 표시)
 - ❌ Final standings (다단계 포맷 대진표)
 - ❌ 유연한 다단계 포맷 (조별→조별→토너먼트, 순위/경기결과 참조)
-- ✅ 일정표 붙여넣기 → 자동 파싱 (TMS Match Listing 형식, 확정팀/Winner-Loser/Pool참조/스코어/상태 인식. 참조를 실제팀으로 자동치환은 아직 - 다음 단계)
+- ✅ 일정표 붙여넣기 → 자동 파싱 (TMS Match Listing 형식, 확정팀/Winner-Loser/Pool참조/스코어/상태 인식)
+
+### 🔜 다음 세션 최우선 작업: 참조 자동 치환 + 최종 순위
+사용자 요청: 일정 붙여넣기 → 경기 하나씩 XML/영상 업데이트하면 → "Winner 47" 등 참조가 자동으로 실제 팀명으로 치환되고, 스테이지 라벨로 최종 순위까지 계산.
+
+**설계 메모:**
+1. `ScheduleEntry`에 `matchId?: string` 추가 — 실제 업로드된 `matches` 문서와 연결하는 키. 매칭 기준: `matchNumber` 를 매치 이름/문서에 어떻게 대응시킬지 UI로 사용자가 지정하게 하거나(간단), 아니면 업로드 시 matchNumber를 입력받기.
+2. **참조 해석 함수** `resolveScheduleRefs(schedule: ScheduleEntry[], matches: MatchData[], poolStandings: Record<pool, Standing[]>): ScheduleEntry[]`
+   - `/^Winner (\d+)$/` `/^Loser (\d+)$/` → 그 matchNumber의 matchId로 연결된 MatchData의 승/패팀으로 치환 (스코어 비교, 승부치기 "(N - M SO)" 표기도 파싱 필요)
+   - `/^(\d)(st|nd|rd|th) Pool ([A-Z])$/` → 해당 Pool(스테이지 라벨 A/B/C...)의 순위표에서 N위 팀으로 치환. Pool별 순위표는 이미 있는 `standings` useMemo 로직을 스테이지별로 그룹핑해서 재사용.
+   - 확정된 팀 코드(예: "IND")는 그대로 통과.
+3. **최종 순위 계산**: 스테이지 라벨 관례 매핑 필요 — "Final"=1/2위, "3/4"=3/4위, "5/6"=5/6위, "5/8"·"7/8" 조합, "SF"는 순위 확정 아님(다음 라운드 결정용) 등. 라벨이 대회마다 다를 수 있어서, 하드코딩보다는 "이 스테이지의 승자=N위, 패자=M위"를 사용자가 지정하는 간단한 매핑 UI가 안전할 듯.
+4. 화면: 일정표 렌더링 시 참조 문자열 대신 해석된 실제 팀명 표시(해석 안 되면 원문 유지), 최종 라운드까지 다 풀리면 "최종 순위" 카드 추가.
+
+관련 기존 코드: `standings` useMemo (tournament-manager.tsx), `ScheduleEntry`/`parseScheduleText` (같은 파일).
 - ❌ 미입력 경기 슬롯
 - ❌ FIH 랭킹 온디맨드 수집
 
