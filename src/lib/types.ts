@@ -71,6 +71,7 @@ export interface MatchData {
   tournamentName?: string;
   matchName?: string;
   orderIndex?: number;
+  matchNumber?: number; // 일정표의 "Match #"와 연결하는 키 — 참조 자동치환에 사용
   homeTeam: Team;
   awayTeam: Team;
   events: MatchEvent[];
@@ -101,12 +102,19 @@ export interface ScheduleEntry {
   status?: string;    // Upcoming / Official 등 원문 그대로
 }
 
+// 스테이지 라벨(예: "Final", "3/4") 하나가 최종순위 몇 위/몇 위를 결정하는지 사용자가 지정한 매핑.
+// 예: { "Final": { winnerRank: 1, loserRank: 2 }, "3/4": { winnerRank: 3, loserRank: 4 } }
+export interface FinalStandingRule {
+  winnerRank: number;
+  loserRank?: number;
+}
+
 export interface Tournament {
   id: string;
   name: string;
   startDate: string;
-  category?: string;
   schedule?: ScheduleEntry[];
+  finalStandingsRules?: Record<string, FinalStandingRule>;
   createdAt: any;
   category?: string; // 예: "여자대표팀", "남자대표팀" — 대회를 상위 그룹으로 묶는 용도
 }

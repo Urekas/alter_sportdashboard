@@ -72,6 +72,19 @@ export const TournamentService = {
     await updateDoc(docRef, { schedule });
   },
 
+  async updateFinalStandingsRules(dbInstance: Firestore, tournamentId: string, rules: Tournament['finalStandingsRules']) {
+    if (!tournamentId) return;
+    const docRef = doc(dbInstance, TOURNAMENTS_COL, tournamentId);
+    await updateDoc(docRef, { finalStandingsRules: rules });
+  },
+
+  // 등록된 경기(MatchData)를 일정표의 "Match #"와 연결합니다 — 참조("Winner 47" 등) 자동치환의 기준 키.
+  async updateMatchNumber(dbInstance: Firestore, matchId: string, matchNumber: number | null) {
+    if (!matchId) return;
+    const docRef = doc(dbInstance, MATCHES_COL, matchId);
+    await updateDoc(docRef, { matchNumber: matchNumber === null ? null : matchNumber });
+  },
+
   async getMatchesByTournament(tournamentId: string) {
     if (!tournamentId) return [];
     try {

@@ -2,10 +2,11 @@
 "use client"
 
 import React, { useState, useMemo, useRef } from "react"
-import { Trophy, Database, Trash2, Edit3, Save, X, Plus, ChevronRight, RefreshCw, ArrowLeft, ArrowUp, ArrowDown, Eye, Users, Video, CalendarClock } from "lucide-react"
+import { Trophy, Database, Trash2, Edit3, Save, X, Plus, ChevronRight, RefreshCw, ArrowLeft, ArrowUp, ArrowDown, Eye, Users, Video, CalendarClock, Link2, Settings2 } from "lucide-react"
 import { VideoLinkDialog } from "./video-link-dialog"
 import { TournamentService } from "@/lib/tournament-service"
-import type { Tournament, MatchData, ScheduleEntry } from "@/lib/types"
+import type { Tournament, MatchData, ScheduleEntry, FinalStandingRule } from "@/lib/types"
+import { resolveScheduleRefs, computePoolStandings, computeFinalStandings } from "@/lib/schedule-resolver"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -80,6 +81,11 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false)
   const [scheduleText, setScheduleText] = useState("")
   const [isSavingSchedule, setIsSavingSchedule] = useState(false)
+  const [editingMatchNumberId, setEditingMatchNumberId] = useState<string | null>(null)
+  const [editMatchNumber, setEditMatchNumber] = useState("")
+  const [isRulesDialogOpen, setIsRulesDialogOpen] = useState(false)
+  const [rulesDraft, setRulesDraft] = useState<Record<string, Partial<FinalStandingRule>>>({})
+  const [isSavingRules, setIsSavingRules] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const tourneyQuery = useMemoFirebase(() => db ? query(collection(db, 'tournaments')) : null, [db]);
@@ -125,6 +131,34 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
       .map(t => ({ ...t, pts: t.w * 3 + t.d, gd: t.gf - t.ga }))
       .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
   }, [currentTournamentMatches]);
+
+  // 일정표 참조("Winner 47", "3rd Pool B") 자동 치환 — 연결된 실제 매치 결과 우선, 없으면 일정표 스코어 사용
+  const resolvedSchedule = useMemo(() => {
+    if (!selectedTournament?.schedule) return [];
+    return resolveScheduleRefs(selectedTournament.schedule, currentTournamentMatches);
+  }, [selectedTournament?.schedule, currentTournamentMatches]);
+
+  // Pool(스테이지 라벨 A/B/C...)별 순위표
+  const poolStandings = useMemo(() => {
+    if (!selectedTournament?.schedule) return {};
+    return computePoolStandings(selectedTournament.schedule, currentTournamentMatches);
+  }, [selectedTournament?.schedule, currentTournamentMatches]);
+
+  // 최종 순위 매핑에 쓸 수 있는 스테이지 라벨 후보(Pool 알파벳 제외 — 토너먼트 라운드만)
+  const knockoutStageLabels = useMemo(() => {
+    if (!selectedTournament?.schedule) return [];
+    const set = new Set<string>();
+    selectedTournament.schedule.forEach(s => {
+      const stage = s.stage.trim();
+      if (stage && !/^[A-Za-z]$/.test(stage)) set.add(stage);
+    });
+    return Array.from(set);
+  }, [selectedTournament?.schedule]);
+
+  const finalStandings = useMemo(() => {
+    if (!selectedTournament?.schedule) return [];
+    return computeFinalStandings(selectedTournament.schedule, currentTournamentMatches, selectedTournament.finalStandingsRules);
+  }, [selectedTournament?.schedule, selectedTournament?.finalStandingsRules, currentTournamentMatches]);
 
   // 카테고리(예: 여자대표팀)별 대회 개수 집계
   const categories = useMemo(() => {
@@ -319,6 +353,48 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
     }
   }
 
+  const handleUpdateMatchNumber = async (matchId: string) => {
+    if (!db) return
+    const trimmed = editMatchNumber.trim();
+    const num = trimmed === "" ? null : parseInt(trimmed, 10);
+    if (trimmed !== "" && (num === null || isNaN(num))) {
+      toast({ title: "숫자만 입력해주세요", variant: "destructive" });
+      return;
+    }
+    try {
+      await TournamentService.updateMatchNumber(db, matchId, num)
+      setEditingMatchNumberId(null)
+      toast({ title: num === null ? "일정 번호 연결 해제" : `일정 #${num}과 연결 완료` })
+    } catch (e: any) {
+      toast({ title: "연결 실패", description: e.message, variant: "destructive" })
+    }
+  }
+
+  const openRulesDialog = () => {
+    setRulesDraft(selectedTournament?.finalStandingsRules || {});
+    setIsRulesDialogOpen(true);
+  }
+
+  const handleSaveRules = async () => {
+    if (!selectedTournament || !db) return;
+    setIsSavingRules(true);
+    try {
+      // 빈 규칙(승자 순위 미입력)은 저장하지 않음
+      const cleaned: Record<string, FinalStandingRule> = {};
+      Object.entries(rulesDraft).forEach(([stage, rule]) => {
+        if (rule?.winnerRank) cleaned[stage] = { winnerRank: rule.winnerRank, loserRank: rule.loserRank };
+      });
+      await TournamentService.updateFinalStandingsRules(db, selectedTournament.id, cleaned);
+      setSelectedTournament(prev => prev ? { ...prev, finalStandingsRules: cleaned } : prev);
+      toast({ title: "최종 순위 규칙 저장 완료" });
+      setIsRulesDialogOpen(false);
+    } catch (e: any) {
+      toast({ title: "저장 실패", description: e.message, variant: "destructive" });
+    } finally {
+      setIsSavingRules(false);
+    }
+  }
+
   const handleMoveOrder = async (matchId: string, currentOrder: number, direction: 'up' | 'down') => {
     if (!db) return;
     const targetOrder = direction === 'up' ? currentOrder - 1 : currentOrder + 1;
@@ -378,6 +454,7 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
   }
 
   if (selectedTournament) {
+    const hasSchedule = !!selectedTournament.schedule && selectedTournament.schedule.length > 0;
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -388,6 +465,49 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
             <h2 className="text-3xl font-black italic text-primary uppercase tracking-tighter">{selectedTournament.name} - Match Management</h2>
             <p className="text-muted-foreground font-bold">경기 순서 조정 및 분석 바로가기</p>
           </div>
+          {knockoutStageLabels.length > 0 && (
+            <Dialog open={isRulesDialogOpen} onOpenChange={setIsRulesDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="font-bold" onClick={openRulesDialog}><Settings2 className="h-4 w-4 mr-2" /> 최종순위 규칙</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>최종 순위 규칙</DialogTitle>
+                  <DialogDescription>이 스테이지의 승자/패자가 각각 몇 위가 되는지 지정하세요. 예: "Final" 승자=1위 패자=2위, "3/4" 승자=3위 패자=4위. 순위가 정해지지 않는 스테이지(예: SF)는 비워두세요.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3 max-h-80 overflow-y-auto">
+                  {knockoutStageLabels.map(stage => (
+                    <div key={stage} className="flex items-center gap-2">
+                      <span className="w-24 text-sm font-bold truncate" title={stage}>{stage}</span>
+                      <Input
+                        type="number"
+                        placeholder="승자 순위"
+                        className="h-8 text-xs"
+                        value={rulesDraft[stage]?.winnerRank ?? ""}
+                        onChange={(e) => {
+                          const v = e.target.value === "" ? undefined : parseInt(e.target.value, 10);
+                          setRulesDraft(prev => ({ ...prev, [stage]: { ...prev[stage], winnerRank: v } }));
+                        }}
+                      />
+                      <Input
+                        type="number"
+                        placeholder="패자 순위(선택)"
+                        className="h-8 text-xs"
+                        value={rulesDraft[stage]?.loserRank ?? ""}
+                        onChange={(e) => {
+                          const v = e.target.value === "" ? undefined : parseInt(e.target.value, 10);
+                          setRulesDraft(prev => ({ ...prev, [stage]: { ...prev[stage], loserRank: v } }));
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <DialogFooter>
+                  <Button onClick={handleSaveRules} disabled={isSavingRules} className="font-bold">{isSavingRules ? "저장 중..." : "저장"}</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
           <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="font-bold"><CalendarClock className="h-4 w-4 mr-2" /> 일정표 붙여넣기</Button>
@@ -413,11 +533,11 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
               <Table>
                 <TableHeader><TableRow className="bg-muted/20"><TableHead className="w-10 text-center">#</TableHead><TableHead className="text-xs font-black uppercase">일시</TableHead><TableHead className="text-xs font-black uppercase">대진</TableHead><TableHead className="text-xs font-black uppercase text-center">스테이지</TableHead><TableHead className="text-xs font-black uppercase text-center">스코어</TableHead><TableHead className="text-xs font-black uppercase text-center">상태</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {selectedTournament.schedule.map((s) => (
-                    <TableRow key={s.matchNumber} className={/^(Winner|Loser|\d(st|nd|rd|th))/i.test(s.homeRef + s.awayRef) ? 'opacity-60' : ''}>
+                  {resolvedSchedule.map((s) => (
+                    <TableRow key={s.matchNumber} className={(s.homeIsRef || s.awayIsRef) ? 'opacity-60' : ''}>
                       <TableCell className="text-center text-xs text-muted-foreground">{s.matchNumber}</TableCell>
                       <TableCell className="text-xs whitespace-nowrap">{s.dateTime}</TableCell>
-                      <TableCell className="text-sm font-bold">{s.homeRef} v {s.awayRef}</TableCell>
+                      <TableCell className="text-sm font-bold">{s.homeResolved} v {s.awayResolved}</TableCell>
                       <TableCell className="text-center text-xs">{s.stage}</TableCell>
                       <TableCell className="text-center text-xs font-mono">{s.score || '-'}</TableCell>
                       <TableCell className="text-center text-[10px] uppercase font-bold text-muted-foreground">{s.status}</TableCell>
@@ -429,9 +549,62 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
           </Card>
         )}
 
+        {finalStandings.length > 0 && (
+          <Card className="border-2 shadow-xl">
+            <CardHeader className="bg-muted/10 border-b"><CardTitle className="text-lg flex items-center gap-2"><Trophy className="h-5 w-5 text-primary" /> 최종 순위</CardTitle></CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableBody>
+                  {finalStandings.map((r) => (
+                    <TableRow key={`${r.rank}-${r.team}`}>
+                      <TableCell className="w-14 text-center font-black text-primary">{r.rank}</TableCell>
+                      <TableCell className="font-bold">{r.team}</TableCell>
+                      <TableCell className="text-right pr-6 text-xs text-muted-foreground">{r.stage}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+
+        {Object.keys(poolStandings).length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {Object.entries(poolStandings).sort(([a], [b]) => a.localeCompare(b)).map(([pool, rows]) => (
+              <Card key={pool} className="border-2 shadow-xl">
+                <CardHeader className="bg-muted/10 border-b py-3"><CardTitle className="text-sm flex items-center gap-2"><Trophy className="h-4 w-4 text-primary" /> Pool {pool} 순위표</CardTitle></CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/20">
+                        <TableHead className="w-8 text-center">#</TableHead>
+                        <TableHead className="font-black uppercase text-xs">팀</TableHead>
+                        <TableHead className="text-center font-black uppercase text-xs">P</TableHead>
+                        <TableHead className="text-center font-black uppercase text-xs">GD</TableHead>
+                        <TableHead className="text-center font-black uppercase text-xs">Pts</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {rows.map((t, idx) => (
+                        <TableRow key={t.team} className={idx % 2 === 0 ? '' : 'bg-muted/5'}>
+                          <TableCell className="text-center text-xs text-muted-foreground">{idx + 1}</TableCell>
+                          <TableCell className="font-bold text-sm">{t.team}</TableCell>
+                          <TableCell className="text-center text-xs">{t.p}</TableCell>
+                          <TableCell className="text-center text-xs">{t.gd > 0 ? `+${t.gd}` : t.gd}</TableCell>
+                          <TableCell className="text-center font-black text-primary text-xs">{t.pts}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
         {standings.length > 1 && (
           <Card className="border-2 shadow-xl">
-            <CardHeader className="bg-muted/10 border-b"><CardTitle className="text-lg flex items-center gap-2"><Trophy className="h-5 w-5 text-primary" /> 순위표</CardTitle></CardHeader>
+            <CardHeader className="bg-muted/10 border-b"><CardTitle className="text-lg flex items-center gap-2"><Trophy className="h-5 w-5 text-primary" /> 전체 순위표</CardTitle></CardHeader>
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
@@ -473,10 +646,10 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
           <CardHeader className="bg-muted/10 border-b"><CardTitle className="text-lg flex items-center gap-2"><Database className="h-5 w-5 text-primary" /> 등록된 경기 ({currentTournamentMatches.length})</CardTitle></CardHeader>
           <CardContent className="p-0">
              <Table>
-                <TableHeader><TableRow className="bg-muted/20"><TableHead className="w-16 text-center">순서</TableHead><TableHead className="pl-6 font-black uppercase text-xs">Match Name</TableHead><TableHead className="text-center font-black uppercase text-xs">Score</TableHead><TableHead className="text-right pr-6 font-black uppercase text-xs">Actions</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow className="bg-muted/20"><TableHead className="w-16 text-center">순서</TableHead><TableHead className="pl-6 font-black uppercase text-xs">Match Name</TableHead><TableHead className="text-center font-black uppercase text-xs">Score</TableHead>{hasSchedule && <TableHead className="text-center font-black uppercase text-xs">일정#</TableHead>}<TableHead className="text-right pr-6 font-black uppercase text-xs">Actions</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {currentTournamentMatches.length === 0 ? (
-                    <TableRow><TableCell colSpan={4} className="text-center py-20 text-muted-foreground italic">등록된 경기가 없습니다.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={hasSchedule ? 5 : 4} className="text-center py-20 text-muted-foreground italic">등록된 경기가 없습니다.</TableCell></TableRow>
                   ) : (
                     currentTournamentMatches.map((m, idx) => (
                       <TableRow key={m.id || idx} className="hover:bg-muted/5 group">
@@ -505,6 +678,23 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
                           )}
                         </TableCell>
                         <TableCell className="text-center"><span className="font-black text-primary bg-primary/10 px-3 py-1 rounded-full text-sm">{(m.matchStats.home.goals.field + m.matchStats.home.goals.pc)} : {(m.matchStats.away.goals.field + m.matchStats.away.goals.pc)}</span></TableCell>
+                        {hasSchedule && (
+                          <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                            {editingMatchNumberId === m.id ? (
+                              <div className="flex items-center justify-center gap-1">
+                                <Input type="number" value={editMatchNumber} onChange={(e) => setEditMatchNumber(e.target.value)} className="h-8 w-16 text-xs text-center" onKeyDown={(e) => e.key === 'Enter' && handleUpdateMatchNumber(m.id!)} autoFocus />
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-emerald-600" onClick={() => handleUpdateMatchNumber(m.id!)}><Save className="h-4 w-4" /></Button>
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setEditingMatchNumberId(null)}><X className="h-4 w-4" /></Button>
+                              </div>
+                            ) : (
+                              <Button
+                                variant="outline" size="sm"
+                                className={`h-7 text-xs font-bold ${typeof m.matchNumber === 'number' ? 'border-emerald-600 text-emerald-600' : 'border-muted-foreground/40 text-muted-foreground'}`}
+                                onClick={() => { setEditingMatchNumberId(m.id!); setEditMatchNumber(typeof m.matchNumber === 'number' ? String(m.matchNumber) : ""); }}
+                              ><Link2 className="h-3 w-3 mr-1" /> {typeof m.matchNumber === 'number' ? `#${m.matchNumber}` : '연결'}</Button>
+                            )}
+                          </TableCell>
+                        )}
                         <TableCell className="text-right pr-6 space-x-2" onClick={(e) => e.stopPropagation()}>
                           <Button variant="outline" size="sm" className={`h-8 text-xs font-bold ${m.videoMatchId ? 'border-orange-500 text-orange-500 hover:bg-orange-50' : 'border-muted-foreground/40 text-muted-foreground hover:bg-muted/50'}`} onClick={() => setVideoLinkMatch(m)}><Video className="h-3 w-3 mr-1" /> 영상</Button>
                           <Button variant="outline" size="sm" className="h-8 text-xs font-bold border-emerald-600 text-emerald-600 hover:bg-emerald-50" onClick={(e) => handleReplaceFile(e, m.id!)}><RefreshCw className="h-3 w-3 mr-1" /> 교체</Button>

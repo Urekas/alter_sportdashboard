@@ -35,23 +35,19 @@
 
 ## Phase 6 — 대회 허브 (진행 중)
 - ✅ Pool 순위표 (승점/득실차 자동계산, 대회 관리 화면에 표시)
-- ❌ Final standings (다단계 포맷 대진표)
-- ❌ 유연한 다단계 포맷 (조별→조별→토너먼트, 순위/경기결과 참조)
+- ✅ Final standings (다단계 포맷 대진표) — 스테이지 라벨→순위 매핑 UI로 사용자가 직접 지정
+- ✅ 참조 자동 치환 (Winner N/Loser N/Nth Pool X → 실제 팀명, 다단계 연쇄 참조 지원)
 - ✅ 일정표 붙여넣기 → 자동 파싱 (TMS Match Listing 형식, 확정팀/Winner-Loser/Pool참조/스코어/상태 인식)
 
-### 🔜 다음 세션 최우선 작업: 참조 자동 치환 + 최종 순위
-사용자 요청: 일정 붙여넣기 → 경기 하나씩 XML/영상 업데이트하면 → "Winner 47" 등 참조가 자동으로 실제 팀명으로 치환되고, 스테이지 라벨로 최종 순위까지 계산.
-
-**설계 메모:**
-1. `ScheduleEntry`에 `matchId?: string` 추가 — 실제 업로드된 `matches` 문서와 연결하는 키. 매칭 기준: `matchNumber` 를 매치 이름/문서에 어떻게 대응시킬지 UI로 사용자가 지정하게 하거나(간단), 아니면 업로드 시 matchNumber를 입력받기.
-2. **참조 해석 함수** `resolveScheduleRefs(schedule: ScheduleEntry[], matches: MatchData[], poolStandings: Record<pool, Standing[]>): ScheduleEntry[]`
-   - `/^Winner (\d+)$/` `/^Loser (\d+)$/` → 그 matchNumber의 matchId로 연결된 MatchData의 승/패팀으로 치환 (스코어 비교, 승부치기 "(N - M SO)" 표기도 파싱 필요)
-   - `/^(\d)(st|nd|rd|th) Pool ([A-Z])$/` → 해당 Pool(스테이지 라벨 A/B/C...)의 순위표에서 N위 팀으로 치환. Pool별 순위표는 이미 있는 `standings` useMemo 로직을 스테이지별로 그룹핑해서 재사용.
-   - 확정된 팀 코드(예: "IND")는 그대로 통과.
-3. **최종 순위 계산**: 스테이지 라벨 관례 매핑 필요 — "Final"=1/2위, "3/4"=3/4위, "5/6"=5/6위, "5/8"·"7/8" 조합, "SF"는 순위 확정 아님(다음 라운드 결정용) 등. 라벨이 대회마다 다를 수 있어서, 하드코딩보다는 "이 스테이지의 승자=N위, 패자=M위"를 사용자가 지정하는 간단한 매핑 UI가 안전할 듯.
-4. 화면: 일정표 렌더링 시 참조 문자열 대신 해석된 실제 팀명 표시(해석 안 되면 원문 유지), 최종 라운드까지 다 풀리면 "최종 순위" 카드 추가.
-
-관련 기존 코드: `standings` useMemo (tournament-manager.tsx), `ScheduleEntry`/`parseScheduleText` (같은 파일).
+✅ **완료 (2026-08-13): 참조 자동 치환 + 최종 순위**
+- `src/lib/schedule-resolver.ts` 신규 — `resolveScheduleRefs`, `computePoolStandings`, `computeFinalStandings`, `parseScore` 순수함수.
+  - Winner N/Loser N: 그 matchNumber에 연결된 실제 매치가 있으면 그 결과 최우선, 없으면 일정표 자체의 스코어 텍스트 사용(승부치기 "(N - M SO)" 표기 파싱 포함). 다단계 연쇄 참조(Final이 "Winner SF1"을 참조하는 식)도 재귀+순환가드로 지원.
+  - Nth Pool X: 스테이지 라벨이 알파벳 한 글자인 경기만 모아 승3/무1/패0 + 득실차 순위표 계산 후 N위 팀명 치환.
+  - Pool 참조와 Winner/Loser 참조가 한 경기 안에 섞여도(예: "Winner 5 v 2nd Pool A") 정상 해석됨.
+- `MatchData.matchNumber` 필드 추가 — 등록된 경기 테이블에 "일정#" 열/연결 버튼으로 사용자가 직접 매치 번호를 지정해 실제 업로드 결과와 일정표를 연결.
+- `Tournament.finalStandingsRules` 필드 추가 — "최종순위 규칙" 다이얼로그에서 스테이지 라벨별 승자/패자 순위를 사용자가 지정(예: Final→1/2위, "3/4"→3/4위, SF는 비워두면 최종순위 계산에서 제외).
+- 대회 관리 화면에 Pool별 순위표 카드(복수), 최종 순위 카드 신규 추가. 일정표 테이블은 참조 대신 해석된 실제 팀명을 표시(미해석 항목은 계속 옅게 표시).
+- 실제 앱(로컬 서버, 실 Firestore)에서 임시 테스트 대회로 전체 체인(Pool 순위표 → SF 승부치기 → Final/3/4 참조 → 최종 순위) 검증 완료 후 테스트 대회 삭제로 정리함.
 - ❌ 미입력 경기 슬롯
 - ❌ FIH 랭킹 온디맨드 수집
 
@@ -59,4 +55,4 @@
 태깅 도구에서 X_Loc/Y_Loc/X_Goal/Y_Goal 좌표를 아직 파싱 안 함(이름만 파싱됨) — 이것부터 연결해야 가능.
 
 ---
-작업 환경: 로컬 브랜치(`feature/phase0-readability`)에서만 작업, `main` 미접촉, 아직 GitHub push 안 됨.
+작업 환경: 브랜치 `feature/phase0-readability`에서 작업 후 `origin`에 push, `main` 미접촉.
