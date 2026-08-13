@@ -457,7 +457,7 @@ export function Dashboard() {
 
             <MatchSummaryBar data={matchData} />
 
-            <div className="break-inside-avoid space-y-8">
+            <div className="break-inside-avoid">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {[matchData.homeTeam, matchData.awayTeam].map((team, i) => (
                   <div key={team.name} className="space-y-3">
@@ -474,6 +474,9 @@ export function Dashboard() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div className="break-inside-avoid pt-6">
               <BasicMatchStats data={matchData} />
             </div>
 
