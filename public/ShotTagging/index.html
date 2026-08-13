@@ -1,0 +1,1643 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOCKEY VIDEO TAGGING & MAPPING TOOL</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- PapaParse for CSV Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        body { background-color: #060913; color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0d1321; }
+        ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 4px; }
+        .canvas-container { position: relative; border: 1px solid rgba(55, 65, 81, 0.6); border-radius: 0.75rem; overflow: hidden; cursor: crosshair; }
+        .active-instance { border-left: 4px solid #3b82f6 !important; background-color: rgba(37, 99, 235, 0.2) !important; }
+        
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
+        details[open] summary ~ * { animation: sweep .15s ease-in-out; }
+        @keyframes sweep { 0% {opacity: 0; margin-top: -10px} 100% {opacity: 1; margin-top: 0px} }
+
+        input::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.5; cursor: pointer; }
+
+        /* 커스텀 리사이저(Splitter) 스타일 */
+        .resizer {
+            width: 4px;
+            background-color: #1f2937; /* gray-800 */
+            cursor: col-resize;
+            z-index: 40;
+            transition: background-color 0.2s ease;
+            flex-shrink: 0;
+        }
+        .resizer:hover, .resizer.dragging {
+            background-color: #3b82f6; /* blue-500 */
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col h-screen overflow-hidden">
+
+    <!-- HEADER -->
+    <header class="border-b border-gray-800 bg-gray-950 px-6 py-3 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 p-2 rounded-lg"><i class="fa-solid fa-video text-white"></i></div>
+            <div>
+                <h1 class="text-lg font-black tracking-tight text-white">비디오 태깅 & 캔버스 매핑 시스템</h1>
+                <p class="text-[10px] text-gray-400">커스텀 필드 생성 및 레이아웃 자유 크기 조절 기능 포함</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <button id="btn-open-settings" class="flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-xs font-bold rounded cursor-pointer transition-colors text-white mr-2">
+                <i class="fa-solid fa-gear text-gray-300"></i> 태깅 템플릿 설정
+            </button>
+            <label class="flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-xs font-semibold rounded cursor-pointer transition-colors">
+                <i class="fa-solid fa-file-code text-amber-400"></i> 타임라인 (SC/XML, 누적)
+                <input type="file" id="timeline-upload" accept=".sctimeline,.json,.xml" class="hidden">
+            </label>
+            <span id="session-merge-badge" class="hidden text-[10px] font-bold text-amber-300 bg-amber-900/30 border border-amber-800 px-2 py-1 rounded" title=""></span>
+            <button id="btn-reset-session" class="text-[10px] text-gray-500 hover:text-red-400 underline" title="누적된 태깅 데이터를 모두 지우고 새로 시작">세션 초기화</button>
+            <label class="flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-xs font-semibold rounded cursor-pointer transition-colors">
+                <i class="fa-solid fa-film text-sky-400"></i> 비디오 추가 (누적)
+                <input type="file" id="video-upload" accept="video/mp4,video/quicktime,.json" multiple class="hidden">
+            </label>
+            <div class="border-l border-gray-700 pl-3 flex gap-2">
+                <button id="btn-export-xml" class="flex items-center gap-2 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded shadow-lg transition-colors">
+                    <i class="fa-solid fa-code"></i> 선택 항목 XML
+                </button>
+                <button id="btn-export-merged-xml" class="flex items-center gap-2 px-3 py-1.5 bg-rose-800 hover:bg-rose-700 text-white text-xs font-bold rounded shadow-lg transition-colors" title="지금까지 업로드/태깅한 모든 경기를 하나의 XML로 병합해 내보냅니다(그룹·출처 유지)">
+                    <i class="fa-solid fa-layer-group"></i> 전체 병합 XML
+                </button>
+                <button id="btn-export-selected-csv" class="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded shadow-lg transition-colors">
+                    <i class="fa-solid fa-file-csv"></i> 선택 CSV
+                </button>
+                <button id="btn-export-sctimeline" class="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded shadow-lg transition-colors">
+                    <i class="fa-solid fa-file-code"></i> 전체 SCTimeline (.sctimeline)
+                </button>
+                <button id="btn-export-all-csv" class="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded shadow-lg transition-colors">
+                    <i class="fa-solid fa-download"></i> 전체 병합 CSV
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN WORKSPACE -->
+    <main class="flex-grow flex flex-row relative overflow-hidden" id="main-workspace">
+        
+        <!-- LEFT PANEL: Video Player -->
+        <section id="panel-left" class="bg-gray-900 flex flex-col relative shrink-0 transition-all duration-100" style="width: 50%;">
+            <!-- Video Container -->
+            <div class="w-full bg-black aspect-video relative flex items-center justify-center shrink-0 group">
+                <div id="video-layer-container" class="w-full h-full absolute inset-0"></div>
+                <div id="video-overlay" class="absolute inset-0 flex items-center justify-center pointer-events-none bg-black/80 z-20">
+                    <span class="text-gray-500 text-sm font-semibold"><i class="fa-solid fa-film mr-2"></i>비디오를 추가해주세요</span>
+                </div>
+                <div id="no-video-overlay" class="absolute inset-0 hidden items-center justify-center pointer-events-none bg-black/90 z-10">
+                    <div class="text-center">
+                        <i class="fa-solid fa-video-slash text-gray-600 text-3xl mb-2"></i>
+                        <p class="text-gray-400 text-xs font-semibold">이 카메라 앵글은 아직 촬영이 시작되지 않은 시점입니다.<br>(오프셋 이전 타임라인)</p>
+                    </div>
+                </div>
+                <div class="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-30">
+                    <button id="btn-pip" class="bg-gray-900/80 hover:bg-gray-800 border border-gray-700 text-white text-[10px] px-2 py-1 rounded backdrop-blur"><i class="fa-regular fa-clone"></i> PIP 모드</button>
+                    <button id="btn-toggle-layout" class="bg-blue-600/80 hover:bg-blue-500 border border-blue-500 text-white text-[10px] px-2 py-1 rounded backdrop-blur"><i class="fa-solid fa-expand"></i> 화면 꽉 채우기</button>
+                </div>
+                <div class="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/60 backdrop-blur border border-white/10 text-white/70 text-[9px] px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 flex gap-3">
+                    <span><kbd class="font-mono text-white bg-white/20 px-1 rounded">Space</kbd> 재생/정지</span>
+                    <span><kbd class="font-mono text-white bg-white/20 px-1 rounded">◀</kbd> <kbd class="font-mono text-white bg-white/20 px-1 rounded">▶</kbd> 3초 이동</span>
+                    <span><kbd class="font-mono text-white bg-white/20 px-1 rounded">,</kbd> <kbd class="font-mono text-white bg-white/20 px-1 rounded">.</kbd> 0.1초 정밀이동</span>
+                </div>
+            </div>
+            
+            <div class="p-3 border-b border-gray-800 bg-gray-950 shrink-0">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-bold text-gray-400">카메라 앵글 변경</span>
+                        <div class="flex items-center gap-1.5 bg-gray-900 px-2 py-1 rounded border border-gray-700">
+                            <label class="text-[10px] font-bold text-gray-400"><i class="fa-solid fa-clock-rotate-left mr-1"></i>Sync(초):</label>
+                            <input type="number" id="input-sync-offset" step="0.1" class="w-16 bg-black border border-gray-700 rounded px-1 py-0.5 text-xs text-white text-right outline-none focus:border-blue-500" value="0" disabled>
+                            <label class="bg-gray-800 hover:bg-gray-700 px-2 py-0.5 rounded border border-gray-600 cursor-pointer text-[10px] text-gray-300 ml-1 transition-colors" title="현재 앵글의 stream.json 업로드 (자동 싱크)">
+                                <i class="fa-solid fa-file-code"></i> JSON
+                                <input type="file" id="input-sync-json" accept=".json" class="hidden" disabled>
+                            </label>
+                        </div>
+                        <div class="flex items-center gap-1.5 bg-gray-900 px-2 py-1 rounded border border-gray-700">
+                            <label class="text-[10px] font-bold text-gray-400"><i class="fa-solid fa-gauge-high mr-1"></i>배속:</label>
+                            <select id="input-playback-rate" class="bg-black border border-gray-700 rounded px-1 py-0.5 text-xs text-white outline-none focus:border-blue-500 cursor-pointer" disabled>
+                                <option value="0.25">0.25x</option><option value="0.5">0.5x</option><option value="1" selected>1.0x</option><option value="1.5">1.5x</option><option value="2">2.0x</option>
+                            </select>
+                        </div>
+                        <button id="btn-clear-videos" class="hidden text-[10px] text-red-400 hover:text-red-300 underline ml-2"><i class="fa-solid fa-trash-can"></i> 전체삭제</button>
+                    </div>
+                    <div class="text-right flex items-center gap-3">
+                        <span class="text-[10px] text-gray-500">Timeline Time:</span>
+                        <span id="current-time-display" class="text-sm font-mono font-bold text-blue-400 bg-blue-900/20 px-2 py-0.5 rounded border border-blue-800">00:00.00</span>
+                    </div>
+                </div>
+                <div id="angle-buttons" class="flex gap-2 overflow-x-auto pb-1 mt-2">
+                    <span class="text-[10px] text-gray-600 italic">업로드된 영상이 없습니다.</span>
+                </div>
+            </div>
+
+            <!-- Edit Form -->
+            <div class="p-5 flex-grow overflow-y-auto space-y-4" id="edit-form-container">
+                <div class="flex items-center justify-between border-b border-gray-800 pb-2">
+                    <h3 class="text-sm font-bold text-white"><i class="fa-solid fa-pen-to-square text-blue-500 mr-1.5"></i>데이터 수정 및 매핑</h3>
+                    <span id="form-instance-id" class="text-[10px] font-mono bg-gray-800 px-2 py-0.5 rounded text-gray-400">선택된 인스턴스 없음</span>
+                </div>
+
+                <div class="grid grid-cols-2 xl:grid-cols-3 gap-4" id="fixed-form-grid">
+                    <div class="space-y-1">
+                        <label id="label-player" class="text-[10px] font-bold text-gray-400 uppercase">슈터 (Player)</label>
+                        <input list="list-player" type="text" id="input-player" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none" disabled>
+                        <datalist id="list-player"></datalist>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-sky-400 uppercase">그룹 (Row)</label>
+                        <input type="text" id="input-row" class="w-full bg-gray-950 border border-sky-900/70 rounded px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none" disabled>
+                    </div>
+                    <div class="space-y-1">
+                        <label id="label-gk" class="text-[10px] font-bold text-amber-400 uppercase">상대 골키퍼 (GK Player)</label>
+                        <input list="list-gk" type="text" id="input-gk" class="w-full bg-gray-950 border border-amber-900/70 rounded px-2 py-1.5 text-xs text-amber-100 focus:border-amber-500 outline-none" disabled>
+                        <datalist id="list-gk"></datalist>
+                    </div>
+                    <div class="space-y-1">
+                        <label id="label-type" class="text-[10px] font-bold text-gray-400 uppercase">슈팅 타입 (Type)</label>
+                        <input list="list-type" type="text" id="input-type" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none" disabled>
+                        <datalist id="list-type"></datalist>
+                    </div>
+                    <div class="space-y-1">
+                        <label id="label-output" class="text-[10px] font-bold text-gray-400 uppercase">결과 (Output)</label>
+                        <input list="list-output" type="text" id="input-output" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none" disabled>
+                        <datalist id="list-output"></datalist>
+                    </div>
+                    <div class="space-y-1">
+                        <label id="label-out-dir" class="text-[10px] font-bold text-gray-400 uppercase">아웃 방향 (OUT)</label>
+                        <input list="list-out-dir" type="text" id="input-out-dir" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none" disabled>
+                        <datalist id="list-out-dir"></datalist>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-gray-400 uppercase">비고 / 컨텍스트</label>
+                        <input type="text" id="input-context" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none" disabled>
+                    </div>
+                </div>
+                
+                <!-- Dynamic Custom Fields Area -->
+                <div class="grid grid-cols-2 xl:grid-cols-3 gap-4 mt-3 pt-3 border-t border-gray-800" id="custom-form-grid">
+                    <!-- Injected via JS -->
+                </div>
+
+                <div class="mt-4 p-3 bg-gray-950 border border-gray-800 rounded-lg flex justify-between items-center text-xs">
+                    <div>
+                        <span class="text-gray-500 block text-[9px] mb-1">발사 위치 (Field)</span>
+                        <span id="disp-field-coord" class="font-mono font-bold text-blue-400">우측 캔버스 클릭</span>
+                    </div>
+                    <div class="h-6 w-px bg-gray-800"></div>
+                    <div class="text-right">
+                        <span class="text-gray-500 block text-[9px] mb-1">타겟 위치 (Goal)</span>
+                        <span id="disp-goal-coord" class="font-mono font-bold text-emerald-400">우측 캔버스 클릭</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- DRAG RESIZER 1 -->
+        <div id="resizer-1" class="resizer"></div>
+
+        <!-- MIDDLE PANEL: Canvases -->
+        <section id="panel-middle" class="bg-gray-900 p-4 flex flex-col gap-6 overflow-y-auto shrink-0 transition-all duration-100" style="width: 25%;">
+            <div>
+                <div class="flex justify-between items-end mb-2">
+                    <h2 class="text-sm font-bold"><span class="text-blue-500 mr-1">1.</span>필드 발사 위치</h2>
+                    <div class="flex items-center gap-3">
+                        <label class="flex items-center gap-1 text-[10px] text-gray-400 cursor-pointer hover:text-white">
+                            <input type="checkbox" id="chk-flip-field" class="w-3 h-3 rounded border-gray-700 bg-gray-900 cursor-pointer">
+                            상하반전
+                        </label>
+                        <button id="btn-clear-field" class="text-[10px] text-gray-400 hover:text-white underline">지우기</button>
+                    </div>
+                </div>
+                <div class="canvas-container bg-[#1e2a3b] hover:border-blue-500 transition-colors w-full">
+                    <canvas id="field-canvas" class="w-full block"></canvas>
+                </div>
+            </div>
+            <div>
+                <div class="flex justify-between items-end mb-2">
+                    <h2 class="text-sm font-bold"><span class="text-emerald-500 mr-1">2.</span>골대 타겟 위치</h2>
+                    <div class="flex items-center gap-3">
+                        <label class="flex items-center gap-1 text-[10px] text-gray-400 cursor-pointer hover:text-white">
+                            <input type="checkbox" id="chk-flip-goal" class="w-3 h-3 rounded border-gray-700 bg-gray-900 cursor-pointer">
+                            좌우반전
+                        </label>
+                        <button id="btn-clear-goal" class="text-[10px] text-gray-400 hover:text-white underline">지우기</button>
+                    </div>
+                </div>
+                <div class="canvas-container bg-[#0a1128] hover:border-emerald-500 transition-colors w-full">
+                    <canvas id="goal-canvas" class="w-full block"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- DRAG RESIZER 2 -->
+        <div id="resizer-2" class="resizer"></div>
+
+        <!-- RIGHT PANEL: Timeline List -->
+        <section id="panel-right" class="bg-gray-950 flex flex-col shrink-0 transition-all duration-100" style="width: 25%;">
+            <div class="p-3 border-b border-gray-800 bg-gray-900 flex flex-col gap-2 shrink-0">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-sm font-bold text-white">타임라인 목록</h2>
+                    <span id="instance-count" class="text-[10px] bg-gray-800 px-2 py-0.5 rounded font-mono text-gray-300">0 건</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="check-all-instances" class="w-3 h-3 rounded border-gray-700 bg-gray-900 cursor-pointer">
+                    <label for="check-all-instances" class="text-[10px] text-gray-400 cursor-pointer">모든 항목 선택</label>
+                </div>
+            </div>
+            <div class="flex-grow overflow-y-auto p-2" id="instance-list-container">
+                <div class="p-6 text-center text-xs text-gray-600">파일을 업로드하면 목록이 표시됩니다.</div>
+            </div>
+        </section>
+    </main>
+
+    <!-- SETTINGS MODAL -->
+    <div id="modal-settings" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-[600px] shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-5">
+                <h2 class="text-lg font-black text-white">⚙️ 태깅 템플릿 설정</h2>
+                <button id="btn-close-settings" class="text-gray-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p class="text-[11px] text-gray-400 mb-4 bg-gray-800/50 p-2 rounded">
+                - 각 항목에 쉼표(,)로 구분하여 입력하세요.<br>
+                - 단축키를 지정하려면 괄호 안에 키를 적어주세요. (예: <code>goal(g), save(s)</code>)
+            </p>
+            
+            <div class="mb-4 pb-4 border-b border-gray-800">
+                <label class="block text-[10px] font-bold text-sky-300 mb-1">앵글 1~4 전환 단축키</label>
+                <input type="text" id="tmpl-angles" class="w-full bg-gray-950 border border-sky-900/70 rounded p-2 text-xs text-sky-100" placeholder="예: 1, 2, 3, 4">
+            </div>
+            <div class="space-y-3">
+                <div class="flex gap-2"><input type="text" id="tmpl-name-player" class="w-1/3 bg-gray-950 border border-gray-700 rounded p-1.5 text-[10px] font-bold text-gray-300" placeholder="필드명"><input type="text" id="tmpl-players" class="w-2/3 bg-gray-950 border border-gray-700 rounded p-1.5 text-xs text-white" placeholder="옵션 (쉼표로 구분)"></div>
+                <div class="flex gap-2"><input type="text" id="tmpl-name-gk" class="w-1/3 bg-gray-950 border border-amber-900/70 rounded p-1.5 text-[10px] font-bold text-amber-300" placeholder="필드명"><input type="text" id="tmpl-gks" class="w-2/3 bg-gray-950 border border-amber-900/70 rounded p-1.5 text-xs text-amber-100" placeholder="옵션 (쉼표로 구분)"></div>
+                <div class="flex gap-2"><input type="text" id="tmpl-name-type" class="w-1/3 bg-gray-950 border border-gray-700 rounded p-1.5 text-[10px] font-bold text-gray-300" placeholder="필드명"><input type="text" id="tmpl-types" class="w-2/3 bg-gray-950 border border-gray-700 rounded p-1.5 text-xs text-white" placeholder="옵션 (쉼표로 구분)"></div>
+                <div class="flex gap-2"><input type="text" id="tmpl-name-output" class="w-1/3 bg-gray-950 border border-gray-700 rounded p-1.5 text-[10px] font-bold text-gray-300" placeholder="필드명"><input type="text" id="tmpl-outputs" class="w-2/3 bg-gray-950 border border-gray-700 rounded p-1.5 text-xs text-white" placeholder="옵션 (쉼표로 구분)"></div>
+                <div class="flex gap-2"><input type="text" id="tmpl-name-outdir" class="w-1/3 bg-gray-950 border border-gray-700 rounded p-1.5 text-[10px] font-bold text-gray-300" placeholder="필드명"><input type="text" id="tmpl-outdirs" class="w-2/3 bg-gray-950 border border-gray-700 rounded p-1.5 text-xs text-white" placeholder="옵션 (쉼표로 구분)"></div>
+            </div>
+            
+            <div class="mt-6 border-t border-gray-800 pt-4">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-[12px] font-bold text-purple-400">➕ 사용자 정의 필드 (Custom Fields)</h3>
+                    <button id="btn-add-custom-field" class="text-[10px] bg-purple-600 hover:bg-purple-500 px-2 py-1 rounded font-bold text-white transition-colors">+ 필드 추가</button>
+                </div>
+                <div id="custom-fields-settings-container" class="space-y-3">
+                    <!-- Dynamic rows injected here -->
+                </div>
+                <p class="text-[9px] text-gray-500 mt-2">사용자 정의 필드는 CSV 및 XML 추출 시 자동으로 새로운 컬럼/태그로 포함됩니다.</p>
+            </div>
+
+            <div class="flex items-center justify-between mt-6 pt-4 border-t border-gray-800">
+                <div class="flex gap-2">
+                    <button id="btn-export-tmpl" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 text-[11px] font-bold rounded border border-gray-700 transition-colors"><i class="fa-solid fa-file-export mr-1"></i>내보내기 (.json)</button>
+                    <label class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 text-[11px] font-bold rounded border border-gray-700 transition-colors cursor-pointer">
+                        <i class="fa-solid fa-file-import mr-1"></i>불러오기 <input type="file" id="btn-import-tmpl" accept=".json" class="hidden">
+                    </label>
+                </div>
+                <button id="btn-save-settings" class="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded shadow-lg transition-colors">적용 및 저장</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data State
+        let instancesData = [];
+        let originalTimelineJson = null;
+        let activeInstanceId = null;
+        let videoFiles = [];
+        let currentVideoIndex = 0;
+        let timelineFileName = "Unknown_Match";
+        let currentAbstractTimelineTime = 0;
+
+        // 여러 파일(경기)을 순서대로 업로드해도 덮어쓰지 않고 누적해서, 마지막에 한번에
+        // 병합 export 할 수 있게 하기 위한 상태입니다. 각 인스턴스는 inst.timeline에
+        // 자기가 어느 파일에서 왔는지 이미 갖고 있어서(기존 필드), 병합해도 출처가 구분됩니다.
+        let loadedTimelineNames = [];
+        
+        // Layout State
+        let isExpandedLayout = false;
+        let savedWidths = { left: '50%', middle: '25%', right: '25%' };
+
+        // Custom Template State
+        let taggingTemplate = {
+            players: "최지윤, 이유리, 김정인, 박승애, 박서연, 박미향, 김선아",
+            gks: "상대GK 1, 상대GK 2",
+            types: "field_shot, PC_direct, PC_var, PS, hit, sweep, reverse, tip_in",
+            outputs: "goal(g), save(s), block(b), out(o), fail(f)",
+            outDirs: "LEFT, RIGHT, UP",
+            fieldNames: {
+                player: "슈터 (Player)",
+                gk_player: "상대 골키퍼 (GK Player)",
+                shot_type: "슈팅 타입 (Type)",
+                shot_output: "결과 (Output)",
+                out_dir: "아웃 방향 (OUT)"
+            },
+            customFields: [
+                { id: "cf_assist", name: "어시스트 유형", options: "컷백, 크로스, 스루패스, 리바운드, 단독돌파, PC인젝션" },
+                { id: "cf_pressure", name: "수비 압박", options: "Low(오픈), Medium, High(완전압박)" }
+            ],
+            angles: "1, 2, 3, 4"
+        };
+        
+        let shortcutMap = {};
+        let angleShortcuts = [];
+
+        const FIELD_MAX_X = 550; const FIELD_MAX_Y = 230;
+        const GOAL_MAX_X = 366; const GOAL_MAX_Y = 214;
+
+        // Elements
+        const videoLayerContainer = document.getElementById('video-layer-container');
+        let videoPlayers = [];
+        Object.defineProperty(window, 'mainVideo', {
+            get: function() { return videoPlayers[currentVideoIndex]; }
+        });
+        const inputSyncOffset = document.getElementById('input-sync-offset');
+        const inputPlaybackRate = document.getElementById('input-playback-rate');
+        const instanceListContainer = document.getElementById('instance-list-container');
+        const instanceCount = document.getElementById('instance-count');
+        const customFormGrid = document.getElementById('custom-form-grid');
+        const formInstanceId = document.getElementById('form-instance-id');
+        const dispFieldCoord = document.getElementById('disp-field-coord');
+        const dispGoalCoord = document.getElementById('disp-goal-coord');
+        
+        const panelLeft = document.getElementById('panel-left');
+        const panelMiddle = document.getElementById('panel-middle');
+        const panelRight = document.getElementById('panel-right');
+        const resizer1 = document.getElementById('resizer-1');
+        const resizer2 = document.getElementById('resizer-2');
+
+        // Fixed Input Elements
+        const inputPlayer = document.getElementById('input-player');
+        const inputGk = document.getElementById('input-gk');
+        const inputType = document.getElementById('input-type');
+        const inputOutput = document.getElementById('input-output');
+        const inputOutDir = document.getElementById('input-out-dir');
+        const inputContext = document.getElementById('input-context');
+        const inputRow = document.getElementById('input-row');
+
+        // Canvases
+        const fieldCanvas = document.getElementById('field-canvas');
+        const goalCanvas = document.getElementById('goal-canvas');
+        const fCtx = fieldCanvas.getContext('2d');
+        const gCtx = goalCanvas.getContext('2d');
+
+        let isFieldFlippedY = false;
+        let isGoalFlippedX = false;
+
+        // --- DRAG TO RESIZE LOGIC ---
+        let isDragging1 = false;
+        let isDragging2 = false;
+        let startX, startWidthLeft, startWidthMiddle, startWidthRight;
+
+        resizer1.addEventListener('mousedown', (e) => {
+            isDragging1 = true;
+            startX = e.clientX;
+            startWidthLeft = panelLeft.getBoundingClientRect().width;
+            startWidthMiddle = panelMiddle.getBoundingClientRect().width;
+            document.body.style.cursor = 'col-resize';
+            resizer1.classList.add('dragging');
+            e.preventDefault(); // prevent text selection
+        });
+
+        resizer2.addEventListener('mousedown', (e) => {
+            isDragging2 = true;
+            startX = e.clientX;
+            startWidthMiddle = panelMiddle.getBoundingClientRect().width;
+            startWidthRight = panelRight.getBoundingClientRect().width;
+            document.body.style.cursor = 'col-resize';
+            resizer2.classList.add('dragging');
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging1 && !isDragging2) return;
+            
+            const mainWorkspace = document.getElementById('main-workspace');
+            const totalWidth = mainWorkspace.getBoundingClientRect().width;
+            const dx = e.clientX - startX;
+
+            if (isDragging1) {
+                let newLeft = startWidthLeft + dx;
+                let newMiddle = startWidthMiddle - dx;
+                
+                const minW = totalWidth * 0.15;
+                if (newLeft > minW && newMiddle > minW) {
+                    panelLeft.style.width = `${(newLeft / totalWidth) * 100}%`;
+                    panelMiddle.style.width = `${(newMiddle / totalWidth) * 100}%`;
+                    resizeCanvases(); 
+                }
+            } else if (isDragging2) {
+                let newMiddle = startWidthMiddle + dx;
+                let newRight = startWidthRight - dx;
+                
+                const minW = totalWidth * 0.15;
+                if (newMiddle > minW && newRight > minW) {
+                    panelMiddle.style.width = `${(newMiddle / totalWidth) * 100}%`;
+                    panelRight.style.width = `${(newRight / totalWidth) * 100}%`;
+                    resizeCanvases();
+                }
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging1 || isDragging2) {
+                isDragging1 = false;
+                isDragging2 = false;
+                document.body.style.cursor = 'default';
+                resizer1.classList.remove('dragging');
+                resizer2.classList.remove('dragging');
+            }
+        });
+
+        function resizeCanvases() {
+            if (panelMiddle.classList.contains('hidden')) return;
+            const fParent = fieldCanvas.parentElement.clientWidth;
+            fieldCanvas.width = fParent; fieldCanvas.height = fParent * (230 / 550);
+            const gParent = goalCanvas.parentElement.clientWidth;
+            goalCanvas.width = gParent; goalCanvas.height = gParent * (214 / 366);
+            drawCanvases();
+        }
+
+        window.onload = () => {
+            loadTemplate(); 
+            buildEditForm(); 
+            
+            setTimeout(() => { resizeCanvases(); }, 100);
+            window.addEventListener('resize', resizeCanvases);
+            
+            document.getElementById('btn-toggle-layout').addEventListener('click', () => {
+                isExpandedLayout = !isExpandedLayout;
+                if (isExpandedLayout) {
+                    savedWidths = {
+                        left: panelLeft.style.width,
+                        middle: panelMiddle.style.width,
+                        right: panelRight.style.width
+                    };
+                    panelLeft.style.width = '100%';
+                    panelMiddle.classList.add('hidden'); 
+                    panelRight.classList.add('hidden');
+                    resizer1.classList.add('hidden');
+                    resizer2.classList.add('hidden');
+                    document.getElementById('btn-toggle-layout').innerHTML = '<i class="fa-solid fa-compress"></i> 원래대로';
+                } else {
+                    panelLeft.style.width = savedWidths.left;
+                    panelMiddle.style.width = savedWidths.middle;
+                    panelRight.style.width = savedWidths.right;
+                    
+                    panelMiddle.classList.remove('hidden'); 
+                    panelRight.classList.remove('hidden');
+                    resizer1.classList.remove('hidden');
+                    resizer2.classList.remove('hidden');
+                    document.getElementById('btn-toggle-layout').innerHTML = '<i class="fa-solid fa-expand"></i> 화면 꽉 채우기';
+                    setTimeout(resizeCanvases, 350); 
+                }
+            });
+        };
+
+            document.getElementById('btn-pip').addEventListener('click', () => {
+                if (document.pictureInPictureElement) document.exitPictureInPicture();
+                else if (document.pictureInPictureEnabled && mainVideo) mainVideo.requestPictureInPicture();
+            });
+
+            inputSyncOffset.addEventListener('change', (e) => {
+                if (videoFiles.length === 0) return;
+                const newOffset = parseFloat(e.target.value) || 0;
+                videoFiles[currentVideoIndex].offset = newOffset;
+                const targetVideoTime = currentAbstractTimelineTime - newOffset;
+                if (targetVideoTime < 0) { mainVideo.pause(); mainVideo.currentTime = 0; document.getElementById('no-video-overlay').style.display = 'flex'; } 
+                else { document.getElementById('no-video-overlay').style.display = 'none'; mainVideo.currentTime = targetVideoTime; }
+            });
+
+            inputPlaybackRate.addEventListener('change', (e) => { 
+                const rate = parseFloat(e.target.value);
+                videoPlayers.forEach(v => v.playbackRate = rate); 
+            });
+
+            [inputRow, inputPlayer, inputGk, inputType, inputOutput, inputOutDir, inputContext].forEach(input => {
+                input.addEventListener('input', () => {
+                    if (activeInstanceId === null) return;
+                    const inst = instancesData.find(i => i.id === activeInstanceId);
+                    if (inst) {
+                        inst.rowName = inputRow.value;
+                        inst.player = inputPlayer.value; inst.gk_player = inputGk.value;
+                        inst.shot_type = inputType.value; inst.shot_output = inputOutput.value; 
+                        inst.out_dir = inputOutDir.value; inst.context = inputContext.value;
+                        renderInstanceList();
+                    }
+                });
+            });
+
+            customFormGrid.addEventListener('input', (e) => {
+                if (e.target.tagName === 'INPUT' && activeInstanceId !== null) {
+                    const fieldId = e.target.dataset.customId;
+                    const inst = instancesData.find(i => i.id === activeInstanceId);
+                    if (inst && fieldId) {
+                        if(!inst.custom_fields) inst.custom_fields = {};
+                        inst.custom_fields[fieldId] = e.target.value;
+                        renderInstanceList();
+                    }
+                }
+            });
+
+            fieldCanvas.addEventListener('click', handleFieldClick);
+            goalCanvas.addEventListener('click', handleGoalClick);
+            document.getElementById('btn-clear-field').addEventListener('click', () => clearCoord('field'));
+            document.getElementById('btn-clear-goal').addEventListener('click', () => clearCoord('goal'));
+            
+            document.getElementById('chk-flip-field').addEventListener('change', (e) => {
+                isFieldFlippedY = e.target.checked;
+                drawCanvases();
+            });
+            document.getElementById('chk-flip-goal').addEventListener('change', (e) => {
+                isGoalFlippedX = e.target.checked;
+                drawCanvases();
+            });
+
+            document.getElementById('check-all-instances').addEventListener('change', (e) => {
+                document.querySelectorAll('.instance-checkbox, .group-checkbox').forEach(chk => { chk.checked = e.target.checked; });
+            });
+
+            document.getElementById('timeline-upload').addEventListener('change', handleTimelineUpload);
+            document.getElementById('video-upload').addEventListener('change', handleVideoUpload);
+            document.getElementById('btn-clear-videos').addEventListener('click', clearAllVideos);
+            
+            document.getElementById('input-sync-json').addEventListener('change', handleSyncJsonUpload);
+
+            document.getElementById('btn-export-all-csv').addEventListener('click', () => exportToCSV(false));
+            document.getElementById('btn-export-selected-csv').addEventListener('click', () => exportToCSV(true));
+            document.getElementById('btn-export-sctimeline').addEventListener('click', exportToSCTimeline);
+            document.getElementById('btn-export-xml').addEventListener('click', () => exportToXML(true));
+            document.getElementById('btn-export-merged-xml').addEventListener('click', () => exportToXML(false));
+            document.getElementById('btn-reset-session').addEventListener('click', resetSession);
+
+            document.getElementById('btn-open-settings').addEventListener('click', openSettings);
+            document.getElementById('btn-close-settings').addEventListener('click', () => document.getElementById('modal-settings').classList.add('hidden'));
+            document.getElementById('btn-add-custom-field').addEventListener('click', () => addCustomFieldRow('cf_' + Date.now(), '', ''));
+            document.getElementById('btn-save-settings').addEventListener('click', saveSettings);
+            document.getElementById('btn-export-tmpl').addEventListener('click', exportTemplate);
+            document.getElementById('btn-import-tmpl').addEventListener('change', importTemplate);
+
+            document.addEventListener('keydown', (e) => {
+                const activeTag = document.activeElement.tagName;
+                if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return;
+                
+                const key = e.key.toLowerCase();
+
+                const angleIndex = angleShortcuts.indexOf(key);
+                if (angleIndex !== -1 && videoFiles.length > angleIndex) {
+                    e.preventDefault();
+                    switchAngle(angleIndex);
+                    return;
+                }
+
+                if (activeInstanceId !== null && shortcutMap[key]) {
+                    e.preventDefault();
+                    const action = shortcutMap[key];
+                    const inst = instancesData.find(i => i.id === activeInstanceId);
+                    if (inst) {
+                        if (action.isCustom) {
+                            if (!inst.custom_fields) inst.custom_fields = {};
+                            inst.custom_fields[action.field] = action.value;
+                            document.getElementById(`input-${action.field}`).value = action.value;
+                        } else {
+                            inst[action.field] = action.value;
+                            if (action.field === 'player') inputPlayer.value = action.value;
+                            else if (action.field === 'gk_player') inputGk.value = action.value;
+                            else if (action.field === 'shot_type') inputType.value = action.value;
+                            else if (action.field === 'shot_output') inputOutput.value = action.value;
+                            else if (action.field === 'out_dir') inputOutDir.value = action.value;
+                        }
+                        renderInstanceList();
+                    }
+                    return;
+                }
+
+                const activeVideo = (typeof videoPlayers !== 'undefined' && videoPlayers.length > 0) ? videoPlayers[typeof currentVideoIndex !== 'undefined' ? currentVideoIndex : 0] : (document.getElementById('main-video') || mainVideo);
+                if (!activeVideo || (!activeVideo.src && !activeVideo.currentSrc)) return; 
+
+                switch (e.code) {
+                    case 'Space': 
+                        e.preventDefault(); 
+                        if (document.activeElement && document.activeElement !== document.body && typeof document.activeElement.blur === 'function') document.activeElement.blur();
+                        if (activeVideo.paused) activeVideo.play().catch(()=>{}); else activeVideo.pause(); 
+                        break;
+                    case 'ArrowLeft': e.preventDefault(); activeVideo.currentTime = Math.max(0, activeVideo.currentTime - 3); break;
+                    case 'ArrowRight': e.preventDefault(); activeVideo.currentTime += 3; break;
+                    case 'Comma': e.preventDefault(); activeVideo.pause(); activeVideo.currentTime = Math.max(0, activeVideo.currentTime - 0.1); break;
+                    case 'Period': e.preventDefault(); activeVideo.pause(); activeVideo.currentTime += 0.1; break;
+                }
+            });
+        // --- TEMPLATE & CUSTOM FIELDS ---
+        function loadTemplate() {
+            const saved = localStorage.getItem('hockeyTaggingTemplate');
+            if (saved) { try { taggingTemplate = JSON.parse(saved); } catch(e) {} }
+            if (!taggingTemplate.fieldNames) {
+                taggingTemplate.fieldNames = { player: "슈터 (Player)", gk_player: "상대 골키퍼 (GK Player)", shot_type: "슈팅 타입 (Type)", shot_output: "결과 (Output)", out_dir: "아웃 방향 (OUT)" };
+            }
+            buildShortcutMap();
+            populateDatalists();
+            updateFixedLabels();
+        }
+
+        function updateFixedLabels() {
+            if(!taggingTemplate.fieldNames) return;
+            document.getElementById('label-player').innerText = taggingTemplate.fieldNames.player;
+            document.getElementById('label-gk').innerText = taggingTemplate.fieldNames.gk_player;
+            document.getElementById('label-type').innerText = taggingTemplate.fieldNames.shot_type;
+            document.getElementById('label-output').innerText = taggingTemplate.fieldNames.shot_output;
+            document.getElementById('label-out-dir').innerText = taggingTemplate.fieldNames.out_dir;
+        }
+
+        function buildShortcutMap() {
+            shortcutMap = {};
+            const parseShortcuts = (str, fieldName, isCustom = false) => {
+                if (!str) return;
+                str.split(',').forEach(s => {
+                    const trimmed = s.trim();
+                    const match = trimmed.match(/\((.*?)\)$/);
+                    if (match) {
+                        const key = match[1].toLowerCase();
+                        const value = trimmed.replace(/\(.*?\)$/, '').trim();
+                        shortcutMap[key] = { field: fieldName, value: value, isCustom: isCustom };
+                    }
+                });
+            };
+            
+            parseShortcuts(taggingTemplate.players, 'player');
+            parseShortcuts(taggingTemplate.gks, 'gk_player');
+            parseShortcuts(taggingTemplate.types, 'shot_type');
+            parseShortcuts(taggingTemplate.outputs, 'shot_output');
+            parseShortcuts(taggingTemplate.outDirs, 'out_dir');
+            
+            if (taggingTemplate.customFields) {
+                taggingTemplate.customFields.forEach(cf => { parseShortcuts(cf.options, cf.id, true); });
+            }
+
+            angleShortcuts = [];
+            if (taggingTemplate.angles) {
+                taggingTemplate.angles.split(',').forEach(s => angleShortcuts.push(s.trim().toLowerCase()));
+            }
+        }
+
+        function populateDatalists() {
+            const createOptions = (str) => {
+                if (!str) return '';
+                return str.split(',').map(s => {
+                    const val = s.trim().replace(/\(.*?\)$/, '').trim();
+                    return val !== '' ? `<option value="${val}"></option>` : '';
+                }).join('');
+            };
+            document.getElementById('list-player').innerHTML = createOptions(taggingTemplate.players);
+            document.getElementById('list-gk').innerHTML = createOptions(taggingTemplate.gks);
+            document.getElementById('list-type').innerHTML = createOptions(taggingTemplate.types);
+            document.getElementById('list-output').innerHTML = createOptions(taggingTemplate.outputs);
+            document.getElementById('list-out-dir').innerHTML = createOptions(taggingTemplate.outDirs);
+        }
+
+        function buildEditForm() {
+            customFormGrid.innerHTML = '';
+            if (taggingTemplate.customFields && taggingTemplate.customFields.length > 0) {
+                taggingTemplate.customFields.forEach(cf => {
+                    const optionsHtml = cf.options ? cf.options.split(',').map(s => {
+                        const val = s.trim().replace(/\(.*?\)$/, '').trim();
+                        return val !== '' ? `<option value="${val}"></option>` : '';
+                    }).join('') : '';
+                    customFormGrid.innerHTML += `
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold uppercase text-purple-400 flex justify-between">
+                                <span>${cf.name}</span><span class="text-[9px] text-gray-500 font-normal">선택/입력</span>
+                            </label>
+                            <input list="list-${cf.id}" type="text" id="input-${cf.id}" data-custom-id="${cf.id}" class="w-full bg-gray-950 border border-purple-900/50 rounded px-2 py-1.5 text-xs text-white focus:border-purple-500 outline-none transition-colors custom-dynamic-input" disabled>
+                            <datalist id="list-${cf.id}">${optionsHtml}</datalist>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        function openSettings() {
+            document.getElementById('tmpl-angles').value = taggingTemplate.angles || "1, 2, 3, 4";
+            
+            document.getElementById('tmpl-name-player').value = taggingTemplate.fieldNames?.player || "슈터 (Player)";
+            document.getElementById('tmpl-name-gk').value = taggingTemplate.fieldNames?.gk_player || "상대 골키퍼 (GK Player)";
+            document.getElementById('tmpl-name-type').value = taggingTemplate.fieldNames?.shot_type || "슈팅 타입 (Type)";
+            document.getElementById('tmpl-name-output').value = taggingTemplate.fieldNames?.shot_output || "결과 (Output)";
+            document.getElementById('tmpl-name-outdir').value = taggingTemplate.fieldNames?.out_dir || "아웃 방향 (OUT)";
+
+            document.getElementById('tmpl-players').value = taggingTemplate.players || "";
+            document.getElementById('tmpl-gks').value = taggingTemplate.gks || "";
+            document.getElementById('tmpl-types').value = taggingTemplate.types || "";
+            document.getElementById('tmpl-outputs').value = taggingTemplate.outputs || "";
+            document.getElementById('tmpl-outdirs').value = taggingTemplate.outDirs || "";
+            
+            const cContainer = document.getElementById('custom-fields-settings-container');
+            cContainer.innerHTML = '';
+            if (taggingTemplate.customFields) {
+                taggingTemplate.customFields.forEach(cf => addCustomFieldRow(cf.id, cf.name, cf.options));
+            }
+            document.getElementById('modal-settings').classList.remove('hidden');
+        }
+
+        function addCustomFieldRow(id, name, options) {
+            const container = document.getElementById('custom-fields-settings-container');
+            const div = document.createElement('div');
+            div.className = "custom-field-row flex gap-2 items-start bg-gray-950 p-2 rounded border border-gray-800";
+            div.dataset.id = id;
+            div.innerHTML = `
+                <div class="w-1/3"><input type="text" class="cf-name w-full bg-black border border-gray-700 rounded p-1.5 text-xs text-white outline-none focus:border-purple-500" placeholder="필드명 (예: 어시스트)" value="${name}"></div>
+                <div class="w-2/3 flex gap-2"><input type="text" class="cf-options flex-grow bg-black border border-gray-700 rounded p-1.5 text-xs text-white outline-none focus:border-purple-500" placeholder="옵션 (쉼표로 구분)" value="${options}"><button class="btn-remove-cf text-gray-500 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></div>
+            `;
+            div.querySelector('.btn-remove-cf').onclick = () => div.remove();
+            container.appendChild(div);
+        }
+
+        function saveSettings() {
+            const customFields = [];
+            document.querySelectorAll('.custom-field-row').forEach(row => {
+                const name = row.querySelector('.cf-name').value.trim();
+                const options = row.querySelector('.cf-options').value.trim();
+                if(name) customFields.push({ id: row.dataset.id, name, options });
+            });
+
+            taggingTemplate = {
+                angles: document.getElementById('tmpl-angles').value,
+                fieldNames: {
+                    player: document.getElementById('tmpl-name-player').value || "슈터 (Player)",
+                    gk_player: document.getElementById('tmpl-name-gk').value || "상대 골키퍼 (GK Player)",
+                    shot_type: document.getElementById('tmpl-name-type').value || "슈팅 타입 (Type)",
+                    shot_output: document.getElementById('tmpl-name-output').value || "결과 (Output)",
+                    out_dir: document.getElementById('tmpl-name-outdir').value || "아웃 방향 (OUT)"
+                },
+                players: document.getElementById('tmpl-players').value, gks: document.getElementById('tmpl-gks').value,
+                types: document.getElementById('tmpl-types').value, outputs: document.getElementById('tmpl-outputs').value,
+                outDirs: document.getElementById('tmpl-outdirs').value, customFields: customFields
+            };
+            localStorage.setItem('hockeyTaggingTemplate', JSON.stringify(taggingTemplate));
+            buildShortcutMap();
+            populateDatalists(); buildEditForm(); updateFixedLabels();
+            if (activeInstanceId !== null) selectInstance(activeInstanceId); 
+            document.getElementById('modal-settings').classList.add('hidden');
+        }
+
+        function exportTemplate() {
+            const blob = new Blob([JSON.stringify(taggingTemplate, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a"); link.href = url; link.download = "태깅_템플릿.json"; link.click(); URL.revokeObjectURL(url);
+        }
+
+        function importTemplate(e) {
+            const file = e.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                try {
+                    const imported = JSON.parse(evt.target.result);
+                    if (imported.players !== undefined) { taggingTemplate = imported; openSettings(); alert("템플릿을 적용했습니다."); } 
+                    else alert("유효하지 않은 템플릿 파일입니다.");
+                } catch(err) { alert("파싱 에러."); }
+            }; reader.readAsText(file); e.target.value = '';
+        }
+
+        // --- VIDEO UPLOAD ---
+        function handleSyncJsonUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                try {
+                    const json = JSON.parse(evt.target.result);
+                    let extractedOffset = null;
+                    
+                    if (json.segments && Array.isArray(json.segments) && json.segments.length > 0 && json.segments[0].offset !== undefined) {
+                        extractedOffset = json.segments[0].offset;
+                    } else if (json.currentPlaybackTime !== undefined) {
+                        if (videoFiles.length > 0 && typeof currentVideoIndex !== 'undefined' && videoPlayers[currentVideoIndex]) {
+                            extractedOffset = json.currentPlaybackTime - videoPlayers[currentVideoIndex].currentTime;
+                        }
+                    }
+
+                    if (extractedOffset !== null) {
+                        if (videoFiles.length > 0 && typeof currentVideoIndex !== 'undefined' && videoPlayers[currentVideoIndex]) {
+                            videoFiles[currentVideoIndex].offset = extractedOffset;
+                            
+                            const syncInput = document.getElementById('input-sync-offset');
+                            if(syncInput) syncInput.value = extractedOffset.toFixed(3);
+                            
+                            const mainVideo = videoPlayers[currentVideoIndex];
+                            if (typeof currentAbstractTimelineTime !== 'undefined' && currentAbstractTimelineTime > 0) {
+                                const targetVideoTime = currentAbstractTimelineTime - extractedOffset;
+                                if (targetVideoTime < 0) { 
+                                    mainVideo.pause(); 
+                                    mainVideo.currentTime = 0; 
+                                    document.getElementById('no-video-overlay').style.display = 'flex'; 
+                                } else { 
+                                    document.getElementById('no-video-overlay').style.display = 'none'; 
+                                    mainVideo.currentTime = targetVideoTime; 
+                                }
+                            }
+                            
+                            alert("싱크가 맞춰졌습니다! 오프셋: " + extractedOffset.toFixed(3) + "초");
+                        } else {
+                            alert("먼저 비디오를 추가해주세요.");
+                        }
+                    } else {
+                        alert("업로드한 JSON 파일에서 오프셋 정보를 찾을 수 없습니다.");
+                    }
+                } catch(err) {
+                    alert("JSON 파싱 에러: " + err.message);
+                }
+                e.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function handleVideoUpload(e) {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+            
+            const isTimelineFile = f => {
+                const name = f.name.toLowerCase();
+                return name.endsWith('.json') || name.endsWith('.sctimeline') || name.endsWith('.xml');
+            };
+            const vidFiles = files.filter(f => !isTimelineFile(f));
+            const jsonFiles = files.filter(f => isTimelineFile(f));
+
+            if (vidFiles.length > 0) {
+                const newVideos = vidFiles.map(f => ({ name: f.name, url: URL.createObjectURL(f), offset: 0, absoluteStartTime: undefined }));
+                const isFirstUpload = videoFiles.length === 0;
+                
+                newVideos.forEach((nv, i) => {
+                    const idx = videoFiles.length + i;
+                    const vEl = document.createElement('video');
+                    vEl.preload = "metadata"; // Prevent slow full-video load
+                    vEl.src = nv.url;
+                    vEl.className = "w-full h-full object-contain absolute inset-0 transition-opacity duration-75";
+                    vEl.style.opacity = "0";
+                    vEl.style.pointerEvents = "none";
+                    
+                    vEl.addEventListener('play', () => {
+                        if (currentVideoIndex === idx) {
+                            videoPlayers.forEach((v, otherIdx) => { 
+                                if (otherIdx !== idx) {
+                                    const t = currentAbstractTimelineTime - videoFiles[otherIdx].offset;
+                                    if (t >= 0) v.play().catch(()=>{}); 
+                                }
+                            });
+                        }
+                    });
+                    vEl.addEventListener('pause', () => {
+                        if (currentVideoIndex === idx) {
+                            videoPlayers.forEach((v, otherIdx) => { if (otherIdx !== idx) v.pause(); });
+                        }
+                    });
+                    vEl.addEventListener('seeked', () => {
+                        if (currentVideoIndex === idx) {
+                            currentAbstractTimelineTime = videoFiles[idx].offset + vEl.currentTime;
+                            videoPlayers.forEach((v, otherIdx) => { 
+                                if (otherIdx !== idx) {
+                                    const t = currentAbstractTimelineTime - videoFiles[otherIdx].offset;
+                                    if (t >= 0 && Math.abs(v.currentTime - t) > 0.1) {
+                                        v.currentTime = t;
+                                    }
+                                }
+                            });
+                        }
+                    });
+                    vEl.addEventListener('timeupdate', () => {
+                        if (currentVideoIndex === idx) {
+                            currentAbstractTimelineTime = videoFiles[idx].offset + vEl.currentTime;
+                            const mins = Math.floor(Math.max(0, currentAbstractTimelineTime) / 60);
+                            const secs = (Math.max(0, currentAbstractTimelineTime) % 60).toFixed(2);
+                            document.getElementById('current-time-display').innerText = `${mins.toString().padStart(2, '0')}:${secs.padStart(5, '0')}`;
+                            
+                            videoPlayers.forEach((otherV, otherIdx) => {
+                                if (otherIdx !== idx) {
+                                    const expectedTime = currentAbstractTimelineTime - videoFiles[otherIdx].offset;
+                                    if (expectedTime >= 0 && !otherV.paused) {
+                                        if (Math.abs(otherV.currentTime - expectedTime) > 0.3) {
+                                            otherV.currentTime = expectedTime;
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                    });
+                    
+                    videoPlayers.push(vEl);
+                    videoLayerContainer.appendChild(vEl);
+                });
+
+                videoFiles = videoFiles.concat(newVideos);
+                document.getElementById('video-overlay').style.display = 'none';
+                document.getElementById('btn-clear-videos').classList.remove('hidden');
+                inputSyncOffset.disabled = false; inputPlaybackRate.disabled = false;
+                document.getElementById('input-sync-json').disabled = false;
+                renderAngleButtons();
+                if (isFirstUpload) switchAngle(0);
+            }
+
+            jsonFiles.forEach(jf => {
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    try {
+                        const data = JSON.parse(evt.target.result);
+                        if (data.segments && data.segments.length > 0) {
+                            const seg = data.segments[0];
+                            const tName = seg.fileName;
+                            const tOffset = parseFloat(seg.offset);
+                            if (tName && !isNaN(tOffset)) {
+                                let targetVid = videoFiles.find(v => v.name === tName);
+                                if (!targetVid) {
+                                    const jBase = jf.name.replace(/\.[^/.]+$/, "");
+                                    targetVid = videoFiles.find(v => v.name.replace(/\.[^/.]+$/, "") === jBase);
+                                }
+                                if (targetVid) {
+                                    targetVid.absoluteStartTime = tOffset;
+                                    recalculateAutoSync();
+                                }
+                            }
+                        }
+                    } catch(err) {
+                        console.error("JSON 파싱 에러:", err);
+                    }
+                };
+                reader.readAsText(jf);
+            });
+
+            e.target.value = '';
+        }
+
+        function clearAllVideos() {
+            videoFiles.forEach(v => URL.revokeObjectURL(v.url));
+            videoFiles = []; currentVideoIndex = 0; currentAbstractTimelineTime = 0;
+            videoPlayers.forEach(v => { v.pause(); v.src=''; v.remove(); }); videoPlayers = [];
+            document.getElementById('video-overlay').style.display = 'flex'; document.getElementById('no-video-overlay').style.display = 'none';
+            document.getElementById('btn-clear-videos').classList.remove('hidden'); inputSyncOffset.disabled = true; inputSyncOffset.value = 0;
+            inputPlaybackRate.disabled = true; inputPlaybackRate.value = "1";
+            document.getElementById('input-sync-json').disabled = true;
+            document.getElementById('current-time-display').innerText = "00:00.00";
+            document.getElementById('angle-buttons').innerHTML = '<span class="text-[10px] text-gray-600 italic">업로드된 영상이 없습니다.</span>';
+        }
+
+        function renderAngleButtons() {
+            if (videoFiles.length === 0) return;
+            const container = document.getElementById('angle-buttons'); container.innerHTML = '';
+            videoFiles.forEach((vid, idx) => {
+                const btn = document.createElement('button');
+                btn.className = `px-3 py-1 rounded text-[10px] font-bold transition-colors whitespace-nowrap ${idx === currentVideoIndex ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`;
+                btn.innerText = `Angle ${idx + 1} (${vid.name.substring(0,12)}...)`;
+                btn.onclick = () => switchAngle(idx);
+                container.appendChild(btn);
+            });
+        }
+
+        function switchAngle(index) {
+            if (videoFiles.length === 0 || index >= videoFiles.length) return;
+            
+            const isPaused = mainVideo ? mainVideo.paused : true; 
+            const currentRate = mainVideo ? mainVideo.playbackRate : 1;
+            
+            if (mainVideo) {
+                mainVideo.style.opacity = "0";
+                mainVideo.style.pointerEvents = "none";
+                mainVideo.controls = false;
+            }
+            
+            currentVideoIndex = index; 
+            
+            if (mainVideo) {
+                mainVideo.style.opacity = "1";
+                mainVideo.style.pointerEvents = "auto";
+                mainVideo.controls = true;
+                mainVideo.playbackRate = currentRate;
+                
+                const targetVideoTime = currentAbstractTimelineTime - videoFiles[index].offset;
+                inputSyncOffset.value = videoFiles[index].offset;
+                updateVideoHead(targetVideoTime);
+                if (!isPaused && targetVideoTime >= 0) mainVideo.play().catch(e => {});
+            }
+            renderAngleButtons();
+        }
+
+        function updateVideoHead(targetVideoTime) {
+            if (!mainVideo) return;
+            if (targetVideoTime < 0) { 
+                mainVideo.pause(); 
+                mainVideo.currentTime = 0; 
+                document.getElementById('no-video-overlay').style.display = 'flex'; 
+            } else { 
+                document.getElementById('no-video-overlay').style.display = 'none'; 
+                mainVideo.currentTime = targetVideoTime; 
+            }
+        }
+
+        function handleTimelineUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            timelineFileName = file.name.replace('.SCTimeline', '').replace('.json', '').replace('.xml', '');
+
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const content = evt.target.result;
+                if (file.name.toLowerCase().endsWith('.xml')) {
+                    parseSportscodeXML(content);
+                } else {
+                    try { parseSportscodeJSON(JSON.parse(content)); }
+                    catch (err) { alert("JSON 파싱 에러: " + err.message); }
+                }
+                if (!loadedTimelineNames.includes(timelineFileName)) loadedTimelineNames.push(timelineFileName);
+                updateSessionBadge();
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        }
+
+        // 이번 세션에서 지금까지 누적된 파일 개수를 헤더에 표시합니다.
+        function updateSessionBadge() {
+            const el = document.getElementById('session-merge-badge');
+            if (!el) return;
+            if (loadedTimelineNames.length <= 1) { el.classList.add('hidden'); return; }
+            el.classList.remove('hidden');
+            el.innerText = `${loadedTimelineNames.length}개 경기 누적됨`;
+            el.title = loadedTimelineNames.join(', ');
+        }
+
+        // 누적된 데이터를 전부 지우고 새 세션을 시작합니다 (병합 업로드 중 실수했을 때 등).
+        function resetSession() {
+            if (instancesData.length > 0 && !confirm("누적된 모든 태깅 데이터를 지우고 새로 시작할까요?")) return;
+            instancesData = [];
+            originalTimelineJson = null;
+            activeInstanceId = null;
+            loadedTimelineNames = [];
+            timelineFileName = "Unknown_Match";
+            updateSessionBadge();
+            formInstanceId.innerText = "선택된 인스턴스 없음";
+            [inputRow, inputPlayer, inputGk, inputType, inputOutput, inputOutDir, inputContext].forEach(inp => { inp.value = ''; inp.disabled = true; });
+            document.querySelectorAll('.custom-dynamic-input').forEach(inp => { inp.value = ''; inp.disabled = true; });
+            dispFieldCoord.innerText = "우측 캔버스 클릭"; dispGoalCoord.innerText = "우측 캔버스 클릭";
+            sortAndRenderTimeline();
+        }
+
+        function parseSportscodeJSON(json) {
+            originalTimelineJson = json;
+            // 여러 파일을 순서대로 올려도 이전에 태깅한 데이터가 사라지지 않도록 누적합니다
+            // (완전히 새로 시작하려면 "세션 초기화" 버튼 사용).
+            let instanceIdCounter = instancesData.length + 1;
+            if (json && json.timeline && json.timeline.rows) {
+                json.timeline.rows.forEach(row => {
+                    if (row.instances && Array.isArray(row.instances)) {
+                        row.instances.forEach(inst => {
+                            let contextStrs = inst.labels ? inst.labels.map(l => l.name) : [];
+                            
+                            let parsedPlayer = '', parsedGk = '', parsedType = '', parsedOutput = '', parsedOutDir = '';
+                            let parsedX = null, parsedY = null, parsedGoalX = null, parsedGoalY = null;
+                            const customVals = {};
+
+                            if (inst.labels) {
+                                inst.labels.forEach(l => {
+                                    if(l.group === 'Player') parsedPlayer = l.name;
+                                    else if(l.group === 'GK_Player') parsedGk = l.name;
+                                    else if(l.group === 'Type') parsedType = l.name;
+                                    else if(l.group === 'Output') parsedOutput = l.name;
+                                    else if(l.group === 'OUT Dir') parsedOutDir = l.name;
+                                    else if(l.group === 'X_location') parsedX = parseFloat(l.name);
+                                    else if(l.group === 'Y_location') parsedY = parseFloat(l.name);
+                                    else if(l.group === 'X_goal') parsedGoalX = parseFloat(l.name);
+                                    else if(l.group === 'Y_goal') parsedGoalY = parseFloat(l.name);
+                                    else if(typeof taggingTemplate !== 'undefined' && taggingTemplate.customFields) {
+                                        taggingTemplate.customFields.forEach(cf => {
+                                            if(l.group === cf.name) customVals[cf.id] = l.name;
+                                        });
+                                    }
+                                });
+                            }
+
+                            instancesData.push({
+                                id: instanceIdCounter++, timeline: timelineFileName, rowName: row.name || 'Unknown Row',
+                                startTime: inst.startTime || 0, duration: (inst.endTime - inst.startTime) || 0,
+                                context: contextStrs.join(', '), 
+                                player: parsedPlayer, gk_player: parsedGk, shot_type: parsedType, shot_output: parsedOutput, out_dir: parsedOutDir,
+                                x_loc: parsedX, y_loc: parsedY, x_goal: parsedGoalX, y_goal: parsedGoalY,
+                                custom_fields: customVals,
+                                originalUniqueId: inst.uniqueId
+                            });
+                        });
+                    }
+                });
+            }
+            sortAndRenderTimeline();
+        }
+
+        function parseSportscodeXML(xmlStr) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlStr, "text/xml");
+
+            // 여러 파일을 순서대로 올려도 이전에 태깅한 데이터가 사라지지 않도록 누적합니다
+            // (완전히 새로 시작하려면 "세션 초기화" 버튼 사용).
+            let instanceIdCounter = instancesData.length + 1;
+
+            const instanceNodes = xmlDoc.querySelectorAll("instance");
+            if (instanceNodes.length === 0) {
+                alert("XML 파일에서 인스턴스를 찾을 수 없습니다.");
+                return;
+            }
+
+            instanceNodes.forEach(instNode => {
+                const codeNode = instNode.querySelector("code");
+                const startNode = instNode.querySelector("start");
+                const endNode = instNode.querySelector("end");
+
+                const rowName = codeNode ? codeNode.textContent.trim() : 'Unknown Row';
+                const startTime = startNode ? parseFloat(startNode.textContent) : 0;
+                const endTime = endNode ? parseFloat(endNode.textContent) : 0;
+                
+                let contextStrs = [];
+                let player = '', shot_type = '', shot_output = '', out_dir = '';
+                let x_loc = null, y_loc = null, x_goal = null, y_goal = null;
+
+                const labelNodes = instNode.querySelectorAll("label");
+                labelNodes.forEach(labelNode => {
+                    const groupNode = labelNode.querySelector("group");
+                    const textNode = labelNode.querySelector("text");
+                    const group = groupNode ? groupNode.textContent.trim() : "";
+                    const text = textNode ? textNode.textContent.trim() : "";
+
+                    if (group === "Player") player = text;
+                    else if (group === "Type") shot_type = text;
+                    else if (group === "Output") shot_output = text;
+                    else if (group === "OUT Dir") out_dir = text;
+                    else if (group === "X_Loc" && text !== "") x_loc = parseFloat(text);
+                    else if (group === "Y_Loc" && text !== "") y_loc = parseFloat(text);
+                    else if (group === "X_Goal" && text !== "") x_goal = parseFloat(text);
+                    else if (group === "Y_Goal" && text !== "") y_goal = parseFloat(text);
+                    else {
+                        if (text !== "") contextStrs.push(text);
+                    }
+                });
+
+                instancesData.push({
+                    id: instanceIdCounter++,
+                    timeline: timelineFileName, rowName: rowName,
+                    startTime: startTime, duration: endTime - startTime,
+                    context: contextStrs.join(', '), player: player, shot_type: shot_type, shot_output: shot_output, out_dir: out_dir,
+                    x_loc: x_loc, y_loc: y_loc, x_goal: x_goal, y_goal: y_goal
+                });
+            });
+
+            sortAndRenderTimeline();
+        }
+
+        function sortAndRenderTimeline() {
+            instancesData.sort((a, b) => a.startTime - b.startTime);
+            instanceCount.innerText = `${instancesData.length} 건`;
+            instancesData.forEach((d, i) => d.id = i + 1);
+            if (instancesData.length === 0) alert("인스턴스를 찾을 수 없습니다.");
+            renderInstanceList();
+        }
+
+        function renderInstanceList() {
+            const checkedIds = new Set();
+            document.querySelectorAll('.instance-checkbox:checked').forEach(chk => { checkedIds.add(parseInt(chk.dataset.id)); });
+            
+            const openGroups = new Set();
+            document.querySelectorAll('#instance-list-container details').forEach(d => {
+                if (d.open && d.dataset.rowName) openGroups.add(d.dataset.rowName);
+            });
+            
+            instanceListContainer.innerHTML = '';
+
+            if (instancesData.length === 0) {
+                instanceListContainer.innerHTML = '<div class="p-6 text-center text-xs text-gray-600">파일을 업로드하세요.</div>'; return;
+            }
+
+            const groups = {};
+            instancesData.forEach(inst => {
+                if (!groups[inst.rowName]) groups[inst.rowName] = [];
+                groups[inst.rowName].push(inst);
+            });
+
+            for (const [rowName, instances] of Object.entries(groups)) {
+                const details = document.createElement('details');
+                details.dataset.rowName = rowName;
+                details.className = "mb-2 bg-gray-900 rounded border border-gray-800 overflow-hidden";
+                const hasActive = instances.some(i => i.id === activeInstanceId);
+                details.open = openGroups.has(rowName) || hasActive; 
+                
+                const mappedCount = instances.filter(i => i.x_loc !== null || i.player !== '').length;
+                const summary = document.createElement('summary');
+                summary.className = "px-3 py-2 text-xs font-bold text-gray-200 cursor-pointer hover:bg-gray-800 select-none flex justify-between items-center border-b border-gray-800";
+                
+                summary.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" class="group-checkbox w-3 h-3 rounded border-gray-700 bg-gray-900 cursor-pointer" data-group="${rowName}">
+                        <i class="fa-solid fa-folder text-blue-500 ml-1"></i>
+                        <span>${rowName}</span>
+                    </div>
+                    <span class="text-[10px] text-gray-500 font-mono">${mappedCount}/${instances.length}</span>
+                `;
+                details.appendChild(summary);
+
+                const ul = document.createElement('ul');
+                ul.className = "divide-y divide-gray-800/50 bg-gray-950";
+
+                instances.forEach(inst => {
+                    const li = document.createElement('li');
+                    li.className = `p-2 hover:bg-gray-800 transition-colors flex flex-col gap-1 border-l-4 border-transparent ${activeInstanceId === inst.id ? 'active-instance' : ''}`;
+                    const min = Math.floor(inst.startTime / 60); const sec = (inst.startTime % 60).toFixed(1);
+                    const badgeHtml = (inst.x_loc !== null || inst.player !== '') ? `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>` : `<span class="w-1.5 h-1.5 rounded-full bg-gray-600"></span>`;
+                    const isChecked = checkedIds.has(inst.id) ? 'checked' : '';
+                    
+                    const itemName = inst.rowName.includes('슈팅') ? '슈팅' : '이벤트';
+                    // 여러 경기가 병합된 세션일 때만 어느 파일 출신인지 작은 배지로 표시합니다.
+                    const sourceBadge = loadedTimelineNames.length > 1
+                        ? `<span class="text-[9px] text-gray-500 bg-gray-800 px-1.5 py-0.5 rounded ml-1" title="원본 파일">${inst.timeline}</span>`
+                        : '';
+
+                    li.innerHTML = `
+                        <div class="flex justify-between items-center text-[11px]">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <input type="checkbox" data-id="${inst.id}" class="instance-checkbox w-3 h-3 rounded border-gray-700 bg-gray-900 cursor-pointer shrink-0">
+                                <span class="font-bold text-white flex items-center gap-1.5 cursor-pointer item-title min-w-0">${badgeHtml} ${itemName} #${inst.id}${sourceBadge}</span>
+                            </div>
+                            <span class="font-mono text-gray-400 cursor-pointer item-title shrink-0">${min}:${sec.padStart(4,'0')}</span>
+                        </div>
+                        <div class="text-[10px] text-gray-500 truncate mt-0.5 pl-6 cursor-pointer item-title">
+                            ${inst.player ? `<strong class="text-blue-400">[${inst.player}]</strong>` : ''} 
+                            ${inst.shot_output ? `<span class="uppercase text-amber-500">${inst.shot_output}</span>` : '미입력'} | ${inst.context}
+                        </div>
+                    `;
+                    li.querySelectorAll('.item-title').forEach(el => { el.onclick = (e) => { e.stopPropagation(); selectInstance(inst.id); }; });
+                    ul.appendChild(li);
+                });
+
+                details.appendChild(ul);
+                instanceListContainer.appendChild(details);
+            }
+
+            document.querySelectorAll('.group-checkbox').forEach(gChk => {
+                gChk.addEventListener('change', (e) => {
+                    e.stopPropagation();
+                    const ul = e.target.closest('details').querySelector('ul');
+                    ul.querySelectorAll('.instance-checkbox').forEach(chk => { chk.checked = e.target.checked; });
+                });
+            });
+            document.querySelectorAll('summary input').forEach(input => {
+                input.onclick = (e) => e.stopPropagation();
+            });
+        }
+
+        function selectInstance(id) {
+            activeInstanceId = id;
+            const inst = instancesData.find(i => i.id === id);
+            if (!inst) return;
+
+            document.getElementById('edit-form-container').classList.add('bg-blue-900/10');
+            setTimeout(() => { document.getElementById('edit-form-container').classList.remove('bg-blue-900/10'); }, 500);
+
+            formInstanceId.innerText = `ID: #${inst.id}`;
+            
+            // Enable all standard inputs
+            inputRow.disabled = false; inputPlayer.disabled = false; inputGk.disabled = false;
+            inputType.disabled = false; inputOutput.disabled = false; inputOutDir.disabled = false; inputContext.disabled = false;
+            
+            // Enable custom inputs
+            document.querySelectorAll('.custom-dynamic-input').forEach(inp => inp.disabled = false);
+            
+            // Populate standard inputs
+            inputRow.value = inst.rowName || '';
+            inputPlayer.value = inst.player || ''; 
+            inputGk.value = inst.gk_player || '';
+            inputType.value = inst.shot_type || ''; 
+            inputOutput.value = inst.shot_output || ''; 
+            inputOutDir.value = inst.out_dir || '';
+            inputContext.value = inst.context || '';
+            
+            // Populate custom inputs
+            document.querySelectorAll('.custom-dynamic-input').forEach(inp => {
+                const cfId = inp.dataset.customId;
+                inp.value = (inst.custom_fields && inst.custom_fields[cfId]) ? inst.custom_fields[cfId] : '';
+            });
+
+            updateCoordDisplays(inst); drawCanvases(); renderInstanceList();
+
+            setTimeout(() => {
+                const activeEl = document.querySelector('.active-instance');
+                if (activeEl) {
+                    activeEl.closest('details').open = true; 
+                    activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }, 50);
+
+            if (typeof videoFiles !== 'undefined' && videoFiles.length > 0 && typeof mainVideo !== 'undefined' && mainVideo && mainVideo.src) {
+                currentAbstractTimelineTime = Math.max(0, inst.startTime - 3);
+                const targetVideoTime = currentAbstractTimelineTime - videoFiles[currentVideoIndex].offset;
+                updateVideoHead(targetVideoTime);
+                if(targetVideoTime >= 0) mainVideo.play().catch(e => {});
+            }
+        }
+        function handleFieldClick(e) {
+            if (activeInstanceId === null) return alert("인스턴스를 선택하세요.");
+            const rect = fieldCanvas.getBoundingClientRect();
+            const inst = instancesData.find(i => i.id === activeInstanceId);
+            inst.x_loc = Math.max(0, Math.min(FIELD_MAX_X, Math.round(((e.clientX - rect.left) / fieldCanvas.width) * FIELD_MAX_X)));
+            inst.y_loc = Math.max(0, Math.min(FIELD_MAX_Y, Math.round(((fieldCanvas.height - (e.clientY - rect.top)) / fieldCanvas.height) * FIELD_MAX_Y)));
+            updateCoordDisplays(inst); drawCanvases(); renderInstanceList();
+        }
+
+        function handleGoalClick(e) {
+            if (activeInstanceId === null) return alert("인스턴스를 선택하세요.");
+            const rect = goalCanvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left; const my = e.clientY - rect.top;
+            const marginX = goalCanvas.width * 0.15; const marginYTop = goalCanvas.height * 0.15; const marginYBottom = goalCanvas.height * 0.85;
+            const goalW = goalCanvas.width - (marginX * 2); const goalH = marginYBottom - marginYTop;
+
+            const inst = instancesData.find(i => i.id === activeInstanceId);
+            if (mx < marginX || mx > goalCanvas.width - marginX || my < marginYTop || my > marginYBottom) {
+                 if (mx < marginX) inst.out_dir = "LEFT"; else if (mx > goalCanvas.width - marginX) inst.out_dir = "RIGHT"; else if (my < marginYTop) inst.out_dir = "UP";
+                 inputOutDir.value = inst.out_dir; if(!inst.shot_output) { inst.shot_output = "out"; inputOutput.value = "out"; }
+                 inst.x_goal = null; inst.y_goal = null;
+            } else {
+                 inst.x_goal = Math.max(0, Math.min(GOAL_MAX_X, Math.round(((mx - marginX) / goalW) * GOAL_MAX_X)));
+                 inst.y_goal = Math.max(0, Math.min(GOAL_MAX_Y, Math.round(((marginYBottom - my) / goalH) * GOAL_MAX_Y)));
+                 inst.out_dir = ""; inputOutDir.value = "";
+                 if(!inst.shot_output) { inst.shot_output = "goal"; inputOutput.value = "goal"; }
+            }
+            updateCoordDisplays(inst); drawCanvases(); renderInstanceList();
+        }
+
+        function clearCoord(type) {
+            if (activeInstanceId === null) return;
+            const inst = instancesData.find(i => i.id === activeInstanceId);
+            if (type === 'field') { inst.x_loc = null; inst.y_loc = null; }
+            else { inst.x_goal = null; inst.y_goal = null; inst.out_dir = ""; inputOutDir.value = ""; }
+            updateCoordDisplays(inst); drawCanvases(); renderInstanceList();
+        }
+
+        function updateCoordDisplays(inst) {
+            dispFieldCoord.innerText = inst.x_loc !== null ? `(${inst.x_loc}, ${inst.y_loc})` : '대기중';
+            dispGoalCoord.innerText = inst.x_goal !== null ? `(${inst.x_goal}, ${inst.y_goal})` : (inst.out_dir ? `${inst.out_dir} OUT` : '대기중');
+        }
+
+        // --- DRAWING: ENHANCED FIELD MARKINGS ---
+        function drawVectorField(ctx, width, height) {
+            ctx.fillStyle = '#1e2a3b'; ctx.fillRect(0, 0, width, height); 
+            
+            const scale = width / 55.0; // 55m width scale
+            const goalCenterX = width / 2;
+            const backlineY = height; // draw at the bottom
+
+            ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(226, 232, 240, 0.3)';
+            
+            // 23m line (Top)
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(width, 0); ctx.stroke();
+            // Backline (Bottom)
+            ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(0, backlineY); ctx.lineTo(width, backlineY); ctx.stroke();
+
+            const goalHalfW = (3.66 / 2) * scale;
+            const goalLeft = goalCenterX - goalHalfW;
+            const goalRight = goalCenterX + goalHalfW;
+
+            // Striking Circle (14.63m)
+            const circleR = 14.63 * scale;
+            ctx.lineWidth = 1.5; ctx.strokeStyle = '#e2e8f0';
+            ctx.beginPath(); ctx.arc(goalLeft, backlineY, circleR, Math.PI, Math.PI * 1.5); ctx.stroke();
+            ctx.beginPath(); ctx.arc(goalRight, backlineY, circleR, Math.PI * 1.5, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(goalLeft, backlineY - circleR); ctx.lineTo(goalRight, backlineY - circleR); ctx.stroke();
+
+            // 5m Dashed Line (19.63m)
+            const dashedR = 19.63 * scale;
+            ctx.setLineDash([5, 5]); ctx.strokeStyle = 'rgba(226, 232, 240, 0.4)';
+            ctx.beginPath(); ctx.arc(goalLeft, backlineY, dashedR, Math.PI, Math.PI * 1.5); ctx.stroke();
+            ctx.beginPath(); ctx.arc(goalRight, backlineY, dashedR, Math.PI * 1.5, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(goalLeft, backlineY - dashedR); ctx.lineTo(goalRight, backlineY - dashedR); ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Penalty Spot (6.4m)
+            ctx.beginPath(); ctx.arc(goalCenterX, backlineY - (6.4 * scale), 3, 0, Math.PI*2); ctx.fillStyle = '#e2e8f0'; ctx.fill();
+
+            // PC Injection Marks (10m from goal posts) - Amber
+            ctx.strokeStyle = '#facc15'; 
+            ctx.lineWidth = 2;
+            const markLength = 0.5 * scale; // 50cm long tick
+            ctx.beginPath(); ctx.moveTo(goalLeft - 10 * scale, backlineY); ctx.lineTo(goalLeft - 10 * scale, backlineY - markLength); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(goalRight + 10 * scale, backlineY); ctx.lineTo(goalRight + 10 * scale, backlineY - markLength); ctx.stroke();
+
+            // PC Marks (5m from goal posts) - Sky Blue
+            ctx.strokeStyle = '#38bdf8'; 
+            ctx.beginPath(); ctx.moveTo(goalLeft - 5 * scale, backlineY); ctx.lineTo(goalLeft - 5 * scale, backlineY - markLength); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(goalRight + 5 * scale, backlineY); ctx.lineTo(goalRight + 5 * scale, backlineY - markLength); ctx.stroke();
+
+            // Goal Box Highlight - Red
+            ctx.strokeStyle = '#ef4444'; 
+            ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(goalLeft, backlineY); ctx.lineTo(goalRight, backlineY); ctx.stroke();
+
+            // Castle marks (top of the circle)
+            ctx.fillStyle = 'rgba(250, 204, 21, 0.6)';
+            ctx.beginPath(); ctx.arc(goalCenterX, backlineY - circleR, 2, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(goalCenterX - 1.5*scale, backlineY - circleR, 2, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(goalCenterX + 1.5*scale, backlineY - circleR, 2, 0, Math.PI*2); ctx.fill();
+        }
+
+        function drawVectorGoal(ctx, width, height) {
+            ctx.fillStyle = '#0a1128'; ctx.fillRect(0, 0, width, height);
+            const marginX = width * 0.15; const marginYTop = height * 0.15; const marginYBottom = height * 0.85;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)'; ctx.lineWidth = 1;
+            for (let x = marginX; x <= width - marginX; x += 15) { ctx.beginPath(); ctx.moveTo(x, marginYTop); ctx.lineTo(x, marginYBottom); ctx.stroke(); }
+            for (let y = marginYTop; y <= marginYBottom; y += 15) { ctx.beginPath(); ctx.moveTo(marginX, y); ctx.lineTo(width - marginX, y); ctx.stroke(); }
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 6; ctx.lineJoin = 'round';
+            ctx.beginPath(); ctx.moveTo(marginX, marginYBottom); ctx.lineTo(marginX, marginYTop); ctx.lineTo(width - marginX, marginYTop); ctx.lineTo(width - marginX, marginYBottom); ctx.stroke();
+            ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(marginX, marginYBottom); ctx.lineTo(marginX, marginYTop); ctx.lineTo(width - marginX, marginYTop); ctx.lineTo(width - marginX, marginYBottom); ctx.stroke();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(0, marginYBottom); ctx.lineTo(width, marginYBottom); ctx.stroke();
+        }
+
+        function drawCanvases() {
+            fCtx.clearRect(0,0,fieldCanvas.width,fieldCanvas.height); drawVectorField(fCtx, fieldCanvas.width, fieldCanvas.height);
+            gCtx.clearRect(0,0,goalCanvas.width,goalCanvas.height); drawVectorGoal(gCtx, goalCanvas.width, goalCanvas.height);
+
+            if (activeInstanceId === null) return;
+            const inst = instancesData.find(i => i.id === activeInstanceId);
+            if (!inst) return;
+
+            if (inst.x_loc !== null && inst.y_loc !== null) {
+                const pxX = (inst.x_loc / FIELD_MAX_X) * fieldCanvas.width;
+                const pxY = fieldCanvas.height - ((inst.y_loc / FIELD_MAX_Y) * fieldCanvas.height);
+                fCtx.fillStyle = 'rgba(59, 130, 246, 0.3)'; fCtx.beginPath(); fCtx.arc(pxX, pxY, 15, 0, Math.PI*2); fCtx.fill();
+                fCtx.fillStyle = '#3b82f6'; fCtx.beginPath(); fCtx.arc(pxX, pxY, 6, 0, Math.PI*2); fCtx.fill();
+                fCtx.strokeStyle = 'white'; fCtx.lineWidth = 2; fCtx.stroke();
+            }
+
+            const marginX = goalCanvas.width * 0.15; const marginYTop = goalCanvas.height * 0.15; const marginYBottom = goalCanvas.height * 0.85;
+            const goalW = goalCanvas.width - (marginX * 2); const goalH = marginYBottom - marginYTop;
+            
+            let pxX = null, pxY = null;
+            if (inst.x_goal !== null && inst.y_goal !== null) {
+                pxX = marginX + (inst.x_goal / GOAL_MAX_X) * goalW; pxY = marginYBottom - ((inst.y_goal / GOAL_MAX_Y) * goalH);
+            } else if (inst.out_dir) {
+                if (inst.out_dir === "LEFT") { pxX = marginX / 2; pxY = goalCanvas.height * 0.5; }
+                else if (inst.out_dir === "RIGHT") { pxX = goalCanvas.width - (marginX / 2); pxY = goalCanvas.height * 0.5; }
+                else if (inst.out_dir === "UP") { pxX = goalCanvas.width * 0.5; pxY = marginYTop / 2; }
+            }
+
+            if (pxX !== null && pxY !== null) {
+                gCtx.fillStyle = 'rgba(16, 185, 129, 0.3)'; gCtx.beginPath(); gCtx.arc(pxX, pxY, 15, 0, Math.PI*2); gCtx.fill();
+                gCtx.fillStyle = '#10b981'; gCtx.beginPath(); gCtx.arc(pxX, pxY, 6, 0, Math.PI*2); gCtx.fill();
+                gCtx.strokeStyle = 'white'; gCtx.lineWidth = 2; gCtx.stroke();
+            }
+        }
+
+        // --- EXPORT LOGIC ---
+        function getExportData(onlySelected) {
+            if (instancesData.length === 0) return null;
+            if (onlySelected) {
+                const checkedIds = new Set();
+                document.querySelectorAll('.instance-checkbox:checked').forEach(chk => { checkedIds.add(parseInt(chk.dataset.id)); });
+                if (checkedIds.size === 0) return null;
+                return instancesData.filter(inst => checkedIds.has(inst.id));
+            }
+            return instancesData;
+        }
+
+        function exportToCSV(onlySelected) {
+            const dataToExport = getExportData(onlySelected);
+            if (!dataToExport) return alert("추출할 항목이 없습니다.");
+
+            const csvData = dataToExport.map(inst => ({
+                Timeline: inst.timeline, "Start time": inst.startTime, Duration: inst.duration, Row: inst.rowName,
+                "Original Instance": `슈팅: ${inst.id}`, OUT: inst.out_dir, X_location: inst.x_loc !== null ? inst.x_loc : '', Y_location: inst.y_loc !== null ? inst.y_loc : '',
+                X_goal: inst.x_goal !== null ? inst.x_goal : '', Y_goal: inst.y_goal !== null ? inst.y_goal : '', player: inst.player,
+                shot_output: inst.shot_output, shot_type: inst.shot_type, Ungrouped: inst.context
+            }));
+
+            const csvStr = Papa.unparse(csvData);
+            const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvStr], { type: "text/csv;charset=utf-8;" });
+            const fileLabel = (!onlySelected && loadedTimelineNames.length > 1)
+                ? `병합_${loadedTimelineNames.length}개경기`
+                : timelineFileName;
+            triggerDownload(blob, `태깅결과_${fileLabel}_${onlySelected ? "선택" : "전체"}.csv`);
+        }
+
+
+        function exportToSCTimeline() {
+            if (!originalTimelineJson) return alert("JSON 원본이 없습니다. XML 파일로 업로드하신 경우 기존 '선택 항목 XML'을 이용해주세요.");
+            
+            const exportJson = JSON.parse(JSON.stringify(originalTimelineJson));
+            const fn = taggingTemplate.fieldNames || { player: "Player", gk_player: "GK_Player", shot_type: "Type", shot_output: "Output", out_dir: "OUT Dir" };
+            
+            if (exportJson.timeline && exportJson.timeline.rows) {
+                exportJson.timeline.rows.forEach(row => {
+                    if (row.instances && Array.isArray(row.instances)) {
+                        row.instances.forEach(origInst => {
+                            const inst = instancesData.find(i => i.originalUniqueId === origInst.uniqueId);
+                            if (inst) {
+                                let filteredLabels = origInst.labels ? origInst.labels.filter(l => {
+                                    const g = (l.group !== undefined && l.group !== null) ? String(l.group).trim() : "";
+                                    return g !== "Player" && g !== fn.player && 
+                                           g !== "GK_Player" && g !== fn.gk_player && 
+                                           g !== "Type" && g !== fn.shot_type && 
+                                           g !== "Output" && g !== fn.shot_output && 
+                                           g !== "OUT Dir" && g !== fn.out_dir && 
+                                           g !== "X_location" && g !== "Y_location" && g !== "X_goal" && g !== "Y_goal" && 
+                                           !(taggingTemplate.customFields && taggingTemplate.customFields.some(cf => cf.name === g));
+                                }) : [];
+                                
+                                if (inst.player) filteredLabels.push({ group: fn.player, name: inst.player });
+                                if (inst.gk_player) filteredLabels.push({ group: fn.gk_player, name: inst.gk_player });
+                                if (inst.shot_type) filteredLabels.push({ group: fn.shot_type, name: inst.shot_type });
+                                if (inst.shot_output) filteredLabels.push({ group: fn.shot_output, name: inst.shot_output });
+                                if (inst.out_dir) filteredLabels.push({ group: fn.out_dir, name: inst.out_dir });
+                                if (inst.x_loc !== null) { filteredLabels.push({ group: "X_location", name: String(inst.x_loc) }); filteredLabels.push({ group: "Y_location", name: String(inst.y_loc) }); }
+                                if (inst.x_goal !== null) { filteredLabels.push({ group: "X_goal", name: String(inst.x_goal) }); filteredLabels.push({ group: "Y_goal", name: String(inst.y_goal) }); }
+                                
+                                if (taggingTemplate.customFields) {
+                                    taggingTemplate.customFields.forEach(cf => {
+                                        const val = (inst.custom_fields && inst.custom_fields[cf.id]) ? inst.custom_fields[cf.id] : '';
+                                        if (val) filteredLabels.push({ group: cf.name, name: val });
+                                    });
+                                }
+                                
+                                origInst.labels = filteredLabels;
+                            }
+                        });
+                    }
+                });
+            }
+            
+            const blob = new Blob([JSON.stringify(exportJson)], { type: "text/plain;charset=utf-8;" });
+            triggerDownload(blob, `태깅결과_${timelineFileName}_Sportscode.sctimeline`);
+        }
+
+        // onlySelected=true: 체크된 항목만("선택 항목 XML"). false: 지금까지 업로드/누적된
+        // 모든 경기의 전체 인스턴스를 하나로 병합해서 내보냅니다("전체 병합 XML") — 각 인스턴스는
+        // 원래의 <code>(그룹/row) 그대로 유지되므로 그룹 구조가 보존됩니다.
+        function exportToXML(onlySelected) {
+            const dataToExport = getExportData(onlySelected);
+            if (!dataToExport || dataToExport.length === 0) {
+                return alert(onlySelected ? "추출할 항목을 하나 이상 선택해주세요." : "내보낼 태깅 데이터가 없습니다.");
+            }
+
+            let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<file>\n  <ALL_INSTANCES>\n`;
+            dataToExport.forEach(inst => {
+                xml += `    <instance>\n      <ID>${inst.id}</ID>\n      <start>${inst.startTime}</start>\n      <end>${inst.startTime + inst.duration}</end>\n      <code>${inst.rowName}</code>\n`;
+                if (inst.player) xml += `      <label>\n        <group>Player</group>\n        <text>${inst.player}</text>\n      </label>\n`;
+                if (inst.gk_player) xml += `      <label>\n        <group>GK_Player</group>\n        <text>${inst.gk_player}</text>\n      </label>\n`;
+                if (inst.shot_type) xml += `      <label>\n        <group>Type</group>\n        <text>${inst.shot_type}</text>\n      </label>\n`;
+                if (inst.shot_output) xml += `      <label>\n        <group>Output</group>\n        <text>${inst.shot_output}</text>\n      </label>\n`;
+                if (inst.out_dir) xml += `      <label>\n        <group>OUT Dir</group>\n        <text>${inst.out_dir}</text>\n      </label>\n`;
+                if (inst.x_loc !== null) { 
+                    xml += `      <label>\n        <group>X_Loc</group>\n        <text>${inst.x_loc}</text>\n      </label>\n`;
+                    xml += `      <label>\n        <group>Y_Loc</group>\n        <text>${inst.y_loc}</text>\n      </label>\n`;
+                }
+                if (inst.x_goal !== null) {
+                    xml += `      <label>\n        <group>X_Goal</group>\n        <text>${inst.x_goal}</text>\n      </label>\n`;
+                    xml += `      <label>\n        <group>Y_Goal</group>\n        <text>${inst.y_goal}</text>\n      </label>\n`;
+                }
+
+                if (taggingTemplate.customFields) {
+                    taggingTemplate.customFields.forEach(cf => {
+                        const val = (inst.custom_fields && inst.custom_fields[cf.id]) ? inst.custom_fields[cf.id] : '';
+                        if (val) xml += `      <label>\n        <group>${cf.name}</group>\n        <text>${val}</text>\n      </label>\n`;
+                    });
+                }
+
+                if (inst.context) {
+                    inst.context.split(', ').forEach(ctx => {
+                        if (ctx.trim() !== "") {
+                            xml += `      <label>\n        <text>${ctx}</text>\n      </label>\n`;
+                        }
+                    });
+                }
+                xml += `    </instance>\n`;
+            });
+            xml += `  </ALL_INSTANCES>\n</file>`;
+
+            const blob = new Blob([xml], { type: "application/xml;charset=utf-8;" });
+            const fileLabel = (!onlySelected && loadedTimelineNames.length > 1)
+                ? `병합_${loadedTimelineNames.length}개경기`
+                : timelineFileName;
+            triggerDownload(blob, `태깅결과_${fileLabel}_Sportscode.xml`);
+        }
+
+        function triggerDownload(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url); link.setAttribute("download", filename);
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>

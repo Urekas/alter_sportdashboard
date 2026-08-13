@@ -5,7 +5,7 @@ import React, { useState, useRef, useEffect } from "react"
 import {
   Upload, FileDown, TrendingDown, Target, Activity, ShieldCheck,
   Sword, Shield, Trophy, Save, Plus, BrainCircuit, Loader2, Sparkles, Info, MessageSquare, Video,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Crosshair
 } from "lucide-react"
 import type { MatchData, MatchEvent, Tournament } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
@@ -281,6 +281,15 @@ export function Dashboard() {
             >
               <Video className="h-4 w-4 mr-2" />
               비디오 분석 도구
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 border-rose-500 text-rose-500 font-bold hover:bg-rose-500/10"
+              onClick={() => window.open('/ShotTagging/index.html', '_blank')}
+            >
+              <Crosshair className="h-4 w-4 mr-2" />
+              슈팅 태깅 도구
             </Button>
           </div>
           <div className="flex flex-wrap gap-2 sm:gap-4 mt-1">
