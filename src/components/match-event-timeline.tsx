@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Flag, Target, CircleDot, Trophy, PlayCircle, User, Check, Pencil } from "lucide-react"
+import { Flag, Target, CircleDot, Trophy, PlayCircle, Check, Pencil } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -49,21 +49,37 @@ export function MatchEventTimeline({ data, onEventsUpdate }: MatchEventTimelineP
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [editValue, setEditValue] = useState("")
   const [events, setEvents] = useState<MatchEvent[]>(data.events)
+  const { homeTeam, awayTeam } = data
 
-  const grouped = useMemo(() => {
+  // 시간순으로 정렬한 뒤, 득점이 나올 때마다 누적 스코어를 같이 기록합니다.
+  const timeline = useMemo(() => {
     const withKind = events
       .map((event, index) => ({ event, index, kind: classify(event.code) }))
       .filter((x): x is { event: MatchEvent; index: number; kind: TimelineKind } => x.kind !== null)
       .sort((a, b) => a.event.time - b.event.time);
 
-    const map = new Map<string, typeof withKind>();
-    withKind.forEach(item => {
-      const q = item.event.quarter || '쿼터 미상';
-      if (!map.has(q)) map.set(q, []);
-      map.get(q)!.push(item);
+    let home = 0, away = 0;
+    const withScore = withKind.map(item => {
+      if (item.kind === 'goal') {
+        if (item.event.team === homeTeam.name) home++;
+        else if (item.event.team === awayTeam.name) away++;
+      }
+      return { ...item, scoreHome: home, scoreAway: away };
     });
-    return Array.from(map.entries());
-  }, [events]);
+
+    // 쿼터가 바뀌는 지점에 구분선을 넣기 위해 그룹 경계 인덱스도 같이 계산합니다.
+    const rows: Array<{ type: 'divider'; quarter: string } | (typeof withScore[number] & { type: 'event' })> = [];
+    let lastQuarter: string | null = null;
+    withScore.forEach(item => {
+      const q = item.event.quarter || '쿼터 미상';
+      if (q !== lastQuarter) {
+        rows.push({ type: 'divider', quarter: q });
+        lastQuarter = q;
+      }
+      rows.push({ type: 'event', ...item });
+    });
+    return rows;
+  }, [events, homeTeam.name, awayTeam.name]);
 
   const startEdit = (index: number, e: MatchEvent) => {
     setEditingIndex(index);
@@ -89,75 +105,88 @@ export function MatchEventTimeline({ data, onEventsUpdate }: MatchEventTimelineP
     window.open(`/Alter_sportsplay/index.html?matchId=${data.videoMatchId}&time=${Math.max(0, Math.floor(time))}`, '_blank');
   }
 
-  if (grouped.length === 0) return null;
+  const hasEvents = timeline.some(r => r.type === 'event');
+  if (!hasEvents) return null;
+
+  const renderSide = (row: Extract<(typeof timeline)[number], { type: 'event' }>, side: 'home' | 'away') => {
+    const { event, index, kind, scoreHome, scoreAway } = row;
+    const meta = KIND_META[kind];
+    const Icon = meta.icon;
+    const team = side === 'home' ? homeTeam : awayTeam;
+    const isEditing = editingIndex === index;
+    const align = side === 'home' ? 'items-end text-right' : 'items-start text-left';
+
+    return (
+      <div className={`flex flex-col ${align} gap-1 py-2 ${side === 'home' ? 'pr-3' : 'pl-3'}`}>
+        <div className={`flex items-center gap-1.5 ${side === 'away' ? 'flex-row-reverse' : ''}`}>
+          <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: `${team.color}20` }}>
+            <Icon className="h-2.5 w-2.5" style={{ color: team.color }} />
+          </span>
+          <span className={`text-xs ${meta.highlight ? 'font-bold' : ''}`}>{meta.label}</span>
+          {data.videoMatchId && (
+            <button onClick={() => openClip(event.time)} className="print-hidden text-muted-foreground hover:text-primary">
+              <PlayCircle className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+
+        {isEditing ? (
+          <div className={`flex items-center gap-1.5 print-hidden ${side === 'away' ? 'flex-row-reverse' : ''}`}>
+            <Input
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              placeholder="선수 입력 (예: #7 김선수)"
+              className="h-7 text-[11px] w-40"
+              autoFocus
+              onKeyDown={(e) => e.key === 'Enter' && saveEdit(index)}
+            />
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-600" onClick={() => saveEdit(index)}><Check className="h-3.5 w-3.5" /></Button>
+          </div>
+        ) : (
+          <button onClick={() => startEdit(index, event)} className={`print-hidden flex items-center gap-1 text-[11px] ${event.relatedPlayer ? 'font-bold' : 'text-muted-foreground'} ${side === 'away' ? 'flex-row-reverse' : ''}`} style={event.relatedPlayer ? { color: team.color } : undefined}>
+            {event.relatedPlayer || (meta.highlight ? '선수 입력' : '')}
+            {(meta.highlight || event.relatedPlayer) && <Pencil className="h-2.5 w-2.5 opacity-50" />}
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>주요 이벤트 타임라인</CardTitle>
-        <CardDescription>페널티 코너 · 슈팅 · 스트로크 · 득점 흐름. 득점/선방/블록엔 관련 선수를 나중에 입력할 수 있어요.</CardDescription>
+        <CardDescription>
+          <span className="font-bold" style={{ color: homeTeam.color }}>{homeTeam.name}</span> vs{" "}
+          <span className="font-bold" style={{ color: awayTeam.color }}>{awayTeam.name}</span> — 페널티 코너 · 슈팅 · 스트로크 · 득점 흐름과 진행 스코어
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="border-l-2 pl-4 flex flex-col gap-3.5">
-          {grouped.map(([quarter, items]) => (
-            <div key={quarter}>
-              <p className="text-[11px] text-muted-foreground font-bold mb-2">{quarter}</p>
-              <div className="flex flex-col gap-2">
-                {items.map(({ event, index, kind }) => {
-                  const meta = KIND_META[kind];
-                  const Icon = meta.icon;
-                  const teamColor = event.team === data.homeTeam.name ? data.homeTeam.color : data.awayTeam.color;
-                  const isEditing = editingIndex === index;
-
-                  return (
-                    <div
-                      key={index}
-                      className={meta.highlight ? "rounded-lg p-2.5" : ""}
-                      style={meta.highlight ? { backgroundColor: `${teamColor}12` } : undefined}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span
-                          className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                          style={{ backgroundColor: `${teamColor}20` }}
-                        >
-                          <Icon className="h-3 w-3" style={{ color: teamColor }} />
-                        </span>
-                        <span className={`text-xs flex-1 ${meta.highlight ? 'font-bold' : ''}`}>{meta.label}</span>
-                        <span className="text-xs font-bold" style={{ color: teamColor }}>{event.team}</span>
-                        <span className="text-xs text-muted-foreground font-mono">{formatTime(event.time)}</span>
-                        {data.videoMatchId && (
-                          <button onClick={() => openClip(event.time)} className="print-hidden text-muted-foreground hover:text-primary">
-                            <PlayCircle className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                        {!isEditing && (
-                          <button onClick={() => startEdit(index, event)} className="print-hidden text-muted-foreground hover:text-primary">
-                            {event.relatedPlayer ? <User className="h-3.5 w-3.5" style={{ color: teamColor }} /> : <Pencil className="h-3 w-3" />}
-                          </button>
-                        )}
-                      </div>
-
-                      {isEditing ? (
-                        <div className="flex items-center gap-2 mt-2 pl-8 print-hidden">
-                          <Input
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            placeholder="관련 선수 입력 (예: #7 김선수)"
-                            className="h-8 text-xs flex-1"
-                            autoFocus
-                            onKeyDown={(e) => e.key === 'Enter' && saveEdit(index)}
-                          />
-                          <Button size="icon" variant="ghost" className="h-8 w-8 text-emerald-600" onClick={() => saveEdit(index)}><Check className="h-4 w-4" /></Button>
-                        </div>
-                      ) : event.relatedPlayer ? (
-                        <p className="text-[11px] text-muted-foreground pl-8 mt-1">{event.relatedPlayer}</p>
-                      ) : null}
-                    </div>
-                  );
-                })}
+        <div className="grid grid-cols-[1fr_64px_1fr]">
+          {timeline.map((row, i) => {
+            if (row.type === 'divider') {
+              return (
+                <div key={`d-${i}`} className="col-span-3 text-center text-[11px] font-bold text-muted-foreground bg-muted/30 rounded py-1.5 my-2">
+                  {row.quarter}
+                </div>
+              );
+            }
+            const isHome = row.event.team === homeTeam.name;
+            return (
+              <div key={row.index} className="contents">
+                <div className={`border-r ${isHome ? '' : 'opacity-0'}`}>
+                  {isHome && renderSide(row, 'home')}
+                </div>
+                <div className="flex flex-col items-center justify-center text-center px-1 border-r">
+                  <span className="text-[10px] text-muted-foreground font-mono">{formatTime(row.event.time)}</span>
+                  <span className="text-[11px] font-black">{row.scoreHome} - {row.scoreAway}</span>
+                </div>
+                <div className={!isHome ? '' : 'opacity-0'}>
+                  {!isHome && renderSide(row, 'away')}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </CardContent>
     </Card>
