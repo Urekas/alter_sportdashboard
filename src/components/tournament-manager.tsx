@@ -68,6 +68,30 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
       .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
   }, [selectedTournament, rawMatches]);
 
+  // Pool 순위표: 승 3점 / 무 1점 / 패 0점, 승점 -> 득실차 -> 다득점 순으로 정렬
+  const standings = useMemo(() => {
+    const map = new Map<string, { team: string; p: number; w: number; d: number; l: number; gf: number; ga: number }>();
+    const ensure = (team: string) => {
+      if (!map.has(team)) map.set(team, { team, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0 });
+      return map.get(team)!;
+    };
+    currentTournamentMatches.forEach(m => {
+      const hGoals = m.matchStats.home.goals.field + m.matchStats.home.goals.pc;
+      const aGoals = m.matchStats.away.goals.field + m.matchStats.away.goals.pc;
+      const h = ensure(m.homeTeam.name);
+      const a = ensure(m.awayTeam.name);
+      h.p++; a.p++;
+      h.gf += hGoals; h.ga += aGoals;
+      a.gf += aGoals; a.ga += hGoals;
+      if (hGoals > aGoals) { h.w++; a.l++; }
+      else if (hGoals < aGoals) { a.w++; h.l++; }
+      else { h.d++; a.d++; }
+    });
+    return Array.from(map.values())
+      .map(t => ({ ...t, pts: t.w * 3 + t.d, gd: t.gf - t.ga }))
+      .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
+  }, [currentTournamentMatches]);
+
   // 카테고리(예: 여자대표팀)별 대회 개수 집계
   const categories = useMemo(() => {
     const map = new Map<string, number>();
@@ -311,6 +335,47 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
           </div>
         </div>
         <input type="file" ref={fileInputRef} onChange={onFileChange} className="hidden" accept=".xml,.csv" />
+
+        {standings.length > 1 && (
+          <Card className="border-2 shadow-xl">
+            <CardHeader className="bg-muted/10 border-b"><CardTitle className="text-lg flex items-center gap-2"><Trophy className="h-5 w-5 text-primary" /> 순위표</CardTitle></CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/20">
+                    <TableHead className="w-10 text-center">#</TableHead>
+                    <TableHead className="font-black uppercase text-xs">팀</TableHead>
+                    <TableHead className="text-center font-black uppercase text-xs">P</TableHead>
+                    <TableHead className="text-center font-black uppercase text-xs">W</TableHead>
+                    <TableHead className="text-center font-black uppercase text-xs">D</TableHead>
+                    <TableHead className="text-center font-black uppercase text-xs">L</TableHead>
+                    <TableHead className="text-center font-black uppercase text-xs">GF</TableHead>
+                    <TableHead className="text-center font-black uppercase text-xs">GA</TableHead>
+                    <TableHead className="text-center font-black uppercase text-xs">GD</TableHead>
+                    <TableHead className="text-center font-black uppercase text-xs">Pts</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {standings.map((t, idx) => (
+                    <TableRow key={t.team} className={idx % 2 === 0 ? '' : 'bg-muted/5'}>
+                      <TableCell className="text-center text-xs text-muted-foreground">{idx + 1}</TableCell>
+                      <TableCell className="font-bold">{t.team}</TableCell>
+                      <TableCell className="text-center">{t.p}</TableCell>
+                      <TableCell className="text-center">{t.w}</TableCell>
+                      <TableCell className="text-center">{t.d}</TableCell>
+                      <TableCell className="text-center">{t.l}</TableCell>
+                      <TableCell className="text-center">{t.gf}</TableCell>
+                      <TableCell className="text-center">{t.ga}</TableCell>
+                      <TableCell className="text-center">{t.gd > 0 ? `+${t.gd}` : t.gd}</TableCell>
+                      <TableCell className="text-center font-black text-primary">{t.pts}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="border-2 shadow-xl">
           <CardHeader className="bg-muted/10 border-b"><CardTitle className="text-lg flex items-center gap-2"><Database className="h-5 w-5 text-primary" /> 등록된 경기 ({currentTournamentMatches.length})</CardTitle></CardHeader>
           <CardContent className="p-0">
