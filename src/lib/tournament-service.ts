@@ -85,6 +85,12 @@ export const TournamentService = {
     await updateDoc(docRef, { matchName });
   },
 
+  async updateVideoMatchId(dbInstance: Firestore, matchId: string, videoMatchId: string) {
+    if (!matchId) return;
+    const docRef = doc(dbInstance, MATCHES_COL, matchId);
+    await updateDoc(docRef, { videoMatchId });
+  },
+
   async updateMatchOrder(dbInstance: Firestore, matchId: string, newOrder: number) {
     if (!matchId) return;
     const docRef = doc(dbInstance, MATCHES_COL, matchId);

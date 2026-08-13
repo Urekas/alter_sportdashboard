@@ -2,7 +2,8 @@
 "use client"
 
 import React, { useState, useMemo, useRef } from "react"
-import { Trophy, Database, Trash2, Edit3, Save, X, Plus, ChevronRight, RefreshCw, ArrowLeft, ArrowUp, ArrowDown, Eye, Users } from "lucide-react"
+import { Trophy, Database, Trash2, Edit3, Save, X, Plus, ChevronRight, RefreshCw, ArrowLeft, ArrowUp, ArrowDown, Eye, Users, Video } from "lucide-react"
+import { VideoLinkDialog } from "./video-link-dialog"
 import { TournamentService } from "@/lib/tournament-service"
 import type { Tournament, MatchData } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -44,6 +45,7 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
   const [selectedTournamentIds, setSelectedTournamentIds] = useState<Set<string>>(new Set())
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null)
   const [replaceMatchId, setReplaceMatchId] = useState<string | null>(null)
+  const [videoLinkMatch, setVideoLinkMatch] = useState<MatchData | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const tourneyQuery = useMemoFirebase(() => db ? query(collection(db, 'tournaments')) : null, [db]);
@@ -344,8 +346,9 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
                         </TableCell>
                         <TableCell className="text-center"><span className="font-black text-primary bg-primary/10 px-3 py-1 rounded-full text-sm">{(m.matchStats.home.goals.field + m.matchStats.home.goals.pc)} : {(m.matchStats.away.goals.field + m.matchStats.away.goals.pc)}</span></TableCell>
                         <TableCell className="text-right pr-6 space-x-2" onClick={(e) => e.stopPropagation()}>
+                          <Button variant="outline" size="sm" className={`h-8 text-xs font-bold ${m.videoMatchId ? 'border-orange-500 text-orange-500 hover:bg-orange-50' : 'border-muted-foreground/40 text-muted-foreground hover:bg-muted/50'}`} onClick={() => setVideoLinkMatch(m)}><Video className="h-3 w-3 mr-1" /> 영상</Button>
                           <Button variant="outline" size="sm" className="h-8 text-xs font-bold border-emerald-600 text-emerald-600 hover:bg-emerald-50" onClick={(e) => handleReplaceFile(e, m.id!)}><RefreshCw className="h-3 w-3 mr-1" /> 교체</Button>
-                          
+
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button>
@@ -369,6 +372,7 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
              </Table>
           </CardContent>
         </Card>
+        <VideoLinkDialog match={videoLinkMatch} open={!!videoLinkMatch} onOpenChange={(o) => !o && setVideoLinkMatch(null)} />
       </div>
     )
   }
@@ -519,9 +523,12 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
                             )}
                           </TableCell>
                           <TableCell className="text-center"><span className="font-black text-primary bg-primary/10 px-3 py-1 rounded-full text-sm">{myGoals} : {oppGoals}</span></TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
+                          <TableCell onClick={(e) => e.stopPropagation()} className="whitespace-nowrap">
                             {editingMatchId !== m.id && (
-                              <Button size="icon" variant="ghost" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={() => { setEditingMatchId(m.id!); setEditMatchName(m.matchName || ""); }}><Edit3 className="h-3.5 w-3.5" /></Button>
+                              <>
+                                <Button size="icon" variant="ghost" className={`h-8 w-8 ${m.videoMatchId ? 'text-orange-500' : 'opacity-0 group-hover:opacity-100'}`} onClick={() => setVideoLinkMatch(m)}><Video className="h-3.5 w-3.5" /></Button>
+                                <Button size="icon" variant="ghost" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={() => { setEditingMatchId(m.id!); setEditMatchName(m.matchName || ""); }}><Edit3 className="h-3.5 w-3.5" /></Button>
+                              </>
                             )}
                           </TableCell>
                         </TableRow>
@@ -532,6 +539,7 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
               </Table>
             </CardContent>
           </Card>
+          <VideoLinkDialog match={videoLinkMatch} open={!!videoLinkMatch} onOpenChange={(o) => !o && setVideoLinkMatch(null)} />
         </div>
       )
     }
