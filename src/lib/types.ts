@@ -17,6 +17,8 @@ export interface MatchEvent {
   resultLabel: string;
   code: string;
   relatedPlayer?: string; // 득점자/선방·블록 선수 등, 사후에 입력하는 관련 선수 메모
+  shooter?: string;   // 슈팅 태깅 도구의 "Player" 라벨 — 슈터
+  defender?: string;  // 슈팅 태깅 도구의 "GK_Player" 라벨 — 막은 선수(골키퍼/필드 블로커)
 }
 
 export interface TeamMatchStats {

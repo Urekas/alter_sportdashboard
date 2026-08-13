@@ -87,11 +87,16 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     let locLabel = "";
     let resultLabel = "";
     let ungroupedText = "";
+    let shooter = "";
+    let defender = "";
 
     for (let i = 0; i < labels.length; i++) {
       const groupText = labels[i].getElementsByTagName("group")[0]?.textContent || "";
       const text = (labels[i].getElementsByTagName("text")[0]?.textContent || "").trim();
-      if (/지역|Location|Zone/i.test(groupText)) locLabel = text;
+      // GK_Player를 먼저 체크해야 합니다 — "Player"가 그 안에 포함된 문자열이라 순서가 중요합니다.
+      if (/GK[_\s]?Player/i.test(groupText)) defender = text;
+      else if (/^Player$/i.test(groupText)) shooter = text;
+      else if (/지역|Location|Zone/i.test(groupText)) locLabel = text;
       else if (/결과|Result|Outcome/i.test(groupText)) resultLabel = text;
       else ungroupedText += text + " ";
       if (!detectedTeams) detectedTeams = detectRealTeamNames(text);
@@ -116,7 +121,9 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
       y: zoneInfo.y,
       locationLabel: locLabel,
       resultLabel: resultLabel,
-      code
+      code,
+      ...(shooter ? { shooter } : {}),
+      ...(defender ? { defender } : {}),
     });
   });
 

@@ -2,8 +2,9 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Flag, Target, CircleDot, Trophy, PlayCircle, Check, Pencil } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Flag, Target, CircleDot, Trophy, PlayCircle, Check, Pencil, Shield } from "lucide-react"
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useFirestore } from "@/firebase"
@@ -115,10 +116,14 @@ export function MatchEventTimeline({ data, onEventsUpdate }: MatchEventTimelineP
     const team = side === 'home' ? homeTeam : awayTeam;
     const isEditing = editingIndex === index;
     const align = side === 'home' ? 'items-end text-right' : 'items-start text-left';
+    const rowDir = side === 'away' ? 'flex-row-reverse' : '';
+    // 슈팅 태깅 도구에서 넘어온 슈터/막은 선수 정보가 있으면 그걸 우선 보여주고,
+    // 없으면 (특히 득점 행에서) 사후 수동 입력을 쓸 수 있게 합니다.
+    const hasTaggedPlayers = !!(event.shooter || event.defender);
 
     return (
       <div className={`flex flex-col ${align} gap-1 py-2 ${side === 'home' ? 'pr-3' : 'pl-3'}`}>
-        <div className={`flex items-center gap-1.5 ${side === 'away' ? 'flex-row-reverse' : ''}`}>
+        <div className={`flex items-center gap-1.5 ${rowDir}`}>
           <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: `${team.color}20` }}>
             <Icon className="h-2.5 w-2.5" style={{ color: team.color }} />
           </span>
@@ -130,8 +135,19 @@ export function MatchEventTimeline({ data, onEventsUpdate }: MatchEventTimelineP
           )}
         </div>
 
-        {isEditing ? (
-          <div className={`flex items-center gap-1.5 print-hidden ${side === 'away' ? 'flex-row-reverse' : ''}`}>
+        {hasTaggedPlayers ? (
+          <div className={`flex flex-col gap-0.5 ${align}`}>
+            {event.shooter && (
+              <span className="text-[11px] font-bold" style={{ color: team.color }}>슈터 {event.shooter}</span>
+            )}
+            {event.defender && (
+              <span className={`text-[11px] text-muted-foreground flex items-center gap-1 ${rowDir}`}>
+                <Shield className="h-2.5 w-2.5" /> 막음 {event.defender}
+              </span>
+            )}
+          </div>
+        ) : isEditing ? (
+          <div className={`flex items-center gap-1.5 print-hidden ${rowDir}`}>
             <Input
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
@@ -143,7 +159,7 @@ export function MatchEventTimeline({ data, onEventsUpdate }: MatchEventTimelineP
             <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-600" onClick={() => saveEdit(index)}><Check className="h-3.5 w-3.5" /></Button>
           </div>
         ) : (
-          <button onClick={() => startEdit(index, event)} className={`print-hidden flex items-center gap-1 text-[11px] ${event.relatedPlayer ? 'font-bold' : 'text-muted-foreground'} ${side === 'away' ? 'flex-row-reverse' : ''}`} style={event.relatedPlayer ? { color: team.color } : undefined}>
+          <button onClick={() => startEdit(index, event)} className={`print-hidden flex items-center gap-1 text-[11px] ${event.relatedPlayer ? 'font-bold' : 'text-muted-foreground'} ${rowDir}`} style={event.relatedPlayer ? { color: team.color } : undefined}>
             {event.relatedPlayer || (meta.highlight ? '선수 입력' : '')}
             {(meta.highlight || event.relatedPlayer) && <Pencil className="h-2.5 w-2.5 opacity-50" />}
           </button>
@@ -154,41 +170,51 @@ export function MatchEventTimeline({ data, onEventsUpdate }: MatchEventTimelineP
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>주요 이벤트 타임라인</CardTitle>
-        <CardDescription>
-          <span className="font-bold" style={{ color: homeTeam.color }}>{homeTeam.name}</span> vs{" "}
-          <span className="font-bold" style={{ color: awayTeam.color }}>{awayTeam.name}</span> — 페널티 코너 · 슈팅 · 스트로크 · 득점 흐름과 진행 스코어
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-[1fr_64px_1fr]">
-          {timeline.map((row, i) => {
-            if (row.type === 'divider') {
-              return (
-                <div key={`d-${i}`} className="col-span-3 text-center text-[11px] font-bold text-muted-foreground bg-muted/30 rounded py-1.5 my-2">
-                  {row.quarter}
-                </div>
-              );
-            }
-            const isHome = row.event.team === homeTeam.name;
-            return (
-              <div key={row.index} className="contents">
-                <div className={`border-r ${isHome ? '' : 'opacity-0'}`}>
-                  {isHome && renderSide(row, 'home')}
-                </div>
-                <div className="flex flex-col items-center justify-center text-center px-1 border-r">
-                  <span className="text-[10px] text-muted-foreground font-mono">{formatTime(row.event.time)}</span>
-                  <span className="text-[11px] font-black">{row.scoreHome} - {row.scoreAway}</span>
-                </div>
-                <div className={!isHome ? '' : 'opacity-0'}>
-                  {!isHome && renderSide(row, 'away')}
-                </div>
+      <Accordion type="single" collapsible defaultValue="timeline">
+        <AccordionItem value="timeline" className="border-none">
+          <CardHeader className="pb-0">
+            <AccordionTrigger className="hover:no-underline py-0">
+              <div className="text-left">
+                <CardTitle>주요 이벤트 타임라인</CardTitle>
+                <CardDescription className="mt-1.5">
+                  <span className="font-bold" style={{ color: homeTeam.color }}>{homeTeam.name}</span> vs{" "}
+                  <span className="font-bold" style={{ color: awayTeam.color }}>{awayTeam.name}</span> — 페널티 코너 · 슈팅 · 스트로크 · 득점 흐름과 진행 스코어
+                </CardDescription>
               </div>
-            );
-          })}
-        </div>
-      </CardContent>
+            </AccordionTrigger>
+          </CardHeader>
+          <AccordionContent>
+            <div className="px-6 pt-4">
+              <div className="grid grid-cols-[1fr_64px_1fr]">
+                {timeline.map((row, i) => {
+                  if (row.type === 'divider') {
+                    return (
+                      <div key={`d-${i}`} className="col-span-3 text-center text-[11px] font-bold text-muted-foreground bg-muted/30 rounded py-1.5 my-2">
+                        {row.quarter}
+                      </div>
+                    );
+                  }
+                  const isHome = row.event.team === homeTeam.name;
+                  return (
+                    <div key={row.index} className="contents">
+                      <div className={`border-r ${isHome ? '' : 'opacity-0'}`}>
+                        {isHome && renderSide(row, 'home')}
+                      </div>
+                      <div className="flex flex-col items-center justify-center text-center px-1 border-r">
+                        <span className="text-[10px] text-muted-foreground font-mono">{formatTime(row.event.time)}</span>
+                        <span className="text-[11px] font-black">{row.scoreHome} - {row.scoreAway}</span>
+                      </div>
+                      <div className={!isHome ? '' : 'opacity-0'}>
+                        {!isHome && renderSide(row, 'away')}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </Card>
   )
 }
