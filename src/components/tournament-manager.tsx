@@ -38,6 +38,9 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
   const [viewBy, setViewBy] = useState<'category' | 'country'>('category')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null)
+  const [selectedCountryCategory, setSelectedCountryCategory] = useState<string>('전체')
+  const [selectedYears, setSelectedYears] = useState<Set<string>>(new Set())
+  const [selectedTournamentIds, setSelectedTournamentIds] = useState<Set<string>>(new Set())
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null)
   const [replaceMatchId, setReplaceMatchId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -107,18 +110,66 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
   }, [rawMatches]);
 
   // 선택된 국가가 (홈이든 어웨이든) 출전한 모든 경기를 대회를 가로질러 모읍니다.
+  // 각 경기에 소속 대회의 카테고리/연도 정보를 같이 붙여서, 이후 필터링에 씁니다.
   const countryMatches = useMemo(() => {
     if (!selectedCountry || !rawMatches) return [];
-    const tournamentNameById = new Map(tournaments.map(t => [t.id, t.name]));
+    const tournamentById = new Map(tournaments.map(t => [t.id, t]));
     return rawMatches
       .filter(m => m.homeTeam?.name === selectedCountry || m.awayTeam?.name === selectedCountry)
-      .map(m => ({ ...m, resolvedTournamentName: m.tournamentName || tournamentNameById.get(m.tournamentId || "") || "" }))
+      .map(m => {
+        const t = tournamentById.get(m.tournamentId || "");
+        const d = t?.startDate ? new Date(t.startDate) : null;
+        return {
+          ...m,
+          resolvedTournamentName: m.tournamentName || t?.name || "",
+          resolvedCategory: t?.category || "미분류",
+          resolvedYear: d && !isNaN(d.getTime()) ? `${d.getFullYear()}년` : "연도 미상",
+        };
+      })
       .sort((a, b) => {
         const ta = a.uploadedAt?.seconds || 0;
         const tb = b.uploadedAt?.seconds || 0;
         return tb - ta;
       });
   }, [selectedCountry, rawMatches, tournaments]);
+
+  // 선택된 국가의 경기들이 걸쳐있는 카테고리 목록 (예: 여자대표팀/남자대표팀/미분류)
+  const countryCategories = useMemo(() => {
+    const set = new Set(countryMatches.map(m => m.resolvedCategory));
+    return Array.from(set).sort();
+  }, [countryMatches]);
+
+  // 카테고리 필터까지 적용된 경기 목록 (연도/대회 선택 UI의 기준 데이터)
+  const countryMatchesInCategory = useMemo(() => {
+    if (selectedCountryCategory === '전체') return countryMatches;
+    return countryMatches.filter(m => m.resolvedCategory === selectedCountryCategory);
+  }, [countryMatches, selectedCountryCategory]);
+
+  // 카테고리 필터 안에서 등장하는 연도/대회 목록 (선택 UI용)
+  const countryYearsInCategory = useMemo(() => {
+    const set = new Set(countryMatchesInCategory.map(m => m.resolvedYear));
+    return Array.from(set).sort((a, b) => b.localeCompare(a));
+  }, [countryMatchesInCategory]);
+
+  const countryTournamentsInCategory = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; count: number }>();
+    countryMatchesInCategory.forEach(m => {
+      const id = m.tournamentId || '';
+      if (!id) return;
+      const cur = map.get(id) || { id, name: m.resolvedTournamentName || '이름 없음', count: 0 };
+      cur.count++;
+      map.set(id, cur);
+    });
+    return Array.from(map.values());
+  }, [countryMatchesInCategory]);
+
+  // 최종 표시 목록: 카테고리 + (연도 선택 있으면 연도) + (대회 선택 있으면 대회) 순으로 좁힘
+  const countryMatchesFiltered = useMemo(() => {
+    let list = countryMatchesInCategory;
+    if (selectedYears.size > 0) list = list.filter(m => selectedYears.has(m.resolvedYear));
+    if (selectedTournamentIds.size > 0) list = list.filter(m => selectedTournamentIds.has(m.tournamentId || ''));
+    return list;
+  }, [countryMatchesInCategory, selectedYears, selectedTournamentIds]);
 
   const handleCreate = async () => {
     if (!newName.trim() || !db) return
@@ -357,26 +408,86 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
   // 국가별 보기: 선택된 국가가 출전한 모든 경기를 대회 가로질러 모아보기
   if (viewBy === 'country') {
     if (selectedCountry) {
+      const toggleInSet = (setter: typeof setSelectedYears, current: Set<string>, value: string) => {
+        const next = new Set(current);
+        if (next.has(value)) next.delete(value); else next.add(value);
+        setter(next);
+      };
+
       return (
         <div className="space-y-6">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => setSelectedCountry(null)}>
+            <Button variant="ghost" size="icon" onClick={() => { setSelectedCountry(null); setSelectedCountryCategory('전체'); setSelectedYears(new Set()); setSelectedTournamentIds(new Set()); }}>
               <ArrowLeft className="h-6 w-6" />
             </Button>
             <div>
               <h2 className="text-3xl font-black italic text-primary uppercase tracking-tighter">{selectedCountry}</h2>
-              <p className="text-muted-foreground font-bold">대회를 가로질러 모은 전체 경기 ({countryMatches.length})</p>
+              <p className="text-muted-foreground font-bold">{countryMatchesFiltered.length} / {countryMatches.length}경기 표시 중</p>
             </div>
           </div>
+
+          {/* 카테고리 필터: 여자대표팀/남자대표팀 등 */}
+          {countryCategories.length > 1 && (
+            <div className="flex flex-wrap gap-1.5">
+              {['전체', ...countryCategories].map(cat => (
+                <Button
+                  key={cat}
+                  size="sm"
+                  variant={selectedCountryCategory === cat ? 'default' : 'outline'}
+                  className="h-8 text-xs font-bold"
+                  onClick={() => { setSelectedCountryCategory(cat); setSelectedYears(new Set()); setSelectedTournamentIds(new Set()); }}
+                >{cat}</Button>
+              ))}
+            </div>
+          )}
+
+          {/* 연도 다중 선택 */}
+          {countryYearsInCategory.length > 1 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase mr-1">연도</span>
+              {countryYearsInCategory.map(year => (
+                <Button
+                  key={year}
+                  size="sm"
+                  variant={selectedYears.has(year) ? 'default' : 'outline'}
+                  className="h-7 text-[11px] font-bold px-2.5"
+                  onClick={() => toggleInSet(setSelectedYears, selectedYears, year)}
+                >{year}</Button>
+              ))}
+              {selectedYears.size > 0 && (
+                <Button size="sm" variant="ghost" className="h-7 text-[11px] text-muted-foreground" onClick={() => setSelectedYears(new Set())}>초기화</Button>
+              )}
+            </div>
+          )}
+
+          {/* 대회 다중 선택 */}
+          {countryTournamentsInCategory.length > 1 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase mr-1">대회</span>
+              {countryTournamentsInCategory.map(t => (
+                <Button
+                  key={t.id}
+                  size="sm"
+                  variant={selectedTournamentIds.has(t.id) ? 'default' : 'outline'}
+                  className="h-7 text-[11px] font-bold px-2.5"
+                  onClick={() => toggleInSet(setSelectedTournamentIds, selectedTournamentIds, t.id)}
+                >{t.name} ({t.count})</Button>
+              ))}
+              {selectedTournamentIds.size > 0 && (
+                <Button size="sm" variant="ghost" className="h-7 text-[11px] text-muted-foreground" onClick={() => setSelectedTournamentIds(new Set())}>초기화</Button>
+              )}
+            </div>
+          )}
+
           <Card className="border-2 shadow-xl">
             <CardContent className="p-0">
               <Table>
                 <TableHeader><TableRow className="bg-muted/20"><TableHead className="pl-6 font-black uppercase text-xs">대회</TableHead><TableHead className="font-black uppercase text-xs">경기</TableHead><TableHead className="text-center font-black uppercase text-xs">스코어</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {countryMatches.length === 0 ? (
-                    <TableRow><TableCell colSpan={3} className="text-center py-20 text-muted-foreground italic">경기 기록이 없습니다.</TableCell></TableRow>
+                  {countryMatchesFiltered.length === 0 ? (
+                    <TableRow><TableCell colSpan={3} className="text-center py-20 text-muted-foreground italic">조건에 맞는 경기가 없습니다.</TableCell></TableRow>
                   ) : (
-                    countryMatches.map((m, idx) => {
+                    countryMatchesFiltered.map((m, idx) => {
                       const isHome = m.homeTeam?.name === selectedCountry;
                       const opponent = isHome ? m.awayTeam?.name : m.homeTeam?.name;
                       const myGoals = isHome ? m.matchStats.home.goals.field + m.matchStats.home.goals.pc : m.matchStats.away.goals.field + m.matchStats.away.goals.pc;
@@ -414,7 +525,7 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
               <Card
                 key={c.name}
                 className="border-2 shadow-sm hover:shadow-lg hover:border-primary/50 transition-all cursor-pointer"
-                onClick={() => setSelectedCountry(c.name)}
+                onClick={() => { setSelectedCountry(c.name); setSelectedCountryCategory('전체'); setSelectedYears(new Set()); setSelectedTournamentIds(new Set()); }}
               >
                 <CardContent className="p-6 flex items-center gap-4">
                   <div className="bg-primary/10 p-3 rounded-xl"><Trophy className="h-6 w-6 text-primary" /></div>
