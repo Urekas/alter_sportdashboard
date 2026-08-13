@@ -121,7 +121,7 @@ export function MatchTrajectoryChart({ data, isTournamentView, allMatchesPoints 
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-[700px] w-full mt-8">
+        <div className="h-[700px] print:h-[280px] w-full mt-8">
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart margin={{ top: 60, right: 80, bottom: 80, left: 60 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />

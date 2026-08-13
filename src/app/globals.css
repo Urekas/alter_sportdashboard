@@ -92,12 +92,19 @@
   }
 }
 
+@page {
+  size: A4;
+  margin: 12mm;
+}
+
 @media print {
-  body {
+  html, body {
     background-color: white !important;
+    font-size: 12px;
   }
   .printable-area {
     width: 100% !important;
+    max-width: none !important;
     padding: 0 !important;
     margin: 0 !important;
   }
@@ -105,4 +112,23 @@
     box-shadow: none !important;
     border: 1px solid #eee !important;
   }
+
+  /* 화면용 큰 제목/카드들을 A4 폭에 맞게 축소합니다. */
+  h1 { font-size: 20px !important; }
+  h2 { font-size: 15px !important; }
+  h3 { font-size: 13px !important; }
+  .card-title, [class*="CardTitle"] { font-size: 13px !important; }
+
+  /* Recharts 차트 컨테이너는 화면 기준 큰 고정 높이를 쓰는 경우가 많아
+     인쇄 시엔 공통으로 낮춰서 페이지를 과도하게 잡아먹지 않게 합니다. */
+  .recharts-responsive-container {
+    max-height: 260px !important;
+  }
+  .recharts-wrapper, .recharts-surface {
+    max-height: 260px !important;
+  }
+
+  /* 아코디언(쿼터별 상세, 이벤트 타임라인 등)은 화면에서 접혀있어도
+     인쇄물엔 항상 펼쳐진 내용이 보이도록, 각 컴포넌트에서
+     hidden print:block 형태의 인쇄 전용 사본을 별도로 둡니다. */
 }
