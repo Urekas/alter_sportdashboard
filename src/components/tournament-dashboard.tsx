@@ -27,7 +27,11 @@ import { mapZone } from "@/lib/parser";
 import { analyzeMatch, type MatchAnalysisOutput } from "@/ai/flows/match-analysis-flow";
 
 interface TournamentDashboardProps {
-  tournamentId: string;
+  tournamentId?: string;
+  // 국가별 보기 등에서 대회 하나가 아니라 직접 고른 경기 묶음을 넘길 때 사용합니다.
+  // 지정되면 내부 Firestore 조회(tournamentId 기준) 대신 이 목록을 그대로 씁니다.
+  externalMatches?: MatchData[];
+  externalTitle?: string;
 }
 
 const getTeamColor = (name: string, index: number): string => {
@@ -35,7 +39,7 @@ const getTeamColor = (name: string, index: number): string => {
   return colors[index % colors.length];
 };
 
-export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) {
+export function TournamentDashboard({ tournamentId, externalMatches, externalTitle }: TournamentDashboardProps) {
   const [selectedTeamName, setSelectedTeamName] = useState("");
   const [selectedTeamColor, setSelectedTeamColor] = useState("#0066ff");
   const [opponentColor, setOpponentColor] = useState("#ef4444");
@@ -51,21 +55,23 @@ export function TournamentDashboard({ tournamentId }: TournamentDashboardProps) 
   const { toast } = useToast();
 
   const matchesQuery = useMemoFirebase(() => {
-    if (!db || !tournamentId) return null;
+    if (externalMatches || !db || !tournamentId) return null;
     return query(collection(db, 'matches'), where('tournamentId', '==', tournamentId));
-  }, [db, tournamentId]);
+  }, [db, tournamentId, externalMatches]);
 
   const { data: rawMatches, isLoading: loading } = useCollection<MatchData>(matchesQuery);
 
   const matches = useMemo(() => {
+    if (externalMatches) return [...externalMatches];
     if (!rawMatches) return [];
     return [...rawMatches].sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
-  }, [rawMatches]);
+  }, [rawMatches, externalMatches]);
 
   const tournamentName = useMemo(() => {
+    if (externalTitle) return externalTitle;
     if (matches.length > 0) return matches[0].tournamentName || "Tournament Report";
     return "Tournament Report";
-  }, [matches]);
+  }, [matches, externalTitle]);
 
   const analysisData = useMemo(() => {
     if (matches.length === 0) return null;

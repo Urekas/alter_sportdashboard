@@ -55,6 +55,14 @@ export function Dashboard() {
   const [newTournamentName, setNewTournamentName] = useState("")
 
   const [siblingMatches, setSiblingMatches] = useState<MatchData[]>([])
+  const [cumulativeMatches, setCumulativeMatches] = useState<MatchData[] | null>(null)
+  const [cumulativeTitle, setCumulativeTitle] = useState("")
+
+  const handleViewCumulative = (matches: MatchData[], title: string) => {
+    setCumulativeMatches(matches)
+    setCumulativeTitle(title)
+    setViewMode('tournament')
+  }
 
   const [aiAnalysis, setAiAnalysis] = useState<MatchAnalysisOutput | null>(null)
   const [isAiLoading, setIsAiLoading] = useState(false)
@@ -258,9 +266,9 @@ export function Dashboard() {
             {['single', 'tournament', 'manage'].map((mode) => (
               <Button 
                 key={mode}
-                variant={viewMode === mode ? 'default' : 'ghost'} 
-                size="sm" 
-                onClick={() => setViewMode(mode as any)}
+                variant={viewMode === mode ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => { setViewMode(mode as any); if (mode === 'tournament') setCumulativeMatches(null); }}
                 className="h-7 text-xs font-bold"
               >
                 {mode === 'single' ? '경기별 분석' : mode === 'tournament' ? '대회 누적 분석' : '대회 관리'}
@@ -376,9 +384,13 @@ export function Dashboard() {
       )}
       <main className="printable-area flex-1 min-w-0">
         {viewMode === 'manage' ? (
-          <TournamentManager onViewMatch={handleViewMatchFromDB} />
+          <TournamentManager onViewMatch={handleViewMatchFromDB} onViewCumulative={handleViewCumulative} />
         ) : viewMode === 'tournament' ? (
-          <TournamentDashboard tournamentId={activeTournamentId} />
+          cumulativeMatches ? (
+            <TournamentDashboard externalMatches={cumulativeMatches} externalTitle={cumulativeTitle} />
+          ) : (
+            <TournamentDashboard tournamentId={activeTournamentId} />
+          )
         ) : !matchData ? (
           <div className="py-20 text-center bg-card rounded-xl border-2 border-dashed border-muted-foreground/25">
             <Activity className="w-16 h-16 text-muted-foreground/40 mx-auto mb-4" />

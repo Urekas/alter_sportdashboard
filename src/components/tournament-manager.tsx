@@ -19,9 +19,10 @@ import { parseXMLData, parseCSVData, createMatchDataFromUpload } from "@/lib/par
 
 interface TournamentManagerProps {
   onViewMatch?: (match: MatchData) => void;
+  onViewCumulative?: (matches: MatchData[], title: string) => void;
 }
 
-export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
+export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentManagerProps) {
   const db = useFirestore()
   const { toast } = useToast()
   
@@ -420,10 +421,18 @@ export function TournamentManager({ onViewMatch }: TournamentManagerProps) {
             <Button variant="ghost" size="icon" onClick={() => { setSelectedCountry(null); setSelectedCountryCategory('전체'); setSelectedYears(new Set()); setSelectedTournamentIds(new Set()); }}>
               <ArrowLeft className="h-6 w-6" />
             </Button>
-            <div>
+            <div className="flex-1">
               <h2 className="text-3xl font-black italic text-primary uppercase tracking-tighter">{selectedCountry}</h2>
               <p className="text-muted-foreground font-bold">{countryMatchesFiltered.length} / {countryMatches.length}경기 표시 중</p>
             </div>
+            {onViewCumulative && countryMatchesFiltered.length > 0 && (
+              <Button
+                className="font-bold"
+                onClick={() => onViewCumulative(countryMatchesFiltered, `${selectedCountry} 누적분석 (${countryMatchesFiltered.length}경기)`)}
+              >
+                <Database className="h-4 w-4 mr-2" /> 이 경기들로 누적분석 보기
+              </Button>
+            )}
           </div>
 
           {/* 카테고리 필터: 여자대표팀/남자대표팀 등 */}
