@@ -90,10 +90,23 @@ export interface MatchData {
   rawSourceFileName?: string; // 원본 파일 이름
 }
 
+export interface ScheduleEntry {
+  matchNumber: number;
+  dateTime: string;   // 원문 그대로 보관 (예: "15 Aug 2026 13:00")
+  homeRef: string;    // 확정팀 코드("IND") 또는 참조 문자열("3rd Pool B", "Winner 47")
+  awayRef: string;
+  stage: string;      // 괄호 안 스테이지 표기 (예: "D", "SF", "1/2")
+  venue: string;
+  score?: string;     // 원문 스코어 그대로 (예: "3 - 2", "1 - 1 (3 - 1 SO)", "-"면 미정)
+  status?: string;    // Upcoming / Official 등 원문 그대로
+}
+
 export interface Tournament {
   id: string;
   name: string;
   startDate: string;
+  category?: string;
+  schedule?: ScheduleEntry[];
   createdAt: any;
   category?: string; // 예: "여자대표팀", "남자대표팀" — 대회를 상위 그룹으로 묶는 용도
 }

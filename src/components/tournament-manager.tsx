@@ -2,21 +2,52 @@
 "use client"
 
 import React, { useState, useMemo, useRef } from "react"
-import { Trophy, Database, Trash2, Edit3, Save, X, Plus, ChevronRight, RefreshCw, ArrowLeft, ArrowUp, ArrowDown, Eye, Users, Video } from "lucide-react"
+import { Trophy, Database, Trash2, Edit3, Save, X, Plus, ChevronRight, RefreshCw, ArrowLeft, ArrowUp, ArrowDown, Eye, Users, Video, CalendarClock } from "lucide-react"
 import { VideoLinkDialog } from "./video-link-dialog"
 import { TournamentService } from "@/lib/tournament-service"
-import type { Tournament, MatchData } from "@/lib/types"
+import type { Tournament, MatchData, ScheduleEntry } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, query } from "firebase/firestore"
 import { parseXMLData, parseCSVData, createMatchDataFromUpload } from "@/lib/parser"
+
+// FIH TMS류 사이트에서 그대로 복사-붙여넣기한 일정표를 파싱합니다.
+// 탭 구분(엑셀/TMS 표에서 복사 시 보통 탭)이 기본이고, 없으면 공백 2칸+ 로 대체 분리합니다.
+// "Winner 47", "3rd Pool B" 같은 참조 문자열은 있는 그대로 저장하고(자동 치환은 다음 단계), 실제 점수/상태도 원문 그대로 보관합니다.
+function parseScheduleText(text: string): ScheduleEntry[] {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const entries: ScheduleEntry[] = [];
+  for (const line of lines) {
+    let cols = line.split('\t').map(c => c.trim());
+    if (cols.length < 4) cols = line.split(/ {2,}/).map(c => c.trim());
+    if (cols.length < 3) continue;
+    const matchNumber = parseInt(cols[0], 10);
+    if (isNaN(matchNumber)) continue; // 헤더 행("Match #...") 등은 자동으로 건너뜀
+    const dateTime = cols[1] || '';
+    const details = cols[2] || '';
+    const m = details.match(/^(.+?)\s+v\s+(.+?)\s*\(([^)]+)\)\s*$/);
+    if (!m) continue;
+    entries.push({
+      matchNumber,
+      dateTime,
+      homeRef: m[1].trim(),
+      awayRef: m[2].trim(),
+      stage: m[3].trim(),
+      score: (cols[3] || '').trim(),
+      status: (cols[4] || '').trim(),
+      venue: (cols[5] || '').trim(),
+    });
+  }
+  return entries.sort((a, b) => a.matchNumber - b.matchNumber);
+}
 
 interface TournamentManagerProps {
   onViewMatch?: (match: MatchData) => void;
@@ -46,6 +77,9 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null)
   const [replaceMatchId, setReplaceMatchId] = useState<string | null>(null)
   const [videoLinkMatch, setVideoLinkMatch] = useState<MatchData | null>(null)
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false)
+  const [scheduleText, setScheduleText] = useState("")
+  const [isSavingSchedule, setIsSavingSchedule] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const tourneyQuery = useMemoFirebase(() => db ? query(collection(db, 'tournaments')) : null, [db]);
@@ -233,6 +267,27 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
     setEditStartDate(t.startDate && !isNaN(new Date(t.startDate).getTime()) ? new Date(t.startDate).toISOString().slice(0, 10) : "")
   }
 
+  const handleParseSchedule = async () => {
+    if (!selectedTournament || !db) return;
+    const parsed = parseScheduleText(scheduleText);
+    if (parsed.length === 0) {
+      toast({ title: "인식된 경기가 없어요", description: "표를 그대로 복사해서 붙여넣어주세요.", variant: "destructive" });
+      return;
+    }
+    setIsSavingSchedule(true);
+    try {
+      await TournamentService.updateSchedule(db, selectedTournament.id, parsed);
+      setSelectedTournament(prev => prev ? { ...prev, schedule: parsed } : prev);
+      toast({ title: `${parsed.length}경기 일정 반영 완료` });
+      setIsScheduleDialogOpen(false);
+      setScheduleText("");
+    } catch (e: any) {
+      toast({ title: "저장 실패", description: e.message, variant: "destructive" });
+    } finally {
+      setIsSavingSchedule(false);
+    }
+  }
+
   const handleDeleteTournament = async (id: string) => {
     if (!id || !db) return;
     try {
@@ -329,12 +384,50 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
           <Button variant="ghost" size="icon" onClick={() => setSelectedTournament(null)}>
             <ArrowLeft className="h-6 w-6" />
           </Button>
-          <div>
+          <div className="flex-1">
             <h2 className="text-3xl font-black italic text-primary uppercase tracking-tighter">{selectedTournament.name} - Match Management</h2>
             <p className="text-muted-foreground font-bold">경기 순서 조정 및 분석 바로가기</p>
           </div>
+          <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="font-bold"><CalendarClock className="h-4 w-4 mr-2" /> 일정표 붙여넣기</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>일정표 붙여넣기</DialogTitle>
+                <DialogDescription>TMS 등에서 "Match Listing" 표를 그대로 복사해서 붙여넣으세요. 확정 안 된 팀("Winner 47", "3rd Pool B")도 그대로 인식돼요.</DialogDescription>
+              </DialogHeader>
+              <Textarea value={scheduleText} onChange={(e) => setScheduleText(e.target.value)} className="h-64 font-mono text-xs" placeholder="Match #	Date/Time	Details	Scoreline	Status	Venue..." />
+              <DialogFooter>
+                <Button onClick={handleParseSchedule} disabled={isSavingSchedule} className="font-bold">{isSavingSchedule ? "저장 중..." : "파싱 및 저장"}</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
         <input type="file" ref={fileInputRef} onChange={onFileChange} className="hidden" accept=".xml,.csv" />
+
+        {selectedTournament.schedule && selectedTournament.schedule.length > 0 && (
+          <Card className="border-2 shadow-xl">
+            <CardHeader className="bg-muted/10 border-b"><CardTitle className="text-lg flex items-center gap-2"><CalendarClock className="h-5 w-5 text-primary" /> 경기 일정 ({selectedTournament.schedule.length})</CardTitle></CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader><TableRow className="bg-muted/20"><TableHead className="w-10 text-center">#</TableHead><TableHead className="text-xs font-black uppercase">일시</TableHead><TableHead className="text-xs font-black uppercase">대진</TableHead><TableHead className="text-xs font-black uppercase text-center">스테이지</TableHead><TableHead className="text-xs font-black uppercase text-center">스코어</TableHead><TableHead className="text-xs font-black uppercase text-center">상태</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {selectedTournament.schedule.map((s) => (
+                    <TableRow key={s.matchNumber} className={/^(Winner|Loser|\d(st|nd|rd|th))/i.test(s.homeRef + s.awayRef) ? 'opacity-60' : ''}>
+                      <TableCell className="text-center text-xs text-muted-foreground">{s.matchNumber}</TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">{s.dateTime}</TableCell>
+                      <TableCell className="text-sm font-bold">{s.homeRef} v {s.awayRef}</TableCell>
+                      <TableCell className="text-center text-xs">{s.stage}</TableCell>
+                      <TableCell className="text-center text-xs font-mono">{s.score || '-'}</TableCell>
+                      <TableCell className="text-center text-[10px] uppercase font-bold text-muted-foreground">{s.status}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
 
         {standings.length > 1 && (
           <Card className="border-2 shadow-xl">

@@ -66,6 +66,12 @@ export const TournamentService = {
     });
   },
 
+  async updateSchedule(dbInstance: Firestore, tournamentId: string, schedule: Tournament['schedule']) {
+    if (!tournamentId) return;
+    const docRef = doc(dbInstance, TOURNAMENTS_COL, tournamentId);
+    await updateDoc(docRef, { schedule });
+  },
+
   async getMatchesByTournament(tournamentId: string) {
     if (!tournamentId) return [];
     try {
