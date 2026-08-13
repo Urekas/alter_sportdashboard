@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, Video } from "lucide-react"
+import { Loader2, Video, FileJson } from "lucide-react"
 import { useFirestore } from "@/firebase"
 import { useToast } from "@/hooks/use-toast"
 import { TournamentService } from "@/lib/tournament-service"
@@ -58,6 +58,30 @@ export function VideoLinkDialog({ match, open, onOpenChange, onSaved }: VideoLin
       })
     }
   }, [open, match, db])
+
+  // stream.json (Sportscode 카메라별 export 폴더의 동기화 파일)을 읽어 segments[0].offset을 오프셋 칸에 채웁니다.
+  // 슈팅 태깅 도구(슈팅위치태킹.html)의 handleSyncJsonUpload와 동일한 규칙입니다.
+  const handleJsonUpload = (e: React.ChangeEvent<HTMLInputElement>, offsetKey: string) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      try {
+        const json = JSON.parse(evt.target?.result as string)
+        const offset = json?.segments?.[0]?.offset
+        if (typeof offset === 'number') {
+          setForm(f => ({ ...f, [offsetKey]: String(offset) }))
+          toast({ title: `오프셋 자동 입력: ${offset.toFixed(3)}초` })
+        } else {
+          toast({ title: "이 JSON에서 offset 값을 찾지 못했어요", variant: "destructive" })
+        }
+      } catch (err: any) {
+        toast({ title: "JSON 파싱 실패", description: err.message, variant: "destructive" })
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
 
   const handleSave = async () => {
     if (!match || !db || !match.id) return
@@ -129,8 +153,15 @@ export function VideoLinkDialog({ match, open, onOpenChange, onSaved }: VideoLin
                     placeholder="오프셋(초)"
                     value={(form as any)[row.offsetKey]}
                     onChange={(e) => setForm(f => ({ ...f, [row.offsetKey]: e.target.value }))}
-                    className="h-9 w-28"
+                    className="h-9 w-24"
                   />
+                  <label
+                    className="h-9 px-2 flex items-center gap-1 border rounded-md text-[11px] font-bold text-muted-foreground hover:bg-muted/50 cursor-pointer shrink-0"
+                    title="stream.json 업로드해서 오프셋 자동 입력"
+                  >
+                    <FileJson className="h-3.5 w-3.5" /> JSON
+                    <input type="file" accept=".json" className="hidden" onChange={(e) => handleJsonUpload(e, row.offsetKey)} />
+                  </label>
                 </div>
               </div>
             ))}
