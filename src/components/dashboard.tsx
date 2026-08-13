@@ -56,6 +56,8 @@ export function Dashboard() {
   const [newTournamentName, setNewTournamentName] = useState("")
 
   const [siblingMatches, setSiblingMatches] = useState<MatchData[]>([])
+  const [rawFileText, setRawFileText] = useState<string>("")
+  const [rawFileName, setRawFileName] = useState<string>("")
   const [cumulativeMatches, setCumulativeMatches] = useState<MatchData[] | null>(null)
   const [cumulativeTitle, setCumulativeTitle] = useState("")
 
@@ -96,11 +98,15 @@ export function Dashboard() {
         tournamentName,
         matchName
       );
+      if (rawFileText) {
+        newData.rawSourceText = rawFileText;
+        newData.rawSourceFileName = rawFileName;
+      }
       setMatchData(newData);
       setAiAnalysis(null);
       setResearcherComment("");
     }
-  }, [parsedEvents, homeTeamName, awayTeamName, homeColor, awayColor, tournamentName, matchName]);
+  }, [parsedEvents, homeTeamName, awayTeamName, homeColor, awayColor, tournamentName, matchName, rawFileText, rawFileName]);
 
   const handleAiAnalysis = async () => {
     if (!matchData) return;
@@ -158,6 +164,17 @@ export function Dashboard() {
     }
   }
 
+  const handleDownloadRawXml = () => {
+    if (!matchData?.rawSourceText) return;
+    const blob = new Blob([matchData.rawSourceText], { type: "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = matchData.rawSourceFileName || `${matchData.matchName || "match"}.xml`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   const handleLoadMockData = () => {
     setParsedEvents(mockMatchData.events);
     const uniqueTeams = Array.from(new Set(mockMatchData.events.map(e => e.team.trim()))).filter(Boolean);
@@ -205,6 +222,8 @@ export function Dashboard() {
           setHomeTeamName(parsed.teams.home);
           setAwayTeamName(parsed.teams.away);
           setMatchName(detectedMatchName);
+          setRawFileText(content);
+          setRawFileName(file.name);
           toast({ title: "데이터 로드 완료" });
         } catch (error: any) {
           toast({ title: "오류 발생", description: error.message, variant: "destructive" });
@@ -345,6 +364,9 @@ export function Dashboard() {
                 {matchData && (
                   <>
                     <Button variant="outline" onClick={handleSaveToDB} className="h-9 border-primary text-primary hover:bg-primary/5"><Save className="mr-2 h-4 w-4" /> 저장</Button>
+                    {matchData.rawSourceText && (
+                      <Button variant="outline" onClick={handleDownloadRawXml} className="h-9 border-muted-foreground/40 text-muted-foreground hover:bg-muted/50"><FileDown className="mr-2 h-4 w-4" /> XML</Button>
+                    )}
                     <Button variant="default" onClick={() => window.print()} className="bg-emerald-600 hover:bg-emerald-700 h-9"><FileDown className="mr-2 h-4 w-4" /> PDF</Button>
                   </>
                 )}

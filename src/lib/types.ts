@@ -86,6 +86,8 @@ export interface MatchData {
   quarterlyStats: QuarterStats[];
   uploadedAt?: any;
   videoMatchId?: string;
+  rawSourceText?: string;     // 업로드한 XML/CSV 원본 텍스트 (재다운로드용)
+  rawSourceFileName?: string; // 원본 파일 이름
 }
 
 export interface Tournament {

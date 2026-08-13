@@ -285,6 +285,8 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
           selectedTournament?.name,
           matchName
         );
+        updatedData.rawSourceText = content;
+        updatedData.rawSourceFileName = file.name;
         await TournamentService.updateMatchData(db, replaceMatchId, updatedData);
         toast({ title: "데이터 교체 완료" });
         setReplaceMatchId(null);
