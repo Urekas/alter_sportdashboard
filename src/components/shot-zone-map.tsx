@@ -164,9 +164,9 @@ function SidePanel({
         <span className="text-xs text-muted-foreground">· 슈팅/PC {shots.length}회</span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <div className="space-y-3 max-w-sm mx-auto lg:mx-0">
         {/* 필드 슈팅 발사 위치 */}
-        <div className="lg:col-span-7">
+        <div>
           <p className="text-xs font-bold text-muted-foreground mb-1">슈팅 발사 위치</p>
           <svg viewBox={`0 0 ${FIELD_MAX_X} ${FIELD_MAX_Y}`} className="w-full h-auto rounded-lg border" style={{ background: '#1e2a3b' }}>
             <path d={circleOutlinePath((14.63 / 23) * FIELD_MAX_Y)} fill="none" stroke="#e2e8f0" strokeWidth={1.5} />
@@ -201,7 +201,7 @@ function SidePanel({
         </div>
 
         {/* 골대 도착 타겟 */}
-        <div className="lg:col-span-5">
+        <div>
           <p className="text-xs font-bold text-muted-foreground mb-1">골대 도착 타겟</p>
           <svg viewBox={`0 0 ${GOAL_MAX_X} ${GOAL_MAX_Y}`} className="w-full h-auto rounded-lg border" style={{ background: '#0a1128' }}>
             <line x1={0} y1={g.marginYBottom} x2={GOAL_MAX_X} y2={g.marginYBottom} stroke="rgba(255,255,255,0.25)" strokeWidth={1.5} />
@@ -301,22 +301,25 @@ export function ShotZoneMap({
           <Label htmlFor="shot-grid-toggle" className="text-xs font-bold cursor-pointer">구역 그리드</Label>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <SidePanel
-          label={sideALabel} color={sideAColor} shots={shotsA} showGrid={showGrid}
-          gridCols={gridCols} gridRows={gridRows} goalGridSize={goalGridSize}
-          onEnter={handleEnter} onMove={handleMove} onLeave={handleLeave}
-        />
-        {showSideB && (
-          <>
-            <div className="border-t" />
+      <CardContent>
+        <div className={showSideB ? "grid grid-cols-1 lg:grid-cols-2 gap-6 lg:divide-x lg:gap-x-0" : ""}>
+          <div className={showSideB ? "lg:pr-6" : ""}>
             <SidePanel
-              label={sideBLabel} color={sideBColor} shots={shotsB} showGrid={showGrid}
+              label={sideALabel} color={sideAColor} shots={shotsA} showGrid={showGrid}
               gridCols={gridCols} gridRows={gridRows} goalGridSize={goalGridSize}
               onEnter={handleEnter} onMove={handleMove} onLeave={handleLeave}
             />
-          </>
-        )}
+          </div>
+          {showSideB && (
+            <div className="lg:pl-6">
+              <SidePanel
+                label={sideBLabel} color={sideBColor} shots={shotsB} showGrid={showGrid}
+                gridCols={gridCols} gridRows={gridRows} goalGridSize={goalGridSize}
+                onEnter={handleEnter} onMove={handleMove} onLeave={handleLeave}
+              />
+            </div>
+          )}
+        </div>
       </CardContent>
 
       {tooltip && (
