@@ -4,8 +4,12 @@
 // 상대 전적(Head-to-Head). 좌/우 두 팀을 고르면 역대 전적(전체 기간, 필터 무관)과
 // 그 아래 경기 목록(대회/연도로 필터 가능)을 보여줌. tournament-manager.tsx의 "국가별 보기"와
 // 같은 연도 계산 방식(Tournament.startDate 기준)을 그대로 씀.
+// 하키는 남자/여자 대회가 완전히 분리돼있어서(같은 "한국"이라도 다른 팀) 팀 목록·경기를 항상
+// Tournament.category로 먼저 좁힌 뒤에 팀 이름으로 찾습니다 — 카테고리 없이 팀명만으로 묶으면
+// 남녀 경기가 섞여버립니다. category가 없는 대회는 전부 "미분류"로 묶입니다(임의로 남/여를
+// 추측하지 않음 — 사용자가 직접 분류할 예정).
 import { useMemo, useState } from "react"
-import { Swords, Trophy, Calendar, Loader2, ArrowLeftRight, Sword, Target, ChevronDown, Shield, Percent } from "lucide-react"
+import { Swords, Trophy, Calendar, Loader2, ArrowLeftRight, Sword, Target, ChevronDown, Shield, Percent, Users } from "lucide-react"
 import type { MatchData, Tournament } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -27,6 +31,7 @@ function matchGoals(m: MatchData, side: 'home' | 'away'): number {
 }
 
 export function HeadToHeadDashboard({ tournaments, onViewMatch }: HeadToHeadDashboardProps) {
+  const [category, setCategory] = useState("")
   const [teamA, setTeamA] = useState("")
   const [teamB, setTeamB] = useState("")
   const [selectedTournamentIds, setSelectedTournamentIds] = useState<Set<string>>(new Set())
@@ -38,18 +43,27 @@ export function HeadToHeadDashboard({ tournaments, onViewMatch }: HeadToHeadDash
 
   const tournamentById = useMemo(() => new Map(tournaments.map(t => [t.id, t])), [tournaments])
 
+  // 남/여 대회가 섞이지 않도록 카테고리를 먼저 고르게 함. "미분류"는 뒤로 보냄.
+  const categories = useMemo(() => {
+    const set = new Set(tournaments.map(t => t.category || "미분류"))
+    return Array.from(set).sort((a, b) => a === "미분류" ? 1 : b === "미분류" ? -1 : a.localeCompare(b))
+  }, [tournaments])
+  const effCategory = category && categories.includes(category) ? category : (categories[0] || "")
+
+  const categoryTournamentIds = useMemo(() => new Set(tournaments.filter(t => (t.category || "미분류") === effCategory).map(t => t.id)), [tournaments, effCategory])
+  const categoryMatches = useMemo(() => (matches || []).filter(m => categoryTournamentIds.has(m.tournamentId || "")), [matches, categoryTournamentIds])
+
   const allTeamNames = useMemo(() => {
-    if (!matches) return []
-    return Array.from(new Set(matches.flatMap(m => [m.homeTeam.name, m.awayTeam.name]))).sort()
-  }, [matches])
+    return Array.from(new Set(categoryMatches.flatMap(m => [m.homeTeam.name, m.awayTeam.name]))).sort()
+  }, [categoryMatches])
 
   const effA = teamA && allTeamNames.includes(teamA) ? teamA : (allTeamNames[0] || "")
   const effB = teamB && allTeamNames.includes(teamB) && teamB !== effA ? teamB : (allTeamNames.find(t => t !== effA) || "")
 
-  // 역대 전적(A vs B) — 필터와 무관하게 항상 두 팀 사이의 모든 경기 기준.
+  // 역대 전적(A vs B) — 필터와 무관하게 항상 두 팀 사이의 모든 경기 기준(단, 선택된 카테고리 안에서만).
   const h2hMatches = useMemo(() => {
-    if (!matches || !effA || !effB) return []
-    return matches
+    if (!effA || !effB) return []
+    return categoryMatches
       .filter(m => (m.homeTeam.name === effA && m.awayTeam.name === effB) || (m.homeTeam.name === effB && m.awayTeam.name === effA))
       .map(m => {
         const t = tournamentById.get(m.tournamentId || "")
@@ -72,7 +86,7 @@ export function HeadToHeadDashboard({ tournaments, onViewMatch }: HeadToHeadDash
         }
       })
       .sort((a, b) => (b.startDate?.getTime() || 0) - (a.startDate?.getTime() || 0))
-  }, [matches, effA, effB, tournamentById])
+  }, [categoryMatches, effA, effB, tournamentById])
 
   const record = useMemo(() => {
     const sum = { winA: 0, winB: 0, draw: 0, goalsA: 0, goalsB: 0, shotsA: 0, shotsB: 0, pcsA: 0, pcsB: 0, circleEntriesA: 0, circleEntriesB: 0, possessionA: 0, possessionB: 0, pcSuccessRateA: 0, pcSuccessRateB: 0 }
@@ -162,10 +176,26 @@ export function HeadToHeadDashboard({ tournaments, onViewMatch }: HeadToHeadDash
 
       {isLoading ? (
         <div className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />불러오는 중...</div>
-      ) : allTeamNames.length === 0 ? (
-        <div className="py-20 text-center text-muted-foreground">등록된 경기가 없습니다.</div>
+      ) : categories.length === 0 ? (
+        <div className="py-20 text-center text-muted-foreground">등록된 대회가 없습니다.</div>
       ) : (
         <>
+          {categories.length > 1 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase mr-1 flex items-center gap-1"><Users className="h-3 w-3" /> 카테고리</span>
+              {categories.map(c => (
+                <Button key={c} size="sm" variant={effCategory === c ? 'default' : 'outline'} className="h-7 text-[11px] font-bold px-2.5"
+                  onClick={() => { setCategory(c); setTeamA(""); setTeamB("") }}>{c}</Button>
+              ))}
+            </div>
+          )}
+
+          {allTeamNames.length === 0 ? (
+            <div className="py-16 text-center text-muted-foreground bg-muted/20 rounded-xl border-2 border-dashed">
+              "{effCategory}" 카테고리에 등록된 경기가 없습니다.
+            </div>
+          ) : (
+          <>
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1">
               <Label className="text-[10px] font-bold text-muted-foreground uppercase">팀 A (좌)</Label>
@@ -316,6 +346,8 @@ export function HeadToHeadDashboard({ tournaments, onViewMatch }: HeadToHeadDash
                 </CardContent>
               </Card>
             </>
+          )}
+          </>
           )}
         </>
       )}

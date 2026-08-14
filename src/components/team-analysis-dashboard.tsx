@@ -6,6 +6,8 @@
 // 선수 이름을 클릭하면 그 선수의 커리어 조회(PlayerRecordDialog, dashboard.tsx에서 관리)로 이어집니다.
 // 사용자가 설명한 전체 동선(팀 → 대회 → 라인업 → 선수 → 커리어 → 경기 리포트) 중 "팀 먼저 고르는
 // 진입점" 부분 — 득점/슈팅/선방 집계 + 영상 클릭연결은 사용자가 "나중에"라고 명시해서 범위 밖.
+// 하키는 남자/여자 대회가 완전히 분리돼있어서(같은 "한국"이라도 다른 팀) 팀 목록을 항상
+// Tournament.category로 먼저 좁힌 뒤에 팀 이름으로 찾습니다. category 없는 대회는 "미분류".
 import { useMemo, useState } from "react"
 import { Users, Trophy, Loader2, ChevronRight, ChevronDown, ClipboardList, ArrowRight } from "lucide-react"
 import type { MatchData, Tournament } from "@/lib/types"
@@ -24,6 +26,7 @@ interface TeamAnalysisDashboardProps {
 }
 
 export function TeamAnalysisDashboard({ tournaments, onViewMatch, onPlayerClick }: TeamAnalysisDashboardProps) {
+  const [category, setCategory] = useState("")
   const [teamName, setTeamName] = useState("")
   const [openTournamentId, setOpenTournamentId] = useState<string | null>(null)
   const [openMatchId, setOpenMatchId] = useState<string | null>(null)
@@ -34,17 +37,25 @@ export function TeamAnalysisDashboard({ tournaments, onViewMatch, onPlayerClick 
 
   const tournamentById = useMemo(() => new Map(tournaments.map(t => [t.id, t])), [tournaments])
 
+  const categories = useMemo(() => {
+    const set = new Set(tournaments.map(t => t.category || "미분류"))
+    return Array.from(set).sort((a, b) => a === "미분류" ? 1 : b === "미분류" ? -1 : a.localeCompare(b))
+  }, [tournaments])
+  const effCategory = category && categories.includes(category) ? category : (categories[0] || "")
+
+  const categoryTournamentIds = useMemo(() => new Set(tournaments.filter(t => (t.category || "미분류") === effCategory).map(t => t.id)), [tournaments, effCategory])
+  const categoryMatches = useMemo(() => (matches || []).filter(m => categoryTournamentIds.has(m.tournamentId || "")), [matches, categoryTournamentIds])
+
   const allTeamNames = useMemo(() => {
-    if (!matches) return []
-    return Array.from(new Set(matches.flatMap(m => [m.homeTeam.name, m.awayTeam.name]))).sort()
-  }, [matches])
+    return Array.from(new Set(categoryMatches.flatMap(m => [m.homeTeam.name, m.awayTeam.name]))).sort()
+  }, [categoryMatches])
 
   const effectiveTeam = teamName && allTeamNames.includes(teamName) ? teamName : (allTeamNames[0] || "")
 
   const teamMatches = useMemo(() => {
-    if (!matches || !effectiveTeam) return []
-    return matches.filter(m => m.homeTeam.name === effectiveTeam || m.awayTeam.name === effectiveTeam)
-  }, [matches, effectiveTeam])
+    if (!effectiveTeam) return []
+    return categoryMatches.filter(m => m.homeTeam.name === effectiveTeam || m.awayTeam.name === effectiveTeam)
+  }, [categoryMatches, effectiveTeam])
 
   // 대회별로 묶고, 연도별로 그룹핑(최신 연도 먼저) — 연도를 못 찾은 대회는 "미분류"로 따로 모음.
   const tournamentGroups = useMemo(() => {
@@ -97,9 +108,22 @@ export function TeamAnalysisDashboard({ tournaments, onViewMatch, onPlayerClick 
 
       {isLoading ? (
         <div className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />불러오는 중...</div>
-      ) : !effectiveTeam ? (
-        <div className="py-20 text-center text-muted-foreground">등록된 경기가 없습니다.</div>
+      ) : categories.length === 0 ? (
+        <div className="py-20 text-center text-muted-foreground">등록된 대회가 없습니다.</div>
       ) : (
+        <>
+          {categories.length > 1 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase mr-1 flex items-center gap-1"><Users className="h-3 w-3" /> 카테고리</span>
+              {categories.map(c => (
+                <Button key={c} size="sm" variant={effCategory === c ? 'default' : 'outline'} className="h-7 text-[11px] font-bold px-2.5"
+                  onClick={() => { setCategory(c); setTeamName(""); setOpenTournamentId(null); setOpenMatchId(null) }}>{c}</Button>
+              ))}
+            </div>
+          )}
+          {!effectiveTeam ? (
+            <div className="py-20 text-center text-muted-foreground">"{effCategory}" 카테고리에 등록된 경기가 없습니다.</div>
+          ) : (
         <div className="space-y-6">
           {tournamentGroups.map(([yearLabel, entries]) => (
             <div key={yearLabel} className="space-y-2">
@@ -177,6 +201,8 @@ export function TeamAnalysisDashboard({ tournaments, onViewMatch, onPlayerClick 
             </div>
           ))}
         </div>
+          )}
+        </>
       )}
     </div>
   )
