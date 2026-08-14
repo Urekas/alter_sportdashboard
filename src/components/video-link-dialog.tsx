@@ -105,11 +105,33 @@ export function VideoLinkDialog({ match, open, onOpenChange, onSaved }: VideoLin
         },
       })
       await TournamentService.updateVideoMatchId(db, match.id, videoMatchId)
-      toast({ title: "영상 연결 저장 완료" })
+      // 비디오 도구엔 이제 자체 XML/CSV 업로드 경로가 없어서, 대시보드에 이미 파싱돼있는
+      // 이벤트가 그쪽 Scenes/Events 탭(클립 라이브러리)의 유일한 데이터 소스입니다.
+      await VideoMatchService.syncEvents(db, videoMatchId, match.events)
+      toast({ title: "영상 연결 저장 완료", description: `이벤트 ${match.events.length}개를 비디오 도구에 동기화했어요.` })
       onSaved?.(videoMatchId)
       onOpenChange(false)
     } catch (e: any) {
       toast({ title: "저장 실패", description: e.message, variant: "destructive" })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // 영상 연결만 해제합니다 — 대시보드 매치(실제 통계)는 그대로 두고, 비디오 도구 쪽
+  // 메타데이터(Matches/Events)만 지웁니다.
+  const handleUnlink = async () => {
+    if (!match || !db || !match.id || !match.videoMatchId) return
+    if (!confirm("영상 연결을 해제할까요? 비디오 도구에 올라간 카메라 URL·이벤트 데이터가 삭제됩니다(대시보드 통계는 영향 없음).")) return
+    setIsSaving(true)
+    try {
+      await VideoMatchService.deleteVideoMatch(db, match.videoMatchId)
+      await TournamentService.updateVideoMatchId(db, match.id, "")
+      toast({ title: "영상 연결 해제 완료" })
+      onSaved?.("")
+      onOpenChange(false)
+    } catch (e: any) {
+      toast({ title: "해제 실패", description: e.message, variant: "destructive" })
     } finally {
       setIsSaving(false)
     }
@@ -168,12 +190,19 @@ export function VideoLinkDialog({ match, open, onOpenChange, onSaved }: VideoLin
           </div>
         )}
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>취소</Button>
-          <Button onClick={handleSave} disabled={isSaving || isLoading} className="font-bold">
-            {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-            저장
-          </Button>
+        <DialogFooter className="sm:justify-between">
+          {match?.videoMatchId ? (
+            <Button variant="ghost" onClick={handleUnlink} disabled={isSaving || isLoading} className="text-destructive hover:text-destructive font-bold">
+              연결 해제
+            </Button>
+          ) : <div />}
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>취소</Button>
+            <Button onClick={handleSave} disabled={isSaving || isLoading} className="font-bold">
+              {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              저장
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
