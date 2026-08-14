@@ -21,7 +21,7 @@ interface LineupSectionProps {
   onPlayerClick: (playerName: string) => void
 }
 
-function LineupTable({ team, teamName, teamColor, onPlayerClick }: { team: TeamLineup; teamName: string; teamColor: string; onPlayerClick: (n: string) => void }) {
+export function LineupTable({ team, teamName, teamColor, onPlayerClick }: { team: TeamLineup; teamName: string; teamColor: string; onPlayerClick: (n: string) => void }) {
   return (
     <div className="space-y-2">
       <div className="font-bold flex items-center gap-2" style={{ color: teamColor }}>
