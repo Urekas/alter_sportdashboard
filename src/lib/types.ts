@@ -19,6 +19,15 @@ export interface MatchEvent {
   relatedPlayer?: string; // 득점자/선방·블록 선수 등, 사후에 입력하는 관련 선수 메모
   shooter?: string;   // 슈팅 태깅 도구의 "Player" 라벨 — 슈터
   defender?: string;  // 슈팅 태깅 도구의 "GK_Player" 라벨 — 막은 선수(골키퍼/필드 블로커)
+  // 슈팅 태깅 도구(public/ShotTagging)의 좌표/분류 라벨. 필드 좌표는 550x230(cm) 기준,
+  // 골대 좌표는 366x214(cm) 기준 — 태깅 도구 자체의 캔버스 좌표계와 동일(1:1로 그대로 그릴 수 있음).
+  xLoc?: number;
+  yLoc?: number;
+  xGoal?: number;
+  yGoal?: number;
+  outDir?: string;     // "OUT Dir" 라벨 — LEFT/RIGHT/UP (골대를 벗어난 방향)
+  shotType?: string;   // "Type" 라벨 — field_shot/PC_direct/PC_var 등
+  shotOutput?: string; // "Output" 라벨 원본값 — goal/save/block/out/fail (resultLabel과 별개로 보존)
 }
 
 export interface TeamMatchStats {

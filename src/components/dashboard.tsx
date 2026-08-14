@@ -37,9 +37,11 @@ import { MatchSummaryBar } from "./match-summary-bar"
 import { TurnoverZoneMap } from "./turnover-zone-map"
 import { MatchEventTimeline } from "./match-event-timeline"
 import { ShotBreakdown } from "./shot-breakdown"
+import { ShotZoneMap, isShotAttemptCode, normalizeShotOutput, type ShotDatum } from "./shot-zone-map"
+import { ShotAnalysisDashboard } from "./shot-analysis-dashboard"
 
 export function Dashboard() {
-  const [viewMode, setViewMode] = useState<'single' | 'tournament' | 'manage'>('single')
+  const [viewMode, setViewMode] = useState<'single' | 'tournament' | 'manage' | 'shots'>('single')
   const [matchData, setMatchData] = useState<MatchData | null>(null)
   const [parsedEvents, setParsedEvents] = useState<MatchEvent[]>([])
   const [detectedTeams, setDetectedTeams] = useState<string[]>([])
@@ -293,25 +295,26 @@ export function Dashboard() {
             </Button>
           </div>
           <div className="flex flex-wrap gap-2 sm:gap-4 mt-1">
-            {['single', 'tournament', 'manage'].map((mode) => (
-              <Button 
+            {['single', 'tournament', 'shots', 'manage'].map((mode) => (
+              <Button
                 key={mode}
                 variant={viewMode === mode ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => { setViewMode(mode as any); if (mode === 'tournament') setCumulativeMatches(null); }}
                 className="h-7 text-xs font-bold"
               >
-                {mode === 'single' ? '경기별 분석' : mode === 'tournament' ? '대회 누적 분석' : '대회 관리'}
+                {mode === 'single' ? '경기별 분석' : mode === 'tournament' ? '대회 누적 분석' : mode === 'shots' ? '슈팅 분석' : '대회 관리'}
               </Button>
             ))}
           </div>
         </div>
         
+        {viewMode !== 'shots' && (
         <div className="flex flex-wrap items-center gap-4 bg-card p-3 rounded-lg border shadow-sm w-full xl:w-auto">
           <div className="flex items-center gap-3 border-r pr-4">
             <Trophy className="h-4 w-4 text-muted-foreground" />
-            <Select 
-              value={activeTournamentId} 
+            <Select
+              value={activeTournamentId}
               onValueChange={(id) => {
                 setActiveTournamentId(id);
                 const selected = tournaments.find(t => t.id === id);
@@ -389,6 +392,7 @@ export function Dashboard() {
             </>
           )}
         </div>
+        )}
       </header>
 
       <div className="flex gap-6 items-start">
@@ -422,6 +426,8 @@ export function Dashboard() {
       <main className="printable-area flex-1 min-w-0">
         {viewMode === 'manage' ? (
           <TournamentManager onViewMatch={handleViewMatchFromDB} onViewCumulative={handleViewCumulative} />
+        ) : viewMode === 'shots' ? (
+          <ShotAnalysisDashboard tournaments={tournaments} />
         ) : viewMode === 'tournament' ? (
           cumulativeMatches ? (
             <TournamentDashboard externalMatches={cumulativeMatches} externalTitle={cumulativeTitle} />
@@ -518,6 +524,30 @@ export function Dashboard() {
 
             <div className="break-inside-avoid pt-6">
               <ShotBreakdown data={matchData} />
+            </div>
+
+            <div className="break-inside-avoid pt-6">
+              <ShotZoneMap
+                shots={matchData.events
+                  .filter(e => isShotAttemptCode(e.code))
+                  .filter(e => e.xLoc !== undefined || e.yLoc !== undefined || e.xGoal !== undefined || e.yGoal !== undefined || e.outDir)
+                  .map((e): ShotDatum => ({
+                    id: e.id,
+                    side: e.team === matchData.homeTeam.name ? 'A' : 'B',
+                    teamName: e.team,
+                    player: e.shooter,
+                    output: normalizeShotOutput(e.shotOutput, e.resultLabel, e.outDir),
+                    shotType: e.shotType,
+                    xLoc: e.xLoc, yLoc: e.yLoc, xGoal: e.xGoal, yGoal: e.yGoal, outDir: e.outDir,
+                    matchName: matchData.matchName, quarter: e.quarter, time: e.time,
+                  }))}
+                sideALabel={matchData.homeTeam.name}
+                sideBLabel={matchData.awayTeam.name}
+                sideAColor={matchData.homeTeam.color}
+                sideBColor={matchData.awayTeam.color}
+                title="슈팅 위치 · 골대 타겟"
+                description="슈팅 태깅 도구에서 좌표가 찍힌 슈팅/PC 시도만 표시됩니다"
+              />
             </div>
 
             <div className="break-inside-avoid">

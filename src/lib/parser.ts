@@ -89,6 +89,12 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     let ungroupedText = "";
     let shooter = "";
     let defender = "";
+    // 슈팅 태깅 도구(public/ShotTagging)가 내보내는 좌표/분류 라벨 — 그룹명이 정확히 이 값들로 고정돼 있음
+    // (MANAGED_XML_GROUPS 참고). 이름만 파싱하고 있었고 좌표는 여태 안 읽고 있었음.
+    let shotType = "";
+    let shotOutput = "";
+    let outDir = "";
+    let xLoc: number | undefined, yLoc: number | undefined, xGoal: number | undefined, yGoal: number | undefined;
 
     for (let i = 0; i < labels.length; i++) {
       const groupText = labels[i].getElementsByTagName("group")[0]?.textContent || "";
@@ -97,7 +103,14 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
       if (/GK[_\s]?Player/i.test(groupText)) defender = text;
       else if (/^Player$/i.test(groupText)) shooter = text;
       else if (/지역|Location|Zone/i.test(groupText)) locLabel = text;
+      else if (/^Output$/i.test(groupText)) { shotOutput = text; if (!resultLabel) resultLabel = text; }
       else if (/결과|Result|Outcome/i.test(groupText)) resultLabel = text;
+      else if (/^Type$/i.test(groupText)) shotType = text;
+      else if (/^OUT[_\s]?Dir$/i.test(groupText)) outDir = text;
+      else if (/^X_Loc$/i.test(groupText) && text !== "") xLoc = parseFloat(text);
+      else if (/^Y_Loc$/i.test(groupText) && text !== "") yLoc = parseFloat(text);
+      else if (/^X_Goal$/i.test(groupText) && text !== "") xGoal = parseFloat(text);
+      else if (/^Y_Goal$/i.test(groupText) && text !== "") yGoal = parseFloat(text);
       else ungroupedText += text + " ";
       if (!detectedTeams) detectedTeams = detectRealTeamNames(text);
     }
@@ -124,6 +137,13 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
       code,
       ...(shooter ? { shooter } : {}),
       ...(defender ? { defender } : {}),
+      ...(shotType ? { shotType } : {}),
+      ...(shotOutput ? { shotOutput } : {}),
+      ...(outDir ? { outDir } : {}),
+      ...(xLoc !== undefined ? { xLoc } : {}),
+      ...(yLoc !== undefined ? { yLoc } : {}),
+      ...(xGoal !== undefined ? { xGoal } : {}),
+      ...(yGoal !== undefined ? { yGoal } : {}),
     });
   });
 
