@@ -20,26 +20,24 @@ body {
   color: var(--text-main);
   height: 100vh;
   display: grid;
-  /* 4-Panel Grid Architecture */
-  grid-template-areas: 
-    "left main right"
-    "left bottom right";
-  grid-template-columns: var(--panel-width) minmax(400px, 1fr) var(--panel-width);
+  /* 좌측 단일 사이드바 구조 — 예전엔 좌(Explorer)/우(Viewer) 2개 패널로 나뉘어 있어서
+     "정신없다"는 피드백을 받아 왼쪽 하나로 통합(섹션 전환 탭으로 구분). */
+  grid-template-areas:
+    "left main"
+    "left bottom";
+  grid-template-columns: var(--panel-width) minmax(400px, 1fr);
   grid-template-rows: 1fr auto; /* Changed from var(--bottom-height) to auto to support wrapping */
-  transition: grid-template-columns 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  /* grid-template-columns에 transition을 걸어뒀었는데(예전 코드), minmax()가 섞인 트랙 목록은
+     브라우저마다 보간이 안 되거나 멈춰버려서 패널 숨기기 버튼을 눌러도 실제로는 안 접히는
+     실제 버그였음(직접 확인함). 애니메이션 없이 즉시 전환되도록 transition 제거 — 더 확실하게
+     작동하는 쪽을 택함. */
   overflow-x: hidden;
   overflow-y: hidden;
 }
 
 /* Toggle Animations via CSS Grid Changes */
 body.hide-left {
-  grid-template-columns: 0px minmax(400px, 1fr) var(--panel-width);
-}
-body.hide-right {
-  grid-template-columns: var(--panel-width) minmax(400px, 1fr) 0px;
-}
-body.hide-left.hide-right {
-  grid-template-columns: 0px minmax(400px, 1fr) 0px;
+  grid-template-columns: 0px minmax(400px, 1fr);
 }
 
 /* Base Panel Styles */
@@ -51,10 +49,15 @@ body.hide-left.hide-right {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
+  /* 그리드 아이템의 기본 min-width:auto가 내부 콘텐츠의 min-content 폭까지 강제로 확보해버려서,
+     패널 숨기기(body.hide-left → 0px 트랙)를 눌러도 안쪽 자식들의 min-width:var(--panel-width)
+     (panel-header/admin-section/match-list/event-list에 남아있던 값들) 때문에 실제로는 안 접혔던
+     버그를 발견해서 고침. 이 min-width:0이 핵심 — 없으면 트랙을 0px로 줄여도 그리드 아이템이
+     콘텐츠 폭만큼 다시 밀어냄. */
+  min-width: 0;
 }
 
 #left-panel { grid-area: left; }
-#right-panel { grid-area: right; }
 
 #main-panel { 
   grid-area: main; 
@@ -80,15 +83,15 @@ body.hide-left.hide-right {
 /* Headers */
 .panel-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
-  padding: 15px;
+  padding: 10px 15px;
   background-color: var(--bg-header);
-  min-width: var(--panel-width);
   box-sizing: border-box;
   position: sticky;
   top: 0;
   z-index: 5;
+  flex-shrink: 0;
 }
 
 .panel-header h2 { 
@@ -192,11 +195,10 @@ body.hide-left.hide-right {
 }
 
 /* Admin Form & Lists */
-.admin-section { 
-  padding: 20px; 
-  border-bottom: 1px solid var(--border-color); 
-  min-width: var(--panel-width); 
-  box-sizing: border-box; 
+.admin-section {
+  padding: 20px;
+  border-bottom: 1px solid var(--border-color);
+  box-sizing: border-box;
 }
 
 .admin-section h3 { 
@@ -228,10 +230,9 @@ body.hide-left.hide-right {
 
 #match-form input:focus { border-color: var(--accent); }
 
-.match-list, .event-list { 
-  padding: 20px; 
-  min-width: var(--panel-width); 
-  box-sizing: border-box; 
+.match-list, .event-list {
+  padding: 20px;
+  box-sizing: border-box;
 }
 
 .match-list input { 
@@ -408,6 +409,39 @@ input[type="color"] {
   background-color: transparent;
 }
 
+/* 하단 그리기 툴바 정리 — .separator는 원래 정의가 아예 없어서 안 보이는 빈 div였음(버그).
+   실제 구분선으로 그리고, 도구 묶음마다 옅은 배경의 tool-group으로 묶어서 한눈에 구역이
+   보이게 함. 기능은 그대로, 시각적 정리만. */
+.separator {
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 2px;
+  background-color: var(--border-color);
+  flex-shrink: 0;
+}
+
+.tool-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.03);
+  flex-shrink: 0;
+}
+
+/* 아이콘만 있는 도구 버튼은 텍스트 버튼과 같은 좌우 패딩을 쓰면 불필요하게 넓어져서
+   따로 정사각형에 가깝게 맞춤 — 기능/클릭 핸들러는 그대로, 크기만 다름. */
+.control-btn.icon-btn {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 /* Highlighted state for active tools */
 .control-btn.highlight {
   background-color: var(--accent);
@@ -467,6 +501,44 @@ body.drawing-active .playback-controls:hover {
   color: var(--accent);
   border-bottom-color: var(--accent);
 }
+
+/* 좌측 패널 상단 섹션 전환(Explorer ↔ Viewer) — tab-btn보다 한 단계 위 레벨이라
+   눈에 더 잘 띄게 배경을 채우는 pill 스타일로 구분. */
+.section-tabs {
+  display: flex;
+  gap: 4px;
+  background-color: var(--bg-dark);
+  border-bottom: 1px solid var(--border-color);
+  padding: 6px;
+  flex-shrink: 0;
+}
+.section-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+.section-tab-btn:hover { background-color: rgba(255, 255, 255, 0.06); color: #ddd; }
+.section-tab-btn.active { background-color: var(--accent); color: white; }
+
+.section-content {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.section-content.active { display: flex; }
 
 .library-filters select {
   padding: 10px;

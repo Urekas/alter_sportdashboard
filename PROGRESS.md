@@ -184,5 +184,15 @@
 - 슈팅 발사위치 그리드 셀 크기/개수 조절 UI — 사용자가 직접 조절하고 싶다고 해서 보류
 - 득점/슈팅/선방·블록을 선수별로 모아서 보여주고, 영상이 연결된 경기면 그 장면 영상 클릭 재생까지 연결
 
+## ✅ 비디오 분석 도구(Alter_sportsplay) UI 정리
+사용자 피드백: "영상 보는 alter_sportsplay여기서 영상 업로드 못하게 하고. 뷰어랑 익스플로러 양쪽에 있는사이드뷰 정신없어서 왼쪽 한쪽으로 몰아주고. 이거 영상보는거랑 아래쪽 그리는거 그리는거 깔끔하게 해줘. 다 작동하게는 해주고"
+
+✅ **완료 (2026-08-14): 좌/우 분리 패널 통합 + 하단 그리기 툴바 정리 + 진짜 버그 발견/수정**
+- **영상 업로드 관련**: 코드 전체(`app.js`/`player.js`/`library.js`/`index.html`)를 검색해봤지만 애초에 이 도구 안에 비디오 "파일"을 업로드하는 기능 자체가 없음(YouTube URL 연결은 Field Focus 대시보드에서만 하도록 이미 이전 세션에 정리됨). 새로 막을 게 없어서 별도 변경 없음 — 확인 결과를 사용자에게 안내.
+- **좌우 패널 통합**: 예전엔 좌측 `Explorer`(Library/Admin&List)와 우측 `Viewer`(Scenes/Events)가 완전히 분리된 2개 패널이었음 → 왼쪽 패널 하나로 통합, 상단에 새 "Explorer ↔ Viewer" 섹션 전환 탭 추가. 안쪽 Library/Admin, Scenes/Events 탭은 ID 그대로 유지한 채 DOM만 이동시켜서 JS 로직(app.js/player.js/library.js)은 전혀 안 건드림. `#right-panel` 및 관련 토글 버튼(`toggle-right-btn`/`show-right-btn`)/CSS grid 우측 컬럼 전부 제거, 그리드를 `"left main"/"left bottom"` 2열 구조로 단순화.
+- **하단 그리기 툴바 정리**: `.separator`가 CSS 정의 자체가 없어서 실제로는 안 보이는 빈 div였던 걸 발견(진짜 버그) — 실제 구분선으로 스타일링. 기본도구/도형도구/색상/속성/편집액션/저장·추출액션을 각각 `.tool-group`(옅은 배경 pill)으로 묶어서 한눈에 구역이 보이게 함. 아이콘 전용 버튼은 `.icon-btn`(정사각형 컴팩트)로, 텍스트 있는 버튼(저장/캡처/영상추출)은 기존 스타일 유지 — 기능/이벤트 핸들러는 전혀 안 건드림(클래스만 추가).
+- **진짜 버그 발견 및 수정 (이 작업 중 우연히 발견, 사용자 요청과 직접 연관돼서 같이 고침)**: "패널 숨기기"(◄ 버튼) 토글이 실제로는 작동 안 했던 걸 발견 — 원인이 두 가지 겹쳐 있었음: (1) `.panel-header`/`.admin-section`/`.match-list`/`.event-list`에 남아있던 `min-width: var(--panel-width)`가 그리드 아이템의 콘텐츠 최소폭을 강제로 350px로 밀어올려서 `body.hide-left`의 `0px` 트랙 지정이 무력화됨(고전적인 flex/grid `min-width:auto` 함정 — `.panel`에 `min-width:0` 추가 + 저 3곳의 min-width 제거로 고침). (2) 원래 `body { transition: grid-template-columns 0.4s ... }`로 슬라이드 애니메이션을 걸어뒀었는데, `minmax()`가 섞인 grid-template-columns 값은 브라우저마다 보간이 잘 안 돼서 실제로 전환 자체가 멈춰버리는 문제가 있었음(직접 재현 확인: 클래스는 정상 토글되고 셀렉터도 매치되는데 실제 레이아웃은 안 바뀜) — transition 제거하고 즉시 전환되게 바꿔서 확실하게 작동하도록 고침.
+- 검증: 새 탭에서 실제 버튼 클릭(`toggle-left-btn`/`show-left-btn`/`section-btn-explorer`/`section-btn-viewer`/`tab-btn-library`/`tab-btn-admin`/`tab-btn-scenes`/`tab-btn-events`)으로 전부 정상 전환 확인, 패널 숨기기 시 실제 렌더링 폭이 350px→~1px로 줄고 다시 펴면 350px로 복귀하는 것 `getBoundingClientRect()`로 확인, 모든 그리기 도구 버튼 존재 확인, `#right-panel`/관련 토글 버튼 완전히 제거된 것 확인. 콘솔 에러 없음(정적 리소스 전부 200 — 남은 400/404는 이 샌드박스에서 원래 간헐적인 Firestore 연결 이슈, 무관함).
+
 ---
 작업 환경: 브랜치 `feature/phase0-readability`에서 작업 후 `origin`에 push, `main` 미접촉.
