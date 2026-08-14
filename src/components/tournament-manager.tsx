@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useState, useMemo, useRef } from "react"
-import { Trophy, Database, Trash2, Edit3, Save, X, Plus, ChevronRight, RefreshCw, ArrowLeft, ArrowUp, ArrowDown, Eye, Users, Video, CalendarClock, Link2, Settings2 } from "lucide-react"
+import { Trophy, Database, Trash2, Edit3, Save, X, Plus, ChevronRight, RefreshCw, ArrowLeft, ArrowUp, ArrowDown, Eye, Users, Video, CalendarClock, Link2, Settings2, FileDown } from "lucide-react"
 import { VideoLinkDialog } from "./video-link-dialog"
 import { TournamentService } from "@/lib/tournament-service"
 import type { Tournament, MatchData, ScheduleEntry, FinalStandingRule } from "@/lib/types"
@@ -488,6 +488,22 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
     } catch (err: any) {
       toast({ title: "삭제 실패", description: err.message, variant: "destructive" })
     }
+  }
+
+  // 경기 리포트 안에 있던 "원본 XML 다운로드"(dashboard.tsx의 handleDownloadRawXml)와 동일한
+  // 로직 — 대회 관리에서 경기 리포트를 안 열어도 바로 다운로드할 수 있게 여기도 추가.
+  const handleDownloadXml = (m: MatchData) => {
+    if (!m.rawSourceText) {
+      toast({ title: "다운로드할 원본 XML이 없어요", description: "이 경기는 원본 파일 없이 등록됐거나 아직 저장 안 됐어요.", variant: "destructive" })
+      return
+    }
+    const blob = new Blob([m.rawSourceText], { type: "application/octet-stream" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = m.rawSourceFileName || `${m.matchName || "match"}.xml`
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
   const handleDeleteMatch = async (id: string) => {
@@ -993,6 +1009,7 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
                         )}
                         <TableCell className="text-right pr-6 space-x-2" onClick={(e) => e.stopPropagation()}>
                           <Button variant="outline" size="sm" className={`h-8 text-xs font-bold ${m.videoMatchId ? 'border-orange-500 text-orange-500 hover:bg-orange-50' : 'border-muted-foreground/40 text-muted-foreground hover:bg-muted/50'}`} onClick={() => setVideoLinkMatch(m)}><Video className="h-3 w-3 mr-1" /> 영상</Button>
+                          <Button variant="outline" size="sm" className={`h-8 text-xs font-bold ${m.rawSourceText ? 'border-primary text-primary hover:bg-primary/5' : 'border-muted-foreground/30 text-muted-foreground/60'}`} title={m.rawSourceText ? '원본 XML 다운로드' : '저장된 원본 XML 없음'} onClick={() => handleDownloadXml(m)}><FileDown className="h-3 w-3 mr-1" /> XML</Button>
                           <Button variant="outline" size="sm" className="h-8 text-xs font-bold border-emerald-600 text-emerald-600 hover:bg-emerald-50" onClick={(e) => handleReplaceFile(e, m.id!)}><RefreshCw className="h-3 w-3 mr-1" /> 교체</Button>
 
                           <AlertDialog>
