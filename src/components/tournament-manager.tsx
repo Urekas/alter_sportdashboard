@@ -4,6 +4,7 @@
 import React, { useState, useMemo, useRef } from "react"
 import { Trophy, Database, Trash2, Edit3, Save, X, Plus, ChevronRight, RefreshCw, ArrowLeft, ArrowUp, ArrowDown, Eye, Users, Video, CalendarClock, Link2, Settings2, FileDown } from "lucide-react"
 import { VideoLinkDialog } from "./video-link-dialog"
+import { VideoLinksPopover } from "./video-links-popover"
 import { TournamentService } from "@/lib/tournament-service"
 import type { Tournament, MatchData, ScheduleEntry, FinalStandingRule } from "@/lib/types"
 import { resolveScheduleRefs, computePoolStandings, computeFinalStandings, type ResolvedScheduleEntry } from "@/lib/schedule-resolver"
@@ -1009,6 +1010,7 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
                         )}
                         <TableCell className="text-right pr-6 space-x-2" onClick={(e) => e.stopPropagation()}>
                           <Button variant="outline" size="sm" className={`h-8 text-xs font-bold ${m.videoMatchId ? 'border-orange-500 text-orange-500 hover:bg-orange-50' : 'border-muted-foreground/40 text-muted-foreground hover:bg-muted/50'}`} onClick={() => setVideoLinkMatch(m)}><Video className="h-3 w-3 mr-1" /> 영상</Button>
+                          <VideoLinksPopover videoMatchId={m.videoMatchId} />
                           <Button variant="outline" size="sm" className={`h-8 text-xs font-bold ${m.rawSourceText ? 'border-primary text-primary hover:bg-primary/5' : 'border-muted-foreground/30 text-muted-foreground/60'}`} title={m.rawSourceText ? '원본 XML 다운로드' : '저장된 원본 XML 없음'} onClick={() => handleDownloadXml(m)}><FileDown className="h-3 w-3 mr-1" /> XML</Button>
                           <Button variant="outline" size="sm" className="h-8 text-xs font-bold border-emerald-600 text-emerald-600 hover:bg-emerald-50" onClick={(e) => handleReplaceFile(e, m.id!)}><RefreshCw className="h-3 w-3 mr-1" /> 교체</Button>
 

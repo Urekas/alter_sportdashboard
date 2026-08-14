@@ -43,6 +43,7 @@ import { HeadToHeadDashboard } from "./head-to-head-dashboard"
 import { LineupSection } from "./lineup-section"
 import { PlayerRecordDialog } from "./player-record-dialog"
 import { TeamAnalysisDashboard } from "./team-analysis-dashboard"
+import { VideoLinksPopover } from "./video-links-popover"
 
 export function Dashboard() {
   const [viewMode, setViewMode] = useState<'single' | 'tournament' | 'manage' | 'shots' | 'h2h' | 'team'>('single')
@@ -497,12 +498,15 @@ export function Dashboard() {
                   AI 전술 분석 실행
                 </Button>
                 {matchData.videoMatchId && (
-                  <Button variant="outline" size="sm" className="print-hidden border-orange-500 text-orange-500 font-bold h-9" 
+                  <Button variant="outline" size="sm" className="print-hidden border-orange-500 text-orange-500 font-bold h-9"
                     onClick={() => window.open(`/Alter_sportsplay/index.html?matchId=${matchData.videoMatchId}`, '_blank')}>
                     <Video className="h-4 w-4 mr-2" />
                     비디오 분석 보기
                   </Button>
                 )}
+                <div className="print-hidden">
+                  <VideoLinksPopover videoMatchId={matchData.videoMatchId} />
+                </div>
               </div>
             </div>
 
