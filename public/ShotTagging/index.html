@@ -56,29 +56,29 @@
                 <i class="fa-solid fa-gear text-gray-300"></i> 태깅 템플릿 설정
             </button>
             <label class="flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-xs font-semibold rounded cursor-pointer transition-colors">
-                <i class="fa-solid fa-file-code text-amber-400"></i> 타임라인 (SC/XML, 누적)
+                <i class="fa-solid fa-file-code text-blue-400"></i> 타임라인 (SC/XML, 누적)
                 <input type="file" id="timeline-upload" accept=".sctimeline,.json,.xml" class="hidden">
             </label>
             <span id="session-merge-badge" class="hidden text-[10px] font-bold text-amber-300 bg-amber-900/30 border border-amber-800 px-2 py-1 rounded" title=""></span>
             <button id="btn-reset-session" class="text-[10px] text-gray-500 hover:text-red-400 underline" title="누적된 태깅 데이터를 모두 지우고 새로 시작">세션 초기화</button>
             <label class="flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-xs font-semibold rounded cursor-pointer transition-colors">
-                <i class="fa-solid fa-film text-sky-400"></i> 비디오 추가 (누적)
+                <i class="fa-solid fa-film text-blue-400"></i> 비디오 추가 (누적)
                 <input type="file" id="video-upload" accept="video/mp4,video/quicktime,.json" multiple class="hidden">
             </label>
             <div class="border-l border-gray-700 pl-3 flex gap-2">
-                <button id="btn-export-xml" class="flex items-center gap-2 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded shadow-lg transition-colors">
+                <button id="btn-export-xml" class="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded shadow-lg transition-colors">
                     <i class="fa-solid fa-code"></i> 선택 항목 XML
                 </button>
-                <button id="btn-export-merged-xml" class="flex items-center gap-2 px-3 py-1.5 bg-rose-800 hover:bg-rose-700 text-white text-xs font-bold rounded shadow-lg transition-colors" title="지금까지 업로드/태깅한 모든 경기를 하나의 XML로 병합해 내보냅니다(그룹·출처 유지)">
+                <button id="btn-export-merged-xml" class="flex items-center gap-2 px-3 py-1.5 bg-blue-800 hover:bg-blue-700 text-white text-xs font-bold rounded shadow-lg transition-colors" title="지금까지 업로드/태깅한 모든 경기를 하나의 XML로 병합해 내보냅니다(그룹·출처 유지)">
                     <i class="fa-solid fa-layer-group"></i> 전체 병합 XML
                 </button>
-                <button id="btn-export-selected-csv" class="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded shadow-lg transition-colors">
+                <button id="btn-export-selected-csv" class="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded shadow-lg transition-colors">
                     <i class="fa-solid fa-file-csv"></i> 선택 CSV
                 </button>
-                <button id="btn-export-sctimeline" class="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded shadow-lg transition-colors">
+                <button id="btn-export-sctimeline" class="flex items-center gap-2 px-3 py-1.5 bg-blue-800 hover:bg-blue-700 text-white text-xs font-bold rounded shadow-lg transition-colors">
                     <i class="fa-solid fa-file-code"></i> 전체 SCTimeline (.sctimeline)
                 </button>
-                <button id="btn-export-all-csv" class="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded shadow-lg transition-colors">
+                <button id="btn-export-all-csv" class="flex items-center gap-2 px-3 py-1.5 bg-blue-800 hover:bg-blue-700 text-white text-xs font-bold rounded shadow-lg transition-colors">
                     <i class="fa-solid fa-download"></i> 전체 병합 CSV
                 </button>
             </div>
