@@ -18,6 +18,7 @@ export interface ShotDatum {
   player?: string
   output: 'goal' | 'save' | 'block' | 'out' | 'fail' | 'unknown'
   shotType?: string
+  isPC?: boolean // 페널티코너 시도 여부 — true면 사각형, false/미지정이면 원형(필드슛)으로 그림
   xLoc?: number
   yLoc?: number
   xGoal?: number
@@ -82,6 +83,18 @@ function circleOutlinePath(radius: number) {
   const rightStart = { x: rightCx, y: backlineY - radius }
   const rightEnd = { x: rightCx + radius, y: backlineY }
   return `M ${leftStart.x} ${leftStart.y} A ${radius} ${radius} 0 0 1 ${leftEnd.x} ${leftEnd.y} L ${rightStart.x} ${rightStart.y} A ${radius} ${radius} 0 0 1 ${rightEnd.x} ${rightEnd.y}`
+}
+
+function ShotMarker({ shot, x, y, r, fill, stroke, onEnter, onMove, onLeave }: {
+  shot: ShotDatum, x: number, y: number, r: number, fill: string, stroke: string,
+  onEnter: (e: React.MouseEvent, shot: ShotDatum) => void, onMove: (e: React.MouseEvent) => void, onLeave: () => void,
+}) {
+  const handlers = { onMouseEnter: (e: React.MouseEvent) => onEnter(e, shot), onMouseMove: onMove, onMouseLeave: onLeave, style: { cursor: 'pointer' as const } }
+  if (shot.isPC) {
+    const s = r * 1.7
+    return <rect x={x - s / 2} y={y - s / 2} width={s} height={s} rx={1.5} fill={fill} fillOpacity={0.9} stroke={stroke} strokeWidth={1.5} {...handlers} />
+  }
+  return <circle cx={x} cy={y} r={r} fill={fill} fillOpacity={0.9} stroke={stroke} strokeWidth={1.5} {...handlers} />
 }
 
 interface Tooltip { x: number, y: number, shot: ShotDatum }
@@ -164,7 +177,7 @@ function SidePanel({
         <span className="text-xs text-muted-foreground">· 슈팅/PC {shots.length}회</span>
       </div>
 
-      <div className="space-y-3 max-w-sm mx-auto lg:mx-0">
+      <div className="space-y-4 max-w-md mx-auto">
         {/* 필드 슈팅 발사 위치 */}
         <div>
           <p className="text-xs font-bold text-muted-foreground mb-1">슈팅 발사 위치</p>
@@ -179,7 +192,7 @@ function SidePanel({
               <g key={i}>
                 <rect x={c.x} y={c.y} width={c.w} height={c.h} fill={color} opacity={c.count > 0 ? 0.12 + (c.count / maxFieldCount) * 0.35 : 0.02} stroke="rgba(255,255,255,0.15)" strokeWidth={0.5} />
                 {c.count > 0 && (
-                  <text x={c.x + c.w / 2} y={c.y + c.h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={9} fill="#fff" fontWeight={700}>
+                  <text x={c.x + c.w / 2} y={c.y + c.h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={13} fill="#fff" fontWeight={700}>
                     {c.goals}/{c.count}
                   </text>
                 )}
@@ -188,14 +201,7 @@ function SidePanel({
 
             {fieldShots.map(s => {
               const p = fieldPixel(s)!
-              return (
-                <circle
-                  key={s.id} cx={p.x} cy={p.y} r={5}
-                  fill={OUTCOME_COLORS[s.output]} fillOpacity={0.9} stroke={color} strokeWidth={1.5}
-                  onMouseEnter={(e) => onEnter(e, s)} onMouseMove={onMove} onMouseLeave={onLeave}
-                  style={{ cursor: 'pointer' }}
-                />
-              )
+              return <ShotMarker key={s.id} shot={s} x={p.x} y={p.y} r={6} fill={OUTCOME_COLORS[s.output]} stroke={color} onEnter={onEnter} onMove={onMove} onLeave={onLeave} />
             })}
           </svg>
         </div>
@@ -218,7 +224,7 @@ function SidePanel({
               <g key={i}>
                 <rect x={c.x} y={c.y} width={c.w} height={c.h} fill={color} opacity={c.count > 0 ? 0.1 + (c.count / maxGoalCount) * 0.35 : 0.02} stroke="rgba(255,255,255,0.15)" strokeWidth={0.5} />
                 {c.count > 0 && (
-                  <text x={c.x + c.w / 2} y={c.y + c.h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={9} fill="#fff" fontWeight={700}>
+                  <text x={c.x + c.w / 2} y={c.y + c.h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={13} fill="#fff" fontWeight={700}>
                     {c.goals}/{c.count}
                   </text>
                 )}
@@ -227,14 +233,7 @@ function SidePanel({
 
             {goalShots.map(s => {
               const p = goalPixel(s)!
-              return (
-                <circle
-                  key={s.id} cx={p.x} cy={p.y} r={5}
-                  fill={OUTCOME_COLORS[s.output]} fillOpacity={0.9} stroke={color} strokeWidth={1.5}
-                  onMouseEnter={(e) => onEnter(e, s)} onMouseMove={onMove} onMouseLeave={onLeave}
-                  style={{ cursor: 'pointer' }}
-                />
-              )
+              return <ShotMarker key={s.id} shot={s} x={p.x} y={p.y} r={6} fill={OUTCOME_COLORS[s.output]} stroke={color} onEnter={onEnter} onMove={onMove} onLeave={onLeave} />
             })}
           </svg>
         </div>
@@ -296,9 +295,15 @@ export function ShotZoneMap({
           <CardTitle>{title}</CardTitle>
           {description && <CardDescription>{description}</CardDescription>}
         </div>
-        <div className="flex items-center gap-2 print-hidden">
-          <Switch id="shot-grid-toggle" checked={showGrid} onCheckedChange={setShowGrid} />
-          <Label htmlFor="shot-grid-toggle" className="text-xs font-bold cursor-pointer">구역 그리드</Label>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 text-[11px] font-bold text-muted-foreground">
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full border-2 border-current" /> 필드슛</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 border-2 border-current rounded-[2px]" /> PC</span>
+          </div>
+          <div className="flex items-center gap-2 print-hidden">
+            <Switch id="shot-grid-toggle" checked={showGrid} onCheckedChange={setShowGrid} />
+            <Label htmlFor="shot-grid-toggle" className="text-xs font-bold cursor-pointer">구역 그리드</Label>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -327,7 +332,7 @@ export function ShotZoneMap({
           className="fixed z-50 pointer-events-none bg-slate-950 text-white border border-slate-700 rounded-lg p-2.5 text-xs shadow-2xl max-w-[220px]"
           style={{ left: tooltip.x + 14, top: tooltip.y + 14 }}
         >
-          <div className="font-bold" style={{ color: OUTCOME_COLORS[tooltip.shot.output] }}>{OUTCOME_LABELS[tooltip.shot.output]}</div>
+          <div className="font-bold" style={{ color: OUTCOME_COLORS[tooltip.shot.output] }}>{OUTCOME_LABELS[tooltip.shot.output]} {tooltip.shot.isPC && <span className="text-slate-400 font-normal">· PC</span>}</div>
           {tooltip.shot.player && <div>선수: <span className="font-semibold">{tooltip.shot.player}</span></div>}
           {tooltip.shot.shotType && <div className="text-slate-400">타입: {tooltip.shot.shotType}</div>}
           {tooltip.shot.matchName && <div className="text-slate-400 truncate">{tooltip.shot.matchName}</div>}
@@ -343,6 +348,13 @@ export function ShotZoneMap({
 // 없으므로 제외합니다(태깅 도구에서 위치를 안 찍은 이벤트 — 좌표 없이도 이벤트 자체는 존재할 수 있음).
 export function isShotAttemptCode(code: string): boolean {
   return /슈팅|페널티코너|\bPC\b/i.test(code) && !/진입/.test(code)
+}
+
+// 페널티코너(PC) 시도인지 판별 — code 텍스트("페널티코너"/"PC") 또는 태깅 도구 Type 라벨
+// (PC_direct/PC_var 등, "PC"로 시작)로 판단합니다. 지도에서 원형(필드슛)/사각형(PC) 구분에 씁니다.
+export function isPcAttempt(code: string, shotType?: string): boolean {
+  if (shotType && /^pc/i.test(shotType.trim())) return true
+  return /페널티코너|\bPC\b/i.test(code)
 }
 
 export function normalizeShotOutput(shotOutput: string | undefined, resultLabel: string | undefined, outDir: string | undefined): ShotDatum['output'] {

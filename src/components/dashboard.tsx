@@ -37,7 +37,7 @@ import { MatchSummaryBar } from "./match-summary-bar"
 import { TurnoverZoneMap } from "./turnover-zone-map"
 import { MatchEventTimeline } from "./match-event-timeline"
 import { ShotBreakdown } from "./shot-breakdown"
-import { ShotZoneMap, isShotAttemptCode, normalizeShotOutput, type ShotDatum } from "./shot-zone-map"
+import { ShotZoneMap, isShotAttemptCode, normalizeShotOutput, isPcAttempt, type ShotDatum } from "./shot-zone-map"
 import { ShotAnalysisDashboard } from "./shot-analysis-dashboard"
 import { HeadToHeadDashboard } from "./head-to-head-dashboard"
 import { LineupSection } from "./lineup-section"
@@ -552,6 +552,7 @@ export function Dashboard() {
                     player: e.shooter,
                     output: normalizeShotOutput(e.shotOutput, e.resultLabel, e.outDir),
                     shotType: e.shotType,
+                    isPC: isPcAttempt(e.code, e.shotType),
                     xLoc: e.xLoc, yLoc: e.yLoc, xGoal: e.xGoal, yGoal: e.yGoal, outDir: e.outDir,
                     matchName: matchData.matchName, quarter: e.quarter, time: e.time,
                   }))}

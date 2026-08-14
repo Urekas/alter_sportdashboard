@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { StatsCard } from "./stats-card"
-import { ShotZoneMap, isShotAttemptCode, normalizeShotOutput, type ShotDatum } from "./shot-zone-map"
+import { ShotZoneMap, isShotAttemptCode, normalizeShotOutput, isPcAttempt, type ShotDatum } from "./shot-zone-map"
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase"
 import { collection, query, where } from "firebase/firestore"
@@ -54,7 +54,8 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
         const output = normalizeShotOutput(e.shotOutput, e.resultLabel, e.outDir)
         result.push({
           id: e.id, side: isUs ? 'A' : 'B', teamName: e.team, player: e.shooter, output,
-          shotType: e.shotType, xLoc: e.xLoc, yLoc: e.yLoc, xGoal: e.xGoal, yGoal: e.yGoal, outDir: e.outDir,
+          shotType: e.shotType, isPC: isPcAttempt(e.code, e.shotType),
+          xLoc: e.xLoc, yLoc: e.yLoc, xGoal: e.xGoal, yGoal: e.yGoal, outDir: e.outDir,
           matchName: m.matchName, quarter: e.quarter, time: e.time,
         })
         const bucket = isUs ? kpiSum.us : kpiSum.opp
