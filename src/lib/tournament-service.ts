@@ -135,6 +135,12 @@ export const TournamentService = {
     await updateDoc(docRef, { events });
   },
 
+  async updateMatchLineups(dbInstance: Firestore, matchId: string, lineups: MatchData['lineups']) {
+    if (!matchId) return;
+    const docRef = doc(dbInstance, MATCHES_COL, matchId);
+    await updateDoc(docRef, { lineups });
+  },
+
   async updateMatchOrder(dbInstance: Firestore, matchId: string, newOrder: number) {
     if (!matchId) return;
     const docRef = doc(dbInstance, MATCHES_COL, matchId);

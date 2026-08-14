@@ -74,6 +74,23 @@ export interface AttackThreatDataPoint {
   [teamName: string]: string | number;
 }
 
+// TMS 라인업 붙여넣기 파서(src/lib/lineup-parser.ts)의 결과물.
+export interface LineupPlayer {
+  number: string;
+  name: string;
+  isCaptain?: boolean;
+  isGoalkeeper?: boolean;
+  minutes?: string; // "Min" 칸 원본값 (숫자 또는 "X")
+  quarters?: string[]; // "1st/2nd/3rd/4th" 칸 중 값이 있는 것만 — 정확한 의미는 확정 못 해서 원문 그대로 보존
+}
+export interface TeamLineup {
+  teamName: string; // TMS에 적힌 팀명 원문 (예: "Italy") — matchData.homeTeam/awayTeam.name과 다를 수 있어 배정이 필요
+  players: LineupPlayer[];
+  coach?: string;
+  coachStats?: string[];
+  manager?: string;
+}
+
 export interface MatchData {
   id?: string;
   tournamentId?: string;
@@ -98,6 +115,7 @@ export interface MatchData {
   videoMatchId?: string;
   rawSourceText?: string;     // 업로드한 XML/CSV 원본 텍스트 (재다운로드용)
   rawSourceFileName?: string; // 원본 파일 이름
+  lineups?: { home?: TeamLineup; away?: TeamLineup }; // TMS 라인업 붙여넣기 결과 (선택적)
 }
 
 export interface ScheduleEntry {

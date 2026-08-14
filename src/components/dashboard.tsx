@@ -40,6 +40,8 @@ import { ShotBreakdown } from "./shot-breakdown"
 import { ShotZoneMap, isShotAttemptCode, normalizeShotOutput, type ShotDatum } from "./shot-zone-map"
 import { ShotAnalysisDashboard } from "./shot-analysis-dashboard"
 import { HeadToHeadDashboard } from "./head-to-head-dashboard"
+import { LineupSection } from "./lineup-section"
+import { PlayerRecordDialog } from "./player-record-dialog"
 
 export function Dashboard() {
   const [viewMode, setViewMode] = useState<'single' | 'tournament' | 'manage' | 'shots' | 'h2h'>('single')
@@ -64,6 +66,7 @@ export function Dashboard() {
   const [rawFileName, setRawFileName] = useState<string>("")
   const [cumulativeMatches, setCumulativeMatches] = useState<MatchData[] | null>(null)
   const [cumulativeTitle, setCumulativeTitle] = useState("")
+  const [openPlayerName, setOpenPlayerName] = useState<string | null>(null)
 
   const handleViewCumulative = (matches: MatchData[], title: string) => {
     setCumulativeMatches(matches)
@@ -430,7 +433,7 @@ export function Dashboard() {
         ) : viewMode === 'shots' ? (
           <ShotAnalysisDashboard tournaments={tournaments} />
         ) : viewMode === 'h2h' ? (
-          <HeadToHeadDashboard tournaments={tournaments} />
+          <HeadToHeadDashboard tournaments={tournaments} onViewMatch={handleViewMatchFromDB} />
         ) : viewMode === 'tournament' ? (
           cumulativeMatches ? (
             <TournamentDashboard externalMatches={cumulativeMatches} externalTitle={cumulativeTitle} />
@@ -501,6 +504,14 @@ export function Dashboard() {
             </div>
 
             <MatchSummaryBar data={matchData} />
+
+            <div className="break-inside-avoid">
+              <LineupSection
+                match={matchData}
+                onSaved={(lineups) => setMatchData(md => md ? { ...md, lineups } : md)}
+                onPlayerClick={setOpenPlayerName}
+              />
+            </div>
 
             <div className="break-inside-avoid">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -762,6 +773,13 @@ export function Dashboard() {
           <DialogFooter><Button onClick={handleCreateTournament}>생성</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PlayerRecordDialog
+        playerName={openPlayerName}
+        onClose={() => setOpenPlayerName(null)}
+        onViewMatch={handleViewMatchFromDB}
+        tournaments={tournaments}
+      />
     </div>
   );
 }
