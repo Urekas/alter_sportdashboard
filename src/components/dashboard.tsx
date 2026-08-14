@@ -39,9 +39,10 @@ import { MatchEventTimeline } from "./match-event-timeline"
 import { ShotBreakdown } from "./shot-breakdown"
 import { ShotZoneMap, isShotAttemptCode, normalizeShotOutput, type ShotDatum } from "./shot-zone-map"
 import { ShotAnalysisDashboard } from "./shot-analysis-dashboard"
+import { HeadToHeadDashboard } from "./head-to-head-dashboard"
 
 export function Dashboard() {
-  const [viewMode, setViewMode] = useState<'single' | 'tournament' | 'manage' | 'shots'>('single')
+  const [viewMode, setViewMode] = useState<'single' | 'tournament' | 'manage' | 'shots' | 'h2h'>('single')
   const [matchData, setMatchData] = useState<MatchData | null>(null)
   const [parsedEvents, setParsedEvents] = useState<MatchEvent[]>([])
   const [detectedTeams, setDetectedTeams] = useState<string[]>([])
@@ -295,7 +296,7 @@ export function Dashboard() {
             </Button>
           </div>
           <div className="flex flex-wrap gap-2 sm:gap-4 mt-1">
-            {['single', 'tournament', 'shots', 'manage'].map((mode) => (
+            {['single', 'tournament', 'shots', 'h2h', 'manage'].map((mode) => (
               <Button
                 key={mode}
                 variant={viewMode === mode ? 'default' : 'ghost'}
@@ -303,13 +304,13 @@ export function Dashboard() {
                 onClick={() => { setViewMode(mode as any); if (mode === 'tournament') setCumulativeMatches(null); }}
                 className="h-7 text-xs font-bold"
               >
-                {mode === 'single' ? '경기별 분석' : mode === 'tournament' ? '대회 누적 분석' : mode === 'shots' ? '슈팅 분석' : '대회 관리'}
+                {mode === 'single' ? '경기별 분석' : mode === 'tournament' ? '대회 누적 분석' : mode === 'shots' ? '슈팅 분석' : mode === 'h2h' ? '상대 전적' : '대회 관리'}
               </Button>
             ))}
           </div>
         </div>
         
-        {viewMode !== 'shots' && (
+        {viewMode !== 'shots' && viewMode !== 'h2h' && (
         <div className="flex flex-wrap items-center gap-4 bg-card p-3 rounded-lg border shadow-sm w-full xl:w-auto">
           <div className="flex items-center gap-3 border-r pr-4">
             <Trophy className="h-4 w-4 text-muted-foreground" />
@@ -428,6 +429,8 @@ export function Dashboard() {
           <TournamentManager onViewMatch={handleViewMatchFromDB} onViewCumulative={handleViewCumulative} />
         ) : viewMode === 'shots' ? (
           <ShotAnalysisDashboard tournaments={tournaments} />
+        ) : viewMode === 'h2h' ? (
+          <HeadToHeadDashboard tournaments={tournaments} />
         ) : viewMode === 'tournament' ? (
           cumulativeMatches ? (
             <TournamentDashboard externalMatches={cumulativeMatches} externalTitle={cumulativeTitle} />
