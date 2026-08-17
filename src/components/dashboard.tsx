@@ -280,7 +280,7 @@ export function Dashboard() {
       <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 pb-4 border-b-2 border-border print-hidden gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-primary italic tracking-tight font-headline">Field Focus</h1>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-primary italic tracking-tight font-headline">Alter_Focus</h1>
             <Button
               variant="outline"
               size="sm"

@@ -31,7 +31,7 @@ const analysisPrompt = ai.definePrompt({
   name: 'matchAnalysisPrompt',
   input: { schema: MatchAnalysisInputSchema },
   output: { schema: MatchAnalysisOutputSchema },
-  prompt: `당신은 국가대표팀 스포츠 과학 현장지원을 담당하는 전문 비디오 분석관이다. 제공되는 경기 데이터(통계표 및 수치)를 바탕으로 [Field Focus | Hockey Analytics] 형식의 경기별 상세 분석 보고서를 작성하라.
+  prompt: `당신은 국가대표팀 스포츠 과학 현장지원을 담당하는 전문 비디오 분석관이다. 제공되는 경기 데이터(통계표 및 수치)를 바탕으로 [Alter_Focus | Hockey Analytics] 형식의 경기별 상세 분석 보고서를 작성하라.
 
 [작성 가이드라인]
 - 문체: 객관적이고 전문적인 '~다'체를 사용한다.

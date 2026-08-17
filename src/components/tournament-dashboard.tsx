@@ -588,7 +588,7 @@ export function TournamentDashboard({ tournamentId, externalMatches, externalTit
       {aiAnalysis && (
         <div className="break-inside-avoid space-y-8">
           <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-            <Sparkles className="h-6 w-6" /> AI 누적 전술 분석 리포트 (Field Focus | Hockey Analytics)
+            <Sparkles className="h-6 w-6" /> AI 누적 전술 분석 리포트 (Alter_Focus | Hockey Analytics)
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="border-2 border-primary/20"><CardHeader className="bg-primary/5"><CardTitle className="text-lg flex items-center gap-2"><Info className="h-5 w-5 text-primary" /> 1. 경기 최종 결과 요약</CardTitle></CardHeader><CardContent className="pt-6"><p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.matchSummary}</p></CardContent></Card>

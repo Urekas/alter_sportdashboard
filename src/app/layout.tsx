@@ -19,7 +19,7 @@ const archivo = Archivo({
 })
 
 export const metadata: Metadata = {
-  title: 'Field Focus | Hockey Analytics',
+  title: 'Alter_Focus | Hockey Analytics',
   description: 'Parse, analyze, and visualize field hockey match data.',
 };
 
