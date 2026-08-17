@@ -8,77 +8,87 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Archivo (메인 대시보드/영상 도구와 동일 폰트, 한글은 시스템 폰트로 자동 폴백) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800&display=swap" rel="stylesheet">
     <!-- PapaParse for CSV Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
-        body { background-color: #060913; color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: #f3f2f2; color: #201e1d; font-family: 'Archivo', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #0d1321; }
-        ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 4px; }
-        .canvas-container { position: relative; border: 1px solid rgba(55, 65, 81, 0.6); border-radius: 0.75rem; overflow: hidden; cursor: crosshair; }
-        .active-instance { border-left: 4px solid #3b82f6 !important; background-color: rgba(37, 99, 235, 0.2) !important; }
+        ::-webkit-scrollbar-track { background: #eae9e9; }
+        ::-webkit-scrollbar-thumb { background: #ec3013; border-radius: 0; }
+        .canvas-container { position: relative; border: 1px solid #bab6b6; border-radius: 0; overflow: hidden; cursor: crosshair; }
+        .active-instance { border-left: 4px solid #ec3013 !important; background-color: rgba(236, 48, 19, 0.1) !important; }
         
         details > summary { list-style: none; }
         details > summary::-webkit-details-marker { display: none; }
         details[open] summary ~ * { animation: sweep .15s ease-in-out; }
         @keyframes sweep { 0% {opacity: 0; margin-top: -10px} 100% {opacity: 1; margin-top: 0px} }
 
-        input::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.5; cursor: pointer; }
+        input::-webkit-calendar-picker-indicator { opacity: 0.6; cursor: pointer; }
 
         /* 커스텀 리사이저(Splitter) 스타일 */
         .resizer {
             width: 4px;
-            background-color: #1f2937; /* gray-800 */
+            background-color: #bab6b6;
             cursor: col-resize;
             z-index: 40;
             transition: background-color 0.2s ease;
             flex-shrink: 0;
         }
         .resizer:hover, .resizer.dragging {
-            background-color: #3b82f6; /* blue-500 */
-            box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+            background-color: #ec3013;
+            box-shadow: 0 0 8px rgba(236, 48, 19, 0.5);
+        }
+
+        /* Modernist 리스킨 — 모서리 전부 각지게(진짜 원형이어야 하는 rounded-full은
+           그대로 둠). 클래스 이름을 하나하나 안 지우고 여기서 한 번에 덮어씀. */
+        .rounded, .rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl, .rounded-sm {
+            border-radius: 0 !important;
         }
     </style>
 </head>
 <body class="min-h-screen flex flex-col h-screen overflow-hidden">
 
     <!-- HEADER -->
-    <header class="border-b border-gray-800 bg-gray-950 px-6 py-3 flex items-center justify-between shrink-0">
+    <header class="border-b border-[#bab6b6] bg-[#f3f2f2] px-6 py-3 flex items-center justify-between shrink-0">
         <div class="flex items-center gap-3">
-            <div class="bg-blue-600 p-2 rounded-lg"><i class="fa-solid fa-video text-white"></i></div>
+            <div class="bg-[#ec3013] p-2 rounded-lg"><i class="fa-solid fa-video text-white"></i></div>
             <div>
-                <h1 class="text-lg font-black tracking-tight text-white">비디오 태깅 & 캔버스 매핑 시스템</h1>
-                <p class="text-[10px] text-gray-400">커스텀 필드 생성 및 레이아웃 자유 크기 조절 기능 포함</p>
+                <h1 class="text-lg font-black tracking-tight text-[#201e1d]">비디오 태깅 & 캔버스 매핑 시스템</h1>
+                <p class="text-[10px] text-[#7d7979]">커스텀 필드 생성 및 레이아웃 자유 크기 조절 기능 포함</p>
             </div>
         </div>
         <div class="flex items-center gap-3">
-            <button id="btn-open-settings" class="flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-xs font-bold rounded cursor-pointer transition-colors text-white mr-2">
-                <i class="fa-solid fa-gear text-gray-300"></i> 태깅 템플릿 설정
+            <button id="btn-open-settings" class="flex items-center gap-2 px-3 py-1.5 bg-[#d7d3d3] hover:bg-[#bab6b6] border border-[#bab6b6] text-xs font-bold rounded cursor-pointer transition-colors text-[#201e1d] mr-2">
+                <i class="fa-solid fa-gear text-[#201e1d]"></i> 태깅 템플릿 설정
             </button>
-            <label class="flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-xs font-semibold rounded cursor-pointer transition-colors">
-                <i class="fa-solid fa-file-code text-blue-400"></i> 타임라인 (SC/XML, 누적)
+            <label class="flex items-center gap-2 px-3 py-1.5 bg-[#d7d3d3] hover:bg-[#bab6b6] border border-[#bab6b6] text-xs font-semibold rounded cursor-pointer transition-colors">
+                <i class="fa-solid fa-file-code text-[#ec3013]"></i> 타임라인 (SC/XML, 누적)
                 <input type="file" id="timeline-upload" accept=".sctimeline,.json,.xml" class="hidden">
             </label>
-            <span id="session-merge-badge" class="hidden text-[10px] font-bold text-amber-300 bg-amber-900/30 border border-amber-800 px-2 py-1 rounded" title=""></span>
-            <button id="btn-reset-session" class="text-[10px] text-gray-500 hover:text-red-400 underline" title="누적된 태깅 데이터를 모두 지우고 새로 시작">세션 초기화</button>
-            <label class="flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-xs font-semibold rounded cursor-pointer transition-colors">
-                <i class="fa-solid fa-film text-blue-400"></i> 비디오 추가 (누적)
+            <span id="session-merge-badge" class="hidden text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-1 rounded" title=""></span>
+            <button id="btn-reset-session" class="text-[10px] text-[#7d7979] hover:text-red-600 underline" title="누적된 태깅 데이터를 모두 지우고 새로 시작">세션 초기화</button>
+            <label class="flex items-center gap-2 px-3 py-1.5 bg-[#d7d3d3] hover:bg-[#bab6b6] border border-[#bab6b6] text-xs font-semibold rounded cursor-pointer transition-colors">
+                <i class="fa-solid fa-film text-[#ec3013]"></i> 비디오 추가 (누적)
                 <input type="file" id="video-upload" accept="video/mp4,video/quicktime,.json" multiple class="hidden">
             </label>
-            <div class="border-l border-gray-700 pl-3 flex gap-2">
-                <button id="btn-export-xml" class="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded shadow-lg transition-colors">
+            <div class="border-l border-[#bab6b6] pl-3 flex gap-2">
+                <button id="btn-export-xml" class="flex items-center gap-2 px-3 py-1.5 bg-[#ec3013] hover:bg-[#dd2b0f] text-white text-xs font-bold rounded shadow-lg transition-colors">
                     <i class="fa-solid fa-code"></i> 선택 항목 XML
                 </button>
-                <button id="btn-export-merged-xml" class="flex items-center gap-2 px-3 py-1.5 bg-blue-800 hover:bg-blue-700 text-white text-xs font-bold rounded shadow-lg transition-colors" title="지금까지 업로드/태깅한 모든 경기를 하나의 XML로 병합해 내보냅니다(그룹·출처 유지)">
+                <button id="btn-export-merged-xml" class="flex items-center gap-2 px-3 py-1.5 bg-[#ae1800] hover:bg-[#7c1405] text-white text-xs font-bold rounded shadow-lg transition-colors" title="지금까지 업로드/태깅한 모든 경기를 하나의 XML로 병합해 내보냅니다(그룹·출처 유지)">
                     <i class="fa-solid fa-layer-group"></i> 전체 병합 XML
                 </button>
-                <button id="btn-export-selected-csv" class="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded shadow-lg transition-colors">
+                <button id="btn-export-selected-csv" class="flex items-center gap-2 px-3 py-1.5 bg-[#ec3013] hover:bg-[#dd2b0f] text-white text-xs font-bold rounded shadow-lg transition-colors">
                     <i class="fa-solid fa-file-csv"></i> 선택 CSV
                 </button>
-                <button id="btn-export-sctimeline" class="flex items-center gap-2 px-3 py-1.5 bg-blue-800 hover:bg-blue-700 text-white text-xs font-bold rounded shadow-lg transition-colors">
+                <button id="btn-export-sctimeline" class="flex items-center gap-2 px-3 py-1.5 bg-[#ae1800] hover:bg-[#7c1405] text-white text-xs font-bold rounded shadow-lg transition-colors">
                     <i class="fa-solid fa-file-code"></i> 전체 SCTimeline (.sctimeline)
                 </button>
-                <button id="btn-export-all-csv" class="flex items-center gap-2 px-3 py-1.5 bg-blue-800 hover:bg-blue-700 text-white text-xs font-bold rounded shadow-lg transition-colors">
+                <button id="btn-export-all-csv" class="flex items-center gap-2 px-3 py-1.5 bg-[#ae1800] hover:bg-[#7c1405] text-white text-xs font-bold rounded shadow-lg transition-colors">
                     <i class="fa-solid fa-download"></i> 전체 병합 CSV
                 </button>
             </div>
@@ -89,25 +99,25 @@
          그 경기의 대시보드 문서(rawSourceText)에 그대로 덮어씁니다. 통계/이벤트는 안 건드리고
          원본 XML 텍스트만 갱신하므로, 나중에 대시보드에서 그 경기 XML을 다시 받으면 반영돼 있습니다.
          한 세션에 경기를 여러 개 병합해서 올렸으면(누적) 저장을 막습니다 — 경기 하나씩만. -->
-    <div id="dashboard-save-bar" class="border-b border-gray-800 bg-gray-900/60 px-6 py-2 flex items-center gap-3 shrink-0 flex-wrap">
-        <span class="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1.5"><i class="fa-solid fa-cloud-arrow-up text-emerald-500"></i> 대시보드에 저장</span>
-        <select id="save-tournament-select" class="bg-gray-950 border border-gray-700 rounded px-2 py-1 text-xs text-white outline-none focus:border-emerald-500" disabled>
+    <div id="dashboard-save-bar" class="border-b border-[#bab6b6] bg-[#eae9e9] px-6 py-2 flex items-center gap-3 shrink-0 flex-wrap">
+        <span class="text-[10px] font-bold text-[#7d7979] uppercase flex items-center gap-1.5"><i class="fa-solid fa-cloud-arrow-up text-emerald-600"></i> 대시보드에 저장</span>
+        <select id="save-tournament-select" class="bg-[#f3f2f2] border border-[#bab6b6] rounded px-2 py-1 text-xs text-[#201e1d] outline-none focus:border-emerald-500" disabled>
             <option value="">대회 불러오는 중...</option>
         </select>
-        <select id="save-match-select" class="bg-gray-950 border border-gray-700 rounded px-2 py-1 text-xs text-white outline-none focus:border-emerald-500" disabled>
+        <select id="save-match-select" class="bg-[#f3f2f2] border border-[#bab6b6] rounded px-2 py-1 text-xs text-[#201e1d] outline-none focus:border-emerald-500" disabled>
             <option value="">대회를 먼저 선택하세요</option>
         </select>
-        <button id="btn-save-to-dashboard" class="flex items-center gap-2 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed text-white text-xs font-bold rounded shadow-lg transition-colors" disabled>
+        <button id="btn-save-to-dashboard" class="flex items-center gap-2 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 disabled:bg-[#d7d3d3] disabled:text-[#9b9797] disabled:cursor-not-allowed text-white text-xs font-bold rounded shadow-lg transition-colors" disabled>
             <i class="fa-solid fa-floppy-disk"></i> 이 경기 원본 XML에 저장
         </button>
-        <span id="save-status-text" class="text-[10px] text-gray-500"></span>
+        <span id="save-status-text" class="text-[10px] text-[#7d7979]"></span>
     </div>
 
     <!-- MAIN WORKSPACE -->
     <main class="flex-grow flex flex-row relative overflow-hidden" id="main-workspace">
         
         <!-- LEFT PANEL: Video Player -->
-        <section id="panel-left" class="bg-gray-900 flex flex-col relative shrink-0 transition-all duration-100" style="width: 50%;">
+        <section id="panel-left" class="bg-[#eae9e9] flex flex-col relative shrink-0 transition-all duration-100" style="width: 50%;">
             <!-- Video Container -->
             <div class="w-full bg-black aspect-video relative flex items-center justify-center shrink-0 group">
                 <div id="video-layer-container" class="w-full h-full absolute inset-0"></div>
@@ -122,7 +132,7 @@
                 </div>
                 <div class="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-30">
                     <button id="btn-pip" class="bg-gray-900/80 hover:bg-gray-800 border border-gray-700 text-white text-[10px] px-2 py-1 rounded backdrop-blur"><i class="fa-regular fa-clone"></i> PIP 모드</button>
-                    <button id="btn-toggle-layout" class="bg-blue-600/80 hover:bg-blue-500 border border-blue-500 text-white text-[10px] px-2 py-1 rounded backdrop-blur"><i class="fa-solid fa-expand"></i> 화면 꽉 채우기</button>
+                    <button id="btn-toggle-layout" class="bg-[#ec3013]/80 hover:bg-[#dd2b0f] border border-[#ec3013] text-white text-[10px] px-2 py-1 rounded backdrop-blur"><i class="fa-solid fa-expand"></i> 화면 꽉 채우기</button>
                 </div>
                 <div class="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/60 backdrop-blur border border-white/10 text-white/70 text-[9px] px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 flex gap-3">
                     <span><kbd class="font-mono text-white bg-white/20 px-1 rounded">Space</kbd> 재생/정지</span>
@@ -131,93 +141,93 @@
                 </div>
             </div>
             
-            <div class="p-3 border-b border-gray-800 bg-gray-950 shrink-0">
+            <div class="p-3 border-b border-[#bab6b6] bg-[#f3f2f2] shrink-0">
                 <div class="flex items-center justify-between mb-2">
                     <div class="flex items-center gap-3">
-                        <span class="text-xs font-bold text-gray-400">카메라 앵글 변경</span>
-                        <div class="flex items-center gap-1.5 bg-gray-900 px-2 py-1 rounded border border-gray-700">
-                            <label class="text-[10px] font-bold text-gray-400"><i class="fa-solid fa-clock-rotate-left mr-1"></i>Sync(초):</label>
-                            <input type="number" id="input-sync-offset" step="0.1" class="w-16 bg-black border border-gray-700 rounded px-1 py-0.5 text-xs text-white text-right outline-none focus:border-blue-500" value="0" disabled>
-                            <label class="bg-gray-800 hover:bg-gray-700 px-2 py-0.5 rounded border border-gray-600 cursor-pointer text-[10px] text-gray-300 ml-1 transition-colors" title="현재 앵글의 stream.json 업로드 (자동 싱크)">
+                        <span class="text-xs font-bold text-[#7d7979]">카메라 앵글 변경</span>
+                        <div class="flex items-center gap-1.5 bg-[#eae9e9] px-2 py-1 rounded border border-[#bab6b6]">
+                            <label class="text-[10px] font-bold text-[#7d7979]"><i class="fa-solid fa-clock-rotate-left mr-1"></i>Sync(초):</label>
+                            <input type="number" id="input-sync-offset" step="0.1" class="w-16 bg-black border border-[#bab6b6] rounded px-1 py-0.5 text-xs text-[#201e1d] text-right outline-none focus:border-[#ec3013]" value="0" disabled>
+                            <label class="bg-[#d7d3d3] hover:bg-[#bab6b6] px-2 py-0.5 rounded border border-[#bab6b6] cursor-pointer text-[10px] text-[#201e1d] ml-1 transition-colors" title="현재 앵글의 stream.json 업로드 (자동 싱크)">
                                 <i class="fa-solid fa-file-code"></i> JSON
                                 <input type="file" id="input-sync-json" accept=".json" class="hidden" disabled>
                             </label>
                         </div>
-                        <div class="flex items-center gap-1.5 bg-gray-900 px-2 py-1 rounded border border-gray-700">
-                            <label class="text-[10px] font-bold text-gray-400"><i class="fa-solid fa-gauge-high mr-1"></i>배속:</label>
-                            <select id="input-playback-rate" class="bg-black border border-gray-700 rounded px-1 py-0.5 text-xs text-white outline-none focus:border-blue-500 cursor-pointer" disabled>
+                        <div class="flex items-center gap-1.5 bg-[#eae9e9] px-2 py-1 rounded border border-[#bab6b6]">
+                            <label class="text-[10px] font-bold text-[#7d7979]"><i class="fa-solid fa-gauge-high mr-1"></i>배속:</label>
+                            <select id="input-playback-rate" class="bg-black border border-[#bab6b6] rounded px-1 py-0.5 text-xs text-[#201e1d] outline-none focus:border-[#ec3013] cursor-pointer" disabled>
                                 <option value="0.25">0.25x</option><option value="0.5">0.5x</option><option value="1" selected>1.0x</option><option value="1.5">1.5x</option><option value="2">2.0x</option>
                             </select>
                         </div>
-                        <button id="btn-clear-videos" class="hidden text-[10px] text-red-400 hover:text-red-300 underline ml-2"><i class="fa-solid fa-trash-can"></i> 전체삭제</button>
+                        <button id="btn-clear-videos" class="hidden text-[10px] text-red-600 hover:text-red-600 underline ml-2"><i class="fa-solid fa-trash-can"></i> 전체삭제</button>
                     </div>
                     <div class="text-right flex items-center gap-3">
-                        <span class="text-[10px] text-gray-500">Timeline Time:</span>
-                        <span id="current-time-display" class="text-sm font-mono font-bold text-blue-400 bg-blue-900/20 px-2 py-0.5 rounded border border-blue-800">00:00.00</span>
+                        <span class="text-[10px] text-[#7d7979]">Timeline Time:</span>
+                        <span id="current-time-display" class="text-sm font-mono font-bold text-[#ec3013] bg-[#ffe0d9] px-2 py-0.5 rounded border border-[#ae1800]">00:00.00</span>
                     </div>
                 </div>
                 <div id="angle-buttons" class="flex gap-2 overflow-x-auto pb-1 mt-2">
-                    <span class="text-[10px] text-gray-600 italic">업로드된 영상이 없습니다.</span>
+                    <span class="text-[10px] text-[#9b9797] italic">업로드된 영상이 없습니다.</span>
                 </div>
             </div>
 
             <!-- Edit Form -->
             <div class="p-5 flex-grow overflow-y-auto space-y-4" id="edit-form-container">
-                <div class="flex items-center justify-between border-b border-gray-800 pb-2">
-                    <h3 class="text-sm font-bold text-white"><i class="fa-solid fa-pen-to-square text-blue-500 mr-1.5"></i>데이터 수정 및 매핑</h3>
-                    <span id="form-instance-id" class="text-[10px] font-mono bg-gray-800 px-2 py-0.5 rounded text-gray-400">선택된 인스턴스 없음</span>
+                <div class="flex items-center justify-between border-b border-[#bab6b6] pb-2">
+                    <h3 class="text-sm font-bold text-[#201e1d]"><i class="fa-solid fa-pen-to-square text-[#ec3013] mr-1.5"></i>데이터 수정 및 매핑</h3>
+                    <span id="form-instance-id" class="text-[10px] font-mono bg-[#d7d3d3] px-2 py-0.5 rounded text-[#7d7979]">선택된 인스턴스 없음</span>
                 </div>
 
                 <div class="grid grid-cols-2 xl:grid-cols-3 gap-4" id="fixed-form-grid">
                     <div class="space-y-1">
-                        <label id="label-player" class="text-[10px] font-bold text-gray-400 uppercase">슈터 (Player)</label>
-                        <input list="list-player" type="text" id="input-player" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none" disabled>
+                        <label id="label-player" class="text-[10px] font-bold text-[#7d7979] uppercase">슈터 (Player)</label>
+                        <input list="list-player" type="text" id="input-player" class="w-full bg-[#f3f2f2] border border-[#bab6b6] rounded px-2 py-1.5 text-xs text-[#201e1d] focus:border-[#ec3013] outline-none" disabled>
                         <datalist id="list-player"></datalist>
                     </div>
                     <div class="space-y-1">
-                        <label class="text-[10px] font-bold text-sky-400 uppercase">그룹 (Row)</label>
-                        <input type="text" id="input-row" class="w-full bg-gray-950 border border-sky-900/70 rounded px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none" disabled>
+                        <label class="text-[10px] font-bold text-sky-600 uppercase">그룹 (Row)</label>
+                        <input type="text" id="input-row" class="w-full bg-[#f3f2f2] border border-sky-300 rounded px-2 py-1.5 text-xs text-[#201e1d] focus:border-[#ec3013] outline-none" disabled>
                     </div>
                     <div class="space-y-1">
-                        <label id="label-gk" class="text-[10px] font-bold text-amber-400 uppercase">상대 골키퍼 (GK Player)</label>
-                        <input list="list-gk" type="text" id="input-gk" class="w-full bg-gray-950 border border-amber-900/70 rounded px-2 py-1.5 text-xs text-amber-100 focus:border-amber-500 outline-none" disabled>
+                        <label id="label-gk" class="text-[10px] font-bold text-amber-600 uppercase">상대 골키퍼 (GK Player)</label>
+                        <input list="list-gk" type="text" id="input-gk" class="w-full bg-[#f3f2f2] border border-amber-300 rounded px-2 py-1.5 text-xs text-amber-900 focus:border-amber-500 outline-none" disabled>
                         <datalist id="list-gk"></datalist>
                     </div>
                     <div class="space-y-1">
-                        <label id="label-type" class="text-[10px] font-bold text-gray-400 uppercase">슈팅 타입 (Type)</label>
-                        <input list="list-type" type="text" id="input-type" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none" disabled>
+                        <label id="label-type" class="text-[10px] font-bold text-[#7d7979] uppercase">슈팅 타입 (Type)</label>
+                        <input list="list-type" type="text" id="input-type" class="w-full bg-[#f3f2f2] border border-[#bab6b6] rounded px-2 py-1.5 text-xs text-[#201e1d] focus:border-[#ec3013] outline-none" disabled>
                         <datalist id="list-type"></datalist>
                     </div>
                     <div class="space-y-1">
-                        <label id="label-output" class="text-[10px] font-bold text-gray-400 uppercase">결과 (Output)</label>
-                        <input list="list-output" type="text" id="input-output" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none" disabled>
+                        <label id="label-output" class="text-[10px] font-bold text-[#7d7979] uppercase">결과 (Output)</label>
+                        <input list="list-output" type="text" id="input-output" class="w-full bg-[#f3f2f2] border border-[#bab6b6] rounded px-2 py-1.5 text-xs text-[#201e1d] focus:border-[#ec3013] outline-none" disabled>
                         <datalist id="list-output"></datalist>
                     </div>
                     <div class="space-y-1">
-                        <label id="label-out-dir" class="text-[10px] font-bold text-gray-400 uppercase">아웃 방향 (OUT)</label>
-                        <input list="list-out-dir" type="text" id="input-out-dir" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none" disabled>
+                        <label id="label-out-dir" class="text-[10px] font-bold text-[#7d7979] uppercase">아웃 방향 (OUT)</label>
+                        <input list="list-out-dir" type="text" id="input-out-dir" class="w-full bg-[#f3f2f2] border border-[#bab6b6] rounded px-2 py-1.5 text-xs text-[#201e1d] focus:border-[#ec3013] outline-none" disabled>
                         <datalist id="list-out-dir"></datalist>
                     </div>
                     <div class="space-y-1">
-                        <label class="text-[10px] font-bold text-gray-400 uppercase">비고 / 컨텍스트</label>
-                        <input type="text" id="input-context" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none" disabled>
+                        <label class="text-[10px] font-bold text-[#7d7979] uppercase">비고 / 컨텍스트</label>
+                        <input type="text" id="input-context" class="w-full bg-[#f3f2f2] border border-[#bab6b6] rounded px-2 py-1.5 text-xs text-[#201e1d] focus:border-[#ec3013] outline-none" disabled>
                     </div>
                 </div>
                 
                 <!-- Dynamic Custom Fields Area -->
-                <div class="grid grid-cols-2 xl:grid-cols-3 gap-4 mt-3 pt-3 border-t border-gray-800" id="custom-form-grid">
+                <div class="grid grid-cols-2 xl:grid-cols-3 gap-4 mt-3 pt-3 border-t border-[#bab6b6]" id="custom-form-grid">
                     <!-- Injected via JS -->
                 </div>
 
-                <div class="mt-4 p-3 bg-gray-950 border border-gray-800 rounded-lg flex justify-between items-center text-xs">
+                <div class="mt-4 p-3 bg-[#f3f2f2] border border-[#bab6b6] rounded-lg flex justify-between items-center text-xs">
                     <div>
-                        <span class="text-gray-500 block text-[9px] mb-1">발사 위치 (Field)</span>
-                        <span id="disp-field-coord" class="font-mono font-bold text-blue-400">우측 캔버스 클릭</span>
+                        <span class="text-[#7d7979] block text-[9px] mb-1">발사 위치 (Field)</span>
+                        <span id="disp-field-coord" class="font-mono font-bold text-[#ec3013]">우측 캔버스 클릭</span>
                     </div>
-                    <div class="h-6 w-px bg-gray-800"></div>
+                    <div class="h-6 w-px bg-[#d7d3d3]"></div>
                     <div class="text-right">
-                        <span class="text-gray-500 block text-[9px] mb-1">타겟 위치 (Goal)</span>
-                        <span id="disp-goal-coord" class="font-mono font-bold text-emerald-400">우측 캔버스 클릭</span>
+                        <span class="text-[#7d7979] block text-[9px] mb-1">타겟 위치 (Goal)</span>
+                        <span id="disp-goal-coord" class="font-mono font-bold text-emerald-600">우측 캔버스 클릭</span>
                     </div>
                 </div>
             </div>
@@ -227,34 +237,34 @@
         <div id="resizer-1" class="resizer"></div>
 
         <!-- MIDDLE PANEL: Canvases -->
-        <section id="panel-middle" class="bg-gray-900 p-4 flex flex-col gap-6 overflow-y-auto shrink-0 transition-all duration-100" style="width: 25%;">
+        <section id="panel-middle" class="bg-[#eae9e9] p-4 flex flex-col gap-6 overflow-y-auto shrink-0 transition-all duration-100" style="width: 25%;">
             <div>
                 <div class="flex justify-between items-end mb-2">
-                    <h2 class="text-sm font-bold"><span class="text-blue-500 mr-1">1.</span>필드 발사 위치</h2>
+                    <h2 class="text-sm font-bold"><span class="text-[#ec3013] mr-1">1.</span>필드 발사 위치</h2>
                     <div class="flex items-center gap-3">
-                        <label class="flex items-center gap-1 text-[10px] text-gray-400 cursor-pointer hover:text-white">
-                            <input type="checkbox" id="chk-flip-field" class="w-3 h-3 rounded border-gray-700 bg-gray-900 cursor-pointer">
+                        <label class="flex items-center gap-1 text-[10px] text-[#7d7979] cursor-pointer hover:text-[#201e1d]">
+                            <input type="checkbox" id="chk-flip-field" class="w-3 h-3 rounded border-[#bab6b6] bg-[#eae9e9] cursor-pointer">
                             상하반전
                         </label>
-                        <button id="btn-clear-field" class="text-[10px] text-gray-400 hover:text-white underline">지우기</button>
+                        <button id="btn-clear-field" class="text-[10px] text-[#7d7979] hover:text-[#201e1d] underline">지우기</button>
                     </div>
                 </div>
-                <div class="canvas-container bg-[#1e2a3b] hover:border-blue-500 transition-colors w-full">
+                <div class="canvas-container bg-[#2d2b2b] hover:border-[#ec3013] transition-colors w-full">
                     <canvas id="field-canvas" class="w-full block"></canvas>
                 </div>
             </div>
             <div>
                 <div class="flex justify-between items-end mb-2">
-                    <h2 class="text-sm font-bold"><span class="text-emerald-500 mr-1">2.</span>골대 타겟 위치</h2>
+                    <h2 class="text-sm font-bold"><span class="text-emerald-600 mr-1">2.</span>골대 타겟 위치</h2>
                     <div class="flex items-center gap-3">
-                        <label class="flex items-center gap-1 text-[10px] text-gray-400 cursor-pointer hover:text-white">
-                            <input type="checkbox" id="chk-flip-goal" class="w-3 h-3 rounded border-gray-700 bg-gray-900 cursor-pointer">
+                        <label class="flex items-center gap-1 text-[10px] text-[#7d7979] cursor-pointer hover:text-[#201e1d]">
+                            <input type="checkbox" id="chk-flip-goal" class="w-3 h-3 rounded border-[#bab6b6] bg-[#eae9e9] cursor-pointer">
                             좌우반전
                         </label>
-                        <button id="btn-clear-goal" class="text-[10px] text-gray-400 hover:text-white underline">지우기</button>
+                        <button id="btn-clear-goal" class="text-[10px] text-[#7d7979] hover:text-[#201e1d] underline">지우기</button>
                     </div>
                 </div>
-                <div class="canvas-container bg-[#0a1128] hover:border-emerald-500 transition-colors w-full">
+                <div class="canvas-container bg-[#2d2b2b] hover:border-emerald-500 transition-colors w-full">
                     <canvas id="goal-canvas" class="w-full block"></canvas>
                 </div>
             </div>
@@ -264,66 +274,66 @@
         <div id="resizer-2" class="resizer"></div>
 
         <!-- RIGHT PANEL: Timeline List -->
-        <section id="panel-right" class="bg-gray-950 flex flex-col shrink-0 transition-all duration-100" style="width: 25%;">
-            <div class="p-3 border-b border-gray-800 bg-gray-900 flex flex-col gap-2 shrink-0">
+        <section id="panel-right" class="bg-[#f3f2f2] flex flex-col shrink-0 transition-all duration-100" style="width: 25%;">
+            <div class="p-3 border-b border-[#bab6b6] bg-[#eae9e9] flex flex-col gap-2 shrink-0">
                 <div class="flex justify-between items-center">
-                    <h2 class="text-sm font-bold text-white">타임라인 목록</h2>
-                    <span id="instance-count" class="text-[10px] bg-gray-800 px-2 py-0.5 rounded font-mono text-gray-300">0 건</span>
+                    <h2 class="text-sm font-bold text-[#201e1d]">타임라인 목록</h2>
+                    <span id="instance-count" class="text-[10px] bg-[#d7d3d3] px-2 py-0.5 rounded font-mono text-[#201e1d]">0 건</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <input type="checkbox" id="check-all-instances" class="w-3 h-3 rounded border-gray-700 bg-gray-900 cursor-pointer">
-                    <label for="check-all-instances" class="text-[10px] text-gray-400 cursor-pointer">모든 항목 선택</label>
+                    <input type="checkbox" id="check-all-instances" class="w-3 h-3 rounded border-[#bab6b6] bg-[#eae9e9] cursor-pointer">
+                    <label for="check-all-instances" class="text-[10px] text-[#7d7979] cursor-pointer">모든 항목 선택</label>
                 </div>
             </div>
             <div class="flex-grow overflow-y-auto p-2" id="instance-list-container">
-                <div class="p-6 text-center text-xs text-gray-600">파일을 업로드하면 목록이 표시됩니다.</div>
+                <div class="p-6 text-center text-xs text-[#9b9797]">파일을 업로드하면 목록이 표시됩니다.</div>
             </div>
         </section>
     </main>
 
     <!-- SETTINGS MODAL -->
     <div id="modal-settings" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div class="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-[600px] shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div class="bg-[#eae9e9] border border-[#bab6b6] rounded-2xl p-6 w-[600px] shadow-2xl max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-5">
-                <h2 class="text-lg font-black text-white">⚙️ 태깅 템플릿 설정</h2>
-                <button id="btn-close-settings" class="text-gray-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+                <h2 class="text-lg font-black text-[#201e1d]">⚙️ 태깅 템플릿 설정</h2>
+                <button id="btn-close-settings" class="text-[#7d7979] hover:text-[#201e1d] text-lg"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <p class="text-[11px] text-gray-400 mb-4 bg-gray-800/50 p-2 rounded">
+            <p class="text-[11px] text-[#7d7979] mb-4 bg-[#d7d3d3]/70 p-2 rounded">
                 - 각 항목에 쉼표(,)로 구분하여 입력하세요.<br>
                 - 단축키를 지정하려면 괄호 안에 키를 적어주세요. (예: <code>goal(g), save(s)</code>)
             </p>
             
-            <div class="mb-4 pb-4 border-b border-gray-800">
-                <label class="block text-[10px] font-bold text-sky-300 mb-1">앵글 1~4 전환 단축키</label>
-                <input type="text" id="tmpl-angles" class="w-full bg-gray-950 border border-sky-900/70 rounded p-2 text-xs text-sky-100" placeholder="예: 1, 2, 3, 4">
+            <div class="mb-4 pb-4 border-b border-[#bab6b6]">
+                <label class="block text-[10px] font-bold text-sky-700 mb-1">앵글 1~4 전환 단축키</label>
+                <input type="text" id="tmpl-angles" class="w-full bg-[#f3f2f2] border border-sky-300 rounded p-2 text-xs text-sky-900" placeholder="예: 1, 2, 3, 4">
             </div>
             <div class="space-y-3">
-                <div class="flex gap-2"><input type="text" id="tmpl-name-player" class="w-1/3 bg-gray-950 border border-gray-700 rounded p-1.5 text-[10px] font-bold text-gray-300" placeholder="필드명"><input type="text" id="tmpl-players" class="w-2/3 bg-gray-950 border border-gray-700 rounded p-1.5 text-xs text-white" placeholder="옵션 (쉼표로 구분)"></div>
-                <div class="flex gap-2"><input type="text" id="tmpl-name-gk" class="w-1/3 bg-gray-950 border border-amber-900/70 rounded p-1.5 text-[10px] font-bold text-amber-300" placeholder="필드명"><input type="text" id="tmpl-gks" class="w-2/3 bg-gray-950 border border-amber-900/70 rounded p-1.5 text-xs text-amber-100" placeholder="옵션 (쉼표로 구분)"></div>
-                <div class="flex gap-2"><input type="text" id="tmpl-name-type" class="w-1/3 bg-gray-950 border border-gray-700 rounded p-1.5 text-[10px] font-bold text-gray-300" placeholder="필드명"><input type="text" id="tmpl-types" class="w-2/3 bg-gray-950 border border-gray-700 rounded p-1.5 text-xs text-white" placeholder="옵션 (쉼표로 구분)"></div>
-                <div class="flex gap-2"><input type="text" id="tmpl-name-output" class="w-1/3 bg-gray-950 border border-gray-700 rounded p-1.5 text-[10px] font-bold text-gray-300" placeholder="필드명"><input type="text" id="tmpl-outputs" class="w-2/3 bg-gray-950 border border-gray-700 rounded p-1.5 text-xs text-white" placeholder="옵션 (쉼표로 구분)"></div>
-                <div class="flex gap-2"><input type="text" id="tmpl-name-outdir" class="w-1/3 bg-gray-950 border border-gray-700 rounded p-1.5 text-[10px] font-bold text-gray-300" placeholder="필드명"><input type="text" id="tmpl-outdirs" class="w-2/3 bg-gray-950 border border-gray-700 rounded p-1.5 text-xs text-white" placeholder="옵션 (쉼표로 구분)"></div>
+                <div class="flex gap-2"><input type="text" id="tmpl-name-player" class="w-1/3 bg-[#f3f2f2] border border-[#bab6b6] rounded p-1.5 text-[10px] font-bold text-[#201e1d]" placeholder="필드명"><input type="text" id="tmpl-players" class="w-2/3 bg-[#f3f2f2] border border-[#bab6b6] rounded p-1.5 text-xs text-[#201e1d]" placeholder="옵션 (쉼표로 구분)"></div>
+                <div class="flex gap-2"><input type="text" id="tmpl-name-gk" class="w-1/3 bg-[#f3f2f2] border border-amber-300 rounded p-1.5 text-[10px] font-bold text-amber-800" placeholder="필드명"><input type="text" id="tmpl-gks" class="w-2/3 bg-[#f3f2f2] border border-amber-300 rounded p-1.5 text-xs text-amber-900" placeholder="옵션 (쉼표로 구분)"></div>
+                <div class="flex gap-2"><input type="text" id="tmpl-name-type" class="w-1/3 bg-[#f3f2f2] border border-[#bab6b6] rounded p-1.5 text-[10px] font-bold text-[#201e1d]" placeholder="필드명"><input type="text" id="tmpl-types" class="w-2/3 bg-[#f3f2f2] border border-[#bab6b6] rounded p-1.5 text-xs text-[#201e1d]" placeholder="옵션 (쉼표로 구분)"></div>
+                <div class="flex gap-2"><input type="text" id="tmpl-name-output" class="w-1/3 bg-[#f3f2f2] border border-[#bab6b6] rounded p-1.5 text-[10px] font-bold text-[#201e1d]" placeholder="필드명"><input type="text" id="tmpl-outputs" class="w-2/3 bg-[#f3f2f2] border border-[#bab6b6] rounded p-1.5 text-xs text-[#201e1d]" placeholder="옵션 (쉼표로 구분)"></div>
+                <div class="flex gap-2"><input type="text" id="tmpl-name-outdir" class="w-1/3 bg-[#f3f2f2] border border-[#bab6b6] rounded p-1.5 text-[10px] font-bold text-[#201e1d]" placeholder="필드명"><input type="text" id="tmpl-outdirs" class="w-2/3 bg-[#f3f2f2] border border-[#bab6b6] rounded p-1.5 text-xs text-[#201e1d]" placeholder="옵션 (쉼표로 구분)"></div>
             </div>
             
-            <div class="mt-6 border-t border-gray-800 pt-4">
+            <div class="mt-6 border-t border-[#bab6b6] pt-4">
                 <div class="flex justify-between items-center mb-3">
-                    <h3 class="text-[12px] font-bold text-purple-400">➕ 사용자 정의 필드 (Custom Fields)</h3>
+                    <h3 class="text-[12px] font-bold text-purple-600">➕ 사용자 정의 필드 (Custom Fields)</h3>
                     <button id="btn-add-custom-field" class="text-[10px] bg-purple-600 hover:bg-purple-500 px-2 py-1 rounded font-bold text-white transition-colors">+ 필드 추가</button>
                 </div>
                 <div id="custom-fields-settings-container" class="space-y-3">
                     <!-- Dynamic rows injected here -->
                 </div>
-                <p class="text-[9px] text-gray-500 mt-2">사용자 정의 필드는 CSV 및 XML 추출 시 자동으로 새로운 컬럼/태그로 포함됩니다.</p>
+                <p class="text-[9px] text-[#7d7979] mt-2">사용자 정의 필드는 CSV 및 XML 추출 시 자동으로 새로운 컬럼/태그로 포함됩니다.</p>
             </div>
 
-            <div class="flex items-center justify-between mt-6 pt-4 border-t border-gray-800">
+            <div class="flex items-center justify-between mt-6 pt-4 border-t border-[#bab6b6]">
                 <div class="flex gap-2">
-                    <button id="btn-export-tmpl" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 text-[11px] font-bold rounded border border-gray-700 transition-colors"><i class="fa-solid fa-file-export mr-1"></i>내보내기 (.json)</button>
-                    <label class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 text-[11px] font-bold rounded border border-gray-700 transition-colors cursor-pointer">
+                    <button id="btn-export-tmpl" class="px-3 py-1.5 bg-[#d7d3d3] hover:bg-[#bab6b6] text-[#201e1d] text-[11px] font-bold rounded border border-[#bab6b6] transition-colors"><i class="fa-solid fa-file-export mr-1"></i>내보내기 (.json)</button>
+                    <label class="px-3 py-1.5 bg-[#d7d3d3] hover:bg-[#bab6b6] text-[#201e1d] text-[11px] font-bold rounded border border-[#bab6b6] transition-colors cursor-pointer">
                         <i class="fa-solid fa-file-import mr-1"></i>불러오기 <input type="file" id="btn-import-tmpl" accept=".json" class="hidden">
                     </label>
                 </div>
-                <button id="btn-save-settings" class="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded shadow-lg transition-colors">적용 및 저장</button>
+                <button id="btn-save-settings" class="px-5 py-2 bg-[#ec3013] hover:bg-[#dd2b0f] text-white text-xs font-bold rounded shadow-lg transition-colors">적용 및 저장</button>
             </div>
         </div>
     </div>
@@ -736,10 +746,10 @@
                     }).join('') : '';
                     customFormGrid.innerHTML += `
                         <div class="space-y-1">
-                            <label class="text-[10px] font-bold uppercase text-purple-400 flex justify-between">
-                                <span>${cf.name}</span><span class="text-[9px] text-gray-500 font-normal">선택/입력</span>
+                            <label class="text-[10px] font-bold uppercase text-purple-600 flex justify-between">
+                                <span>${cf.name}</span><span class="text-[9px] text-[#7d7979] font-normal">선택/입력</span>
                             </label>
-                            <input list="list-${cf.id}" type="text" id="input-${cf.id}" data-custom-id="${cf.id}" class="w-full bg-gray-950 border border-purple-900/50 rounded px-2 py-1.5 text-xs text-white focus:border-purple-500 outline-none transition-colors custom-dynamic-input" disabled>
+                            <input list="list-${cf.id}" type="text" id="input-${cf.id}" data-custom-id="${cf.id}" class="w-full bg-[#f3f2f2] border border-purple-300 rounded px-2 py-1.5 text-xs text-[#201e1d] focus:border-purple-500 outline-none transition-colors custom-dynamic-input" disabled>
                             <datalist id="list-${cf.id}">${optionsHtml}</datalist>
                         </div>
                     `;
@@ -773,11 +783,11 @@
         function addCustomFieldRow(id, name, options) {
             const container = document.getElementById('custom-fields-settings-container');
             const div = document.createElement('div');
-            div.className = "custom-field-row flex gap-2 items-start bg-gray-950 p-2 rounded border border-gray-800";
+            div.className = "custom-field-row flex gap-2 items-start bg-[#f3f2f2] p-2 rounded border border-[#bab6b6]";
             div.dataset.id = id;
             div.innerHTML = `
-                <div class="w-1/3"><input type="text" class="cf-name w-full bg-black border border-gray-700 rounded p-1.5 text-xs text-white outline-none focus:border-purple-500" placeholder="필드명 (예: 어시스트)" value="${name}"></div>
-                <div class="w-2/3 flex gap-2"><input type="text" class="cf-options flex-grow bg-black border border-gray-700 rounded p-1.5 text-xs text-white outline-none focus:border-purple-500" placeholder="옵션 (쉼표로 구분)" value="${options}"><button class="btn-remove-cf text-gray-500 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></div>
+                <div class="w-1/3"><input type="text" class="cf-name w-full bg-black border border-[#bab6b6] rounded p-1.5 text-xs text-[#201e1d] outline-none focus:border-purple-500" placeholder="필드명 (예: 어시스트)" value="${name}"></div>
+                <div class="w-2/3 flex gap-2"><input type="text" class="cf-options flex-grow bg-black border border-[#bab6b6] rounded p-1.5 text-xs text-[#201e1d] outline-none focus:border-purple-500" placeholder="옵션 (쉼표로 구분)" value="${options}"><button class="btn-remove-cf text-[#7d7979] hover:text-red-600 px-2"><i class="fa-solid fa-trash"></i></button></div>
             `;
             div.querySelector('.btn-remove-cf').onclick = () => div.remove();
             container.appendChild(div);
@@ -1007,7 +1017,7 @@
             inputPlaybackRate.disabled = true; inputPlaybackRate.value = "1";
             document.getElementById('input-sync-json').disabled = true;
             document.getElementById('current-time-display').innerText = "00:00.00";
-            document.getElementById('angle-buttons').innerHTML = '<span class="text-[10px] text-gray-600 italic">업로드된 영상이 없습니다.</span>';
+            document.getElementById('angle-buttons').innerHTML = '<span class="text-[10px] text-[#9b9797] italic">업로드된 영상이 없습니다.</span>';
         }
 
         function renderAngleButtons() {
@@ -1015,7 +1025,7 @@
             const container = document.getElementById('angle-buttons'); container.innerHTML = '';
             videoFiles.forEach((vid, idx) => {
                 const btn = document.createElement('button');
-                btn.className = `px-3 py-1 rounded text-[10px] font-bold transition-colors whitespace-nowrap ${idx === currentVideoIndex ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`;
+                btn.className = `px-3 py-1 rounded text-[10px] font-bold transition-colors whitespace-nowrap ${idx === currentVideoIndex ? 'bg-[#ec3013] text-white' : 'bg-[#d7d3d3] text-[#7d7979] hover:bg-[#bab6b6]'}`;
                 btn.innerText = `Angle ${idx + 1} (${vid.name.substring(0,12)}...)`;
                 btn.onclick = () => switchAngle(idx);
                 container.appendChild(btn);
@@ -1250,7 +1260,7 @@
             instanceListContainer.innerHTML = '';
 
             if (instancesData.length === 0) {
-                instanceListContainer.innerHTML = '<div class="p-6 text-center text-xs text-gray-600">파일을 업로드하세요.</div>'; return;
+                instanceListContainer.innerHTML = '<div class="p-6 text-center text-xs text-[#9b9797]">파일을 업로드하세요.</div>'; return;
             }
 
             const groups = {};
@@ -1262,51 +1272,51 @@
             for (const [rowName, instances] of Object.entries(groups)) {
                 const details = document.createElement('details');
                 details.dataset.rowName = rowName;
-                details.className = "mb-2 bg-gray-900 rounded border border-gray-800 overflow-hidden";
+                details.className = "mb-2 bg-[#eae9e9] rounded border border-[#bab6b6] overflow-hidden";
                 const hasActive = instances.some(i => i.id === activeInstanceId);
                 details.open = openGroups.has(rowName) || hasActive; 
                 
                 const mappedCount = instances.filter(i => i.x_loc !== null || i.player !== '').length;
                 const summary = document.createElement('summary');
-                summary.className = "px-3 py-2 text-xs font-bold text-gray-200 cursor-pointer hover:bg-gray-800 select-none flex justify-between items-center border-b border-gray-800";
+                summary.className = "px-3 py-2 text-xs font-bold text-[#201e1d] cursor-pointer hover:bg-[#d7d3d3] select-none flex justify-between items-center border-b border-[#bab6b6]";
                 
                 summary.innerHTML = `
                     <div class="flex items-center gap-2">
-                        <input type="checkbox" class="group-checkbox w-3 h-3 rounded border-gray-700 bg-gray-900 cursor-pointer" data-group="${rowName}">
-                        <i class="fa-solid fa-folder text-blue-500 ml-1"></i>
+                        <input type="checkbox" class="group-checkbox w-3 h-3 rounded border-[#bab6b6] bg-[#eae9e9] cursor-pointer" data-group="${rowName}">
+                        <i class="fa-solid fa-folder text-[#ec3013] ml-1"></i>
                         <span>${rowName}</span>
                     </div>
-                    <span class="text-[10px] text-gray-500 font-mono">${mappedCount}/${instances.length}</span>
+                    <span class="text-[10px] text-[#7d7979] font-mono">${mappedCount}/${instances.length}</span>
                 `;
                 details.appendChild(summary);
 
                 const ul = document.createElement('ul');
-                ul.className = "divide-y divide-gray-800/50 bg-gray-950";
+                ul.className = "divide-y divide-[#bab6b6]/50 bg-[#f3f2f2]";
 
                 instances.forEach(inst => {
                     const li = document.createElement('li');
-                    li.className = `p-2 hover:bg-gray-800 transition-colors flex flex-col gap-1 border-l-4 border-transparent ${activeInstanceId === inst.id ? 'active-instance' : ''}`;
+                    li.className = `p-2 hover:bg-[#d7d3d3] transition-colors flex flex-col gap-1 border-l-4 border-transparent ${activeInstanceId === inst.id ? 'active-instance' : ''}`;
                     const min = Math.floor(inst.startTime / 60); const sec = (inst.startTime % 60).toFixed(1);
-                    const badgeHtml = (inst.x_loc !== null || inst.player !== '') ? `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>` : `<span class="w-1.5 h-1.5 rounded-full bg-gray-600"></span>`;
+                    const badgeHtml = (inst.x_loc !== null || inst.player !== '') ? `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>` : `<span class="w-1.5 h-1.5 rounded-full bg-[#9b9797]"></span>`;
                     const isChecked = checkedIds.has(inst.id) ? 'checked' : '';
                     
                     const itemName = inst.rowName.includes('슈팅') ? '슈팅' : '이벤트';
                     // 여러 경기가 병합된 세션일 때만 어느 파일 출신인지 작은 배지로 표시합니다.
                     const sourceBadge = loadedTimelineNames.length > 1
-                        ? `<span class="text-[9px] text-gray-500 bg-gray-800 px-1.5 py-0.5 rounded ml-1" title="원본 파일">${inst.timeline}</span>`
+                        ? `<span class="text-[9px] text-[#7d7979] bg-[#d7d3d3] px-1.5 py-0.5 rounded ml-1" title="원본 파일">${inst.timeline}</span>`
                         : '';
 
                     li.innerHTML = `
                         <div class="flex justify-between items-center text-[11px]">
                             <div class="flex items-center gap-2 min-w-0">
-                                <input type="checkbox" data-id="${inst.id}" class="instance-checkbox w-3 h-3 rounded border-gray-700 bg-gray-900 cursor-pointer shrink-0">
-                                <span class="font-bold text-white flex items-center gap-1.5 cursor-pointer item-title min-w-0">${badgeHtml} ${itemName} #${inst.id}${sourceBadge}</span>
+                                <input type="checkbox" data-id="${inst.id}" class="instance-checkbox w-3 h-3 rounded border-[#bab6b6] bg-[#eae9e9] cursor-pointer shrink-0">
+                                <span class="font-bold text-[#201e1d] flex items-center gap-1.5 cursor-pointer item-title min-w-0">${badgeHtml} ${itemName} #${inst.id}${sourceBadge}</span>
                             </div>
-                            <span class="font-mono text-gray-400 cursor-pointer item-title shrink-0">${min}:${sec.padStart(4,'0')}</span>
+                            <span class="font-mono text-[#7d7979] cursor-pointer item-title shrink-0">${min}:${sec.padStart(4,'0')}</span>
                         </div>
-                        <div class="text-[10px] text-gray-500 truncate mt-0.5 pl-6 cursor-pointer item-title">
-                            ${inst.player ? `<strong class="text-blue-400">[${inst.player}]</strong>` : ''} 
-                            ${inst.shot_output ? `<span class="uppercase text-amber-500">${inst.shot_output}</span>` : '미입력'} | ${inst.context}
+                        <div class="text-[10px] text-[#7d7979] truncate mt-0.5 pl-6 cursor-pointer item-title">
+                            ${inst.player ? `<strong class="text-[#ec3013]">[${inst.player}]</strong>` : ''} 
+                            ${inst.shot_output ? `<span class="uppercase text-amber-700">${inst.shot_output}</span>` : '미입력'} | ${inst.context}
                         </div>
                     `;
                     li.querySelectorAll('.item-title').forEach(el => { el.onclick = (e) => { e.stopPropagation(); selectInstance(inst.id); }; });
@@ -1334,8 +1344,8 @@
             const inst = instancesData.find(i => i.id === id);
             if (!inst) return;
 
-            document.getElementById('edit-form-container').classList.add('bg-blue-900/10');
-            setTimeout(() => { document.getElementById('edit-form-container').classList.remove('bg-blue-900/10'); }, 500);
+            document.getElementById('edit-form-container').classList.add('bg-[#fff2ef]');
+            setTimeout(() => { document.getElementById('edit-form-container').classList.remove('bg-[#fff2ef]'); }, 500);
 
             formInstanceId.innerText = `ID: #${inst.id}`;
             
@@ -1423,18 +1433,18 @@
 
         // --- DRAWING: ENHANCED FIELD MARKINGS ---
         function drawVectorField(ctx, width, height) {
-            ctx.fillStyle = '#1e2a3b'; ctx.fillRect(0, 0, width, height); 
+            ctx.fillStyle = '#2d2b2b'; ctx.fillRect(0, 0, width, height); 
             
             const scale = width / 55.0; // 55m width scale
             const goalCenterX = width / 2;
             const backlineY = height; // draw at the bottom
 
-            ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(226, 232, 240, 0.3)';
+            ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(234, 231, 231, 0.3)';
             
             // 23m line (Top)
             ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(width, 0); ctx.stroke();
             // Backline (Bottom)
-            ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 2;
+            ctx.strokeStyle = '#eae7e7'; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.moveTo(0, backlineY); ctx.lineTo(width, backlineY); ctx.stroke();
 
             const goalHalfW = (3.66 / 2) * scale;
@@ -1443,14 +1453,14 @@
 
             // Striking Circle (14.63m)
             const circleR = 14.63 * scale;
-            ctx.lineWidth = 1.5; ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1.5; ctx.strokeStyle = '#eae7e7';
             ctx.beginPath(); ctx.arc(goalLeft, backlineY, circleR, Math.PI, Math.PI * 1.5); ctx.stroke();
             ctx.beginPath(); ctx.arc(goalRight, backlineY, circleR, Math.PI * 1.5, Math.PI * 2); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(goalLeft, backlineY - circleR); ctx.lineTo(goalRight, backlineY - circleR); ctx.stroke();
 
             // 5m Dashed Line (19.63m)
             const dashedR = 19.63 * scale;
-            ctx.setLineDash([5, 5]); ctx.strokeStyle = 'rgba(226, 232, 240, 0.4)';
+            ctx.setLineDash([5, 5]); ctx.strokeStyle = 'rgba(234, 231, 231, 0.4)';
             ctx.beginPath(); ctx.arc(goalLeft, backlineY, dashedR, Math.PI, Math.PI * 1.5); ctx.stroke();
             ctx.beginPath(); ctx.arc(goalRight, backlineY, dashedR, Math.PI * 1.5, Math.PI * 2); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(goalLeft, backlineY - dashedR); ctx.lineTo(goalRight, backlineY - dashedR); ctx.stroke();
@@ -1471,8 +1481,8 @@
             ctx.beginPath(); ctx.moveTo(goalLeft - 5 * scale, backlineY); ctx.lineTo(goalLeft - 5 * scale, backlineY - markLength); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(goalRight + 5 * scale, backlineY); ctx.lineTo(goalRight + 5 * scale, backlineY - markLength); ctx.stroke();
 
-            // Goal Box Highlight - Red
-            ctx.strokeStyle = '#ef4444'; 
+            // Goal Box Highlight - Accent
+            ctx.strokeStyle = '#ec3013';
             ctx.lineWidth = 4;
             ctx.beginPath(); ctx.moveTo(goalLeft, backlineY); ctx.lineTo(goalRight, backlineY); ctx.stroke();
 
@@ -1484,14 +1494,14 @@
         }
 
         function drawVectorGoal(ctx, width, height) {
-            ctx.fillStyle = '#0a1128'; ctx.fillRect(0, 0, width, height);
+            ctx.fillStyle = '#2d2b2b'; ctx.fillRect(0, 0, width, height);
             const marginX = width * 0.15; const marginYTop = height * 0.15; const marginYBottom = height * 0.85;
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)'; ctx.lineWidth = 1;
             for (let x = marginX; x <= width - marginX; x += 15) { ctx.beginPath(); ctx.moveTo(x, marginYTop); ctx.lineTo(x, marginYBottom); ctx.stroke(); }
             for (let y = marginYTop; y <= marginYBottom; y += 15) { ctx.beginPath(); ctx.moveTo(marginX, y); ctx.lineTo(width - marginX, y); ctx.stroke(); }
             ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 6; ctx.lineJoin = 'round';
             ctx.beginPath(); ctx.moveTo(marginX, marginYBottom); ctx.lineTo(marginX, marginYTop); ctx.lineTo(width - marginX, marginYTop); ctx.lineTo(width - marginX, marginYBottom); ctx.stroke();
-            ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2;
+            ctx.strokeStyle = '#ec3013'; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.moveTo(marginX, marginYBottom); ctx.lineTo(marginX, marginYTop); ctx.lineTo(width - marginX, marginYTop); ctx.lineTo(width - marginX, marginYBottom); ctx.stroke();
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.moveTo(0, marginYBottom); ctx.lineTo(width, marginYBottom); ctx.stroke();
@@ -1508,8 +1518,8 @@
             if (inst.x_loc !== null && inst.y_loc !== null) {
                 const pxX = (inst.x_loc / FIELD_MAX_X) * fieldCanvas.width;
                 const pxY = fieldCanvas.height - ((inst.y_loc / FIELD_MAX_Y) * fieldCanvas.height);
-                fCtx.fillStyle = 'rgba(59, 130, 246, 0.3)'; fCtx.beginPath(); fCtx.arc(pxX, pxY, 15, 0, Math.PI*2); fCtx.fill();
-                fCtx.fillStyle = '#3b82f6'; fCtx.beginPath(); fCtx.arc(pxX, pxY, 6, 0, Math.PI*2); fCtx.fill();
+                fCtx.fillStyle = 'rgba(236, 48, 19, 0.3)'; fCtx.beginPath(); fCtx.arc(pxX, pxY, 15, 0, Math.PI*2); fCtx.fill();
+                fCtx.fillStyle = '#ec3013'; fCtx.beginPath(); fCtx.arc(pxX, pxY, 6, 0, Math.PI*2); fCtx.fill();
                 fCtx.strokeStyle = 'white'; fCtx.lineWidth = 2; fCtx.stroke();
             }
 
@@ -1526,8 +1536,8 @@
             }
 
             if (pxX !== null && pxY !== null) {
-                gCtx.fillStyle = 'rgba(16, 185, 129, 0.3)'; gCtx.beginPath(); gCtx.arc(pxX, pxY, 15, 0, Math.PI*2); gCtx.fill();
-                gCtx.fillStyle = '#10b981'; gCtx.beginPath(); gCtx.arc(pxX, pxY, 6, 0, Math.PI*2); gCtx.fill();
+                gCtx.fillStyle = 'rgba(236, 48, 19, 0.3)'; gCtx.beginPath(); gCtx.arc(pxX, pxY, 15, 0, Math.PI*2); gCtx.fill();
+                gCtx.fillStyle = '#ec3013'; gCtx.beginPath(); gCtx.arc(pxX, pxY, 6, 0, Math.PI*2); gCtx.fill();
                 gCtx.strokeStyle = 'white'; gCtx.lineWidth = 2; gCtx.stroke();
             }
         }
@@ -1737,7 +1747,7 @@
 
         function setSaveStatus(text, isError) {
             saveStatusText.innerText = text || '';
-            saveStatusText.className = `text-[10px] ${isError ? 'text-red-400' : 'text-gray-500'}`;
+            saveStatusText.className = `text-[10px] ${isError ? 'text-red-600' : 'text-[#7d7979]'}`;
         }
 
         async function initDashboardSaveUI() {
