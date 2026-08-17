@@ -113,7 +113,7 @@ function _populateFilters() {
             const label = document.createElement('label');
             label.className = 'filter-code-label';
             label.style.display = 'flex'; label.style.gap = '5px';
-            label.innerHTML = `<input type="checkbox" value="${matchId}" class="filter-match-cb"> <span>${data.match_name} <small style="color:#aaa">(${data.match_date ? data.match_date.split('T')[0] : '날짜 모름'})</small></span>`;
+            label.innerHTML = `<input type="checkbox" value="${matchId}" class="filter-match-cb"> <span>${data.match_name} <small style="color:var(--text-muted)">(${data.match_date ? data.match_date.split('T')[0] : '날짜 모름'})</small></span>`;
             filterCompetitionContainer.appendChild(label);
         });
     }
@@ -121,7 +121,7 @@ function _populateFilters() {
     // Team 체크박스
     if (filterTeamContainer) {
         filterTeamContainer.innerHTML = '';
-        if (teams.size === 0) filterTeamContainer.innerHTML = '<label style="color:#888;font-size:0.8em;">팀 없음</label>';
+        if (teams.size === 0) filterTeamContainer.innerHTML = '<label style="color:var(--text-muted);font-size:0.8em;">팀 없음</label>';
         teams.forEach(team => {
             const label = document.createElement('label');
             label.className = 'filter-code-label';
@@ -134,7 +134,7 @@ function _populateFilters() {
     // Code 체크박스 (가나다 정렬)
     filterCodeContainer.innerHTML = '';
     if (codes.size === 0) {
-        filterCodeContainer.innerHTML = '<label style="color:#888;font-size:0.8em;">이벤트 없음</label>';
+        filterCodeContainer.innerHTML = '<label style="color:var(--text-muted);font-size:0.8em;">이벤트 없음</label>';
     }
     const sortedCodes = Array.from(codes).sort((a, b) => a.localeCompare(b, 'ko'));
     sortedCodes.forEach(code => {
@@ -192,7 +192,7 @@ export async function initLibrary() {
         } else if (waited >= 8000) {
             clearInterval(waitForEvents);
             libraryResultsUl.innerHTML = '<li style="color:var(--text-muted);font-size:0.9em;padding:10px;">등록된 이벤트가 없습니다.<br><small>Admin 탭에서 경기를 먼저 등록하세요.</small></li>';
-            if (filterCodeContainer) filterCodeContainer.innerHTML = '<label style="color:#888;font-size:0.8em;">데이터 없음</label>';
+            if (filterCodeContainer) filterCodeContainer.innerHTML = '<label style="color:var(--text-muted);font-size:0.8em;">데이터 없음</label>';
             fetchAndRenderPlaylists(playlistsUl);
         }
     }, 500);
@@ -386,7 +386,7 @@ async function fetchAndRenderPlaylists(playlistsUl) {
                 }
             });
 
-            li.addEventListener('mouseover', () => li.style.background = '#252538');
+            li.addEventListener('mouseover', () => li.style.background = 'rgba(32,30,29,0.05)');
             li.addEventListener('mouseout',  () => li.style.background = '');
             playlistsUl.appendChild(li);
         });

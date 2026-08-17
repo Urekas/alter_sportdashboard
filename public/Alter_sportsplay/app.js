@@ -87,7 +87,7 @@ async function fetchAndRenderMatches() {
     const q = query(collection(db, 'Matches'), orderBy('created_at', 'desc'));
     const snapshot = await getDocs(q);
     matchesUl.innerHTML = '';
-    if(snapshot.empty) { matchesUl.innerHTML = '<li style="padding:10px;color:#888;">아직 등록된 경기가 없습니다.</li>'; return; }
+    if(snapshot.empty) { matchesUl.innerHTML = '<li style="padding:10px;color:var(--text-muted);">아직 등록된 경기가 없습니다.</li>'; return; }
     
     snapshot.forEach(docSnap => {
       const data = docSnap.data();
@@ -96,7 +96,7 @@ async function fetchAndRenderMatches() {
       li.innerHTML = `
         <div class="match-info">
           <strong style="color:var(--accent); display:block;">${data.match_name}</strong>
-          <span style="font-size:0.8rem; color:#aaa;">${data.match_date || '날짜 미상'} (${data.home_team} vs ${data.away_team})</span>
+          <span style="font-size:0.8rem; color:var(--text-muted);">${data.match_date || '날짜 미상'} (${data.home_team} vs ${data.away_team})</span>
         </div>
         <div class="match-actions" style="display:flex; gap:4px;">
           <button class="small-btn analyze-btn" title="비디오 분석 시작" style="background:#2ecc71;">🎬</button>

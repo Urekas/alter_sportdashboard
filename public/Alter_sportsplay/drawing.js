@@ -605,7 +605,7 @@ export function initDrawingBoard() {
                     <div style="font-size:0.9em;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${sc.label}</div>
                     <div style="color:var(--accent);font-size:0.75em;font-family:monospace;"><i class="fa-regular fa-clock"></i> ${formatTime(sc.time)}</div>
                 </div>
-                <button class="sc-del" style="background:none;border:none;color:#888;cursor:pointer;padding:4px;font-size:1em;" title="삭제">✕</button>
+                <button class="sc-del" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;font-size:1em;" title="삭제">✕</button>
             `;
             li.querySelector('.sc-info').addEventListener('click',()=>{
                 canvas.loadFromJSON(sc.art,canvas.renderAll.bind(canvas));

@@ -90,8 +90,8 @@ export function calculateTeamStats(team, opponent, targetEvents) {
 }
 
 export function createMatchDataForDashboard(events, homeName, awayName, tournamentId, matchName) {
-  const homeColor = "#0066ff";
-  const awayColor = "#ef4444";
+  const homeColor = "#ec3013";
+  const awayColor = "#2d2b2b";
   const quartersList = ['Q1', 'Q2', 'Q3', 'Q4'];
   
   // Calculate normalized times and quarterly boundaries

@@ -66,8 +66,10 @@ function switchCam(n) {
       wrappers[i].style.pointerEvents = (i===n)?'auto':'none';
     }
     btns[i]?.classList.toggle('active', i===n);
-    const style = (i===n)?'' : 'background:#444';
-    if(btns[i]) btns[i].style.backgroundColor = (i===n)?'' : '#444';
+    if(btns[i]) {
+      btns[i].style.backgroundColor = (i===n)?'' : 'var(--surface-strong)';
+      btns[i].style.color = (i===n)?'' : 'var(--text-main)';
+    }
   });
   // 활성 플레이어를 전역에 노출 (drawing.js에서 사용)
   const activePlayer = n===1?player : n===2?player2 : player3;
@@ -259,7 +261,7 @@ export function renderCodeViewer(events) {
     groupLi.className = 'event-group';
     groupLi.innerHTML = `
       <div class="group-header">
-        <span><i class="fa-solid fa-folder-open" style="margin-right:5px; color:#a0a0b0;"></i> ${code}</span>
+        <span><i class="fa-solid fa-folder-open" style="margin-right:5px; color:var(--text-muted);"></i> ${code}</span>
         <span class="group-badge">${items.length}</span>
       </div>
       <div class="group-content"></div>
