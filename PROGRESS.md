@@ -194,5 +194,18 @@
 - **진짜 버그 발견 및 수정 (이 작업 중 우연히 발견, 사용자 요청과 직접 연관돼서 같이 고침)**: "패널 숨기기"(◄ 버튼) 토글이 실제로는 작동 안 했던 걸 발견 — 원인이 두 가지 겹쳐 있었음: (1) `.panel-header`/`.admin-section`/`.match-list`/`.event-list`에 남아있던 `min-width: var(--panel-width)`가 그리드 아이템의 콘텐츠 최소폭을 강제로 350px로 밀어올려서 `body.hide-left`의 `0px` 트랙 지정이 무력화됨(고전적인 flex/grid `min-width:auto` 함정 — `.panel`에 `min-width:0` 추가 + 저 3곳의 min-width 제거로 고침). (2) 원래 `body { transition: grid-template-columns 0.4s ... }`로 슬라이드 애니메이션을 걸어뒀었는데, `minmax()`가 섞인 grid-template-columns 값은 브라우저마다 보간이 잘 안 돼서 실제로 전환 자체가 멈춰버리는 문제가 있었음(직접 재현 확인: 클래스는 정상 토글되고 셀렉터도 매치되는데 실제 레이아웃은 안 바뀜) — transition 제거하고 즉시 전환되게 바꿔서 확실하게 작동하도록 고침.
 - 검증: 새 탭에서 실제 버튼 클릭(`toggle-left-btn`/`show-left-btn`/`section-btn-explorer`/`section-btn-viewer`/`tab-btn-library`/`tab-btn-admin`/`tab-btn-scenes`/`tab-btn-events`)으로 전부 정상 전환 확인, 패널 숨기기 시 실제 렌더링 폭이 350px→~1px로 줄고 다시 펴면 350px로 복귀하는 것 `getBoundingClientRect()`로 확인, 모든 그리기 도구 버튼 존재 확인, `#right-panel`/관련 토글 버튼 완전히 제거된 것 확인. 콘솔 에러 없음(정적 리소스 전부 200 — 남은 400/404는 이 샌드박스에서 원래 간헐적인 Firestore 연결 이슈, 무관함).
 
+## ✅ 디자인 통일 — Modernist 목업 기반 리스킨 (2026-08-17)
+사용자가 제공한 오프라인 목업(`필드하키 대시보드 통일 (오프라인).html`, Claude 아티팩트 export — 실제 내용은 JSON으로 감싸져 있어 node로 디코딩해서 확인)의 색/폰트/반경 토큰을 3개 도구 전부에 적용. 로직/데이터 흐름/이벤트 핸들러는 전혀 안 건드린 순수 리스킨.
+
+**팔레트**: bg `#f3f2f2`, surface `#eae9e9`, text `#201e1d`, accent `#ec3013`(레드오렌지, 기존엔 파랑이었음), 반경 전부 0(진짜 원형 요소만 예외), 폰트 Archivo(한글은 자동으로 Noto Sans KR/시스템 폰트로 폴백 — 정상 동작).
+
+- ✅ **Phase 1: 메인 Next.js 대시보드** (`637ebe3`) — `globals.css` 색상 토큰 전체 교체, Archivo 폰트 추가, `--radius: 0`, `Badge` 컴포넌트 `rounded-full`→각진 태그 모양, 팀 색 기본값(#0066ff/#ef4444 → #ec3013/#2d2b2b) 5곳 통일, `shot-zone-map.tsx` SVG 배경·골대프레임 색 교체, 헤더 브랜드 버튼 톤 재조정.
+- ✅ **Phase 2: 영상 워크스페이스(Alter_sportsplay)** (`4ac3517`) — 좌측 패널/헤더/하단 툴바는 라이트 테마로, **영상이 실제로 나오는 스테이지(`.video-container`)만 목업과 동일하게 계속 다크(#2d2b2b) 유지**. `styles.css` 8개 루트 변수 재설계 + 임베드 스타일 + `app.js`/`player.js`/`library.js`/`drawing.js` 인라인 스타일까지 전부 교체. `analysis-utils.js`의 팀 색 기본값도 통일.
+- ✅ **Phase 3: 슈팅 태깅 도구(ShotTagging)** (`5deed3a`) — Tailwind CDN이라 config 확장 대신 클래스를 `bg-[#hex]` 형태로 직접 치환(node 스크립트로 일괄, 영상 스테이지 블록만 격리해서 보호 후 나머지 전체 처리). 필드/골대 캔버스 배경·마커도 메인 대시보드 shot-zone-map과 동일한 neutral-900/accent로 통일. Row/GK Player/커스텀필드의 sky/amber/purple 구분색은 의미 유지하며 라이트 배경용 톤으로 조정.
+
+**검증 방식**: 이번 세션은 제 샌드박스 Browser 툴의 Firestore 연결이 불안정해서(수 분간 재시도해도 WebChannel 에러), 사용자의 실제 로컬 컴퓨터(`C:\Users\a\Desktop\alter_sportdashboard`)에서 직접 `npm run dev`를 띄우고 그 위에서 편집 + 검증하는 방식으로 전환 — 이후로는 실 데이터(실제 Firestore 대회/경기)로 문제없이 검증됨. `getComputedStyle`이 런타임 클래스 토글(그리기모드 전환 등) 이후 새로고침 없이는 값을 못 읽어오는 이 세션의 브라우저 자동화 한계도 발견 — 페이지 로드 시점 값과 격리된 테스트 엘리먼트로 우회 확인.
+
+**다음(별도 세션)**: 3개 도구 간 내비게이션을 목업 스타일 크로스링크로 다듬는 정도 남음(이미 각 헤더에 "다른 도구 열기" 버튼은 있음, 완전 통합 SPA는 물리적으로 별개 페이지라 불가능).
+
 ---
 작업 환경: 브랜치 `feature/phase0-readability`에서 작업 후 `origin`에 push, `main` 미접촉.
