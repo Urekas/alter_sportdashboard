@@ -181,12 +181,12 @@ function SidePanel({
         {/* 필드 슈팅 발사 위치 */}
         <div>
           <p className="text-xs font-bold text-muted-foreground mb-1">슈팅 발사 위치</p>
-          <svg viewBox={`0 0 ${FIELD_MAX_X} ${FIELD_MAX_Y}`} className="w-full h-auto rounded-lg border" style={{ background: '#1e2a3b' }}>
-            <path d={circleOutlinePath((14.63 / 23) * FIELD_MAX_Y)} fill="none" stroke="#e2e8f0" strokeWidth={1.5} />
-            <path d={circleOutlinePath(((14.63 + 5) / 23) * FIELD_MAX_Y)} fill="none" stroke="rgba(226,232,240,0.35)" strokeWidth={1} strokeDasharray="4 4" />
-            <circle cx={FIELD_MAX_X / 2} cy={FIELD_MAX_Y - (6.4 / 23) * FIELD_MAX_Y} r={2.2} fill="#e2e8f0" />
-            <line x1={0} y1={0.5} x2={FIELD_MAX_X} y2={0.5} stroke="#e2e8f0" strokeWidth={1.5} />
-            <line x1={0} y1={FIELD_MAX_Y - 0.5} x2={FIELD_MAX_X} y2={FIELD_MAX_Y - 0.5} stroke="#e2e8f0" strokeWidth={1.5} />
+          <svg viewBox={`0 0 ${FIELD_MAX_X} ${FIELD_MAX_Y}`} className="w-full h-auto rounded-lg border" style={{ background: '#2d2b2b' }}>
+            <path d={circleOutlinePath((14.63 / 23) * FIELD_MAX_Y)} fill="none" stroke="#eae7e7" strokeWidth={1.5} />
+            <path d={circleOutlinePath(((14.63 + 5) / 23) * FIELD_MAX_Y)} fill="none" stroke="rgba(234,231,231,0.35)" strokeWidth={1} strokeDasharray="4 4" />
+            <circle cx={FIELD_MAX_X / 2} cy={FIELD_MAX_Y - (6.4 / 23) * FIELD_MAX_Y} r={2.2} fill="#eae7e7" />
+            <line x1={0} y1={0.5} x2={FIELD_MAX_X} y2={0.5} stroke="#eae7e7" strokeWidth={1.5} />
+            <line x1={0} y1={FIELD_MAX_Y - 0.5} x2={FIELD_MAX_X} y2={FIELD_MAX_Y - 0.5} stroke="#eae7e7" strokeWidth={1.5} />
 
             {showGrid && fieldGrid.map((c, i) => (
               <g key={i}>
@@ -209,7 +209,7 @@ function SidePanel({
         {/* 골대 도착 타겟 */}
         <div>
           <p className="text-xs font-bold text-muted-foreground mb-1">골대 도착 타겟</p>
-          <svg viewBox={`0 0 ${GOAL_MAX_X} ${GOAL_MAX_Y}`} className="w-full h-auto rounded-lg border" style={{ background: '#0a1128' }}>
+          <svg viewBox={`0 0 ${GOAL_MAX_X} ${GOAL_MAX_Y}`} className="w-full h-auto rounded-lg border" style={{ background: '#2d2b2b' }}>
             <line x1={0} y1={g.marginYBottom} x2={GOAL_MAX_X} y2={g.marginYBottom} stroke="rgba(255,255,255,0.25)" strokeWidth={1.5} />
             <rect x={g.marginX} y={g.marginYBottom - g.goalH * 0.2} width={g.goalW} height={g.goalH * 0.2} fill="rgba(255,255,255,0.08)" />
             {Array.from({ length: 6 }, (_, i) => (
@@ -218,7 +218,7 @@ function SidePanel({
             {Array.from({ length: 4 }, (_, i) => (
               <line key={`h${i}`} x1={g.marginX} y1={g.marginYTop + (g.goalH / 4) * i} x2={GOAL_MAX_X - g.marginX} y2={g.marginYTop + (g.goalH / 4) * i} stroke="rgba(255,255,255,0.06)" />
             ))}
-            <path d={`M ${g.marginX} ${g.marginYBottom} L ${g.marginX} ${g.marginYTop} L ${GOAL_MAX_X - g.marginX} ${g.marginYTop} L ${GOAL_MAX_X - g.marginX} ${g.marginYBottom}`} fill="none" stroke="#ef4444" strokeWidth={2.5} strokeLinejoin="round" />
+            <path d={`M ${g.marginX} ${g.marginYBottom} L ${g.marginX} ${g.marginYTop} L ${GOAL_MAX_X - g.marginX} ${g.marginYTop} L ${GOAL_MAX_X - g.marginX} ${g.marginYBottom}`} fill="none" stroke="#ec3013" strokeWidth={2.5} strokeLinejoin="round" />
 
             {showGrid && goalGrid.map((c, i) => (
               <g key={i}>
@@ -267,8 +267,8 @@ export function ShotZoneMap({
   shots,
   sideALabel = "팀 A",
   sideBLabel = "팀 B",
-  sideAColor = "#3b82f6",
-  sideBColor = "#ef4444",
+  sideAColor = "#ec3013",
+  sideBColor = "#2d2b2b",
   showSideB = true,
   title = "슈팅 위치 · 골대 타겟 맵",
   description,

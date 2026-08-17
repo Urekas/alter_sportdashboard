@@ -41,8 +41,8 @@ const getTeamColor = (name: string, index: number): string => {
 
 export function TournamentDashboard({ tournamentId, externalMatches, externalTitle }: TournamentDashboardProps) {
   const [selectedTeamName, setSelectedTeamName] = useState("");
-  const [selectedTeamColor, setSelectedTeamColor] = useState("#0066ff");
-  const [opponentColor, setOpponentColor] = useState("#ef4444");
+  const [selectedTeamColor, setSelectedTeamColor] = useState("#ec3013");
+  const [opponentColor, setOpponentColor] = useState("#2d2b2b");
   const [aiAnalysis, setAiAnalysis] = useState<MatchAnalysisOutput | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   

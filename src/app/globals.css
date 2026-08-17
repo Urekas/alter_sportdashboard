@@ -4,31 +4,33 @@
 
 @layer base {
   :root {
-    --background: 206 33% 95%; /* Light Gray */
-    --foreground: 209 25% 20%; /* Dark Gray-Blue for text */
-    --card: 0 0% 100%; /* White cards for contrast */
-    --card-foreground: 209 25% 20%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 209 25% 20%;
-    --primary: 221 100% 50%; /* Vivid Blue */
-    --primary-foreground: 0 0% 100%; /* White text */
-    --secondary: 210 20% 88%;
-    --secondary-foreground: 221 83% 53%;
-    --muted: 210 20% 88%;
-    --muted-foreground: 215 25% 55%;
-    --accent: 47 91% 44%; /* Mustard Yellow */
-    --accent-foreground: 221 83% 53%; /* Vivid Blue on yellow */
-    --destructive: 0 84.2% 60.2%;
+    /* Modernist 디자인 시스템 토큰(오프라인 목업 기준) — hex를 HSL로 변환해서
+       기존 shadcn hsl(var(--x)) 소비 패턴은 그대로 유지. */
+    --background: 0 4% 95%; /* #f3f2f2 */
+    --foreground: 20 5% 12%; /* #201e1d */
+    --card: 0 2% 92%; /* #eae9e9 (surface) */
+    --card-foreground: 20 5% 12%;
+    --popover: 0 2% 92%;
+    --popover-foreground: 20 5% 12%;
+    --primary: 8 85% 50%; /* #ec3013 accent */
+    --primary-foreground: 0 4% 95%; /* bg색 위에 얹는 텍스트, 목업 .btn-primary와 동일 */
+    --secondary: 0 7% 91%; /* neutral-200 */
+    --secondary-foreground: 20 5% 12%;
+    --muted: 0 7% 91%; /* neutral-200 */
+    --muted-foreground: 0 2% 48%; /* neutral-600 */
+    --accent: 11 100% 97%; /* accent-100, shadcn의 subtle-hover 슬롯(목업 accent 자체와는 다른 개념) */
+    --accent-foreground: 8 100% 34%; /* accent-700 */
+    --destructive: 0 84.2% 60.2%; /* 손대지 않음 — 삭제/위험 액션의 의미색 */
     --destructive-foreground: 0 0% 98%;
-    --border: 214 20% 85%; /* Slightly darker gray for borders */
-    --input: 214 20% 85%;
-    --ring: 221 100% 50%; /* Vivid Blue for focus rings */
-    --chart-1: 221 100% 50%; /* primary - vivid blue */
-    --chart-2: 10 80% 55%; /* away team red/orange */
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
+    --border: 0 3% 72%; /* neutral-400 */
+    --input: 0 3% 72%; /* neutral-400 */
+    --ring: 8 85% 50%; /* accent */
+    --chart-1: 8 85% 50%; /* accent — 홈팀 기본색 */
+    --chart-2: 0 2% 17%; /* neutral-900 — 어웨이팀 기본색 */
+    --chart-3: 8 72% 58%; /* accent-2 */
+    --chart-4: 0 2% 48%; /* neutral-600 */
+    --chart-5: 0 3% 72%; /* neutral-400 */
+    --radius: 0rem;
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
@@ -37,6 +39,29 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* 톤 램프(목업 원본 hex 그대로) — 태그/배지/SVG 맵 등 세밀한 톤 조절이
+       필요한 곳에서 hsl() 변환 없이 직접 참조. */
+    --tone-neutral-100: #f8f4f4;
+    --tone-neutral-200: #eae7e7;
+    --tone-neutral-300: #d7d3d3;
+    --tone-neutral-400: #bab6b6;
+    --tone-neutral-500: #9b9797;
+    --tone-neutral-600: #7d7979;
+    --tone-neutral-700: #605d5d;
+    --tone-neutral-800: #444141;
+    --tone-neutral-900: #2d2b2b;
+    --tone-accent-100: #fff2ef;
+    --tone-accent-200: #ffe0d9;
+    --tone-accent-300: #ffc4b8;
+    --tone-accent-400: #ff9783;
+    --tone-accent-500: #ff563c;
+    --tone-accent-600: #dd2b0f;
+    --tone-accent-700: #ae1800;
+    --tone-accent-800: #7c1405;
+    --tone-accent-900: #4d170e;
+    --tone-accent-2: #e15b47;
+    --tone-divider: color-mix(in srgb, #201e1d 40%, transparent);
   }
 
   .dark {
@@ -70,6 +95,13 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  /* 목업의 무거운 디스플레이 헤딩 인상(Archivo 800) — 영문/숫자는 Archivo 800이
+     그대로 렌더링되고, 한글은 Noto Sans KR에 800이 없어 브라우저가 자동으로
+     가장 가까운 상위 굵기(900, 이미 로드됨)를 골라준다. 컴포넌트가 개별적으로
+     font-bold/font-semibold 등을 지정한 곳은 유틸리티 레이어가 우선해 그대로 유지됨. */
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 800;
   }
 }
 

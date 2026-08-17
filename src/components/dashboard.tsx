@@ -55,8 +55,8 @@ export function Dashboard() {
   
   const [tournamentName, setTournamentName] = useState("")
   const [matchName, setMatchName] = useState("")
-  const [homeColor, setHomeColor] = useState("#0066ff") 
-  const [awayColor, setAwayColor] = useState("#ef4444") 
+  const [homeColor, setHomeColor] = useState("#ec3013")
+  const [awayColor, setAwayColor] = useState("#2d2b2b")
 
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [activeTournamentId, setActiveTournamentId] = useState<string>("")
@@ -277,14 +277,14 @@ export function Dashboard() {
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto print:max-w-none">
-      <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 print-hidden gap-4">
+      <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 pb-4 border-b-2 border-border print-hidden gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-            <h1 className="text-3xl sm:text-4xl font-bold text-primary italic tracking-tight font-headline">Field Focus</h1>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-primary italic tracking-tight font-headline">Field Focus</h1>
             <Button
               variant="outline"
               size="sm"
-              className="h-8 border-orange-500 text-orange-500 font-bold hover:bg-orange-500/10"
+              className="h-8 border-[#e15b47] text-[#e15b47] font-bold hover:bg-[#e15b47]/10"
               onClick={() => window.open('/Alter_sportsplay/index.html', '_blank')}
             >
               <Video className="h-4 w-4 mr-2" />
@@ -293,7 +293,7 @@ export function Dashboard() {
             <Button
               variant="outline"
               size="sm"
-              className="h-8 border-rose-500 text-rose-500 font-bold hover:bg-rose-500/10"
+              className="h-8 border-[#444141] text-[#444141] font-bold hover:bg-[#444141]/10"
               onClick={() => window.open('/ShotTagging/index.html', '_blank')}
             >
               <Crosshair className="h-4 w-4 mr-2" />
@@ -488,7 +488,7 @@ export function Dashboard() {
                 <h1 className="text-2xl sm:text-4xl font-black italic tracking-tighter text-foreground mt-1 font-headline print:text-3xl break-words">{matchData.matchName || "Match Performance Analysis"}</h1>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" className="print-hidden border-orange-500 text-orange-500 font-bold h-9" 
+                <Button variant="outline" size="sm" className="print-hidden border-[#e15b47] text-[#e15b47] font-bold h-9" 
                   onClick={() => window.open('/Alter_sportsplay/index.html', '_blank')}>
                   <Video className="h-4 w-4 mr-2" />
                   비디오 분석 도구
@@ -498,7 +498,7 @@ export function Dashboard() {
                   AI 전술 분석 실행
                 </Button>
                 {matchData.videoMatchId && (
-                  <Button variant="outline" size="sm" className="print-hidden border-orange-500 text-orange-500 font-bold h-9"
+                  <Button variant="outline" size="sm" className="print-hidden border-[#e15b47] text-[#e15b47] font-bold h-9"
                     onClick={() => window.open(`/Alter_sportsplay/index.html?matchId=${matchData.videoMatchId}`, '_blank')}>
                     <Video className="h-4 w-4 mr-2" />
                     비디오 분석 보기
@@ -602,7 +602,7 @@ export function Dashboard() {
               </div>
               {matchData.videoMatchId && (
                 <div className="print-hidden flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2 -mt-4">
-                  <Video className="h-3.5 w-3.5 text-orange-500" />
+                  <Video className="h-3.5 w-3.5 text-[#e15b47]" />
                   아래 그래프의 지점을 클릭하면 해당 장면 영상이 열려요
                 </div>
               )}

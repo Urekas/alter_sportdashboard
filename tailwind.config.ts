@@ -10,8 +10,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['var(--font-noto)', 'var(--font-inter)', 'Inter', 'sans-serif'],
-        headline: ['var(--font-noto)', 'var(--font-inter)', 'sans-serif'],
+        // 영문/숫자는 Archivo, 한글은 Archivo가 지원하지 않는 글자셋이라
+        // 자동으로 Noto Sans KR로 폴백(브라우저 기본 동작).
+        body: ['var(--font-archivo)', 'var(--font-noto)', 'var(--font-inter)', 'sans-serif'],
+        headline: ['var(--font-archivo)', 'var(--font-noto)', 'var(--font-inter)', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {

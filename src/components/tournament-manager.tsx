@@ -610,8 +610,8 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
           parsed.events,
           parsed.teams.home,
           parsed.teams.away,
-          oldMatch?.homeTeam.color || "#0066ff",
-          oldMatch?.awayTeam.color || "#ef4444",
+          oldMatch?.homeTeam.color || "#ec3013",
+          oldMatch?.awayTeam.color || "#2d2b2b",
           selectedTournament?.name,
           matchName
         );
@@ -652,8 +652,8 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
           parsed.events,
           entry.homeResolved,
           entry.awayResolved,
-          teamColorMap.get(entry.homeResolved) || "#0066ff",
-          teamColorMap.get(entry.awayResolved) || "#ef4444",
+          teamColorMap.get(entry.homeResolved) || "#ec3013",
+          teamColorMap.get(entry.awayResolved) || "#2d2b2b",
           selectedTournament.name,
           matchName
         );
