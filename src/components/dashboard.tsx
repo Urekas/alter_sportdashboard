@@ -474,12 +474,6 @@ export function Dashboard() {
                 <h1 className="text-2xl sm:text-4xl font-black italic tracking-tighter text-foreground mt-1 font-headline print:text-3xl break-words">{matchData.matchName || "Match Performance Analysis"}</h1>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button asChild variant="outline" size="sm" className="print-hidden border-[#e15b47] text-[#e15b47] font-bold h-9">
-                  <a href="/Alter_sportsplay/index.html" target="_blank" rel="noopener noreferrer">
-                    <Video className="h-4 w-4 mr-2" />
-                    비디오 분석 도구
-                  </a>
-                </Button>
                 <Button variant="outline" size="sm" className="print-hidden border-primary text-primary font-bold h-9" onClick={handleAiAnalysis} disabled={isAiLoading}>
                   {isAiLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <BrainCircuit className="h-4 w-4 mr-2" />}
                   AI 전술 분석 실행
