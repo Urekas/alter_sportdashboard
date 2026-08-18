@@ -19,6 +19,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import type { AttackThreatDataPoint, Team, MatchEvent } from "@/lib/types"
 import { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
+import { useIsMobile } from "@/hooks/use-mobile"
 
 interface AttackThreatChartProps {
   data: AttackThreatDataPoint[]
@@ -100,6 +101,7 @@ interface ChartDataPoint {
 }
 
 export function AttackThreatChart({ data, homeTeam, awayTeam, events = [], videoMatchId }: AttackThreatChartProps) {
+  const isMobile = useIsMobile()
   const handlePointClick = (data: any) => {
     if (!videoMatchId) return;
     const timeInSeconds = data.activePayload?.[0]?.payload?.x * 60;
@@ -236,8 +238,8 @@ export function AttackThreatChart({ data, homeTeam, awayTeam, events = [], video
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={350}>
-            <ComposedChart data={chartData} margin={{ top: 30, right: 30, left: 20, bottom: isMatchTrend ? 50 : 20 }} onClick={handlePointClick}>
+        <ResponsiveContainer width="100%" height={isMobile ? 260 : 350}>
+            <ComposedChart data={chartData} margin={isMobile ? { top: 20, right: 10, left: 0, bottom: isMatchTrend ? 40 : 15 } : { top: 30, right: 30, left: 20, bottom: isMatchTrend ? 50 : 20 }} onClick={handlePointClick}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                 <XAxis
                     type="number"
@@ -245,19 +247,21 @@ export function AttackThreatChart({ data, homeTeam, awayTeam, events = [], video
                     domain={[0, 'dataMax']}
                     ticks={chartData.filter((d: ChartDataPoint) => d.interval && !d.isIntersection).map((d: ChartDataPoint) => d.x)}
                     tickFormatter={(val) => chartData.find((d: ChartDataPoint) => d.x === val)?.interval || ""}
-                    tick={{ fontSize: 10 }}
-                    height={isMatchTrend ? 60 : 30}
+                    tick={{ fontSize: isMobile ? 8 : 10 }}
+                    height={isMatchTrend ? (isMobile ? 45 : 60) : 30}
                     angle={isMatchTrend ? -45 : 0}
                     textAnchor={isMatchTrend ? 'end' : 'middle'}
                     allowDecimals={false}
                 />
-                <YAxis 
-                  label={{ value: '공격 위협도(슈팅+PC)', angle: -90, position: 'insideLeft' }} 
-                  allowDecimals={false} 
+                <YAxis
+                  label={isMobile ? undefined : { value: '공격 위협도(슈팅+PC)', angle: -90, position: 'insideLeft' }}
+                  allowDecimals={false}
                   domain={[0, 8]}
+                  tick={{ fontSize: isMobile ? 9 : 12 }}
+                  width={isMobile ? 24 : 60}
                 />
                 <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} />} />
-                <Legend verticalAlign="top" height={36} />
+                <Legend verticalAlign="top" height={36} wrapperStyle={isMobile ? { fontSize: 10 } : undefined} />
                 
                 {!isMatchTrend && quarterBoundaries.map((b, i) => (
                   <ReferenceLine 

@@ -327,7 +327,7 @@ export function Dashboard() {
                 if (selected) setTournamentName(selected.name);
               }}
             >
-              <SelectTrigger className="h-8 w-40 text-xs">
+              <SelectTrigger className="h-8 w-full sm:w-40 text-xs">
                 <SelectValue placeholder="대회 선택" />
               </SelectTrigger>
               <SelectContent>

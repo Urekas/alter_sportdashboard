@@ -19,6 +19,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import type { PressureDataPoint, Team } from "@/lib/types"
 import { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
+import { useIsMobile } from "@/hooks/use-mobile"
 
 interface PressureBattleChartProps {
   data: PressureDataPoint[]
@@ -59,7 +60,11 @@ const CustomTooltip = ({ active, payload, homeTeam, awayTeam, fontSize = 12 }: T
   return null;
 };
 
-export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350, fontSize = 10 }: PressureBattleChartProps) {
+export function PressureBattleChart({ data, homeTeam, awayTeam, height, fontSize }: PressureBattleChartProps) {
+  const isMobile = useIsMobile()
+  // 호출부가 height/fontSize를 안 넘겼으면(대부분의 경우) 모바일 여부에 맞춰 기본값을 정함
+  const effectiveHeight = height ?? (isMobile ? 240 : 350)
+  const effectiveFontSize = fontSize ?? (isMobile ? 8 : 10)
   const isMatchTrend = data.some(d => d.interval.startsWith('M'));
 
   const maxY = useMemo(() => {
@@ -154,27 +159,28 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350, fo
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={height}>
-          <ComposedChart data={chartData} margin={{ top: 30, right: 30, left: 20, bottom: isMatchTrend ? 50 : 5 }}>
+        <ResponsiveContainer width="100%" height={effectiveHeight}>
+          <ComposedChart data={chartData} margin={isMobile ? { top: 20, right: 10, left: 0, bottom: isMatchTrend ? 40 : 5 } : { top: 30, right: 30, left: 20, bottom: isMatchTrend ? 50 : 5 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-            <XAxis 
+            <XAxis
               type="number"
               dataKey="x"
               domain={[0, 'dataMax']}
               ticks={chartData.filter(d => !d.isIntersection).map(d => d.x)}
               tickFormatter={(val) => chartData.find(d => d.x === val)?.interval || ""}
-              tick={{ fontSize }}
-              height={isMatchTrend ? 60 : 30}
+              tick={{ fontSize: effectiveFontSize }}
+              height={isMatchTrend ? (isMobile ? 45 : 60) : 30}
             />
-            <YAxis 
-              reversed 
-              domain={[0, maxY]} 
-              label={{ value: 'SPP (s)', angle: -90, position: 'insideLeft', style: { fontSize: fontSize + 2 } }} 
+            <YAxis
+              reversed
+              domain={[0, maxY]}
+              label={isMobile ? undefined : { value: 'SPP (s)', angle: -90, position: 'insideLeft', style: { fontSize: effectiveFontSize + 2 } }}
               tickFormatter={(val) => val === maxY ? "None" : val}
-              tick={{ fontSize }}
+              tick={{ fontSize: effectiveFontSize }}
+              width={isMobile ? 26 : 60}
             />
-            <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} fontSize={fontSize + 2} />} />
-            <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: fontSize + 2 }} />
+            <Tooltip content={<CustomTooltip homeTeam={homeTeam} awayTeam={awayTeam} fontSize={effectiveFontSize + 2} />} />
+            <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: effectiveFontSize + 2 }} />
             
             {!isMatchTrend && quarterBoundaries.map((b, i) => (
               <ReferenceLine 
@@ -185,7 +191,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height = 350, fo
                 strokeWidth={1}
                 opacity={0.5}
               >
-                <Label value={b.label} position="top" offset={10} style={{ fontSize: `${fontSize}px`, fontWeight: 'bold', fill: 'hsl(var(--muted-foreground))' }} />
+                <Label value={b.label} position="top" offset={10} style={{ fontSize: `${effectiveFontSize}px`, fontWeight: 'bold', fill: 'hsl(var(--muted-foreground))' }} />
               </ReferenceLine>
             ))}
 

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { ResponsiveContainer, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Tooltip, Legend } from 'recharts';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface RadarDataPoint {
   subject: string;
@@ -30,6 +31,7 @@ export function TournamentRadarChart({
   globalAvg,
   mockMatchHomeStats
 }: TournamentRadarChartProps) {
+  const isMobile = useIsMobile()
 
   const metricsConfig = useMemo(() => {
     switch(type) {
@@ -127,15 +129,15 @@ export function TournamentRadarChart({
   };
 
   return (
-    <div className="w-full h-[450px] bg-card rounded-xl border border-border/50 flex flex-col items-center justify-center p-4">
+    <div className={`w-full ${isMobile ? 'h-[320px]' : 'h-[450px]'} bg-card rounded-xl border border-border/50 flex flex-col items-center justify-center p-4`}>
       <h3 className="text-lg font-bold mb-4 text-primary">{title}</h3>
       <ResponsiveContainer width="100%" height="100%">
-        <RadarChart cx="50%" cy="50%" outerRadius="70%" data={data}>
+        <RadarChart cx="50%" cy="50%" outerRadius={isMobile ? '65%' : '70%'} data={data}>
           <PolarGrid strokeOpacity={0.5} />
-          <PolarAngleAxis dataKey="subject" tick={{ fill: 'currentColor', fontSize: 12, fontWeight: 'bold' }} />
+          <PolarAngleAxis dataKey="subject" tick={{ fill: 'currentColor', fontSize: isMobile ? 9 : 12, fontWeight: 'bold' }} />
           <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }} />
+          <Legend wrapperStyle={{ fontSize: isMobile ? '10px' : '12px', paddingTop: '20px' }} />
           
           <Radar 
             name={opponentTeam} 

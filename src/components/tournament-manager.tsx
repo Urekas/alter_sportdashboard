@@ -1323,7 +1323,7 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
   // 1단계(기본 화면): 카테고리 선택
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-center gap-3">
         <div><h2 className="text-3xl font-black italic text-primary uppercase tracking-tighter">Tournament Master</h2><p className="text-muted-foreground font-bold">카테고리를 선택해 대회 목록을 확인하세요</p></div>
         {renderNewTournamentDialog()}
       </div>

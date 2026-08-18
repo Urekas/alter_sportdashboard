@@ -1,4 +1,4 @@
-import type {Metadata} from 'next';
+import type {Metadata, Viewport} from 'next';
 import { Inter, Noto_Sans_KR, Archivo } from 'next/font/google'
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
@@ -21,6 +21,11 @@ const archivo = Archivo({
 export const metadata: Metadata = {
   title: 'Alter_Focus | Hockey Analytics',
   description: 'Parse, analyze, and visualize field hockey match data.',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default function RootLayout({

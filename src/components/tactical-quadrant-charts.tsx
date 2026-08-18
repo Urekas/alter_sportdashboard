@@ -17,6 +17,7 @@ import {
   Cell
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 interface TacticalQuadrantChartProps {
   title: string
@@ -53,15 +54,18 @@ export function TacticalQuadrantChart({
   reversedX,
   reversedY,
   labels,
-  height = 350,
-  fontSize = 10
+  height,
+  fontSize
 }: TacticalQuadrantChartProps) {
-  
+  const isMobile = useIsMobile()
+  const effectiveHeight = height ?? (isMobile ? 260 : 350)
+  const effectiveFontSize = fontSize ?? (isMobile ? 8 : 10)
+
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const p = payload[0].payload
       return (
-        <div className="bg-card p-2 border rounded shadow-lg" style={{ fontSize: `${fontSize + 2}px` }}>
+        <div className="bg-card p-2 border rounded shadow-lg" style={{ fontSize: `${effectiveFontSize + 2}px` }}>
           <p className="font-bold border-b mb-1" style={{ color: p.color }}>{p.name}</p>
           <p>{xAxisLabel}: <span className="font-bold">{p.x.toFixed(1)}</span></p>
           <p>{yAxisLabel}: <span className="font-bold">{p.y.toFixed(1)}</span></p>
@@ -85,28 +89,29 @@ export function TacticalQuadrantChart({
         <CardDescription className="text-[10px] leading-tight font-medium">{description}</CardDescription>
       </CardHeader>
       <CardContent>
-        <div style={{ height: `${height}px` }} className="w-full mt-4">
+        <div style={{ height: `${effectiveHeight}px` }} className="w-full mt-4">
           <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ top: 30, right: 30, bottom: 30, left: 10 }}>
-              <XAxis 
-                type="number" 
-                dataKey="x" 
-                name={xAxisLabel} 
-                domain={[minX, maxX]} 
+            <ScatterChart margin={isMobile ? { top: 20, right: 10, bottom: 20, left: 0 } : { top: 30, right: 30, bottom: 30, left: 10 }}>
+              <XAxis
+                type="number"
+                dataKey="x"
+                name={xAxisLabel}
+                domain={[minX, maxX]}
                 reversed={reversedX}
-                tick={{ fontSize, fontWeight: 'bold' }}
+                tick={{ fontSize: effectiveFontSize, fontWeight: 'bold' }}
               >
-                <Label value={xAxisLabel} position="bottom" offset={0} style={{ fontSize: `${fontSize + 1}px`, fontWeight: 'bold', fill: 'hsl(var(--muted-foreground))' }} />
+                <Label value={xAxisLabel} position="bottom" offset={0} style={{ fontSize: `${effectiveFontSize + 1}px`, fontWeight: 'bold', fill: 'hsl(var(--muted-foreground))' }} />
               </XAxis>
-              <YAxis 
-                type="number" 
-                dataKey="y" 
-                name={yAxisLabel} 
-                domain={[minY, maxY]} 
+              <YAxis
+                type="number"
+                dataKey="y"
+                name={yAxisLabel}
+                domain={[minY, maxY]}
                 reversed={reversedY}
-                tick={{ fontSize, fontWeight: 'bold' }}
+                tick={{ fontSize: effectiveFontSize, fontWeight: 'bold' }}
+                width={isMobile ? 24 : 60}
               >
-                <Label value={yAxisLabel} angle={-90} position="insideLeft" style={{ fontSize: `${fontSize + 1}px`, fontWeight: 'bold', fill: 'hsl(var(--muted-foreground))' }} />
+                <Label value={yAxisLabel} angle={-90} position="insideLeft" style={{ fontSize: `${effectiveFontSize + 1}px`, fontWeight: 'bold', fill: 'hsl(var(--muted-foreground))' }} />
               </YAxis>
               <ZAxis type="number" dataKey="z" range={[150, 500]} />
               <Tooltip content={<CustomTooltip />} />
@@ -148,13 +153,13 @@ export function TacticalQuadrantChart({
                     strokeWidth={2}
                   />
                 ))}
-                <LabelList dataKey="name" position="top" style={{ fontSize: `${fontSize}px`, fontWeight: 'black', fill: 'hsl(var(--foreground))' }} />
+                <LabelList dataKey="name" position="top" style={{ fontSize: `${effectiveFontSize}px`, fontWeight: 'black', fill: 'hsl(var(--foreground))' }} />
               </Scatter>
 
-              <text x="96%" y="8%" textAnchor="end" className="fill-emerald-800 font-black italic uppercase tracking-tighter" style={{ fontSize: `${fontSize + 1}px`, opacity: 0.6 }}>{labels.tr}</text>
-              <text x="4%" y="8%" textAnchor="start" className="fill-teal-800 font-black italic uppercase tracking-tighter" style={{ fontSize: `${fontSize + 1}px`, opacity: 0.6 }}>{labels.tl}</text>
-              <text x="96%" y="92%" textAnchor="end" className="fill-slate-700 font-black italic uppercase tracking-tighter" style={{ fontSize: `${fontSize + 1}px`, opacity: 0.6 }}>{labels.br}</text>
-              <text x="4%" y="92%" textAnchor="start" className="fill-indigo-800 font-black italic uppercase tracking-tighter" style={{ fontSize: `${fontSize + 1}px`, opacity: 0.6 }}>{labels.bl}</text>
+              <text x="96%" y="8%" textAnchor="end" className="fill-emerald-800 font-black italic uppercase tracking-tighter" style={{ fontSize: `${effectiveFontSize + 1}px`, opacity: 0.6 }}>{labels.tr}</text>
+              <text x="4%" y="8%" textAnchor="start" className="fill-teal-800 font-black italic uppercase tracking-tighter" style={{ fontSize: `${effectiveFontSize + 1}px`, opacity: 0.6 }}>{labels.tl}</text>
+              <text x="96%" y="92%" textAnchor="end" className="fill-slate-700 font-black italic uppercase tracking-tighter" style={{ fontSize: `${effectiveFontSize + 1}px`, opacity: 0.6 }}>{labels.br}</text>
+              <text x="4%" y="92%" textAnchor="start" className="fill-indigo-800 font-black italic uppercase tracking-tighter" style={{ fontSize: `${effectiveFontSize + 1}px`, opacity: 0.6 }}>{labels.bl}</text>
             </ScatterChart>
           </ResponsiveContainer>
         </div>
