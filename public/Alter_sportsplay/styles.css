@@ -863,3 +863,38 @@ body.drawing-active .playback-controls:hover {
 .analyze-btn:hover {
     background: #ff9800;
 }
+
+/* ── 모바일 레이아웃 ──
+   기존 좌(Explorer/Viewer 350px 고정폭) + 우(영상, 최소 400px) 2열 그리드는 좁은 화면에서
+   그대로 쓰면 영상이 찌그러지게 눌리거나(혹은 좌우로 잘려나감). "화면이 위로 가고(영상이
+   위) 뷰어/익스플로어는 아래로 내려가야" 한다는 피드백대로, 세로 1열 스택으로 재구성:
+   영상(위) → Explorer/Viewer(가운데) → 하단 재생/그리기 컨트롤(아래) 순으로 쌓고 페이지
+   전체가 세로 스크롤되게 함. */
+@media (max-width: 768px) {
+  body {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  #main-panel {
+    order: 1;
+    min-height: 42vh; /* 영상이 너무 작아지지 않을 정도의 최소 높이 */
+  }
+  #left-panel {
+    order: 2;
+    max-height: 65vh; /* Explorer/Viewer 목록은 이 안에서 자체 스크롤(.panel이 이미 overflow-y:auto) */
+    border-left: none;
+    border-right: none;
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+  }
+  #bottom-panel {
+    order: 3;
+  }
+  /* 데스크톱 전용 사이드바 접기(hide-left)는 그리드 트랙 기반이라 모바일 flex 레이아웃에선
+     의미가 없어짐 — 버튼 자체를 숨겨서 눌러도 아무 반응 없어 보이는 걸 방지 */
+  #toggle-left-btn, #show-left-btn { display: none; }
+}
