@@ -60,7 +60,14 @@
         </div>
         
         <details>
-          <summary style="cursor:pointer; color:var(--text-muted); font-size:0.9rem; margin-bottom:4px; outline:none; font-weight:bold;">대회(Match) 선택 (<span id="filter-competition-count">0</span>)</summary>
+          <summary style="cursor:pointer; color:var(--text-muted); font-size:0.9rem; margin-bottom:4px; outline:none; font-weight:bold;">대회(Tournament) 선택 (<span id="filter-tournament-count">0</span>)</summary>
+          <div id="filter-tournament-container" style="max-height:100px;overflow-y:auto;background:var(--bg);border:1px solid var(--border-color);padding:5px;border-radius:0; font-size:0.85rem; display:flex; flex-direction:column; gap:4px;">
+            <label style="color:var(--text-muted);">검색 대기중...</label>
+          </div>
+        </details>
+
+        <details>
+          <summary style="cursor:pointer; color:var(--text-muted); font-size:0.9rem; margin-bottom:4px; outline:none; font-weight:bold;">경기(Match) 선택 (<span id="filter-competition-count">0</span>)</summary>
           <div id="filter-competition-container" style="max-height:100px;overflow-y:auto;background:var(--bg);border:1px solid var(--border-color);padding:5px;border-radius:0; font-size:0.85rem; display:flex; flex-direction:column; gap:4px;">
             <label style="color:var(--text-muted);">검색 대기중...</label>
           </div>
@@ -350,6 +357,8 @@
         sectionViewer?.classList.add('active');
         sectionExplorer?.classList.remove('active');
       }
+      // 딥링크(matchId)로 들어왔을 때 app.js에서 그 경기 이벤트 목록을 바로 보여주려고 호출함
+      window.showViewerSection = showViewerSection;
       sectionBtnExplorer?.addEventListener('click', showExplorerSection);
       sectionBtnViewer?.addEventListener('click', showViewerSection);
 

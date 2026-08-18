@@ -3,20 +3,41 @@ import { allEvents, updateCurrentPlaylist, playlistCart, updateCartUI } from './
 
 // State
 let matchesData = {};
+let tournamentsData = {}; // { [tournamentId]: tournamentName } — 대시보드 tournaments 컬렉션에서 읽어옴
 let currentEditingPlaylistId = null;
+
+const UNCLASSIFIED_ID = '__unclassified__'; // tournament_id가 비어있는(연결 안 된) 매치용
+const UNCLASSIFIED_NAME = '미분류'; // 대시보드 전역에서 쓰는 것과 같은 관례
+
+function getMatchTournamentId(matchId) {
+    const tid = matchesData[matchId]?.tournament_id;
+    return tid ? tid : UNCLASSIFIED_ID;
+}
+function getTournamentName(tournamentId) {
+    if (tournamentId === UNCLASSIFIED_ID) return UNCLASSIFIED_NAME;
+    return tournamentsData[tournamentId] || UNCLASSIFIED_NAME;
+}
+function _getSelectedTournaments() {
+    const c = document.getElementById('filter-tournament-container');
+    return Array.from(c?.querySelectorAll('.filter-tournament-cb:checked') || []).map(cb => cb.value);
+}
+function _getSelectedMatches() {
+    const c = document.getElementById('filter-competition-container');
+    return Array.from(c?.querySelectorAll('.filter-match-cb:checked') || []).map(cb => cb.value);
+}
 
 // ──────────────────────────────────────────────
 // 내부 헬퍼: DOM 없이 호출 가능한 순수 필터/렌더 함수
 // ──────────────────────────────────────────────
 function _applyFilters() {
-    const filterCompetitionContainer = document.getElementById('filter-competition-container');
     const filterTeamContainer        = document.getElementById('filter-team-container');
     const filterDateStart            = document.getElementById('filter-date-start');
     const filterDateEnd              = document.getElementById('filter-date-end');
     const libraryResultsUl           = document.getElementById('library-results-ul');
     if (!libraryResultsUl) return;
 
-    const selectedMatches = Array.from(filterCompetitionContainer?.querySelectorAll('.filter-match-cb:checked') || []).map(cb => cb.value);
+    const selectedTournaments = _getSelectedTournaments();
+    const selectedMatches = _getSelectedMatches();
     const selectedTeams   = Array.from(filterTeamContainer?.querySelectorAll('.filter-team-cb:checked') || []).map(cb => cb.value);
     const selectedCodes   = Array.from(document.querySelectorAll('.filter-code-cb:checked')).map(cb => cb.value);
 
@@ -24,9 +45,11 @@ function _applyFilters() {
     const endDateStr   = filterDateEnd?.value || '';
 
     // Update counts
+    const countTournamentSpan = document.getElementById('filter-tournament-count');
     const countMatchSpan = document.getElementById('filter-competition-count');
     const countTeamSpan  = document.getElementById('filter-team-count');
     const countCodeSpan  = document.getElementById('filter-code-count');
+    if (countTournamentSpan) countTournamentSpan.textContent = selectedTournaments.length;
     if (countMatchSpan) countMatchSpan.textContent = selectedMatches.length;
     if (countTeamSpan) countTeamSpan.textContent = selectedTeams.length;
     if (countCodeSpan) countCodeSpan.textContent = selectedCodes.length;
@@ -39,6 +62,7 @@ function _applyFilters() {
             if (startDateStr && mDate < startDateStr) return false;
             if (endDateStr && mDate > endDateStr) return false;
         }
+        if (selectedTournaments.length > 0 && !selectedTournaments.includes(getMatchTournamentId(ev.match_id))) return false;
         if (selectedMatches.length > 0 && !selectedMatches.includes(ev.match_id)) return false;
         if (selectedTeams.length > 0 && !selectedTeams.includes(ev.team)) return false;
         if (selectedCodes.length > 0 && !selectedCodes.includes(ev.code)) return false;
@@ -92,46 +116,108 @@ function _renderResults(filteredEvents, libraryResultsUl) {
     });
 }
 
-function _populateFilters() {
-    const filterTeamContainer          = document.getElementById('filter-team-container');
-    const filterCodeContainer          = document.getElementById('filter-code-container');
-    const filterCompetitionContainer   = document.getElementById('filter-competition-container');
-    if (!filterCodeContainer) return;
+// 대회 → 경기 → 팀 3단 카스케이드: 상위 체크박스가 하위 체크박스 목록 자체를 좁힘.
+// 이 코드베이스 다른 곳(shot-analysis-dashboard.tsx의 category→tournament→team 등)과 같은 패턴.
+function _renderTournamentCheckboxes() {
+    const filterTournamentContainer = document.getElementById('filter-tournament-container');
+    if (!filterTournamentContainer) return;
+
+    const tMap = new Map(); // id -> name, 이벤트가 있는 매치가 속한 대회만
+    Object.keys(matchesData).forEach(matchId => {
+        const tid = getMatchTournamentId(matchId);
+        if (!tMap.has(tid)) tMap.set(tid, getTournamentName(tid));
+    });
+    const entries = Array.from(tMap.entries()).sort((a, b) => a[1].localeCompare(b[1], 'ko'));
+
+    filterTournamentContainer.innerHTML = '';
+    if (entries.length === 0) {
+        filterTournamentContainer.innerHTML = '<label style="color:var(--text-muted);font-size:0.8em;">대회 없음</label>';
+        return;
+    }
+    entries.forEach(([id, name]) => {
+        const label = document.createElement('label');
+        label.className = 'filter-code-label';
+        label.style.display = 'flex'; label.style.gap = '5px';
+        label.innerHTML = `<input type="checkbox" value="${id}" class="filter-tournament-cb"> <span>${name}</span>`;
+        filterTournamentContainer.appendChild(label);
+    });
+    filterTournamentContainer.querySelectorAll('.filter-tournament-cb').forEach(cb =>
+        cb.addEventListener('change', () => {
+            _renderMatchCheckboxes();
+            _renderTeamCheckboxes();
+            _applyFilters();
+        })
+    );
+}
+
+function _renderMatchCheckboxes() {
+    const filterCompetitionContainer = document.getElementById('filter-competition-container');
+    if (!filterCompetitionContainer) return;
+
+    const selectedTournaments = _getSelectedTournaments();
+    // 좁혀지기 전에 체크돼있던 경기 중, 좁혀진 뒤에도 여전히 보이는 것만 체크 상태 유지
+    const prevChecked = new Set(_getSelectedMatches());
+
+    const visibleMatchIds = Object.keys(matchesData).filter(matchId =>
+        selectedTournaments.length === 0 || selectedTournaments.includes(getMatchTournamentId(matchId))
+    );
+
+    filterCompetitionContainer.innerHTML = '';
+    if (visibleMatchIds.length === 0) {
+        filterCompetitionContainer.innerHTML = '<label style="color:var(--text-muted);font-size:0.8em;">경기 없음</label>';
+        return;
+    }
+    visibleMatchIds.forEach(matchId => {
+        const data = matchesData[matchId];
+        const label = document.createElement('label');
+        label.className = 'filter-code-label';
+        label.style.display = 'flex'; label.style.gap = '5px';
+        label.innerHTML = `<input type="checkbox" value="${matchId}" class="filter-match-cb" ${prevChecked.has(matchId) ? 'checked' : ''}> <span>${data.match_name} <small style="color:var(--text-muted)">(${data.match_date ? data.match_date.split('T')[0] : '날짜 모름'})</small></span>`;
+        filterCompetitionContainer.appendChild(label);
+    });
+    filterCompetitionContainer.querySelectorAll('.filter-match-cb').forEach(cb =>
+        cb.addEventListener('change', () => {
+            _renderTeamCheckboxes();
+            _applyFilters();
+        })
+    );
+}
+
+function _renderTeamCheckboxes() {
+    const filterTeamContainer = document.getElementById('filter-team-container');
+    if (!filterTeamContainer) return;
+
+    const selectedTournaments = _getSelectedTournaments();
+    const selectedMatches = _getSelectedMatches();
+    const prevChecked = new Set(Array.from(filterTeamContainer.querySelectorAll('.filter-team-cb:checked')).map(cb => cb.value));
 
     const teams = new Set();
-    const codes = new Set();
     allEvents.forEach(ev => {
-        if (ev.team && ev.team !== 'Unknown') teams.add(ev.team);
-        if (ev.code) codes.add(ev.code);
+        if (!ev.team || ev.team === 'Unknown') return;
+        if (selectedTournaments.length > 0 && !selectedTournaments.includes(getMatchTournamentId(ev.match_id))) return;
+        if (selectedMatches.length > 0 && !selectedMatches.includes(ev.match_id)) return;
+        teams.add(ev.team);
     });
 
-    // Match 체크박스
-    if (filterCompetitionContainer) {
-        filterCompetitionContainer.innerHTML = '';
-        Object.keys(matchesData).forEach(matchId => {
-            const data = matchesData[matchId];
-            const label = document.createElement('label');
-            label.className = 'filter-code-label';
-            label.style.display = 'flex'; label.style.gap = '5px';
-            label.innerHTML = `<input type="checkbox" value="${matchId}" class="filter-match-cb"> <span>${data.match_name} <small style="color:var(--text-muted)">(${data.match_date ? data.match_date.split('T')[0] : '날짜 모름'})</small></span>`;
-            filterCompetitionContainer.appendChild(label);
-        });
-    }
+    filterTeamContainer.innerHTML = '';
+    if (teams.size === 0) { filterTeamContainer.innerHTML = '<label style="color:var(--text-muted);font-size:0.8em;">팀 없음</label>'; return; }
+    Array.from(teams).sort((a, b) => a.localeCompare(b, 'ko')).forEach(team => {
+        const label = document.createElement('label');
+        label.className = 'filter-code-label';
+        label.style.display = 'flex'; label.style.gap = '5px';
+        label.innerHTML = `<input type="checkbox" value="${team}" class="filter-team-cb" ${prevChecked.has(team) ? 'checked' : ''}> ${team}`;
+        filterTeamContainer.appendChild(label);
+    });
+    filterTeamContainer.querySelectorAll('.filter-team-cb').forEach(cb => cb.addEventListener('change', _applyFilters));
+}
 
-    // Team 체크박스
-    if (filterTeamContainer) {
-        filterTeamContainer.innerHTML = '';
-        if (teams.size === 0) filterTeamContainer.innerHTML = '<label style="color:var(--text-muted);font-size:0.8em;">팀 없음</label>';
-        teams.forEach(team => {
-            const label = document.createElement('label');
-            label.className = 'filter-code-label';
-            label.style.display = 'flex'; label.style.gap = '5px';
-            label.innerHTML = `<input type="checkbox" value="${team}" class="filter-team-cb"> ${team}`;
-            filterTeamContainer.appendChild(label);
-        });
-    }
+function _renderCodeCheckboxes() {
+    const filterCodeContainer = document.getElementById('filter-code-container');
+    if (!filterCodeContainer) return;
 
-    // Code 체크박스 (가나다 정렬)
+    const codes = new Set();
+    allEvents.forEach(ev => { if (ev.code) codes.add(ev.code); });
+
     filterCodeContainer.innerHTML = '';
     if (codes.size === 0) {
         filterCodeContainer.innerHTML = '<label style="color:var(--text-muted);font-size:0.8em;">이벤트 없음</label>';
@@ -144,10 +230,17 @@ function _populateFilters() {
         label.innerHTML = `<input type="checkbox" value="${code}" class="filter-code-cb"> ${code}`;
         filterCodeContainer.appendChild(label);
     });
+    filterCodeContainer.querySelectorAll('.filter-code-cb').forEach(cb => cb.addEventListener('change', _applyFilters));
+}
 
-    document.querySelectorAll('.filter-match-cb, .filter-team-cb, .filter-code-cb').forEach(cb =>
-        cb.addEventListener('change', _applyFilters)
-    );
+function _populateFilters() {
+    if (!document.getElementById('filter-code-container')) return;
+
+    _renderTournamentCheckboxes();
+    _renderMatchCheckboxes();
+    _renderTeamCheckboxes();
+    _renderCodeCheckboxes();
+
     const dateStart = document.getElementById('filter-date-start');
     const dateEnd   = document.getElementById('filter-date-end');
     if (dateStart) dateStart.addEventListener('change', _applyFilters);
@@ -324,6 +417,15 @@ async function fetchMatches() {
         });
     } catch (e) {
         console.error('Error fetching Matches:', e);
+    }
+    // 대회(Tournament) 필터용 — 매치 목록과 별개 try/catch로, 이게 실패해도 매치 목록 자체는
+    // 그대로 뜨고(대회 이름만 "미분류"로 표시됨) 전체가 막히지 않게 함.
+    try {
+        const tSnap = await getDocs(collection(db, 'tournaments'));
+        tournamentsData = {};
+        tSnap.forEach(d => { tournamentsData[d.id] = d.data().name || d.id; });
+    } catch (e) {
+        console.error('Error fetching tournaments (대회 필터 이름 표시에만 영향):', e);
     }
 }
 

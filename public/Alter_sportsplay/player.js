@@ -14,6 +14,9 @@ export let activeMatchId = null; // 현재 분석 중인 경기 ID
 export const playlistCart = new Set(); // 공유 선택 카트 (이벤트 ID 저장)
 let isPlayer2Ready = false;
 let isPlayer3Ready = false;
+let activeCam = 1; // 카메라 전환(switchCam)이 참조하는 현재 활성 카메라 번호 — 선언이 빠져 있어서
+                    // strict mode(ES 모듈은 항상 strict) 아래서 switchCam 호출 시 ReferenceError로
+                    // 매번 조용히 실패하고 있었음(전술캠/중계캠 전환이 전혀 안 되던 원인).
 
 const playPauseBtn = document.getElementById('play-pause-btn');
 const speedBtn     = document.getElementById('speed-btn');

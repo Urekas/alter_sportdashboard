@@ -157,7 +157,13 @@ async function handleUrlParams() {
     if (time) showDeepLinkStatus('경기 불러오는 중...', 'loading');
     try {
       const docSnap = await getDoc(doc(db, 'Matches', matchId));
-      if(docSnap.exists()) loadMatchForAnalysis(matchId, docSnap.data());
+      if(docSnap.exists()) {
+        loadMatchForAnalysis(matchId, docSnap.data());
+        // 딥링크로 들어왔을 때 기본 탭(Explorer/Scenes)에 가려서 그 경기 이벤트 목록이
+        // 안 보이던 문제 — Viewer 섹션 + Events 탭으로 바로 전환(이미 있는 탭 전환 로직 재사용).
+        window.showViewerSection?.();
+        document.getElementById('tab-btn-events')?.click();
+      }
       else if (time) { showDeepLinkStatus('해당 경기를 찾을 수 없어요.', 'error'); hideDeepLinkStatus(4000); return; }
     } catch(e) {
       console.error('URL param error:', e);
