@@ -25,6 +25,7 @@ import { ShotZoneMap, isShotAttemptCode, normalizeShotOutput, isPcAttempt, type 
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase"
 import { collection, query } from "firebase/firestore"
+import { openInNewTab } from "@/lib/utils"
 
 interface ShotAnalysisDashboardProps {
   tournaments: Tournament[]
@@ -36,7 +37,7 @@ const OUTPUT_LABELS: Record<ShotDatum['output'], string> = {
 
 function openShotVideo(shot: ShotDatum) {
   if (!shot.videoMatchId || shot.time === undefined) return
-  window.open(`/Alter_sportsplay/index.html?matchId=${shot.videoMatchId}&time=${Math.max(0, Math.floor(shot.time))}`, '_blank')
+  openInNewTab(`/Alter_sportsplay/index.html?matchId=${shot.videoMatchId}&time=${Math.max(0, Math.floor(shot.time))}`)
 }
 
 type PlayerStatKey = 'player' | 'total' | 'goal' | 'save' | 'block' | 'out' | 'fail'

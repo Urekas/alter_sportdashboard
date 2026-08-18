@@ -5,6 +5,7 @@ import { useMemo, useState } from "react"
 import { PlayCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import type { MatchData, MatchEvent, Team } from "@/lib/types"
+import { openInNewTab } from "@/lib/utils"
 
 interface ShotBreakdownProps {
   data: MatchData;
@@ -60,7 +61,7 @@ export function ShotBreakdown({ data }: ShotBreakdownProps) {
 
   const openClip = (time: number) => {
     if (!videoMatchId) return;
-    window.open(`/Alter_sportsplay/index.html?matchId=${videoMatchId}&time=${Math.max(0, Math.floor(time))}`, '_blank');
+    openInNewTab(`/Alter_sportsplay/index.html?matchId=${videoMatchId}&time=${Math.max(0, Math.floor(time))}`);
   }
 
   if (grouped.home.total === 0 && grouped.away.total === 0) return null;

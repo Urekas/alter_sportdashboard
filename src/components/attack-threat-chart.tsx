@@ -18,6 +18,7 @@ import {
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import type { AttackThreatDataPoint, Team, MatchEvent } from "@/lib/types"
+import { openInNewTab } from "@/lib/utils"
 import { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
 import { useIsMobile } from "@/hooks/use-mobile"
 
@@ -108,7 +109,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam, events = [], video
     if (isNaN(timeInSeconds)) return;
     
     // Open Alter_sportsplay with matchId and time parameters
-    window.open(`/Alter_sportsplay/index.html?matchId=${videoMatchId}&time=${timeInSeconds}`, '_blank');
+    openInNewTab(`/Alter_sportsplay/index.html?matchId=${videoMatchId}&time=${timeInSeconds}`);
   };
   const isMatchTrend = data.some(d => d.interval.startsWith('M'));
   const TIME_INTERVAL = 3;

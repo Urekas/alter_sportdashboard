@@ -6,6 +6,7 @@ import { Info, PlayCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import type { MatchData, MatchEvent } from "@/lib/types"
+import { openInNewTab } from "@/lib/utils"
 
 interface BasicMatchStatsProps {
   data: MatchData;
@@ -57,7 +58,7 @@ export function BasicMatchStats({ data, ranks }: BasicMatchStatsProps) {
 
   const openClip = (time: number) => {
     if (!videoMatchId) return;
-    window.open(`/Alter_sportsplay/index.html?matchId=${videoMatchId}&time=${Math.max(0, Math.floor(time))}`, '_blank');
+    openInNewTab(`/Alter_sportsplay/index.html?matchId=${videoMatchId}&time=${Math.max(0, Math.floor(time))}`);
   }
 
   const stats = [

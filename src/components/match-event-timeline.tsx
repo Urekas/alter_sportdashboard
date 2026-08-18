@@ -11,6 +11,7 @@ import { useFirestore } from "@/firebase"
 import { useToast } from "@/hooks/use-toast"
 import { TournamentService } from "@/lib/tournament-service"
 import type { MatchData, MatchEvent } from "@/lib/types"
+import { openInNewTab } from "@/lib/utils"
 
 interface MatchEventTimelineProps {
   data: MatchData
@@ -103,7 +104,7 @@ export function MatchEventTimeline({ data, onEventsUpdate }: MatchEventTimelineP
 
   const openClip = (time: number) => {
     if (!data.videoMatchId) return;
-    window.open(`/Alter_sportsplay/index.html?matchId=${data.videoMatchId}&time=${Math.max(0, Math.floor(time))}`, '_blank');
+    openInNewTab(`/Alter_sportsplay/index.html?matchId=${data.videoMatchId}&time=${Math.max(0, Math.floor(time))}`);
   }
 
   const hasEvents = timeline.some(r => r.type === 'event');
