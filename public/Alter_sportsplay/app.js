@@ -1,6 +1,6 @@
 ﻿import { db, collection, writeBatch, doc, getDocs, orderBy, query, getDoc, deleteDoc, where, updateDoc } from './firebase-config.js';
 
-import { initPlayer, fetchAndRenderEvents, updateCurrentPlaylist, allEvents, loadVideoInCam, setActiveMatch, activeMatchId } from './player.js';
+import { initPlayer, fetchAndRenderEvents, updateCurrentPlaylist, allEvents, loadVideoInCam, setActiveMatch, activeMatchId, setCameraOffsets, seekActiveToMatchTime } from './player.js';
 import { initDrawingBoard } from './drawing.js';
 import { initLibrary } from './library.js';
 
@@ -14,6 +14,7 @@ export function extractVideoId(url) {
 export function loadMatchForAnalysis(matchId, matchData) {
     console.log(`Loading match: ${matchData.match_name}`);
     const urls = matchData.video_urls || {};
+    setCameraOffsets(matchData.video_offsets || {}); // 카메라별 동기화 오프셋 반영(player.js)
 
     // loadVideoInCam: ES Module 내부 player 참조 사용 (window.player 아님)
     const id1 = extractVideoId(urls.tactical_cam1 || urls.tactical_cam || '');
@@ -185,7 +186,9 @@ async function handleUrlParams() {
       const pl = window._activeSportsplayPlayer;
       if(pl && typeof pl.seekTo === 'function') {
         clearInterval(check);
-        pl.seekTo(t, true);
+        // t는 "경기 클럭" 시간(대시보드에서 저장한 이벤트 시각) — 활성 카메라의 동기화 오프셋을
+        // 반영해서 그 카메라 영상에서의 실제 지점으로 변환 후 이동(player.js).
+        seekActiveToMatchTime(t);
         pl.playVideo();
         showDeepLinkStatus(`${label} 지점부터 재생 중`, 'success');
         hideDeepLinkStatus(2500);

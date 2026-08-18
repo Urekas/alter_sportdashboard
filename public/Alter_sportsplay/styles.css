@@ -227,10 +227,18 @@ body.hide-left {
   flex: 1 1 auto;
 }
 
-#timeline { 
-  flex-grow: 1; 
-  cursor: pointer; 
+#timeline {
+  flex-grow: 1;
+  cursor: pointer;
   min-width: 150px;
+}
+#time-display {
+  font-variant-numeric: tabular-nums; /* 숫자 폭이 고정돼서 재생 중에 깜빡거리듯 안 흔들림 */
+  font-size: 0.85rem;
+  color: var(--text-main);
+  white-space: nowrap;
+  min-width: 100px;
+  text-align: center;
 }
 
 /* Admin Form & Lists */

@@ -18,6 +18,33 @@ let activeCam = 1; // 카메라 전환(switchCam)이 참조하는 현재 활성 
                     // strict mode(ES 모듈은 항상 strict) 아래서 switchCam 호출 시 ReferenceError로
                     // 매번 조용히 실패하고 있었음(전술캠/중계캠 전환이 전혀 안 되던 원인).
 
+// 카메라별 동기화 오프셋(초) — matches.video_offsets에서 옴(대시보드 영상 연결 다이얼로그에서
+// 수동 입력하거나 stream.json 업로드로 자동 채움). 공식은 슈팅태깅 도구(ShotTagging/index.html)
+// 실제 동기화 로직과 동일: "경기 클럭 시간 = 그 카메라 영상 자체 시간 + 오프셋". 예전엔 이 오프셋이
+// 저장만 되고 재생/탐색 어디서도 실제로 안 쓰여서, 오프셋이 0이 아닌 카메라는 항상 몇 초씩
+// 어긋난 지점을 보여주고 있었음(카메라 전환 시 재동기화도 아예 안 됐음) — 전부 이걸로 고침.
+let cameraOffsets = { 1: 0, 2: 0, 3: 0 };
+export function setCameraOffsets(offsets) {
+  cameraOffsets = {
+    1: Number(offsets?.tactical_cam1) || 0,
+    2: Number(offsets?.tactical_cam2) || 0,
+    3: Number(offsets?.broadcast_cam) || 0,
+  };
+}
+function camOffset(n) { return cameraOffsets[n] || 0; }
+// 현재 활성 카메라의 재생 위치를 "경기 클럭"(모든 카메라 공통 기준) 시간으로 환산
+function getMatchClockTime() {
+  const pl = getActivePlayer();
+  if (!pl || typeof pl.getCurrentTime !== 'function') return 0;
+  return pl.getCurrentTime() + camOffset(activeCam);
+}
+// 경기 클럭 시간을 지금 활성 카메라의 영상 자체 시간으로 환산해서 그 지점으로 이동
+export function seekActiveToMatchTime(matchTime) {
+  const pl = getActivePlayer();
+  if (!isPlayerReady || !pl || typeof pl.seekTo !== 'function') return;
+  pl.seekTo(Math.max(0, matchTime - camOffset(activeCam)), true);
+}
+
 const playPauseBtn = document.getElementById('play-pause-btn');
 const speedBtn     = document.getElementById('speed-btn');
 const eventsUl     = document.getElementById('events-ul') || document.createElement('ul');
@@ -36,13 +63,16 @@ export function initPlayer() {
   player2 = new YT.Player('youtube-player-2', {
     height:'100%', width:'100%', videoId: '',
     playerVars: pv,
-    events: { 'onReady': ()=>{ isPlayer2Ready=true; } }
+    // onStateChange도 cam1과 동일 핸들러로 연결 — 지금 활성 카메라가 이 카메라일 때만 재생/정지
+    // 버튼 라벨을 갱신하도록 onPlayerStateChange 안에서 걸러줌(안 그러면 백그라운드에서 자동재생
+    // 중인 안 보이는 카메라의 상태변화가 화면에 보이는 다른 카메라의 버튼을 잘못 바꿔버림).
+    events: { 'onReady': ()=>{ isPlayer2Ready=true; }, 'onStateChange': onPlayerStateChange }
   });
 
   player3 = new YT.Player('youtube-player-3', {
     height:'100%', width:'100%', videoId: '',
     playerVars: pv,
-    events: { 'onReady': ()=>{ isPlayer3Ready=true; } }
+    events: { 'onReady': ()=>{ isPlayer3Ready=true; }, 'onStateChange': onPlayerStateChange }
   });
 
   // 카메라 전환 버튼
@@ -52,6 +82,14 @@ export function initPlayer() {
 }
 
 function switchCam(n) {
+  if (n === activeCam) return;
+
+  // 전환 전 활성 카메라 기준으로 "지금 경기 클럭으로 몇 초 지점"인지, 재생 중이었는지 기록
+  const matchTime = getMatchClockTime();
+  const prevPlayer = getActivePlayer();
+  const wasPlaying = isPlayerReady && prevPlayer && typeof prevPlayer.getPlayerState === 'function'
+    && prevPlayer.getPlayerState() === YT.PlayerState.PLAYING;
+
   activeCam = n;
   const wrappers = [null,
     document.getElementById('player-wrapper-1'),
@@ -77,6 +115,14 @@ function switchCam(n) {
   // 활성 플레이어를 전역에 노출 (drawing.js에서 사용)
   const activePlayer = n===1?player : n===2?player2 : player3;
   window._activeSportsplayPlayer = activePlayer;
+
+  // 새로 활성화된 카메라를 오프셋 반영해서 같은 경기 클럭 지점으로 재동기화 — 예전엔 전환만 하고
+  // 재생 위치는 그대로 안 맞춰줘서 카메라를 바꾸면 다른 순간이 보이는 문제가 있었음.
+  if (activePlayer && typeof activePlayer.seekTo === 'function') {
+    activePlayer.seekTo(Math.max(0, matchTime - camOffset(n)), true);
+    if (wasPlaying && typeof activePlayer.playVideo === 'function') activePlayer.playVideo();
+    else if (!wasPlaying && typeof activePlayer.pauseVideo === 'function') activePlayer.pauseVideo();
+  }
 }
 
 function onPlayerReady(event) {
@@ -93,6 +139,10 @@ function onPlayerReady(event) {
 
 
 function onPlayerStateChange(event) {
+  // cam1/cam2/cam3 전부 같은 핸들러를 씀 — 지금 화면에 안 보이는(비활성) 카메라가 백그라운드에서
+  // 자동재생되며 상태변화를 일으켜도 재생/정지 버튼이 잘못 바뀌지 않도록, 실제로 이 이벤트를
+  // 일으킨 플레이어가 지금 활성 카메라일 때만 UI를 갱신함.
+  if (event.target !== getActivePlayer()) return;
   // YT.PlayerState.PLAYING = 1, PAUSED = 2
   if (event.data === YT.PlayerState.PLAYING) {
     playPauseBtn.textContent = '⏸ 일시 정지';
@@ -314,10 +364,12 @@ export function renderCodeViewer(events) {
         playSingleClip(index);
       });
       
-      // 마우스 Hover 시 즉각 썸네일 탐색 UX (영상 정지 중에만 작동)
+      // 마우스 Hover 시 즉각 썸네일 탐색 UX (영상 정지 중에만 작동) — 활성 카메라 기준 +
+      // 오프셋 반영(이전엔 cam1 고정이라 다른 카메라 보는 중엔 이 미리보기가 안 먹었음)
       li.addEventListener('mouseenter', () => {
-         if (isPlayerReady && player.getPlayerState() !== YT.PlayerState.PLAYING) {
-             player.seekTo(ev.start_time, true);
+         const pl = getActivePlayer();
+         if (isPlayerReady && pl && pl.getPlayerState() !== YT.PlayerState.PLAYING) {
+             seekActiveToMatchTime(ev.start_time);
          }
       });
       
@@ -333,12 +385,12 @@ export function playSingleClip(index) {
   playingSingleClip = true;
   currentPlaylistIndex = index;
   const ev = currentPlaylist[index];
-  
+
   highlightActiveItem(index);
-  
+
   if(isPlayerReady) {
-    player.seekTo(ev.start_time, true);
-    player.playVideo();
+    seekActiveToMatchTime(ev.start_time);
+    getActivePlayer().playVideo();
     currentClipEnd = ev.end_time;
   }
 }
@@ -354,15 +406,15 @@ function playOrganizerPlaylist(eventsArray) {
 function playCurrentIndexInQueue() {
   const ev = currentPlaylist[currentPlaylistIndex];
   if (!ev) {
-    if(isPlayerReady) player.pauseVideo();
+    if(isPlayerReady) getActivePlayer().pauseVideo();
     return;
   }
-  
+
   highlightActiveItem(currentPlaylistIndex);
-  
+
   if(isPlayerReady) {
-    player.seekTo(ev.start_time, true);
-    player.playVideo();
+    seekActiveToMatchTime(ev.start_time);
+    getActivePlayer().playVideo();
     currentClipEnd = ev.end_time;
   }
 }
@@ -381,25 +433,30 @@ export function updateEventDrawingLocal(eventId, drawingJson) {
   if (pEv) pEv.tactical_drawing = drawingJson;
 }
 
-// 시간 추적 (종료 시간 도달 시 자동 넘김 로직)
+// 시간 추적 (종료 시간 도달 시 자동 넘김 로직) — 항상 "지금 활성 카메라"를 기준으로 함
+// (예전엔 cam1(player) 고정이라 다른 카메라 보는 중엔 타임라인/구간 자동넘김이 다 안 먹었음).
 function startTrackingTime() {
   if (checkTimeInterval) clearInterval(checkTimeInterval);
   checkTimeInterval = setInterval(() => {
-    if (!isPlayerReady || !player.getDuration) return;
-    
-    const currentTime = player.getCurrentTime();
-    
-    // 타임라인 스크러버 업데이트
-    const duration = player.getDuration();
+    const pl = getActivePlayer();
+    if (!isPlayerReady || !pl || typeof pl.getDuration !== 'function') return;
+
+    const rawTime = pl.getCurrentTime();
+    const duration = pl.getDuration();
+
+    // 타임라인 스크러버 + 시간 표시 업데이트 (활성 카메라 자체 영상 기준 — 슬라이더 0~100%와 항상 일치)
     if(duration > 0) {
-      document.getElementById('timeline').value = (currentTime / duration) * 100;
+      document.getElementById('timeline').value = (rawTime / duration) * 100;
+      updateTimeDisplay(rawTime, duration);
     }
-    
-    // 지정된 클립 종료 시간 도달 로직
-    if (currentTime >= currentClipEnd && currentClipEnd > 0) {
+
+    // 지정된 클립 종료 시간 도달 로직 — 클립 시작/종료 시간은 "경기 클럭" 기준으로 저장돼있으므로
+    // 비교도 경기 클럭 기준으로 함(카메라 오프셋 반영)
+    const matchClockTime = rawTime + camOffset(activeCam);
+    if (matchClockTime >= currentClipEnd && currentClipEnd > 0) {
       if (playingSingleClip) {
         // 단일 클립 재생 시 정지
-        player.pauseVideo();
+        pl.pauseVideo();
         stopTrackingTime();
       } else {
         // 오거나이저 연속 재생 시 다음 클립 로드
@@ -407,7 +464,7 @@ function startTrackingTime() {
         if (currentPlaylistIndex < currentPlaylist.length) {
           playCurrentIndexInQueue();
         } else {
-          player.pauseVideo();
+          pl.pauseVideo();
           stopTrackingTime();
           alert("오거나이저 재생이 완료되었습니다.");
         }
@@ -480,15 +537,37 @@ speedBtn?.addEventListener('click', () => {
   setSpeed(currentSpeed === 1 ? 1.5 : (currentSpeed === 1.5 ? 2 : (currentSpeed === 2 ? 0.5 : 1)));
 });
 
+// ── 타임라인 스크러버 아래 "현재시간 / 전체길이" 표시 ──
+// 활성 카메라 자체 영상 기준(경기 클럭 아님)으로 표시 — 슬라이더가 매핑하는 기준(0~100% =
+// 그 영상의 raw duration)과 항상 일치시켜서 숫자가 슬라이더 위치랑 안 맞는 혼란을 없앰.
+const timeDisplayEl = document.getElementById('time-display');
+function formatClockTime(seconds) {
+  const s = Math.max(0, Math.floor(isFinite(seconds) ? seconds : 0));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const mm = h > 0 ? String(m).padStart(2, '0') : String(m);
+  const ss = String(sec).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+function updateTimeDisplay(current, duration) {
+  if (!timeDisplayEl) return;
+  timeDisplayEl.textContent = `${formatClockTime(current)} / ${formatClockTime(duration)}`;
+}
+
 const timelineInput = document.getElementById('timeline');
 timelineInput?.addEventListener('input', (e) => {
   const pl = getActivePlayer();
   if (!isPlayerReady || !pl || typeof pl.getDuration !== 'function') return;
   const duration = pl.getDuration();
-  if (duration > 0) pl.seekTo((e.target.value / 100) * duration, true);
+  if (duration > 0) {
+    const target = (e.target.value / 100) * duration;
+    pl.seekTo(target, true);
+    updateTimeDisplay(target, duration); // 드래그 중에도(재생 안 하고 있어도) 바로 갱신
+  }
 });
 
-// ── 키보드 컨트롤: Space=재생/정지, ←/→=5초 탐색, ↑/↓=배속 조절 ──
+// ── 키보드 컨트롤: Space=재생/정지, ←/→=5초 탐색, ↑/↓=배속 조절, 1/2/3=카메라 전환 ──
 // 검색창/텍스트 입력 등에 포커스가 있을 때는 무시(타이핑 방해 방지). 재생바(#timeline)는
 // input이지만 "타이핑"하는 곳이 아니라서 예외 처리(포커스가 거기 가있어도 5초 탐색이 이김).
 function isTypingTarget(el) {
@@ -505,6 +584,9 @@ document.addEventListener('keydown', (e) => {
     case 'ArrowRight': e.preventDefault(); seekBy(5); break;
     case 'ArrowUp':    e.preventDefault(); cycleSpeed(1); break;
     case 'ArrowDown':  e.preventDefault(); cycleSpeed(-1); break;
+    case 'Digit1':     e.preventDefault(); switchCam(1); break;
+    case 'Digit2':     e.preventDefault(); switchCam(2); break;
+    case 'Digit3':     e.preventDefault(); switchCam(3); break;
   }
 });
 
