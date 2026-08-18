@@ -22,7 +22,7 @@ import { BuildUpEfficiencyChart } from "./build-up-efficiency-chart"
 import { MatchTrajectoryChart } from "./match-trajectory-chart"
 import { TournamentDashboard } from "./tournament-dashboard"
 import { TournamentManager } from "./tournament-manager"
-import { parseXMLData, parseCSVData, createMatchDataFromUpload } from "@/lib/parser"
+import { parseXMLData, parseCSVData, createMatchDataFromUpload, decodeUploadedFile } from "@/lib/parser"
 import { TournamentService } from "@/lib/tournament-service"
 import { db } from "@/lib/firebase"
 import { Input } from "@/components/ui/input"
@@ -205,25 +205,7 @@ export function Dashboard() {
       reader.onload = (e) => {
         try {
           const ab = e.target?.result as ArrayBuffer;
-          const bytes = new Uint8Array(ab);
-
-          let content: string;
-          // UTF-16 LE BOM 감지 (FF FE)
-          if (bytes[0] === 0xFF && bytes[1] === 0xFE) {
-            content = new TextDecoder('utf-16le').decode(ab);
-          // UTF-16 BE BOM 감지 (FE FF)
-          } else if (bytes[0] === 0xFE && bytes[1] === 0xFF) {
-            content = new TextDecoder('utf-16be').decode(ab);
-          // UTF-8 BOM 감지 (EF BB BF)
-          } else if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
-            content = new TextDecoder('utf-8').decode(ab);
-          } else {
-            // BOM 없으면 UTF-8 시도, 깨지면 EUC-KR
-            content = new TextDecoder('utf-8').decode(ab);
-            if ((content.match(/\ufffd/g) || []).length > 5) {
-              content = new TextDecoder('euc-kr').decode(ab);
-            }
-          }
+          const content = decodeUploadedFile(ab);
 
           const parsed = file.name.endsWith('.xml') ? parseXMLData(content) : parseCSVData(content);
           setParsedEvents(parsed.events);

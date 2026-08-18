@@ -19,7 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from "@/components/ui/label"
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, query } from "firebase/firestore"
-import { parseXMLData, parseCSVData, createMatchDataFromUpload } from "@/lib/parser"
+import { parseXMLData, parseCSVData, createMatchDataFromUpload, decodeUploadedFile } from "@/lib/parser"
 
 // FIH TMS류 사이트에서 그대로 복사-붙여넣기한 일정표를 파싱합니다.
 // 탭 구분(엑셀/TMS 표에서 복사 시 보통 탭)이 기본이고, 없으면 공백 2칸+ 로 대체 분리합니다.
@@ -602,8 +602,7 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
     reader.onload = async (e) => {
       try {
         const ab = e.target?.result as ArrayBuffer;
-        let content = new TextDecoder('utf-8').decode(ab);
-        if ((content.match(/\ufffd/g) || []).length > 5) content = new TextDecoder('euc-kr').decode(ab);
+        const content = decodeUploadedFile(ab);
         const parsed = file.name.endsWith('.xml') ? parseXMLData(content) : parseCSVData(content);
         const oldMatch = rawMatches?.find(m => m.id === replaceMatchId);
         const updatedData = createMatchDataFromUpload(
@@ -644,8 +643,7 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
       setIsUploadingSlot(true);
       try {
         const ab = e.target?.result as ArrayBuffer;
-        let content = new TextDecoder('utf-8').decode(ab);
-        if ((content.match(/�/g) || []).length > 5) content = new TextDecoder('euc-kr').decode(ab);
+        const content = decodeUploadedFile(ab);
         const parsed = file.name.endsWith('.xml') ? parseXMLData(content) : parseCSVData(content);
         const matchName = `M${entry.matchNumber} ${entry.homeResolved} vs ${entry.awayResolved}`;
         const newMatchData = createMatchDataFromUpload(

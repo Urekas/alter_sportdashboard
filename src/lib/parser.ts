@@ -1,6 +1,22 @@
 
 import type { MatchEvent, MatchData, TeamMatchStats } from './types';
 
+// Sportscode가 내보내는 XML/CSV는 보통 UTF-16LE(BOM: FF FE)인데, 이걸 무조건 UTF-8로만 디코딩하면
+// 한글이 다 깨지고(예: "인도"→ 알아볼 수 없는 문자) 심지어 ASCII 글자 사이사이에 NUL 문자가 끼어들어가서
+// XML 파싱 자체가 실패합니다(파일 인식 실패 + 이후 저장되는 rawSourceText도 이미 깨진 채로 저장되어
+// "XML 다운로드"도 깨진 파일이 나오는 두 증상이 사실 한 원인). BOM을 먼저 검사해서 실제 인코딩대로
+// 디코딩하고, BOM이 없을 때만 UTF-8→(깨지면) EUC-KR 순으로 추정합니다.
+export function decodeUploadedFile(ab: ArrayBuffer): string {
+  const bytes = new Uint8Array(ab);
+  if (bytes[0] === 0xFF && bytes[1] === 0xFE) return new TextDecoder('utf-16le').decode(ab); // UTF-16 LE BOM
+  if (bytes[0] === 0xFE && bytes[1] === 0xFF) return new TextDecoder('utf-16be').decode(ab); // UTF-16 BE BOM
+  if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) return new TextDecoder('utf-8').decode(ab); // UTF-8 BOM
+  // BOM 없으면 UTF-8로 시도, 깨진 문자(U+FFFD)가 많으면 EUC-KR로 재시도
+  let content = new TextDecoder('utf-8').decode(ab);
+  if ((content.match(/�/g) || []).length > 5) content = new TextDecoder('euc-kr').decode(ab);
+  return content;
+}
+
 export const detectRealTeamNames = (text: string): { home: string, away: string } | null => {
   // 1. 점수가 포함된 패턴 우선 검색 (예: 웨일즈 0 - 스코틀랜드 0) - 가장 확실한 식별자
   const scorePattern = /([가-힣A-Za-z]+)\s*\d+\s*-\s*([가-힣A-Za-z]+)\s*\d+/;
