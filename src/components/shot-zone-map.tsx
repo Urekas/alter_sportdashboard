@@ -27,6 +27,8 @@ export interface ShotDatum {
   matchName?: string
   quarter?: string
   time?: number
+  matchId?: string       // 여러 경기를 한 번에 모아 보여줄 때(슈팅 분석 등) 어느 경기 소속인지
+  videoMatchId?: string  // 그 경기에 영상이 연결돼있으면 클릭→영상 이동에 씀(없으면 이동 불가)
 }
 
 const FIELD_MAX_X = 550
@@ -85,11 +87,16 @@ function circleOutlinePath(radius: number) {
   return `M ${leftStart.x} ${leftStart.y} A ${radius} ${radius} 0 0 1 ${leftEnd.x} ${leftEnd.y} L ${rightStart.x} ${rightStart.y} A ${radius} ${radius} 0 0 1 ${rightEnd.x} ${rightEnd.y}`
 }
 
-function ShotMarker({ shot, x, y, r, fill, stroke, onEnter, onMove, onLeave }: {
+function ShotMarker({ shot, x, y, r, fill, stroke, onEnter, onMove, onLeave, onClick }: {
   shot: ShotDatum, x: number, y: number, r: number, fill: string, stroke: string,
   onEnter: (e: React.MouseEvent, shot: ShotDatum) => void, onMove: (e: React.MouseEvent) => void, onLeave: () => void,
+  onClick?: (shot: ShotDatum) => void,
 }) {
-  const handlers = { onMouseEnter: (e: React.MouseEvent) => onEnter(e, shot), onMouseMove: onMove, onMouseLeave: onLeave, style: { cursor: 'pointer' as const } }
+  const handlers = {
+    onMouseEnter: (e: React.MouseEvent) => onEnter(e, shot), onMouseMove: onMove, onMouseLeave: onLeave,
+    onClick: onClick ? () => onClick(shot) : undefined,
+    style: { cursor: 'pointer' as const },
+  }
   if (shot.isPC) {
     const s = r * 1.7
     return <rect x={x - s / 2} y={y - s / 2} width={s} height={s} rx={1.5} fill={fill} fillOpacity={0.9} stroke={stroke} strokeWidth={1.5} {...handlers} />
@@ -142,7 +149,7 @@ function buildGoalGrid(shots: ShotDatum[], goalGridSize: number): GridCell[] {
 
 function SidePanel({
   label, color, shots, showGrid, gridCols, gridRows, goalGridSize,
-  onEnter, onMove, onLeave,
+  onEnter, onMove, onLeave, onShotClick,
 }: {
   label: string
   color: string
@@ -154,6 +161,7 @@ function SidePanel({
   onEnter: (e: React.MouseEvent, shot: ShotDatum) => void
   onMove: (e: React.MouseEvent) => void
   onLeave: () => void
+  onShotClick?: (shot: ShotDatum) => void
 }) {
   const fieldShots = useMemo(() => shots.filter(s => fieldPixel(s) !== null), [shots])
   const goalShots = useMemo(() => shots.filter(s => goalPixel(s) !== null), [shots])
@@ -201,7 +209,7 @@ function SidePanel({
 
             {fieldShots.map(s => {
               const p = fieldPixel(s)!
-              return <ShotMarker key={s.id} shot={s} x={p.x} y={p.y} r={6} fill={OUTCOME_COLORS[s.output]} stroke={color} onEnter={onEnter} onMove={onMove} onLeave={onLeave} />
+              return <ShotMarker key={s.id} shot={s} x={p.x} y={p.y} r={6} fill={OUTCOME_COLORS[s.output]} stroke={color} onEnter={onEnter} onMove={onMove} onLeave={onLeave} onClick={onShotClick} />
             })}
           </svg>
         </div>
@@ -233,7 +241,7 @@ function SidePanel({
 
             {goalShots.map(s => {
               const p = goalPixel(s)!
-              return <ShotMarker key={s.id} shot={s} x={p.x} y={p.y} r={6} fill={OUTCOME_COLORS[s.output]} stroke={color} onEnter={onEnter} onMove={onMove} onLeave={onLeave} />
+              return <ShotMarker key={s.id} shot={s} x={p.x} y={p.y} r={6} fill={OUTCOME_COLORS[s.output]} stroke={color} onEnter={onEnter} onMove={onMove} onLeave={onLeave} onClick={onShotClick} />
             })}
           </svg>
         </div>
@@ -261,6 +269,7 @@ interface ShotZoneMapProps {
   gridCols?: number
   gridRows?: number
   goalGridSize?: number
+  onShotClick?: (shot: ShotDatum) => void // 마커 클릭 시(예: 영상의 그 시점으로 이동) — 없으면 그냥 hover 툴팁만
 }
 
 export function ShotZoneMap({
@@ -276,6 +285,7 @@ export function ShotZoneMap({
   gridCols = 4,
   gridRows = 3,
   goalGridSize = 3,
+  onShotClick,
 }: ShotZoneMapProps) {
   const [showGrid, setShowGrid] = useState(defaultGrid)
   const [tooltip, setTooltip] = useState<Tooltip | null>(null)
@@ -312,7 +322,7 @@ export function ShotZoneMap({
             <SidePanel
               label={sideALabel} color={sideAColor} shots={shotsA} showGrid={showGrid}
               gridCols={gridCols} gridRows={gridRows} goalGridSize={goalGridSize}
-              onEnter={handleEnter} onMove={handleMove} onLeave={handleLeave}
+              onEnter={handleEnter} onMove={handleMove} onLeave={handleLeave} onShotClick={onShotClick}
             />
           </div>
           {showSideB && (
@@ -320,7 +330,7 @@ export function ShotZoneMap({
               <SidePanel
                 label={sideBLabel} color={sideBColor} shots={shotsB} showGrid={showGrid}
                 gridCols={gridCols} gridRows={gridRows} goalGridSize={goalGridSize}
-                onEnter={handleEnter} onMove={handleMove} onLeave={handleLeave}
+                onEnter={handleEnter} onMove={handleMove} onLeave={handleLeave} onShotClick={onShotClick}
               />
             </div>
           )}

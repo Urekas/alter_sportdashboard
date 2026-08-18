@@ -5,13 +5,21 @@
 // 필드 발사위치·골대 타겟 두 지도로 누적해서 보여줌. 그리드 토글은 ShotZoneMap 내부에서 처리.
 // 하키는 남자/여자 대회가 완전히 분리돼있어서(같은 "한국"이라도 다른 팀) "전체 대회"도 실제로는
 // "선택한 카테고리 안의 전체 대회"를 뜻하도록 카테고리를 먼저 고르게 함. category 없는 대회는 "미분류".
+//
+// 2026-08 개편: 타임라인 로그(전체 슈팅 목록, 클릭→영상 이동) + 선수별 통계 정렬 + 우리팀/상대팀
+// KPI 비교 카드 추가. 그리드 칸 크기 조절 UI는 사용자가 "나중에 직접 하겠다"고 보류한 항목이라
+// 이번에도 안 건드림(gridCols/gridRows/goalGridSize는 이미 props로 존재).
 import { useMemo, useState } from "react"
-import { Trophy, Users, Loader2, Target, Sword, ShieldCheck, Table2 } from "lucide-react"
+import { Trophy, Users, Loader2, Target, Sword, ShieldCheck, Table2, ListVideo, ArrowUp, ArrowDown, ArrowUpDown, Video, Search, RotateCcw } from "lucide-react"
 import type { MatchData, Tournament } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "@/components/ui/badge"
 import { StatsCard } from "./stats-card"
 import { ShotZoneMap, isShotAttemptCode, normalizeShotOutput, isPcAttempt, type ShotDatum } from "./shot-zone-map"
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
@@ -22,10 +30,31 @@ interface ShotAnalysisDashboardProps {
   tournaments: Tournament[]
 }
 
+const OUTPUT_LABELS: Record<ShotDatum['output'], string> = {
+  goal: "득점", save: "GK 선방", block: "블락", out: "아웃", fail: "실패", unknown: "미분류",
+}
+
+function openShotVideo(shot: ShotDatum) {
+  if (!shot.videoMatchId || shot.time === undefined) return
+  window.open(`/Alter_sportsplay/index.html?matchId=${shot.videoMatchId}&time=${Math.max(0, Math.floor(shot.time))}`, '_blank')
+}
+
+type PlayerStatKey = 'player' | 'total' | 'goal' | 'save' | 'block' | 'out' | 'fail'
+
 export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProps) {
   const [category, setCategory] = useState("")
   const [tournamentId, setTournamentId] = useState<string>("ALL")
   const [teamName, setTeamName] = useState<string>("")
+
+  // 타임라인 로그 전용 하위 필터 — 위쪽 카테고리/대회/팀 캐스케이드는 안 건드림
+  const [logTeamFilter, setLogTeamFilter] = useState<'ALL' | 'A' | 'B'>('ALL')
+  const [logMatchFilter, setLogMatchFilter] = useState<Set<string> | null>(null) // null = 전체(필터 안 함)
+  const [logTypeFilter, setLogTypeFilter] = useState<string>('ALL')
+  const [logOutputFilter, setLogOutputFilter] = useState<string>('ALL')
+  const [logSearch, setLogSearch] = useState('')
+
+  const [playerSortKey, setPlayerSortKey] = useState<PlayerStatKey>('total')
+  const [playerSortDesc, setPlayerSortDesc] = useState(true)
 
   const db = useFirestore()
   const matchesQuery = useMemoFirebase(() => db ? query(collection(db, 'matches')) : null, [db])
@@ -59,16 +88,19 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
     const kpiSum = { us: { total: 0, goal: 0, save: 0, block: 0 }, opp: { total: 0, goal: 0, save: 0, block: 0 } }
 
     relevant.forEach(m => {
-      m.events.forEach(e => {
+      m.events.forEach((e, idx) => {
         if (!isShotAttemptCode(e.code)) return
         if (e.xLoc === undefined && e.yLoc === undefined && e.xGoal === undefined && e.yGoal === undefined && !e.outDir) return
         const isUs = e.team === effectiveTeam
         const output = normalizeShotOutput(e.shotOutput, e.resultLabel, e.outDir)
         result.push({
-          id: e.id, side: isUs ? 'A' : 'B', teamName: e.team, player: e.shooter, output,
+          // MatchEvent.id가 경기 내에서도 중복될 수 있어서(Sportscode 원본 데이터 특성,
+          // match-event-timeline.tsx와 동일한 이유) 경기ID+인덱스 조합을 진짜 식별자로 씀.
+          id: `${m.id}-${idx}`, side: isUs ? 'A' : 'B', teamName: e.team, player: e.shooter, output,
           shotType: e.shotType, isPC: isPcAttempt(e.code, e.shotType),
           xLoc: e.xLoc, yLoc: e.yLoc, xGoal: e.xGoal, yGoal: e.yGoal, outDir: e.outDir,
           matchName: m.matchName, quarter: e.quarter, time: e.time,
+          matchId: m.id, videoMatchId: m.videoMatchId,
         })
         const bucket = isUs ? kpiSum.us : kpiSum.opp
         bucket.total++
@@ -90,8 +122,54 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
       row.total++
       if (s.output !== 'unknown') (row as any)[s.output]++
     })
-    return Array.from(map.values()).sort((a, b) => b.total - a.total)
-  }, [shots])
+    const arr = Array.from(map.values())
+    arr.sort((a, b) => {
+      const av = a[playerSortKey], bv = b[playerSortKey]
+      if (typeof av === 'string' || typeof bv === 'string') {
+        const cmp = String(av).localeCompare(String(bv), 'ko')
+        return playerSortDesc ? -cmp : cmp
+      }
+      return playerSortDesc ? (bv as number) - (av as number) : (av as number) - (bv as number)
+    })
+    return arr
+  }, [shots, playerSortKey, playerSortDesc])
+
+  const togglePlayerSort = (key: PlayerStatKey) => {
+    if (playerSortKey === key) setPlayerSortDesc(d => !d)
+    else { setPlayerSortKey(key); setPlayerSortDesc(key !== 'player') }
+  }
+
+  const shotTypes = useMemo(() => Array.from(new Set(shots.map(s => s.shotType).filter(Boolean))) as string[], [shots])
+
+  // 로그 필터 — 경기 다중선택은 null(전체)이 기본, 사용자가 한 번이라도 체크박스를 건드리면 Set으로 좁혀짐
+  const logRows = useMemo(() => {
+    let rows = shots
+    if (logTeamFilter !== 'ALL') rows = rows.filter(s => s.side === logTeamFilter)
+    if (logMatchFilter) rows = rows.filter(s => s.matchId && logMatchFilter.has(s.matchId))
+    if (logTypeFilter !== 'ALL') rows = rows.filter(s => s.shotType === logTypeFilter)
+    if (logOutputFilter !== 'ALL') rows = rows.filter(s => s.output === logOutputFilter)
+    if (logSearch.trim()) {
+      const q = logSearch.trim().toLowerCase()
+      rows = rows.filter(s => `${s.player || ''} ${s.matchName || ''} ${s.teamName}`.toLowerCase().includes(q))
+    }
+    return [...rows].sort((a, b) => (a.matchName || '').localeCompare(b.matchName || '') || (a.time ?? 0) - (b.time ?? 0))
+  }, [shots, logTeamFilter, logMatchFilter, logTypeFilter, logOutputFilter, logSearch])
+
+  const resetLogFilters = () => {
+    setLogTeamFilter('ALL'); setLogMatchFilter(null); setLogTypeFilter('ALL'); setLogOutputFilter('ALL'); setLogSearch('')
+  }
+
+  const toggleMatchInFilter = (matchId: string, allMatchIds: string[]) => {
+    setLogMatchFilter(prev => {
+      const base = prev ? new Set(prev) : new Set(allMatchIds)
+      if (base.has(matchId)) base.delete(matchId); else base.add(matchId)
+      return base
+    })
+  }
+
+  const sortIcon = (key: PlayerStatKey) => playerSortKey !== key
+    ? <ArrowUpDown className="h-3 w-3 opacity-40" />
+    : playerSortDesc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />
 
   return (
     <div className="space-y-8">
@@ -115,7 +193,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
               <span className="text-[10px] font-bold text-muted-foreground uppercase mr-1 flex items-center gap-1"><Users className="h-3 w-3" /> 카테고리</span>
               {categories.map(c => (
                 <Button key={c} size="sm" variant={effCategory === c ? 'default' : 'outline'} className="h-7 text-[11px] font-bold px-2.5"
-                  onClick={() => { setCategory(c); setTournamentId("ALL"); setTeamName("") }}>{c}</Button>
+                  onClick={() => { setCategory(c); setTournamentId("ALL"); setTeamName(""); resetLogFilters() }}>{c}</Button>
               ))}
             </div>
           )}
@@ -123,7 +201,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
           <div className="flex flex-wrap gap-3">
             <div className="space-y-1">
               <Label className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1"><Trophy className="h-3 w-3" /> 대회</Label>
-              <Select value={tournamentId} onValueChange={(v) => { setTournamentId(v); setTeamName("") }}>
+              <Select value={tournamentId} onValueChange={(v) => { setTournamentId(v); setTeamName(""); resetLogFilters() }}>
                 <SelectTrigger className="h-9 w-48"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">전체 대회 ({effCategory})</SelectItem>
@@ -133,7 +211,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
             </div>
             <div className="space-y-1">
               <Label className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1"><Users className="h-3 w-3" /> 팀</Label>
-              <Select value={effectiveTeam} onValueChange={setTeamName}>
+              <Select value={effectiveTeam} onValueChange={(v) => { setTeamName(v); resetLogFilters() }}>
                 <SelectTrigger className="h-9 w-48"><SelectValue placeholder="팀 선택" /></SelectTrigger>
                 <SelectContent>
                   {allTeamNames.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
@@ -146,6 +224,30 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
             <div className="py-16 text-center text-muted-foreground">"{effCategory}" 카테고리에 등록된 경기가 없습니다.</div>
           ) : (
         <>
+          {/* 우리팀 vs 상대팀 KPI 비교 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="border-2 border-primary/30">
+              <CardContent className="pt-5">
+                <div className="text-xs font-black uppercase tracking-widest text-primary mb-3">{effectiveTeam} (우리팀)</div>
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div><div className="text-2xl font-black">{kpi.us.total}</div><div className="text-[10px] text-muted-foreground font-bold uppercase">총 슈팅</div></div>
+                  <div><div className="text-2xl font-black text-emerald-600">{kpi.us.goal}</div><div className="text-[10px] text-muted-foreground font-bold uppercase">득점 ({kpi.us.total > 0 ? Math.round((kpi.us.goal / kpi.us.total) * 100) : 0}%)</div></div>
+                  <div><div className="text-2xl font-black">{kpi.us.save + kpi.us.block}</div><div className="text-[10px] text-muted-foreground font-bold uppercase">선방+블락</div></div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-2">
+              <CardContent className="pt-5">
+                <div className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3">상대팀 전체</div>
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div><div className="text-2xl font-black">{kpi.opp.total}</div><div className="text-[10px] text-muted-foreground font-bold uppercase">총 슈팅</div></div>
+                  <div><div className="text-2xl font-black text-rose-600">{kpi.opp.goal}</div><div className="text-[10px] text-muted-foreground font-bold uppercase">득점 ({kpi.opp.total > 0 ? Math.round((kpi.opp.goal / kpi.opp.total) * 100) : 0}%)</div></div>
+                  <div><div className="text-2xl font-black">{kpi.opp.save + kpi.opp.block}</div><div className="text-[10px] text-muted-foreground font-bold uppercase">선방+블락</div></div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatsCard title={`${effectiveTeam} 슈팅 시도`} value={kpi.us.total} icon={<Sword className="h-4 w-4" />} />
             <StatsCard title="득점" value={kpi.us.goal} icon={<Target className="h-4 w-4" />} />
@@ -158,26 +260,151 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
             sideALabel={effectiveTeam}
             sideBLabel="상대팀"
             title={`${effectiveTeam} 슈팅 위치 · 골대 타겟`}
-            description={`${teamMatches.length}경기 누적 · 좌표가 태깅된 슈팅/PC 시도만 표시됩니다`}
+            description={`${teamMatches.length}경기 누적 · 좌표가 태깅된 슈팅/PC 시도만 표시됩니다 · 점을 클릭하면 그 장면 영상으로 이동합니다`}
+            defaultGrid
+            onShotClick={openShotVideo}
           />
+
+          {/* 타임라인 로그 */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
+              <div>
+                <CardTitle className="flex items-center gap-2"><ListVideo className="h-5 w-5" /> 타임라인 로그</CardTitle>
+                <CardDescription>{logRows.length}건 표시 중 (전체 {shots.length}건) · 행을 클릭하면 영상이 연결된 경기는 그 장면으로 바로 이동합니다</CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" onClick={resetLogFilters} className="h-8 text-xs font-bold gap-1.5"><RotateCcw className="h-3.5 w-3.5" /> 필터 초기화</Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex rounded-md border overflow-hidden">
+                  {(['ALL', 'A', 'B'] as const).map(v => (
+                    <button key={v} onClick={() => setLogTeamFilter(v)}
+                      className={`px-3 py-1.5 text-xs font-bold transition-colors ${logTeamFilter === v ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}>
+                      {v === 'ALL' ? '전체 팀' : v === 'A' ? effectiveTeam : '상대팀'}
+                    </button>
+                  ))}
+                </div>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 text-xs font-bold">
+                      경기 {logMatchFilter ? `${logMatchFilter.size}개 선택` : '전체'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 max-h-72 overflow-y-auto space-y-1">
+                    {teamMatches.map(m => {
+                      const allIds = teamMatches.map(x => x.id!).filter(Boolean)
+                      const checked = logMatchFilter ? logMatchFilter.has(m.id!) : true
+                      return (
+                        <label key={m.id} className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-muted/60 cursor-pointer text-xs">
+                          <Checkbox checked={checked} onCheckedChange={() => toggleMatchInFilter(m.id!, allIds)} />
+                          <span className="truncate">{m.matchName || `${m.homeTeam.name} vs ${m.awayTeam.name}`}</span>
+                        </label>
+                      )
+                    })}
+                  </PopoverContent>
+                </Popover>
+
+                <Select value={logTypeFilter} onValueChange={setLogTypeFilter}>
+                  <SelectTrigger className="h-8 w-36 text-xs"><SelectValue placeholder="슈팅 종류" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">전체 종류</SelectItem>
+                    {shotTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+
+                <Select value={logOutputFilter} onValueChange={setLogOutputFilter}>
+                  <SelectTrigger className="h-8 w-32 text-xs"><SelectValue placeholder="결과" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">전체 결과</SelectItem>
+                    {(Object.keys(OUTPUT_LABELS) as ShotDatum['output'][]).map(k => <SelectItem key={k} value={k}>{OUTPUT_LABELS[k]}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+
+                <div className="relative flex-1 min-w-[160px]">
+                  <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input value={logSearch} onChange={(e) => setLogSearch(e.target.value)} placeholder="선수/경기명 검색..." className="h-8 pl-8 text-xs" />
+                </div>
+              </div>
+
+              <div className="overflow-x-auto rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>팀</TableHead>
+                      <TableHead>경기</TableHead>
+                      <TableHead>쿼터/시간</TableHead>
+                      <TableHead>선수</TableHead>
+                      <TableHead className="text-center">타입</TableHead>
+                      <TableHead className="text-center">결과</TableHead>
+                      <TableHead className="text-center">OUT</TableHead>
+                      <TableHead className="text-right">좌표</TableHead>
+                      <TableHead className="text-center">영상</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {logRows.length === 0 ? (
+                      <TableRow><TableCell colSpan={9} className="text-center py-10 text-muted-foreground">조건에 맞는 슈팅이 없습니다.</TableCell></TableRow>
+                    ) : logRows.map(s => {
+                      const canPlay = !!s.videoMatchId
+                      const min = s.time !== undefined ? Math.floor(s.time / 60) : null
+                      const sec = s.time !== undefined ? Math.floor(s.time % 60) : null
+                      return (
+                        <TableRow
+                          key={s.id}
+                          className={canPlay ? "cursor-pointer hover:bg-primary/5" : ""}
+                          onClick={() => canPlay && openShotVideo(s)}
+                          title={canPlay ? "클릭하면 이 장면 영상으로 이동합니다" : "이 경기는 영상이 연결돼있지 않습니다"}
+                        >
+                          <TableCell>
+                            <Badge variant={s.side === 'A' ? 'default' : 'secondary'} className="text-[10px]">{s.side === 'A' ? effectiveTeam : s.teamName}</Badge>
+                          </TableCell>
+                          <TableCell className="max-w-[160px] truncate text-xs font-semibold">{s.matchName || '-'}</TableCell>
+                          <TableCell className="text-xs">{s.quarter || ''} {min !== null ? `${min}:${String(sec).padStart(2, '0')}` : ''}</TableCell>
+                          <TableCell className="text-xs font-bold">{s.player || '-'}</TableCell>
+                          <TableCell className="text-center text-[11px] text-muted-foreground">{s.shotType || '-'}{s.isPC && <span className="ml-1">(PC)</span>}</TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="text-[10px]">{OUTPUT_LABELS[s.output]}</Badge>
+                          </TableCell>
+                          <TableCell className="text-center text-[11px] text-amber-600 font-bold">{s.outDir || '-'}</TableCell>
+                          <TableCell className="text-right text-[10px] font-mono text-muted-foreground">
+                            {s.xLoc !== undefined ? `${s.xLoc},${s.yLoc}` : '-'}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {canPlay ? <Video className="h-4 w-4 mx-auto text-primary" /> : <Video className="h-4 w-4 mx-auto opacity-20" />}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
 
           {playerStats.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Table2 className="h-5 w-5" /> 선수별 슈팅 통계</CardTitle>
-                <CardDescription>{effectiveTeam} 선수 기준 (슈터 라벨이 태깅된 시도만 집계)</CardDescription>
+                <CardDescription>{effectiveTeam} 선수 기준 (슈터 라벨이 태깅된 시도만 집계) · 컬럼을 클릭하면 정렬됩니다</CardDescription>
               </CardHeader>
               <CardContent className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>선수</TableHead>
-                      <TableHead className="text-center">총 시도</TableHead>
-                      <TableHead className="text-center">득점</TableHead>
-                      <TableHead className="text-center">GK 선방</TableHead>
-                      <TableHead className="text-center">블락</TableHead>
-                      <TableHead className="text-center">아웃</TableHead>
-                      <TableHead className="text-center">실패</TableHead>
+                      {([
+                        ['player', '선수', 'left'],
+                        ['total', '총 시도', 'center'],
+                        ['goal', '득점', 'center'],
+                        ['save', 'GK 선방', 'center'],
+                        ['block', '블락', 'center'],
+                        ['out', '아웃', 'center'],
+                        ['fail', '실패', 'center'],
+                      ] as [PlayerStatKey, string, string][]).map(([key, label, align]) => (
+                        <TableHead key={key} className={`cursor-pointer select-none hover:text-primary transition-colors ${align === 'center' ? 'text-center' : ''}`} onClick={() => togglePlayerSort(key)}>
+                          <span className={`inline-flex items-center gap-1 ${align === 'center' ? 'justify-center' : ''}`}>{label} {sortIcon(key)}</span>
+                        </TableHead>
+                      ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
