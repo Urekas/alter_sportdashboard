@@ -508,13 +508,16 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// ── 모바일: 영상 화면 좌/우 더블탭으로 5초 뒤/앞으로 탐색 (유튜브 앱과 동일한 UX) ──
-// 유튜브 iframe은 크로스오리진이라 그 안에서 일어나는 터치는 부모 DOM으로 안 올라오므로,
-// video-container 위에 투명 오버레이를 깔아서 터치를 직접 잡음. 오버레이는 터치 기기에서만
-// pointer-events:auto가 되도록 CSS 미디어쿼리로 제한(styles.css) — 데스크톱 마우스 조작은
-// 그대로 iframe/캔버스에 닿음. 그리기 모드일 땐 canvas-container가 더 높은 z-index로 덮어서
-// 이 오버레이까지 터치가 안 내려와 자연히 안 겹침.
-(function setupMobileDoubleTapSeek() {
+// ── 영상 화면 클릭/탭 컨트롤: 한 번=재생/정지, 더블(클릭/탭)=좌우 5초 탐색 ──
+// 유튜브 iframe은 크로스오리진이라 그 안에서 일어나는 클릭/터치는 부모 DOM으로 안 올라오므로,
+// video-container 위에 투명 오버레이를 깔아서 항상 먼저 잡음(pointer-events:auto, styles.css).
+// 이렇게 하면 iframe이 사용자의 클릭을 직접 받는 일이 아예 없어지는데, 유튜브가 화면 중앙에
+// 띄우는 자체 재생/정지 아이콘은 iframe이 클릭을 직접 받았을 때만 뜨는 UI라서(그림 그릴 때
+// 시야를 가려서 불편하다는 피드백) — 클릭을 여기서 가로채면 그 아이콘 자체가 안 뜸(영상 밝기는
+// 그대로 유지, 화면을 어둡게 가리는 식으로 눈속임하지 않아도 됨). Pointer Events로 마우스/터치/
+// 펜을 하나의 로직으로 통일. 그리기 모드일 땐 canvas-container가 더 높은 z-index로 덮어서
+// 이 오버레이까지 클릭이 안 내려와 자연히 안 겹침.
+(function setupVideoTapControls() {
   const videoContainer = document.getElementById('video-container');
   if (!videoContainer) return;
 
@@ -528,18 +531,17 @@ document.addEventListener('keydown', (e) => {
 
   let lastTapTime = 0;
   let lastTapX = 0;
+  let singleClickTimer = null;
   let flashTimeout = null;
 
-  overlay.addEventListener('touchend', (e) => {
-    if (!e.changedTouches || e.changedTouches.length === 0) return;
-    const touch = e.changedTouches[0];
+  overlay.addEventListener('pointerup', (e) => {
     const rect = videoContainer.getBoundingClientRect();
     const now = Date.now();
-    const isDoubleTap = (now - lastTapTime) < 350 && Math.abs(touch.clientX - lastTapX) < 80;
+    const isDoubleTap = (now - lastTapTime) < 350 && Math.abs(e.clientX - lastTapX) < 80;
 
     if (isDoubleTap) {
-      e.preventDefault();
-      const isRightSide = (touch.clientX - rect.left) > rect.width / 2;
+      clearTimeout(singleClickTimer); // 예약해둔 단일클릭(재생/정지) 취소 — 더블클릭으로 확정
+      const isRightSide = (e.clientX - rect.left) > rect.width / 2;
       seekBy(isRightSide ? 5 : -5);
 
       flash.textContent = isRightSide ? '5초 ▶▶' : '◀◀ 5초';
@@ -550,7 +552,10 @@ document.addEventListener('keydown', (e) => {
       lastTapTime = 0; // 트리플탭이 다시 더블탭으로 잡히지 않게 리셋
     } else {
       lastTapTime = now;
-      lastTapX = touch.clientX;
+      lastTapX = e.clientX;
+      // 더블클릭/탭인지 잠깐 기다렸다가 아니면 재생/정지 토글
+      clearTimeout(singleClickTimer);
+      singleClickTimer = setTimeout(togglePlayPause, 350);
     }
   });
 })();

@@ -185,16 +185,17 @@ body.hide-left {
   color: var(--text-on-dark);
 }
 
-/* 모바일 더블탭 5초 탐색 (player.js의 setupMobileDoubleTapSeek가 만듦) — 데스크톱에선
-   비활성(마우스 조작이 그대로 영상/캔버스에 닿게), 터치 기기에서만 pointer-events 켜짐 */
+/* 영상 위 클릭/탭 오버레이 (player.js의 setupVideoTapControls가 만듦) — 항상 활성(데스크톱
+   마우스든 모바일 터치든 전부). 한 번 클릭=재생/정지, 더블클릭/더블탭=5초 탐색. 유튜브
+   iframe 위에 항상 이 오버레이가 먼저 있어서, 클릭이 iframe에 직접 닿는 일이 없음 — 유튜브
+   자체의 "클릭하면 화면 중앙에 뜨는 재생/정지 아이콘"이 이 iframe 직접 클릭에서만 나오는
+   자체 UI라, 클릭을 여기서 가로채면 애초에 뜨지 않음(그리기 방해 문제의 근본 해결). */
 #tap-seek-overlay {
   position: absolute;
   inset: 0;
   z-index: 5;
-  pointer-events: none;
-}
-@media (hover: none) and (pointer: coarse) {
-  #tap-seek-overlay { pointer-events: auto; }
+  pointer-events: auto;
+  cursor: pointer;
 }
 #tap-seek-flash {
   position: absolute;
@@ -500,7 +501,12 @@ input[type="color"] {
 .canvas-container.draw-mode {
   pointer-events: auto !important; /* Draw Mode Active */
   z-index: 1000 !important; /* 분석 시 유튜브 UI 간섭 방지 */
-  background-color: rgba(0, 0, 0, 0.2); /* 드로잉 시 화면 살짝 어둡게 해서 유튜브 아이콘 가리기 & 선명도 증가 */
+  /* 화면을 어둡게 깔아서 유튜브 자체 재생 아이콘을 가리려던 시도(배경 어둡게)는 원본 영상이
+     밝게 안 보이게 만들어서 사용자가 원하는 방향과 반대였음 — 대신 #tap-seek-overlay가 클릭을
+     먼저 가로채서 유튜브 iframe이 클릭을 직접 받는 일 자체가 없게 만듦(player.js). 유튜브의
+     그 아이콘은 iframe이 사용자의 직접 클릭을 받았을 때만 뜨는 자체 UI라, 클릭이 아예 안
+     닿으면 애초에 뜨지 않음 — 그래서 여긴 배경을 다시 완전히 투명하게 둠(영상 밝기 그대로).
+*/
 }
 
 /* 드로잉 모드 활성화 시 하단 컨트롤바 간섭 최소화 */
