@@ -185,6 +185,38 @@ body.hide-left {
   color: var(--text-on-dark);
 }
 
+/* 모바일 더블탭 5초 탐색 (player.js의 setupMobileDoubleTapSeek가 만듦) — 데스크톱에선
+   비활성(마우스 조작이 그대로 영상/캔버스에 닿게), 터치 기기에서만 pointer-events 켜짐 */
+#tap-seek-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+@media (hover: none) and (pointer: coarse) {
+  #tap-seek-overlay { pointer-events: auto; }
+}
+#tap-seek-flash {
+  position: absolute;
+  top: 50%;
+  width: 35%;
+  padding: 14px 0;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 0;
+  transform: translateY(-50%) scale(0.9);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 6;
+}
+#tap-seek-flash.left  { left: 0; }
+#tap-seek-flash.right { right: 0; }
+#tap-seek-flash.show  { opacity: 1; transform: translateY(-50%) scale(1); }
+
 .controls {
   display: flex;
   flex-wrap: wrap; /* NEW: Wrap controls to next line */

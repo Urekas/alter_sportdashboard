@@ -437,24 +437,121 @@ function highlightActiveItem(index) {
   }
 }
 
-playPauseBtn?.addEventListener('click', () => {
-  if (!isPlayerReady) return;
-  const state = player.getPlayerState();
-  if (state === YT.PlayerState.PLAYING) player.pauseVideo(); else player.playVideo();
-});
-
+// ── 재생/탐색/배속 공용 헬퍼 ──
+// 예전엔 하단 버튼들이 항상 cam1(player)만 조종해서, cam2/전술캠2나 cam3/중계캠을 보는 중엔
+// 버튼을 눌러도 (안 보이는 cam1만 바뀌어서) 아무 반응이 없는 것처럼 보이는 문제가 있었음.
+// switchCam()이 갱신해두는 window._activeSportsplayPlayer(현재 화면에 보이는 카메라)를 통해
+// 조종하도록 통일함 — 버튼/키보드/모바일 더블탭 전부 이 헬퍼를 씀.
+function getActivePlayer() {
+  return window._activeSportsplayPlayer || player;
+}
+function togglePlayPause() {
+  const pl = getActivePlayer();
+  if (!isPlayerReady || !pl || typeof pl.getPlayerState !== 'function') return;
+  const state = pl.getPlayerState();
+  if (state === YT.PlayerState.PLAYING) pl.pauseVideo(); else pl.playVideo();
+}
+function seekBy(deltaSeconds) {
+  const pl = getActivePlayer();
+  if (!isPlayerReady || !pl || typeof pl.getCurrentTime !== 'function') return;
+  pl.seekTo(Math.max(0, pl.getCurrentTime() + deltaSeconds), true);
+}
 let currentSpeed = 1;
+function setSpeed(newSpeed) {
+  const pl = getActivePlayer();
+  if (!isPlayerReady || !pl || typeof pl.setPlaybackRate !== 'function') return;
+  currentSpeed = newSpeed;
+  pl.setPlaybackRate(currentSpeed);
+  if (speedBtn) speedBtn.textContent = `${currentSpeed}x 배속`;
+}
+// 키보드 ↑/↓용 — 배속 버튼 클릭보다 촘촘한 7단계로 세밀하게 조절.
+const SPEED_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+function cycleSpeed(direction) {
+  const i = SPEED_STEPS.indexOf(currentSpeed);
+  const base = i === -1 ? SPEED_STEPS.indexOf(1) : i;
+  const next = direction > 0 ? Math.min(SPEED_STEPS.length - 1, base + 1) : Math.max(0, base - 1);
+  setSpeed(SPEED_STEPS[next]);
+}
+
+playPauseBtn?.addEventListener('click', togglePlayPause);
+
 speedBtn?.addEventListener('click', () => {
-  if (!isPlayerReady) return;
-  currentSpeed = currentSpeed === 1 ? 1.5 : (currentSpeed === 1.5 ? 2 : (currentSpeed === 2 ? 0.5 : 1));
-  player.setPlaybackRate(currentSpeed);
-  if(speedBtn) speedBtn.textContent = `${currentSpeed}x 배속`;
+  // 버튼 클릭은 기존 4단(1→1.5→2→0.5) 사이클 그대로 유지
+  setSpeed(currentSpeed === 1 ? 1.5 : (currentSpeed === 1.5 ? 2 : (currentSpeed === 2 ? 0.5 : 1)));
 });
 
 const timelineInput = document.getElementById('timeline');
 timelineInput?.addEventListener('input', (e) => {
-  if (!isPlayerReady || !player.getDuration) return;
-  const duration = player.getDuration();
-  if (duration > 0) player.seekTo((e.target.value / 100) * duration, true);
+  const pl = getActivePlayer();
+  if (!isPlayerReady || !pl || typeof pl.getDuration !== 'function') return;
+  const duration = pl.getDuration();
+  if (duration > 0) pl.seekTo((e.target.value / 100) * duration, true);
 });
+
+// ── 키보드 컨트롤: Space=재생/정지, ←/→=5초 탐색, ↑/↓=배속 조절 ──
+// 검색창/텍스트 입력 등에 포커스가 있을 때는 무시(타이핑 방해 방지). 재생바(#timeline)는
+// input이지만 "타이핑"하는 곳이 아니라서 예외 처리(포커스가 거기 가있어도 5초 탐색이 이김).
+function isTypingTarget(el) {
+  if (!el || el.id === 'timeline') return false;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+}
+document.addEventListener('keydown', (e) => {
+  if (isTypingTarget(document.activeElement)) return;
+  if (!isPlayerReady) return;
+  switch (e.code) {
+    case 'Space':      e.preventDefault(); togglePlayPause(); break;
+    case 'ArrowLeft':  e.preventDefault(); seekBy(-5); break;
+    case 'ArrowRight': e.preventDefault(); seekBy(5); break;
+    case 'ArrowUp':    e.preventDefault(); cycleSpeed(1); break;
+    case 'ArrowDown':  e.preventDefault(); cycleSpeed(-1); break;
+  }
+});
+
+// ── 모바일: 영상 화면 좌/우 더블탭으로 5초 뒤/앞으로 탐색 (유튜브 앱과 동일한 UX) ──
+// 유튜브 iframe은 크로스오리진이라 그 안에서 일어나는 터치는 부모 DOM으로 안 올라오므로,
+// video-container 위에 투명 오버레이를 깔아서 터치를 직접 잡음. 오버레이는 터치 기기에서만
+// pointer-events:auto가 되도록 CSS 미디어쿼리로 제한(styles.css) — 데스크톱 마우스 조작은
+// 그대로 iframe/캔버스에 닿음. 그리기 모드일 땐 canvas-container가 더 높은 z-index로 덮어서
+// 이 오버레이까지 터치가 안 내려와 자연히 안 겹침.
+(function setupMobileDoubleTapSeek() {
+  const videoContainer = document.getElementById('video-container');
+  if (!videoContainer) return;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'tap-seek-overlay';
+  videoContainer.appendChild(overlay);
+
+  const flash = document.createElement('div');
+  flash.id = 'tap-seek-flash';
+  videoContainer.appendChild(flash);
+
+  let lastTapTime = 0;
+  let lastTapX = 0;
+  let flashTimeout = null;
+
+  overlay.addEventListener('touchend', (e) => {
+    if (!e.changedTouches || e.changedTouches.length === 0) return;
+    const touch = e.changedTouches[0];
+    const rect = videoContainer.getBoundingClientRect();
+    const now = Date.now();
+    const isDoubleTap = (now - lastTapTime) < 350 && Math.abs(touch.clientX - lastTapX) < 80;
+
+    if (isDoubleTap) {
+      e.preventDefault();
+      const isRightSide = (touch.clientX - rect.left) > rect.width / 2;
+      seekBy(isRightSide ? 5 : -5);
+
+      flash.textContent = isRightSide ? '5초 ▶▶' : '◀◀ 5초';
+      flash.className = isRightSide ? 'right show' : 'left show';
+      clearTimeout(flashTimeout);
+      flashTimeout = setTimeout(() => { flash.className = ''; }, 500);
+
+      lastTapTime = 0; // 트리플탭이 다시 더블탭으로 잡히지 않게 리셋
+    } else {
+      lastTapTime = now;
+      lastTapX = touch.clientX;
+    }
+  });
+})();
 
