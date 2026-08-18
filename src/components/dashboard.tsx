@@ -282,22 +282,26 @@ export function Dashboard() {
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <h1 className="text-3xl sm:text-4xl font-extrabold text-primary italic tracking-tight font-headline">Alter_Focus</h1>
             <Button
+              asChild
               variant="outline"
               size="sm"
               className="h-8 border-[#e15b47] text-[#e15b47] font-bold hover:bg-[#e15b47]/10"
-              onClick={() => window.open('/Alter_sportsplay/index.html', '_blank')}
             >
-              <Video className="h-4 w-4 mr-2" />
-              비디오 분석 도구
+              <a href="/Alter_sportsplay/index.html" target="_blank" rel="noopener noreferrer">
+                <Video className="h-4 w-4 mr-2" />
+                비디오 분석 도구
+              </a>
             </Button>
             <Button
+              asChild
               variant="outline"
               size="sm"
               className="h-8 border-[#444141] text-[#444141] font-bold hover:bg-[#444141]/10"
-              onClick={() => window.open('/ShotTagging/index.html', '_blank')}
             >
-              <Crosshair className="h-4 w-4 mr-2" />
-              슈팅 태깅 도구
+              <a href="/ShotTagging/index.html" target="_blank" rel="noopener noreferrer">
+                <Crosshair className="h-4 w-4 mr-2" />
+                슈팅 태깅 도구
+              </a>
             </Button>
           </div>
           <div className="flex flex-wrap gap-2 sm:gap-4 mt-1">
@@ -488,20 +492,22 @@ export function Dashboard() {
                 <h1 className="text-2xl sm:text-4xl font-black italic tracking-tighter text-foreground mt-1 font-headline print:text-3xl break-words">{matchData.matchName || "Match Performance Analysis"}</h1>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" className="print-hidden border-[#e15b47] text-[#e15b47] font-bold h-9" 
-                  onClick={() => window.open('/Alter_sportsplay/index.html', '_blank')}>
-                  <Video className="h-4 w-4 mr-2" />
-                  비디오 분석 도구
+                <Button asChild variant="outline" size="sm" className="print-hidden border-[#e15b47] text-[#e15b47] font-bold h-9">
+                  <a href="/Alter_sportsplay/index.html" target="_blank" rel="noopener noreferrer">
+                    <Video className="h-4 w-4 mr-2" />
+                    비디오 분석 도구
+                  </a>
                 </Button>
                 <Button variant="outline" size="sm" className="print-hidden border-primary text-primary font-bold h-9" onClick={handleAiAnalysis} disabled={isAiLoading}>
                   {isAiLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <BrainCircuit className="h-4 w-4 mr-2" />}
                   AI 전술 분석 실행
                 </Button>
                 {matchData.videoMatchId && (
-                  <Button variant="outline" size="sm" className="print-hidden border-[#e15b47] text-[#e15b47] font-bold h-9"
-                    onClick={() => window.open(`/Alter_sportsplay/index.html?matchId=${matchData.videoMatchId}`, '_blank')}>
-                    <Video className="h-4 w-4 mr-2" />
-                    비디오 분석 보기
+                  <Button asChild variant="outline" size="sm" className="print-hidden border-[#e15b47] text-[#e15b47] font-bold h-9">
+                    <a href={`/Alter_sportsplay/index.html?matchId=${matchData.videoMatchId}`} target="_blank" rel="noopener noreferrer">
+                      <Video className="h-4 w-4 mr-2" />
+                      비디오 분석 보기
+                    </a>
                   </Button>
                 )}
                 <div className="print-hidden">

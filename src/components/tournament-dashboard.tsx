@@ -355,9 +355,11 @@ export function TournamentDashboard({ tournamentId, externalMatches, externalTit
           </div>
         </div>
         <div className="flex gap-2 print-hidden">
-          <Button variant="outline" className="border-orange-500 text-orange-500 font-bold h-11" onClick={() => window.open('/Alter_sportsplay/index.html', '_blank')}>
-            <Video className="h-5 w-5 mr-2" />
-            비디오 분석 도구
+          <Button asChild variant="outline" className="border-[#e15b47] text-[#e15b47] font-bold h-11">
+            <a href="/Alter_sportsplay/index.html" target="_blank" rel="noopener noreferrer">
+              <Video className="h-5 w-5 mr-2" />
+              비디오 분석 도구
+            </a>
           </Button>
           <Button variant="outline" className="border-primary text-primary font-bold h-11" onClick={handleAiAnalysis} disabled={isAiLoading}>
             {isAiLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <BrainCircuit className="h-4 w-4 mr-2" />}
