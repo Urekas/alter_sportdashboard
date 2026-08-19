@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label"
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, query } from "firebase/firestore"
 import { parseXMLData, parseCSVData, createMatchDataFromUpload, decodeUploadedFile } from "@/lib/parser"
+import { VideoMatchService } from "@/lib/video-match-service"
 
 // FIH TMS류 사이트에서 그대로 복사-붙여넣기한 일정표를 파싱합니다.
 // 탭 구분(엑셀/TMS 표에서 복사 시 보통 탭)이 기본이고, 없으면 공백 2칸+ 로 대체 분리합니다.
@@ -617,7 +618,15 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
         updatedData.rawSourceText = content;
         updatedData.rawSourceFileName = file.name;
         await TournamentService.updateMatchData(db, replaceMatchId, updatedData);
-        toast({ title: "데이터 교체 완료" });
+        // 이미 영상이 연결된 경기면 비디오 도구(Alter_sportsplay) 쪽 Events도 같이 갱신 —
+        // 안 하면 대시보드 이벤트는 새로 바뀌었는데 영상 도구는 옛날 이벤트 시간을 계속 써서
+        // "제대로 재생 안 됨/위치 이상함" 증상이 남음(교체 직후엔 dashboard.tsx의 video-link-dialog
+        // 저장을 다시 안 누르면 이 동기화가 원래 안 일어나고 있었음).
+        const videoMatchId = oldMatch?.videoMatchId;
+        if (videoMatchId) {
+          await VideoMatchService.syncEvents(db, videoMatchId, updatedData.events);
+        }
+        toast({ title: "데이터 교체 완료" + (videoMatchId ? " (연결된 영상 이벤트도 갱신함)" : "") });
         setReplaceMatchId(null);
       } catch (err: any) {
         toast({ title: "교체 실패", description: err.message, variant: "destructive" });
