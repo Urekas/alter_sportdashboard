@@ -1,4 +1,4 @@
-import { db, collection, getDocs, query, orderBy, limit } from './firebase-config.js';
+import { db, collection, getDocs, query, orderBy, limit, where } from './firebase-config.js';
 
 export let player;       // cam1 (전술캠1)
 export let player2;      // cam2 (전술캠2)
@@ -38,11 +38,19 @@ function getMatchClockTime() {
   if (!pl || typeof pl.getCurrentTime !== 'function') return 0;
   return pl.getCurrentTime() + camOffset(activeCam);
 }
-// 경기 클럭 시간을 지금 활성 카메라의 영상 자체 시간으로 환산해서 그 지점으로 이동
+// 경기 클럭 시간을 지금 활성 카메라의 영상 자체 시간으로 환산해서 그 지점으로 이동.
+// 카메라 offset은 "그 시간까지는(경기 클럭이 offset에 도달하기 전까지는) 이 카메라 영상이
+// 재생되면 안 되고, 그 시간 이후부터 재생이 시작된다"는 뜻(Sportscode 다중캠 싱크와 동일) —
+// 그래서 targetRaw가 음수로 나오면(아직 이 카메라가 녹화 시작 전인 시점) 단순히 0으로 clamp만
+// 해서 "일단 맨 앞으로 옮겨두는" 게 다가 아니라, **재생을 시작하면 안 됨**을 호출한 쪽에 알려줘야
+// 함 — 그래서 실제로 재생 가능한 상태인지(hasStarted)를 반환값으로 알려줌.
 export function seekActiveToMatchTime(matchTime) {
   const pl = getActivePlayer();
-  if (!isPlayerReady || !pl || typeof pl.seekTo !== 'function') return;
-  pl.seekTo(Math.max(0, matchTime - camOffset(activeCam)), true);
+  if (!isPlayerReady || !pl || typeof pl.seekTo !== 'function') return false;
+  const targetRaw = matchTime - camOffset(activeCam);
+  const hasStarted = targetRaw >= 0;
+  pl.seekTo(Math.max(0, targetRaw), true);
+  return hasStarted;
 }
 
 const playPauseBtn = document.getElementById('play-pause-btn');
@@ -119,10 +127,32 @@ function switchCam(n) {
   // 새로 활성화된 카메라를 오프셋 반영해서 같은 경기 클럭 지점으로 재동기화 — 예전엔 전환만 하고
   // 재생 위치는 그대로 안 맞춰줘서 카메라를 바꾸면 다른 순간이 보이는 문제가 있었음.
   if (activePlayer && typeof activePlayer.seekTo === 'function') {
-    activePlayer.seekTo(Math.max(0, matchTime - camOffset(n)), true);
-    if (wasPlaying && typeof activePlayer.playVideo === 'function') activePlayer.playVideo();
-    else if (!wasPlaying && typeof activePlayer.pauseVideo === 'function') activePlayer.pauseVideo();
+    const targetRaw = matchTime - camOffset(n);
+    const hasStarted = targetRaw >= 0; // 이 카메라가 지금 경기 클럭 시점에 이미 녹화를 시작했는지
+    activePlayer.seekTo(Math.max(0, targetRaw), true);
+    // offset 의미: "그 시간까지는 이 카메라 영상이 재생되면 안 되고, 그 시간 이후부터 재생 시작"
+    // — 아직 시작 전(hasStarted=false)이면 재생 중이었어도 강제로 정지, 시작 안내만 띄움.
+    if (!hasStarted) {
+      if (typeof activePlayer.pauseVideo === 'function') activePlayer.pauseVideo();
+      showCameraNotStartedFlash();
+    } else if (wasPlaying && typeof activePlayer.playVideo === 'function') {
+      activePlayer.playVideo();
+    } else if (typeof activePlayer.pauseVideo === 'function') {
+      activePlayer.pauseVideo();
+    }
   }
+}
+
+// 카메라가 아직 녹화 시작 전인 시점으로 이동하게 됐을 때 안내 플래시 — #tap-seek-flash(더블탭/
+// 더블클릭 5초탐색용으로 만든 요소)를 재사용, 가운데에 좀 더 오래 표시.
+let notStartedFlashTimeout = null;
+function showCameraNotStartedFlash() {
+  const flash = document.getElementById('tap-seek-flash');
+  if (!flash) return;
+  flash.textContent = '이 카메라는 아직 촬영 시작 전이에요';
+  flash.className = 'center show';
+  clearTimeout(notStartedFlashTimeout);
+  notStartedFlashTimeout = setTimeout(() => { flash.className = ''; }, 1800);
 }
 
 function onPlayerReady(event) {
@@ -208,6 +238,30 @@ export async function fetchAndRenderEvents() {
   } catch(error) {
     console.error("Error fetching events:", error);
     eventsUl.innerHTML = '<li style="color: red; font-size: 0.9em; padding: 10px;">데이터를 불러오지 못했습니다. Firestore 규칙을 확인해주세요.</li>';
+  }
+}
+
+// 특정 경기 하나의 이벤트를 제한 없이(match_id로 스코프) 전부 불러와서 allEvents에 병합합니다.
+// fetchAndRenderEvents()는 Explorer의 여러 경기 가로질러 찾아보기용으로 전체 Events 컬렉션에서
+// start_time 오름차순 1000개만 가져오는데(성능상 필요한 상한), 경기가 여러 개 쌓이면 이 전역
+// 1000개 캡 안에 지금 보고 있는 경기의 이벤트가 다 안 들어가는 경우가 실제로 생김(한 경기당
+// 1000~1300개씩이라 6경기만 돼도 전체가 5900개를 넘음) — 특정 경기를 열어서 볼 때(Viewer)
+// "왼쪽 이벤트를 눌러도 그 장면으로 안 간다"는 문제가 바로 이거였음: 리스트에 실제로는 안 뜨거나
+// 잘못 잘린 채 표시되고 있었던 것. 경기를 열 때마다 이 함수로 그 경기 이벤트만 확실하게(캡 없이)
+// 다시 채워서 해결.
+export async function fetchEventsForMatch(matchId) {
+  if (!matchId) return;
+  try {
+    const q = query(collection(db, "Events"), where("match_id", "==", matchId));
+    const snap = await getDocs(q);
+    const fresh = [];
+    snap.forEach((d) => { const data = d.data(); data.id = d.id; fresh.push(data); });
+    // 기존에 (전역 1000개 캡으로) 섞여 들어와 있던 이 경기의 불완전한 항목들을 지우고 온전한
+    // 세트로 교체 — 다른 경기 항목(Explorer 브라우징용)은 그대로 둠.
+    allEvents = allEvents.filter((e) => e.match_id !== matchId).concat(fresh);
+    applyFiltersAndRender();
+  } catch (error) {
+    console.error(`Error fetching events for match ${matchId}:`, error);
   }
 }
 
@@ -389,8 +443,11 @@ export function playSingleClip(index) {
   highlightActiveItem(index);
 
   if(isPlayerReady) {
-    seekActiveToMatchTime(ev.start_time);
-    getActivePlayer().playVideo();
+    const hasStarted = seekActiveToMatchTime(ev.start_time);
+    const pl = getActivePlayer();
+    // 이 순간엔 활성 카메라가 아직 녹화 시작 전이라 보여줄 화면이 없음 — 재생하지 않고 안내만
+    if (hasStarted) pl.playVideo();
+    else { pl.pauseVideo(); showCameraNotStartedFlash(); }
     currentClipEnd = ev.end_time;
   }
 }
@@ -413,8 +470,10 @@ function playCurrentIndexInQueue() {
   highlightActiveItem(currentPlaylistIndex);
 
   if(isPlayerReady) {
-    seekActiveToMatchTime(ev.start_time);
-    getActivePlayer().playVideo();
+    const hasStarted = seekActiveToMatchTime(ev.start_time);
+    const pl = getActivePlayer();
+    if (hasStarted) pl.playVideo();
+    else { pl.pauseVideo(); showCameraNotStartedFlash(); }
     currentClipEnd = ev.end_time;
   }
 }

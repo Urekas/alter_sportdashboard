@@ -214,9 +214,12 @@ body.hide-left {
   transition: opacity 0.2s, transform 0.2s;
   z-index: 6;
 }
-#tap-seek-flash.left  { left: 0; }
-#tap-seek-flash.right { right: 0; }
-#tap-seek-flash.show  { opacity: 1; transform: translateY(-50%) scale(1); }
+#tap-seek-flash.left   { left: 0; }
+#tap-seek-flash.right  { right: 0; }
+#tap-seek-flash.center { left: 50%; width: 60%; transform: translate(-50%, -50%) scale(0.9); } /* 카메라 미시작 안내용 */
+#tap-seek-flash.show   { opacity: 1; }
+#tap-seek-flash.show:not(.center) { transform: translateY(-50%) scale(1); }
+#tap-seek-flash.show.center { transform: translate(-50%, -50%) scale(1); }
 
 .controls {
   display: flex;

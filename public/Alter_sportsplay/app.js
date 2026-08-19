@@ -1,6 +1,6 @@
 ﻿import { db, collection, writeBatch, doc, getDocs, orderBy, query, getDoc, deleteDoc, where, updateDoc } from './firebase-config.js';
 
-import { initPlayer, fetchAndRenderEvents, updateCurrentPlaylist, allEvents, loadVideoInCam, setActiveMatch, activeMatchId, setCameraOffsets, seekActiveToMatchTime } from './player.js';
+import { initPlayer, fetchAndRenderEvents, fetchEventsForMatch, updateCurrentPlaylist, allEvents, loadVideoInCam, setActiveMatch, activeMatchId, setCameraOffsets, seekActiveToMatchTime } from './player.js';
 import { initDrawingBoard } from './drawing.js';
 import { initLibrary } from './library.js';
 
@@ -28,6 +28,11 @@ export function loadMatchForAnalysis(matchId, matchData) {
 
     const searchInput = document.getElementById('event-search');
     if(searchInput) searchInput.value = '';
+
+    // 이 경기 이벤트를 캡 없이 확실하게 다시 채움 — fetchAndRenderEvents()의 전역 1000개 캡
+    // 안에 이 경기 이벤트가 다 안 들어있을 수 있어서(경기가 여러 개 쌓이면 실제로 잘림),
+    // "왼쪽 이벤트 클릭 → 영상 이동"이 이걸 근거로 하니 여기서 확실히 보정함.
+    fetchEventsForMatch(matchId);
 
     const applyFilter = () => {
         // player.js의 setActiveMatch를 호출하여 해당 매치 데이터만 표시하도록 격리
@@ -187,11 +192,17 @@ async function handleUrlParams() {
       if(pl && typeof pl.seekTo === 'function') {
         clearInterval(check);
         // t는 "경기 클럭" 시간(대시보드에서 저장한 이벤트 시각) — 활성 카메라의 동기화 오프셋을
-        // 반영해서 그 카메라 영상에서의 실제 지점으로 변환 후 이동(player.js).
-        seekActiveToMatchTime(t);
-        pl.playVideo();
-        showDeepLinkStatus(`${label} 지점부터 재생 중`, 'success');
-        hideDeepLinkStatus(2500);
+        // 반영해서 그 카메라 영상에서의 실제 지점으로 변환 후 이동(player.js). 기본 활성 카메라
+        // (전술캠1)가 이 시점에 아직 녹화 시작 전이면(offset > t) 재생하지 않고 안내만 함.
+        const hasStarted = seekActiveToMatchTime(t);
+        if (hasStarted) {
+          pl.playVideo();
+          showDeepLinkStatus(`${label} 지점부터 재생 중`, 'success');
+        } else {
+          pl.pauseVideo();
+          showDeepLinkStatus(`이 카메라는 ${label} 시점엔 아직 촬영 전이에요`, 'error');
+        }
+        hideDeepLinkStatus(3000);
         return;
       }
       if (Date.now() - startedAt > 20000) {
