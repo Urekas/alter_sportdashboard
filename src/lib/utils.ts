@@ -20,6 +20,15 @@ export function openInNewTab(url: string) {
   document.body.removeChild(a);
 }
 
+// 비디오 분석 도구 딥링크를 만듭니다. locked=true면 &lock=1을 붙여서 도구가 Explorer(다른
+// 경기 탐색·편집/업로드)를 숨기고 이 경기 Viewer 화면에만 갇히게 합니다(선수단 배포 링크용).
+export function buildVideoDeepLink(videoMatchId: string, time?: number, locked?: boolean): string {
+  const params = new URLSearchParams({ matchId: videoMatchId });
+  if (typeof time === 'number' && isFinite(time)) params.set('time', String(Math.max(0, Math.floor(time))));
+  if (locked) params.set('lock', '1');
+  return `/Alter_sportsplay/index.html?${params.toString()}`;
+}
+
 export function formatTime(seconds: number): string {
   if (isNaN(seconds) || seconds < 0 || !isFinite(seconds)) return "-:--";
   const minutes = Math.floor(seconds / 60);

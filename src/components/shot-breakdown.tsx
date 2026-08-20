@@ -5,10 +5,12 @@ import { useMemo, useState } from "react"
 import { PlayCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import type { MatchData, MatchEvent, Team } from "@/lib/types"
-import { openInNewTab } from "@/lib/utils"
+import { openInNewTab, buildVideoDeepLink } from "@/lib/utils"
 
 interface ShotBreakdownProps {
   data: MatchData;
+  /** true면 영상 딥링크가 비디오 도구를 이 경기 화면에만 고정(Explorer 숨김) — 선수단 배포용. */
+  lockedVideo?: boolean;
 }
 
 type Outcome = 'goal' | 'save' | 'block' | 'pcWon' | 'miss' | 'post' | 'other' | 'unrecorded';
@@ -44,7 +46,7 @@ function collectShotEvents(events: MatchEvent[], team: string): MatchEvent[] {
   return events.filter(e => e.team === team && (e.code.trim() === `${team} 슈팅` || e.code.trim() === `${team} 페널티코너`));
 }
 
-export function ShotBreakdown({ data }: ShotBreakdownProps) {
+export function ShotBreakdown({ data, lockedVideo }: ShotBreakdownProps) {
   const { homeTeam, awayTeam, events, videoMatchId } = data;
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
@@ -61,7 +63,7 @@ export function ShotBreakdown({ data }: ShotBreakdownProps) {
 
   const openClip = (time: number) => {
     if (!videoMatchId) return;
-    openInNewTab(`/Alter_sportsplay/index.html?matchId=${videoMatchId}&time=${Math.max(0, Math.floor(time))}`);
+    openInNewTab(buildVideoDeepLink(videoMatchId, time, lockedVideo));
   }
 
   if (grouped.home.total === 0 && grouped.away.total === 0) return null;

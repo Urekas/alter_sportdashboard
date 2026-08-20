@@ -159,6 +159,12 @@ async function handleUrlParams() {
   const matchId = params.get('matchId');
   const time = params.get('time');
 
+  // 선수단 배포 링크(대시보드 리포트 페이지에서 생성) — Explorer(다른 경기 탐색, 연결 해제 등
+  // 관리 기능)를 숨기고 이 경기의 Viewer 화면에만 갇히게 함(styles.css의 .locked-viewer-mode).
+  if (params.get('lock') === '1') {
+    document.body.classList.add('locked-viewer-mode');
+  }
+
   if(matchId) {
     if (time) showDeepLinkStatus('경기 불러오는 중...', 'loading');
     try {

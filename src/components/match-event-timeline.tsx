@@ -11,11 +11,15 @@ import { useFirestore } from "@/firebase"
 import { useToast } from "@/hooks/use-toast"
 import { TournamentService } from "@/lib/tournament-service"
 import type { MatchData, MatchEvent } from "@/lib/types"
-import { openInNewTab } from "@/lib/utils"
+import { openInNewTab, buildVideoDeepLink } from "@/lib/utils"
 
 interface MatchEventTimelineProps {
   data: MatchData
   onEventsUpdate?: (events: MatchEvent[]) => void
+  /** true면 영상 딥링크가 비디오 도구를 이 경기 화면에만 고정(Explorer 숨김) — 선수단 배포용. */
+  lockedVideo?: boolean
+  /** true면 "관련 선수" 인라인 편집(Firestore 쓰기)을 숨기고 텍스트만 표시 — 선수단 배포용. */
+  readOnly?: boolean
 }
 
 type TimelineKind = 'pc' | 'shot' | 'stroke' | 'goal'
@@ -45,7 +49,7 @@ function formatTime(seconds: number): string {
 
 // Sportscode에서 넘어온 이벤트 id가 실제로는 중복되는 경우가 있어서(원본 데이터 특성),
 // id 문자열이 아니라 원본 events 배열의 인덱스를 진짜 식별자로 씁니다.
-export function MatchEventTimeline({ data, onEventsUpdate }: MatchEventTimelineProps) {
+export function MatchEventTimeline({ data, onEventsUpdate, lockedVideo, readOnly }: MatchEventTimelineProps) {
   const db = useFirestore()
   const { toast } = useToast()
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
@@ -104,7 +108,7 @@ export function MatchEventTimeline({ data, onEventsUpdate }: MatchEventTimelineP
 
   const openClip = (time: number) => {
     if (!data.videoMatchId) return;
-    openInNewTab(`/Alter_sportsplay/index.html?matchId=${data.videoMatchId}&time=${Math.max(0, Math.floor(time))}`);
+    openInNewTab(buildVideoDeepLink(data.videoMatchId, time, lockedVideo));
   }
 
   const hasEvents = timeline.some(r => r.type === 'event');
@@ -147,6 +151,10 @@ export function MatchEventTimeline({ data, onEventsUpdate }: MatchEventTimelineP
               </span>
             )}
           </div>
+        ) : readOnly ? (
+          event.relatedPlayer ? (
+            <span className={`text-[11px] font-bold ${rowDir}`} style={{ color: team.color }}>{event.relatedPlayer}</span>
+          ) : null
         ) : isEditing ? (
           <div className={`flex items-center gap-1.5 print-hidden ${rowDir}`}>
             <Input

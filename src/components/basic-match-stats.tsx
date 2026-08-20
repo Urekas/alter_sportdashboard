@@ -6,11 +6,13 @@ import { Info, PlayCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import type { MatchData, MatchEvent } from "@/lib/types"
-import { openInNewTab } from "@/lib/utils"
+import { openInNewTab, buildVideoDeepLink } from "@/lib/utils"
 
 interface BasicMatchStatsProps {
   data: MatchData;
   ranks?: Record<string, number | null> | null;
+  /** true면 영상 딥링크가 비디오 도구를 이 경기 화면에만 고정(Explorer 숨김) — 선수단 배포용. */
+  lockedVideo?: boolean;
 }
 
 // 하단 "지표 정의 가이드"와 동일한 문구를 짧게 재사용합니다.
@@ -39,7 +41,7 @@ function formatEventTime(seconds: number): string {
   return `${m}:${s < 10 ? '0' + s : s}`;
 }
 
-export function BasicMatchStats({ data, ranks }: BasicMatchStatsProps) {
+export function BasicMatchStats({ data, ranks, lockedVideo }: BasicMatchStatsProps) {
   const { homeTeam, awayTeam, matchStats, events, videoMatchId } = data
   const [expandedKey, setExpandedKey] = useState<string | null>(null)
 
@@ -58,7 +60,7 @@ export function BasicMatchStats({ data, ranks }: BasicMatchStatsProps) {
 
   const openClip = (time: number) => {
     if (!videoMatchId) return;
-    openInNewTab(`/Alter_sportsplay/index.html?matchId=${videoMatchId}&time=${Math.max(0, Math.floor(time))}`);
+    openInNewTab(buildVideoDeepLink(videoMatchId, time, lockedVideo));
   }
 
   const stats = [

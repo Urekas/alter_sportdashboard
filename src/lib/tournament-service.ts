@@ -1,14 +1,15 @@
 
 'use client';
 
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  query, 
-  where, 
-  doc, 
-  deleteDoc, 
+import {
+  collection,
+  addDoc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  doc,
+  deleteDoc,
   updateDoc,
   serverTimestamp,
   getCountFromServer,
@@ -91,6 +92,19 @@ export const TournamentService = {
     if (!matchId) return;
     const docRef = doc(dbInstance, MATCHES_COL, matchId);
     await updateDoc(docRef, { matchNumber: matchNumber === null ? null : matchNumber });
+  },
+
+  // 선수단 배포용 리포트 페이지(/report/[matchId])가 쓰는 단건 조회.
+  async getMatchById(matchId: string): Promise<MatchData | null> {
+    if (!matchId) return null;
+    try {
+      const snap = await getDoc(doc(db, MATCHES_COL, matchId));
+      if (!snap.exists()) return null;
+      return { id: snap.id, ...snap.data() } as MatchData;
+    } catch (e) {
+      console.error("TournamentService.getMatchById failed:", e);
+      return null;
+    }
   },
 
   async getMatchesByTournament(tournamentId: string) {

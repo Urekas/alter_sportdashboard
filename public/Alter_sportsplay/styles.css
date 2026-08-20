@@ -589,6 +589,14 @@ body.drawing-active .playback-controls:hover {
 .section-tab-btn:hover { background-color: rgba(32, 30, 29, 0.06); color: var(--text-main); }
 .section-tab-btn.active { background-color: var(--accent); color: white; }
 
+/* 선수단 배포 링크(?lock=1)용 — Explorer(다른 경기 탐색·연결 해제 등 관리 기능)를 완전히
+   숨기고 이 경기의 Viewer(장면/이벤트) 화면에만 갇히게 함. app.js의 handleUrlParams가
+   body에 이 클래스를 붙임. */
+body.locked-viewer-mode .section-tabs,
+body.locked-viewer-mode #section-explorer {
+  display: none !important;
+}
+
 .section-content {
   display: none;
   flex: 1;

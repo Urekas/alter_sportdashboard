@@ -5,7 +5,7 @@ import React, { useState, useRef, useEffect } from "react"
 import {
   Upload, FileDown, TrendingDown, Target, Activity, ShieldCheck,
   Sword, Shield, Trophy, Save, Plus, BrainCircuit, Loader2, Sparkles, Info, MessageSquare, Video,
-  ChevronLeft, ChevronRight, Crosshair
+  ChevronLeft, ChevronRight, Crosshair, Share2
 } from "lucide-react"
 import type { MatchData, MatchEvent, Tournament } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
@@ -170,6 +170,28 @@ export function Dashboard() {
       toast({ title: "저장 완료" });
     } catch (e: any) {
       toast({ title: "저장 실패", description: e.message, variant: "destructive" });
+    }
+  }
+
+  // 선수단 배포용 링크 — 업로드/편집 없는 읽기 전용 리포트 페이지(/report/[matchId])를 만들고,
+  // 모바일에서 지원하면 OS 공유 시트(카카오톡 등)를, 아니면 클립보드 복사를 씀.
+  const handleShareReport = async () => {
+    if (!matchData?.id) return;
+    const url = `${window.location.origin}/report/${matchData.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: matchData.matchName || "경기 리포트", url });
+        return;
+      } catch (e) {
+        // 사용자가 공유 시트를 취소한 경우 등 — 클립보드 복사로 폴백하지 않고 조용히 종료
+        if ((e as any)?.name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast({ title: "선수단 공유 링크 복사됨", description: url });
+    } catch (e) {
+      toast({ title: "복사 실패", description: url, variant: "destructive" });
     }
   }
 
@@ -489,6 +511,12 @@ export function Dashboard() {
                 <div className="print-hidden">
                   <VideoLinksPopover videoMatchId={matchData.videoMatchId} />
                 </div>
+                {matchData.id && (
+                  <Button variant="outline" size="sm" className="print-hidden border-emerald-600 text-emerald-700 font-bold h-9" onClick={handleShareReport}>
+                    <Share2 className="h-4 w-4 mr-2" />
+                    선수단 공유 링크
+                  </Button>
+                )}
               </div>
             </div>
 

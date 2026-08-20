@@ -18,7 +18,7 @@ import {
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import type { AttackThreatDataPoint, Team, MatchEvent } from "@/lib/types"
-import { openInNewTab } from "@/lib/utils"
+import { openInNewTab, buildVideoDeepLink } from "@/lib/utils"
 import { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
 import { useIsMobile } from "@/hooks/use-mobile"
 
@@ -28,6 +28,8 @@ interface AttackThreatChartProps {
   awayTeam: Team
   events?: MatchEvent[]
   videoMatchId?: string
+  /** true면 영상 딥링크가 비디오 도구를 이 경기 화면에만 고정(Explorer 숨김) — 선수단 배포용. */
+  lockedVideo?: boolean
 }
 
 const CustomTooltip = ({ active, payload, homeTeam, awayTeam }: TooltipProps<ValueType, NameType> & { homeTeam: Team, awayTeam: Team }) => {
@@ -101,15 +103,15 @@ interface ChartDataPoint {
   goals?: any[];
 }
 
-export function AttackThreatChart({ data, homeTeam, awayTeam, events = [], videoMatchId }: AttackThreatChartProps) {
+export function AttackThreatChart({ data, homeTeam, awayTeam, events = [], videoMatchId, lockedVideo }: AttackThreatChartProps) {
   const isMobile = useIsMobile()
   const handlePointClick = (data: any) => {
     if (!videoMatchId) return;
     const timeInSeconds = data.activePayload?.[0]?.payload?.x * 60;
     if (isNaN(timeInSeconds)) return;
-    
+
     // Open Alter_sportsplay with matchId and time parameters
-    openInNewTab(`/Alter_sportsplay/index.html?matchId=${videoMatchId}&time=${timeInSeconds}`);
+    openInNewTab(buildVideoDeepLink(videoMatchId, timeInSeconds, lockedVideo));
   };
   const isMatchTrend = data.some(d => d.interval.startsWith('M'));
   const TIME_INTERVAL = 3;
