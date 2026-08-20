@@ -181,6 +181,20 @@ function onPlayerStateChange(event) {
     playPauseBtn.textContent = '▶️ 재생';
     stopTrackingTime();
   }
+  updateDrawModeMask();
+}
+
+// 그리기 모드는 항상 영상을 정지시키고 시작함(drawModeBtn 클릭 → pausePlayer()) — 정지 상태가
+// 되면 유튜브 iframe이 (controls:0이어도) 자체 UI(제목바/추천영상 등)를 그 위에 띄우는데, 이게
+// 지금은 투명한 그리기 캔버스 아래로 그대로 비쳐서 방해가 됨. 재생 중일 땐 원본 밝기를 그대로
+// 보고 싶다는 요청이 있어서(어둡게 깔면 안 됨) — "그리기 모드 + 정지 상태"일 때만 어둡게 가려서
+// 유튜브 UI를 감추고, 재생을 다시 누르면(호버 시 하단 컨트롤로 가능) 바로 밝아지게 함.
+export function updateDrawModeMask() {
+  const cc = document.querySelector('.canvas-container');
+  if (!cc) return;
+  const pl = getActivePlayer();
+  const isPlaying = isPlayerReady && pl && typeof pl.getPlayerState === 'function' && pl.getPlayerState() === YT.PlayerState.PLAYING;
+  cc.classList.toggle('yt-ui-masked', !isPlaying);
 }
 
 export function pausePlayer() {
@@ -188,6 +202,7 @@ export function pausePlayer() {
   if (activePlayer && typeof activePlayer.pauseVideo === 'function') {
     activePlayer.pauseVideo();
   }
+  updateDrawModeMask(); // 실제 YT onStateChange 이벤트보다 먼저 즉시 반영(체감 지연 최소화)
 }
 
 // 카메라별 영상 로드 (app.js에서 사용 - ES Module 내부 참조)
