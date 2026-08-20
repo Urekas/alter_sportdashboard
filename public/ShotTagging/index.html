@@ -2011,10 +2011,40 @@
                     }
                 }
 
+                // 대시보드에 저장된 홈/어웨이 라인업을 슈터/상대 골키퍼 자동완성 목록으로 반영.
+                // 이름에 팀 표기를 붙이면 "(팀명)"이 기존 단축키 문법(이름(단축키))과 충돌하므로
+                // 팀 구분 없이 실제 선수 이름만 그대로 채워 넣음.
+                let lineupNote = '';
+                const homeLineup = data.lineups?.home;
+                const awayLineup = data.lineups?.away;
+                if (homeLineup || awayLineup) {
+                    const allNames = [];
+                    const gkNames = [];
+                    [homeLineup, awayLineup].forEach(team => {
+                        if (!team?.players) return;
+                        team.players.forEach(p => {
+                            if (!p.name) return;
+                            allNames.push(p.name);
+                            if (p.isGoalkeeper) gkNames.push(p.name);
+                        });
+                    });
+                    const uniq = arr => [...new Set(arr)];
+                    if (allNames.length > 0) {
+                        taggingTemplate.players = uniq(allNames).join(', ');
+                        // 라인업에 GK 표시(괄호 (GK))가 없는 데이터면 최소한 전체 명단이라도 넣어서
+                        // 직접 골라 쓸 수 있게 함(빈 목록보다 낫도록).
+                        taggingTemplate.gks = uniq(gkNames.length > 0 ? gkNames : allNames).join(', ');
+                        buildShortcutMap();
+                        populateDatalists();
+                        loadedSomething = true;
+                        lineupNote = ` (${data.homeTeamName || homeLineup?.teamName || '홈'}/${data.awayTeamName || awayLineup?.teamName || '어웨이'} 라인업 ${allNames.length}명 반영)`;
+                    }
+                }
+
                 if (!loadedSomething) {
                     setSaveStatus('이 경기엔 불러올 XML이나 연결된 영상이 없습니다.', true);
                 } else {
-                    setSaveStatus(`불러오기 완료 — ${new Date().toLocaleTimeString('ko-KR')}`);
+                    setSaveStatus(`불러오기 완료 — ${new Date().toLocaleTimeString('ko-KR')}${lineupNote}`);
                 }
             } catch (err) {
                 setSaveStatus('불러오기 실패: ' + err.message, true);
@@ -2128,6 +2158,9 @@
                 rawSourceText: d.rawSourceText || '',
                 video_urls,
                 video_offsets,
+                lineups: d.lineups || null,
+                homeTeamName: d.homeTeam?.name || '',
+                awayTeamName: d.awayTeam?.name || '',
             };
         }
 
