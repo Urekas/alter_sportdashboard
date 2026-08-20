@@ -32,15 +32,16 @@ const ZONES_3 = [
 ]
 
 // 5방향(세부) — 태깅 라벨 기준 왼쪽→오른쪽: 좌_25 - CE_L 45 - 중_25 - CE_R 45 - 우_25.
-// 양 끝(좌_25/우_25)은 엔드라인(y1=25, 필드 맨 아래)에 붙여서 시작하고, 화살표 끝은 골대
-// 방향(위쪽)을 바라보게 함 — 엔드라인을 타고 올라오는 침투를 표현. 가운데 3개(CE_L 45/중_25/
-// CE_R 45)는 3방향 화살표와 동일한 시작 높이(y1=17)·도착 지점을 그대로 씁니다.
+// 양 끝(좌_25/우_25)은 엔드라인(골대가 있는 위쪽 라인) 가까이서 옆으로 파고들어 골대 앞을
+// 가로지르는 형태 — 코너 쪽에서 수평으로 시작해 안쪽(중앙)을 바라보는 화살표. 색상·굵기·
+// 화살촉·길이는 다른 화살표와 동일하게 맞춤. 가운데 3개(CE_L 45/중_25/CE_R 45)는 3방향
+// 화살표와 동일한 시작 높이(y1=17)·도착 지점을 그대로 씁니다.
 const ZONES_5 = [
-  { key: 'FarLeft' as const, label: '좌_25', labelEn: '', textX: 4, x1: 2.5, y1: 24, x2: 8, y2: 9 },
+  { key: 'FarLeft' as const, label: '좌_25', labelEn: '', textX: 4, x1: 2, y1: 1.5, x2: 14, y2: 1.5 },
   { key: 'MidLeft' as const, label: 'CE_L 45', labelEn: '', textX: 17, x1: 17, y1: 17, x2: 11.0, y2: 8 },
   { key: 'Center' as const, label: '중_25', labelEn: '', textX: 27.5, x1: 27.5, y1: 17, x2: 27.5, y2: 6 },
   { key: 'MidRight' as const, label: 'CE_R 45', labelEn: '', textX: 38, x1: 38, y1: 17, x2: 44.0, y2: 8 },
-  { key: 'FarRight' as const, label: '우_25', labelEn: '', textX: 51, x1: 52.5, y1: 24, x2: 47, y2: 9 },
+  { key: 'FarRight' as const, label: '우_25', labelEn: '', textX: 51, x1: 53, y1: 1.5, x2: 41, y2: 1.5 },
 ]
 
 function computeStats<K extends string>(entries: CircleEntry[], getKey: (e: CircleEntry) => K, keys: readonly K[]) {
