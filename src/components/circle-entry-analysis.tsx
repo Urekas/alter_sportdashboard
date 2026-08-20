@@ -23,20 +23,24 @@ interface CircleEntryAnalysisProps {
   mode?: CircleEntryZoneMode
 }
 
-// 3방향(단순) 화면 — 원래 있던 좌/중/우 배치를 그대로 유지합니다.
+// 3방향(단순) 화면 — 원래 있던 좌/중/우 배치를 그대로 유지합니다. 화살표는 모두 필드 안쪽
+// 지점(y1=17)에서 시작해 서클 쪽으로 들어갑니다.
 const ZONES_3 = [
-  { key: 'Left' as const, label: '좌측', labelEn: '(Left)', textX: 6.5, x1: 2.75, x2: 11.0, y2: 8 },
-  { key: 'Center' as const, label: '중앙', labelEn: '(Center)', textX: 27.5, x1: 27.5, x2: 27.5, y2: 6 },
-  { key: 'Right' as const, label: '우측', labelEn: '(Right)', textX: 48, x1: 52.25, x2: 44.0, y2: 8 },
+  { key: 'Left' as const, label: '좌측', labelEn: '(Left)', textX: 6.5, x1: 2.75, y1: 17, x2: 11.0, y2: 8 },
+  { key: 'Center' as const, label: '중앙', labelEn: '(Center)', textX: 27.5, x1: 27.5, y1: 17, x2: 27.5, y2: 6 },
+  { key: 'Right' as const, label: '우측', labelEn: '(Right)', textX: 48, x1: 52.25, y1: 17, x2: 44.0, y2: 8 },
 ]
 
 // 5방향(세부) — 태깅 라벨 기준 왼쪽→오른쪽: 좌_25 - CE_L 45 - 중_25 - CE_R 45 - 우_25.
+// 양 끝(좌_25/우_25)은 엔드라인(y1=25, 필드 맨 아래)에 붙여서 시작하고, 화살표 끝은 골대
+// 방향(위쪽)을 바라보게 함 — 엔드라인을 타고 올라오는 침투를 표현. 가운데 3개(CE_L 45/중_25/
+// CE_R 45)는 3방향 화살표와 동일한 시작 높이(y1=17)·도착 지점을 그대로 씁니다.
 const ZONES_5 = [
-  { key: 'FarLeft' as const, label: '좌_25', labelEn: '', textX: 4, x1: 2.0, x2: 8.5, y2: 8.5 },
-  { key: 'MidLeft' as const, label: 'CE_L 45', labelEn: '', textX: 15.75, x1: 15.5, x2: 18.5, y2: 7 },
-  { key: 'Center' as const, label: '중_25', labelEn: '', textX: 27.5, x1: 27.5, x2: 27.5, y2: 6 },
-  { key: 'MidRight' as const, label: 'CE_R 45', labelEn: '', textX: 39.25, x1: 39.5, x2: 36.5, y2: 7 },
-  { key: 'FarRight' as const, label: '우_25', labelEn: '', textX: 51, x1: 53.0, x2: 46.5, y2: 8.5 },
+  { key: 'FarLeft' as const, label: '좌_25', labelEn: '', textX: 4, x1: 2.5, y1: 24, x2: 8, y2: 9 },
+  { key: 'MidLeft' as const, label: 'CE_L 45', labelEn: '', textX: 17, x1: 17, y1: 17, x2: 11.0, y2: 8 },
+  { key: 'Center' as const, label: '중_25', labelEn: '', textX: 27.5, x1: 27.5, y1: 17, x2: 27.5, y2: 6 },
+  { key: 'MidRight' as const, label: 'CE_R 45', labelEn: '', textX: 38, x1: 38, y1: 17, x2: 44.0, y2: 8 },
+  { key: 'FarRight' as const, label: '우_25', labelEn: '', textX: 51, x1: 52.5, y1: 24, x2: 47, y2: 9 },
 ]
 
 function computeStats<K extends string>(entries: CircleEntry[], getKey: (e: CircleEntry) => K, keys: readonly K[]) {
@@ -118,7 +122,7 @@ export function CircleEntryAnalysis({ entries, teamName, teamColor, mode = '3' }
 
             <g stroke={teamColor} strokeWidth="0.8" markerEnd={`url(#${markerId})`} strokeOpacity={0.8}>
               {zones.map(z => (
-                <line key={z.key} x1={z.x1} y1={toSvgY(17)} x2={z.x2} y2={toSvgY(z.y2)} />
+                <line key={z.key} x1={z.x1} y1={toSvgY(z.y1)} x2={z.x2} y2={toSvgY(z.y2)} />
               ))}
             </g>
 
