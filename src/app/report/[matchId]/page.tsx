@@ -6,10 +6,11 @@
 //  - 라인업/이벤트 타임라인의 인라인 편집(Firestore 쓰기)이 막혀 있음(readOnly)
 //  - 영상 분석 도구로 가는 모든 링크가 &lock=1을 달고 나가서, 그 경기 화면에만 갇힘
 // 접근 제한은 없음(현재 Firestore 규칙이 전체 공개라 링크만 있으면 누구나 열람 가능 — 의도된 상태).
-import { use, useEffect, useState } from "react"
+import { use, useEffect, useMemo, useState } from "react"
 import { Activity, Loader2, Video, AlertTriangle } from "lucide-react"
 import type { MatchData } from "@/lib/types"
 import { TournamentService } from "@/lib/tournament-service"
+import { buildCircleEntries } from "@/lib/parser"
 import { buildVideoDeepLink } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { StatsCard } from "@/components/stats-card"
@@ -35,6 +36,11 @@ export default function PlayerReportPage({ params }: { params: Promise<{ matchId
   const [matchData, setMatchData] = useState<MatchData | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [circleEntryMode, setCircleEntryMode] = useState<'3' | '5'>('3')
+  const liveCircleEntries = useMemo(
+    () => matchData ? buildCircleEntries(matchData.events, matchData.homeTeam.name, matchData.awayTeam.name) : [],
+    [matchData]
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -172,9 +178,14 @@ export default function PlayerReportPage({ params }: { params: Promise<{ matchId
             <Target className="h-6 w-6" /> 공격 점유 및 속도 분석
           </div>
           <MatchTrajectoryChart data={matchData} />
+          <div className="flex items-center justify-end gap-1 -mb-2">
+            <span className="text-xs text-muted-foreground mr-1">서클 진입 분석:</span>
+            <Button size="sm" variant={circleEntryMode === '3' ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => setCircleEntryMode('3')}>3방향</Button>
+            <Button size="sm" variant={circleEntryMode === '5' ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => setCircleEntryMode('5')}>5방향</Button>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <CircleEntryAnalysis teamName={matchData.homeTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.homeTeam.name)} teamColor={matchData.homeTeam.color} />
-            <CircleEntryAnalysis teamName={matchData.awayTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.awayTeam.name)} teamColor={matchData.awayTeam.color} />
+            <CircleEntryAnalysis teamName={matchData.homeTeam.name} entries={liveCircleEntries.filter(e => e.team === matchData.homeTeam.name)} teamColor={matchData.homeTeam.color} mode={circleEntryMode} />
+            <CircleEntryAnalysis teamName={matchData.awayTeam.name} entries={liveCircleEntries.filter(e => e.team === matchData.awayTeam.name)} teamColor={matchData.awayTeam.color} mode={circleEntryMode} />
           </div>
         </div>
 

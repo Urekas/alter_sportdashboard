@@ -50,13 +50,18 @@ function generateEvents(): MatchEvent[] {
 
 function generateCircleEntries(): CircleEntry[] {
     const entries: CircleEntry[] = [];
-    const channels: ('Left' | 'Center' | 'Right')[] = ['Left', 'Center', 'Right'];
+    const zones: CircleEntry['zone5'][] = ['FarLeft', 'MidLeft', 'Center', 'MidRight', 'FarRight'];
+    const zoneToChannel: Record<CircleEntry['zone5'], CircleEntry['channel']> = {
+        FarLeft: 'Left', MidLeft: 'Left', Center: 'Center', MidRight: 'Right', FarRight: 'Right',
+    };
     const outcomes: ('Goal' | 'Shot On Target' | 'Shot Missed' | 'No Shot')[] = ['Goal', 'Shot On Target', 'Shot Missed', 'No Shot'];
-    
+
     for (let i = 0; i < 40; i++) {
+        const zone5 = zones[Math.floor(Math.random() * zones.length)];
         entries.push({
             team: Math.random() > 0.5 ? HOME_TEAM.name : AWAY_TEAM.name,
-            channel: channels[Math.floor(Math.random() * channels.length)],
+            channel: zoneToChannel[zone5],
+            zone5,
             outcome: outcomes[Math.floor(Math.random() * outcomes.length)],
         });
     }

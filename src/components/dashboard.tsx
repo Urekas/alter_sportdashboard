@@ -1,7 +1,7 @@
 
 "use client"
 
-import React, { useState, useRef, useEffect } from "react"
+import React, { useState, useRef, useEffect, useMemo } from "react"
 import {
   Upload, FileDown, TrendingDown, Target, Activity, ShieldCheck,
   Sword, Shield, Trophy, Save, Plus, BrainCircuit, Loader2, Sparkles, Info, MessageSquare, Video,
@@ -22,7 +22,7 @@ import { BuildUpEfficiencyChart } from "./build-up-efficiency-chart"
 import { MatchTrajectoryChart } from "./match-trajectory-chart"
 import { TournamentDashboard } from "./tournament-dashboard"
 import { TournamentManager } from "./tournament-manager"
-import { parseXMLData, parseCSVData, createMatchDataFromUpload, decodeUploadedFile } from "@/lib/parser"
+import { parseXMLData, parseCSVData, createMatchDataFromUpload, decodeUploadedFile, buildCircleEntries } from "@/lib/parser"
 import { TournamentService } from "@/lib/tournament-service"
 import { db } from "@/lib/firebase"
 import { Input } from "@/components/ui/input"
@@ -69,6 +69,13 @@ export function Dashboard() {
   const [cumulativeMatches, setCumulativeMatches] = useState<MatchData[] | null>(null)
   const [cumulativeTitle, setCumulativeTitle] = useState("")
   const [openPlayerName, setOpenPlayerName] = useState<string | null>(null)
+  const [circleEntryMode, setCircleEntryMode] = useState<'3' | '5'>('3')
+  // 저장된 matchData.circleEntries는 zone5 필드가 나중에 추가된 거라 예전 경기엔 없을 수 있음 —
+  // 원본 이벤트(locationLabel 보존됨)에서 매번 다시 계산해서 재업로드 없이도 5방향이 정확히 나오게 함.
+  const liveCircleEntries = useMemo(
+    () => matchData ? buildCircleEntries(matchData.events, matchData.homeTeam.name, matchData.awayTeam.name) : [],
+    [matchData]
+  )
 
   const handleViewCumulative = (matches: MatchData[], title: string) => {
     setCumulativeMatches(matches)
@@ -625,9 +632,14 @@ export function Dashboard() {
                 <Target className="h-6 w-6" /> 공격 점유 및 속도 분석
               </div>
               <MatchTrajectoryChart data={matchData} />
+              <div className="print-hidden flex items-center justify-end gap-1 -mb-2">
+                <span className="text-xs text-muted-foreground mr-1">서클 진입 분석:</span>
+                <Button size="sm" variant={circleEntryMode === '3' ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => setCircleEntryMode('3')}>3방향</Button>
+                <Button size="sm" variant={circleEntryMode === '5' ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => setCircleEntryMode('5')}>5방향</Button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <CircleEntryAnalysis teamName={matchData.homeTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.homeTeam.name)} teamColor={matchData.homeTeam.color} />
-                <CircleEntryAnalysis teamName={matchData.awayTeam.name} entries={matchData.circleEntries.filter(e => e.team === matchData.awayTeam.name)} teamColor={matchData.awayTeam.color} />
+                <CircleEntryAnalysis teamName={matchData.homeTeam.name} entries={liveCircleEntries.filter(e => e.team === matchData.homeTeam.name)} teamColor={matchData.homeTeam.color} mode={circleEntryMode} />
+                <CircleEntryAnalysis teamName={matchData.awayTeam.name} entries={liveCircleEntries.filter(e => e.team === matchData.awayTeam.name)} teamColor={matchData.awayTeam.color} mode={circleEntryMode} />
               </div>
             </div>
 

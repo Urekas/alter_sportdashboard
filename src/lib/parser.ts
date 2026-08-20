@@ -1,5 +1,5 @@
 
-import type { MatchEvent, MatchData, TeamMatchStats } from './types';
+import type { MatchEvent, MatchData, TeamMatchStats, CircleEntry } from './types';
 
 // Sportscode가 내보내는 XML/CSV는 보통 UTF-16LE(BOM: FF FE)인데, 이걸 무조건 UTF-8로만 디코딩하면
 // 한글이 다 깨지고(예: "인도"→ 알아볼 수 없는 문자) 심지어 ASCII 글자 사이사이에 NUL 문자가 끼어들어가서
@@ -73,6 +73,40 @@ export const mapZone = (locStr: string): { x: number, y: number, lane: 'Left' | 
   else if (lane === 'Right') y = 45.8;
 
   return { x, y, lane, zoneBand };
+};
+
+// 서클 진입("슈팅서클 진입") 이벤트의 위치 라벨을 5방향으로 분류합니다.
+// 태깅 도구 라벨 기준 왼쪽→오른쪽 순서: 좌_25(완전 왼쪽) - CE_L 45(왼쪽 중간) -
+// 중_25(중앙) - CE_R 45(오른쪽 중간) - 우_25(완전 오른쪽). CE_L/CE_R을 먼저 검사해야
+// "좌"/"우" 단순 포함 검사에 걸리지 않고 왼쪽/오른쪽 "중간" 존으로 정확히 분류됩니다.
+export type CircleEntryZone5 = 'FarLeft' | 'MidLeft' | 'Center' | 'MidRight' | 'FarRight';
+export const classifyEntryZone5 = (locationLabel: string): CircleEntryZone5 => {
+  const t = (locationLabel || '').trim();
+  if (/CE[_\s]?L/i.test(t)) return 'MidLeft';
+  if (/CE[_\s]?R/i.test(t)) return 'MidRight';
+  if (/좌/.test(t)) return 'FarLeft';
+  if (/우/.test(t)) return 'FarRight';
+  return 'Center'; // 중_25 및 그 외 미분류
+};
+
+// 3방향 보기용 — 완전 왼쪽+왼쪽 중간을 "좌"로, 완전 오른쪽+오른쪽 중간을 "우"로 합칩니다.
+export const zone5ToChannel3 = (zone5: CircleEntryZone5): 'Left' | 'Center' | 'Right' => {
+  if (zone5 === 'FarLeft' || zone5 === 'MidLeft') return 'Left';
+  if (zone5 === 'FarRight' || zone5 === 'MidRight') return 'Right';
+  return 'Center';
+};
+
+// 원본 이벤트에서 서클 진입 목록을 만듭니다. MatchData.circleEntries에 미리 계산해 저장도 하지만,
+// zone5 필드가 나중에 추가된 거라 예전에 저장된 경기는 저장된 circleEntries에 zone5가 없습니다 —
+// 화면에서 이 함수로 매번 events에서 다시 계산해 쓰면(원본 locationLabel이 events엔 그대로 남아있음)
+// 예전 경기도 재업로드 없이 곧바로 5방향이 정확히 나옵니다.
+export const buildCircleEntries = (events: MatchEvent[], homeName: string, awayName: string): CircleEntry[] => {
+  return events.filter(e => e.code.trim() === `${homeName} 슈팅서클 진입` || e.code.trim() === `${awayName} 슈팅서클 진입`).map(e => {
+    const res = (e.resultLabel || '').toUpperCase();
+    const isS = res.includes('PC') || res.includes('SHOT') || res.includes('득점') || res.includes('슈팅') || res.includes('GOAL');
+    const zone5 = classifyEntryZone5(e.locationLabel);
+    return { team: e.team, channel: zone5ToChannel3(zone5), zone5, outcome: isS ? 'Shot On Target' : 'No Shot' } as CircleEntry;
+  });
 };
 
 export const detectQuarter = (ungroupedText: string, startTime: number): string => {
@@ -387,11 +421,7 @@ export const createMatchDataFromUpload = (events: MatchEvent[], homeName: string
       const pEvents = events.filter(e => { const nt = getNormalizedTime(e); return nt >= start && nt < end; });
       return { interval: `${(i + 1) * 3}'`, [homeName]: calculateTeamStats(homeName, awayName, pEvents).spp, [awayName]: calculateTeamStats(awayName, homeName, pEvents).spp };
     }),
-    circleEntries: events.filter(e => e.code.trim() === `${homeName} 슈팅서클 진입` || e.code.trim() === `${awayName} 슈팅서클 진입`).map(e => {
-      const res = e.resultLabel.toUpperCase();
-      const isS = res.includes('PC') || res.includes('SHOT') || res.includes('득점') || res.includes('슈팅') || res.includes('GOAL');
-      return { team: e.team, channel: /좌|LEFT/i.test(e.locationLabel) ? 'Left' : /우|RIGHT/i.test(e.locationLabel) ? 'Right' : 'Center', outcome: isS ? 'Shot On Target' : 'No Shot' };
-    }),
+    circleEntries: buildCircleEntries(events, homeName, awayName),
     attackThreatData: Array(12).fill(0).map((_, i) => {
       const s = i * 300, e_ = (i + 1) * 300;
       const filterT = (t: string) => events.filter(e => {

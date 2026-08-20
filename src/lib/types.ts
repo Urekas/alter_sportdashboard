@@ -65,7 +65,8 @@ export interface PressureDataPoint {
 
 export interface CircleEntry {
   team: string;
-  channel: 'Left' | 'Center' | 'Right';
+  channel: 'Left' | 'Center' | 'Right'; // 3방향(단순) — zone5에서 파생됨
+  zone5: 'FarLeft' | 'MidLeft' | 'Center' | 'MidRight' | 'FarRight'; // 5방향(세부): 좌_25/CE_L 45/중_25/CE_R 45/우_25
   outcome: 'Goal' | 'Shot On Target' | 'Shot Missed' | 'No Shot';
 }
 
