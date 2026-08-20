@@ -434,7 +434,7 @@
         let ytFacadeUidCounter = 0;
 
         class YouTubeVideoFacade extends EventTarget {
-            constructor(videoId) {
+            constructor(videoId, originalUrl) {
                 super();
                 this._ready = false;
                 this._paused = true;
@@ -442,6 +442,11 @@
                 this._pendingSeek = null;
                 this._pollInterval = null;
                 this._lastPolledTime = null;
+                // .src가 항상 falsy(undefined)라서 "영상이 로드됐는지" 체크하는 다른 코드
+                // (타임라인 클릭 시 이동, 키보드 단축키 등)가 유튜브 앵글을 전부 무시하던 버그 수정 —
+                // <video>.src와 동일하게 항상 truthy한 값을 갖도록 원본 URL을 그대로 넣어둠.
+                this.src = originalUrl || `https://www.youtube.com/watch?v=${videoId}`;
+                this.currentSrc = this.src;
 
                 this.wrapper = document.createElement('div');
                 this.wrapper.className = "w-full h-full object-contain absolute inset-0 transition-opacity duration-75";
@@ -603,7 +608,7 @@
             const idx = videoFiles.length;
             const isFirstUpload = videoFiles.length === 0;
 
-            const facade = new YouTubeVideoFacade(videoId);
+            const facade = new YouTubeVideoFacade(videoId, youtubeUrl);
             facade.style.opacity = "0";
             facade.style.pointerEvents = "none";
 
@@ -1451,7 +1456,8 @@
                 groups[inst.rowName].push(inst);
             });
 
-            for (const [rowName, instances] of Object.entries(groups)) {
+            const sortedGroupEntries = Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0], 'ko'));
+            for (const [rowName, instances] of sortedGroupEntries) {
                 const details = document.createElement('details');
                 details.dataset.rowName = rowName;
                 details.className = "mb-2 bg-[#eae9e9] rounded border border-[#bab6b6] overflow-hidden";
