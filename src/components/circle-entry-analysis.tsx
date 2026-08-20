@@ -69,7 +69,7 @@ export function CircleEntryAnalysis({ entries, teamName, teamColor, mode = '3' }
   const fontSize = mode === '5' ? '1.0px' : '1.2px';
 
   return (
-    <Card className="h-full border-2">
+    <Card className="h-full border-2 break-inside-avoid">
       <CardHeader>
         <CardTitle>{teamName} 서클 진입 분석</CardTitle>
         <CardDescription>공격 서클 진입 방향 및 효율 (골대: 상단) — {mode === '5' ? '5방향' : '3방향'}</CardDescription>

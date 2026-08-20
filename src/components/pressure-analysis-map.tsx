@@ -197,7 +197,7 @@ export function PressureAnalysisMap({
   };
 
   return (
-    <Card className="lg:col-span-3">
+    <Card className="lg:col-span-3 break-inside-avoid">
       <CardHeader className={isCompact ? "py-2 px-4" : ""}>
         <CardTitle className={isCompact ? "text-lg" : ""}>Pressure Analysis</CardTitle>
         <CardDescription className={isCompact ? "text-[10px]" : ""}>압박 시도 대비 순수 성공 분석. {isTournament ? `대회 평균 수치.` : '경기 실제 수치.'}</CardDescription>

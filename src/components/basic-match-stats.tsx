@@ -6,7 +6,8 @@ import { Info, PlayCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import type { MatchData, MatchEvent } from "@/lib/types"
-import { openInNewTab, buildVideoDeepLink } from "@/lib/utils"
+import { openInNewTab, buildVideoDeepLink, cn } from "@/lib/utils"
+import { CollapseToggleButton } from "./collapsible-section"
 
 interface BasicMatchStatsProps {
   data: MatchData;
@@ -44,6 +45,7 @@ function formatEventTime(seconds: number): string {
 export function BasicMatchStats({ data, ranks, lockedVideo }: BasicMatchStatsProps) {
   const { homeTeam, awayTeam, matchStats, events, videoMatchId } = data
   const [expandedKey, setExpandedKey] = useState<string | null>(null)
+  const [open, setOpen] = useState(true)
 
   const formatValue = (val: any) => {
     const num = parseFloat(val);
@@ -86,16 +88,19 @@ export function BasicMatchStats({ data, ranks, lockedVideo }: BasicMatchStatsPro
   ]
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>종합 통계 비교</CardTitle>
-        <CardDescription>
-          <span className="font-bold" style={{ color: homeTeam.color }}>{homeTeam.name}</span> vs{" "}
-          <span className="font-bold" style={{ color: awayTeam.color }}>{awayTeam.name}</span> — 우세한 쪽이 강조 표시됩니다.
-          {videoMatchId && <span className="print-hidden"> 숫자를 클릭하면 해당 장면 영상을 볼 수 있어요.</span>}
-        </CardDescription>
+    <Card className="break-inside-avoid">
+      <CardHeader className="flex flex-row items-start justify-between gap-2">
+        <div>
+          <CardTitle>종합 통계 비교</CardTitle>
+          <CardDescription>
+            <span className="font-bold" style={{ color: homeTeam.color }}>{homeTeam.name}</span> vs{" "}
+            <span className="font-bold" style={{ color: awayTeam.color }}>{awayTeam.name}</span> — 우세한 쪽이 강조 표시됩니다.
+            {videoMatchId && <span className="print-hidden"> 숫자를 클릭하면 해당 장면 영상을 볼 수 있어요.</span>}
+          </CardDescription>
+        </div>
+        <CollapseToggleButton open={open} onClick={() => setOpen(o => !o)} />
       </CardHeader>
-      <CardContent>
+      <CardContent className={cn(!open && "hidden print:block")}>
         <TooltipProvider delayDuration={200}>
           <div className="flex flex-col gap-4">
             {stats.map((s) => {

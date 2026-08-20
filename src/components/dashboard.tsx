@@ -44,6 +44,7 @@ import { LineupSection } from "./lineup-section"
 import { PlayerRecordDialog } from "./player-record-dialog"
 import { TeamAnalysisDashboard } from "./team-analysis-dashboard"
 import { VideoLinksPopover } from "./video-links-popover"
+import { CollapsibleSection } from "./collapsible-section"
 
 export function Dashboard() {
   const [viewMode, setViewMode] = useState<'single' | 'tournament' | 'manage' | 'shots' | 'h2h' | 'team'>('single')
@@ -613,10 +614,7 @@ export function Dashboard() {
               </div>
             </div>
 
-            <div className="break-inside-avoid space-y-8">
-              <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                <Sword className="h-6 w-6" /> 공격 성능 분석
-              </div>
+            <CollapsibleSection title="공격 성능 분석" icon={<Sword className="h-6 w-6" />} className="space-y-8">
               {matchData.videoMatchId && (
                 <div className="print-hidden flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2 -mt-4">
                   <Video className="h-3.5 w-3.5 text-[#e15b47]" />
@@ -625,12 +623,9 @@ export function Dashboard() {
               )}
               <AttackThreatChart data={matchData.attackThreatData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} videoMatchId={matchData.videoMatchId} />
               <BuildUpEfficiencyChart data={matchData} />
-            </div>
+            </CollapsibleSection>
 
-            <div className="break-inside-avoid space-y-8">
-              <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                <Target className="h-6 w-6" /> 공격 점유 및 속도 분석
-              </div>
+            <CollapsibleSection title="공격 점유 및 속도 분석" icon={<Target className="h-6 w-6" />} className="space-y-8">
               <MatchTrajectoryChart data={matchData} />
               <div className="print-hidden flex items-center justify-end gap-1 -mb-2">
                 <span className="text-xs text-muted-foreground mr-1">서클 진입 분석:</span>
@@ -641,17 +636,14 @@ export function Dashboard() {
                 <CircleEntryAnalysis teamName={matchData.homeTeam.name} entries={liveCircleEntries.filter(e => e.team === matchData.homeTeam.name)} teamColor={matchData.homeTeam.color} mode={circleEntryMode} />
                 <CircleEntryAnalysis teamName={matchData.awayTeam.name} entries={liveCircleEntries.filter(e => e.team === matchData.awayTeam.name)} teamColor={matchData.awayTeam.color} mode={circleEntryMode} />
               </div>
-            </div>
+            </CollapsibleSection>
 
-            <div className="break-inside-avoid space-y-8 pt-4">
-              <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                <Shield className="h-6 w-6" /> 압박 분석
-              </div>
+            <CollapsibleSection title="압박 분석" icon={<Shield className="h-6 w-6" />} className="space-y-8">
               <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
               <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} isCompact />
-            </div>
+            </CollapsibleSection>
 
-            <div className="break-inside-avoid pt-4">
+            <div className="pt-4">
               <TurnoverZoneMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
             </div>
 

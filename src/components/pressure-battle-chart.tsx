@@ -151,7 +151,7 @@ export function PressureBattleChart({ data, homeTeam, awayTeam, height, fontSize
   ];
 
   return (
-    <Card>
+    <Card className="break-inside-avoid">
       <CardHeader>
         <CardTitle>{isMatchTrend ? 'Pressure Battle Trend (경기별 SPP 추이)' : 'Pressure Battle (3분 단위 SPP 추이)'}</CardTitle>
         <CardDescription>

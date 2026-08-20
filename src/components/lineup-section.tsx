@@ -14,6 +14,8 @@ import { useToast } from "@/hooks/use-toast"
 import { useFirestore } from "@/firebase"
 import { TournamentService } from "@/lib/tournament-service"
 import { parseTmsLineupText } from "@/lib/lineup-parser"
+import { cn } from "@/lib/utils"
+import { CollapseToggleButton } from "./collapsible-section"
 
 interface LineupSectionProps {
   match: MatchData
@@ -56,6 +58,8 @@ export function LineupTable({ team, teamName, teamColor, onPlayerClick }: { team
 
 export function LineupSection({ match, onSaved, onPlayerClick }: LineupSectionProps) {
   const [editing, setEditing] = useState(!match.lineups)
+  const [open, setOpen] = useState(true)
+  const hasLineups = !!match.lineups
   const [pasteText, setPasteText] = useState("")
   const [parsedBlocks, setParsedBlocks] = useState<TeamLineup[]>([])
   const [assignment, setAssignment] = useState<Record<number, 'home' | 'away' | 'skip'>>({})
@@ -101,24 +105,29 @@ export function LineupSection({ match, onSaved, onPlayerClick }: LineupSectionPr
   }
 
   return (
-    <Card>
+    // 라인업이 아예 없는 경기는 인쇄(PDF)에서 텅 빈 편집 폼(붙여넣기 상자)이 보기 흉하게
+    // 나오던 문제 — 데이터가 없으면 이 섹션 전체를 인쇄에서 숨김(화면 편집은 그대로 가능).
+    <Card className={cn("break-inside-avoid", !hasLineups && "print-hidden")}>
       <CardHeader className="flex flex-row items-center justify-between gap-4">
         <div>
           <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> 라인업</CardTitle>
-          <CardDescription>TMS에서 복사한 라인업 표를 붙여넣으면 파싱됩니다.</CardDescription>
+          <CardDescription className="print-hidden">TMS에서 복사한 라인업 표를 붙여넣으면 파싱됩니다.</CardDescription>
         </div>
-        {match.lineups && !editing && (
-          <Button variant="outline" size="sm" onClick={() => setEditing(true)}><Pencil className="h-3.5 w-3.5 mr-1.5" /> 수정</Button>
-        )}
+        <div className="flex items-center gap-2">
+          {match.lineups && !editing && (
+            <Button variant="outline" size="sm" className="print-hidden" onClick={() => setEditing(true)}><Pencil className="h-3.5 w-3.5 mr-1.5" /> 수정</Button>
+          )}
+          {hasLineups && <CollapseToggleButton open={open} onClick={() => setOpen(o => !o)} />}
+        </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className={cn("space-y-4", hasLineups && !open && "hidden print:block")}>
         {!editing && match.lineups ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {match.lineups.home && <LineupTable team={match.lineups.home} teamName={match.homeTeam.name} teamColor={match.homeTeam.color} onPlayerClick={onPlayerClick} />}
             {match.lineups.away && <LineupTable team={match.lineups.away} teamName={match.awayTeam.name} teamColor={match.awayTeam.color} onPlayerClick={onPlayerClick} />}
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 print-hidden">
             <Textarea
               value={pasteText}
               onChange={(e) => setPasteText(e.target.value)}

@@ -62,7 +62,7 @@ export function BuildUpEfficiencyChart({ data }: BuildUpEfficiencyChartProps) {
   }
 
   return (
-    <Card className="w-full">
+    <Card className="w-full break-inside-avoid">
       <CardHeader>
         <CardTitle>25y 진입 대비 서클 진입 효율</CardTitle>
         <CardDescription>

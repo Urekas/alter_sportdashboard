@@ -115,7 +115,7 @@ export function MatchTrajectoryChart({ data, isTournamentView, allMatchesPoints 
   }
 
   return (
-    <Card className="w-full border-2 shadow-xl">
+    <Card className="w-full border-2 shadow-xl break-inside-avoid">
       <CardHeader className="pb-2 bg-muted/20 border-b">
         <CardTitle className="text-2xl font-black text-primary italic">Match Trajectory Analysis (공격 점유 및 속도 분석)</CardTitle>
         <CardDescription className="text-sm font-bold text-muted-foreground mt-1">

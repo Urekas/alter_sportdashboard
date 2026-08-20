@@ -5,7 +5,8 @@ import { useMemo, useState } from "react"
 import { PlayCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import type { MatchData, MatchEvent, Team } from "@/lib/types"
-import { openInNewTab, buildVideoDeepLink } from "@/lib/utils"
+import { openInNewTab, buildVideoDeepLink, cn } from "@/lib/utils"
+import { CollapseToggleButton } from "./collapsible-section"
 
 interface ShotBreakdownProps {
   data: MatchData;
@@ -49,6 +50,7 @@ function collectShotEvents(events: MatchEvent[], team: string): MatchEvent[] {
 export function ShotBreakdown({ data, lockedVideo }: ShotBreakdownProps) {
   const { homeTeam, awayTeam, events, videoMatchId } = data;
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [open, setOpen] = useState(true);
 
   const grouped = useMemo(() => {
     const build = (team: Team) => {
@@ -69,16 +71,19 @@ export function ShotBreakdown({ data, lockedVideo }: ShotBreakdownProps) {
   if (grouped.home.total === 0 && grouped.away.total === 0) return null;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>슈팅 결과 브레이크다운</CardTitle>
-        <CardDescription>
-          <span className="font-bold" style={{ color: homeTeam.color }}>{homeTeam.name}</span> vs{" "}
-          <span className="font-bold" style={{ color: awayTeam.color }}>{awayTeam.name}</span> — 슈팅+PC 시도가 어떤 결과로 끝났는지
-          {videoMatchId && <span className="print-hidden"> · 숫자를 클릭하면 해당 장면 영상을 볼 수 있어요.</span>}
-        </CardDescription>
+    <Card className="break-inside-avoid">
+      <CardHeader className="flex flex-row items-start justify-between gap-2">
+        <div>
+          <CardTitle>슈팅 결과 브레이크다운</CardTitle>
+          <CardDescription>
+            <span className="font-bold" style={{ color: homeTeam.color }}>{homeTeam.name}</span> vs{" "}
+            <span className="font-bold" style={{ color: awayTeam.color }}>{awayTeam.name}</span> — 슈팅+PC 시도가 어떤 결과로 끝났는지
+            {videoMatchId && <span className="print-hidden"> · 숫자를 클릭하면 해당 장면 영상을 볼 수 있어요.</span>}
+          </CardDescription>
+        </div>
+        <CollapseToggleButton open={open} onClick={() => setOpen(o => !o)} />
       </CardHeader>
-      <CardContent>
+      <CardContent className={cn(!open && "hidden print:block")}>
         <div className="flex items-center justify-between text-sm font-bold mb-4 pb-3 border-b">
           <span style={{ color: homeTeam.color }}>전체 시도 {grouped.home.total}</span>
           <span className="text-muted-foreground text-xs">슈팅 + PC</span>

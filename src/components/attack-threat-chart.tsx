@@ -233,7 +233,7 @@ export function AttackThreatChart({ data, homeTeam, awayTeam, events = [], video
   ];
 
   return (
-    <Card>
+    <Card className="break-inside-avoid">
       <CardHeader>
         <CardTitle>{isMatchTrend ? 'Attack Threat Trend (경기별 추이)' : 'Attack Threat Trend (3분 단위)'}</CardTitle>
         <CardDescription>

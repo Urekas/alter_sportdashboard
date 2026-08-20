@@ -1,9 +1,12 @@
 
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import type { MatchEvent, Team } from "@/lib/types"
 import { mapZone } from "@/lib/zone-helpers"
+import { cn } from "@/lib/utils"
+import { CollapseToggleButton } from "./collapsible-section"
 
 interface TurnoverZoneMapProps {
   events: MatchEvent[]
@@ -66,6 +69,7 @@ function ZoneRow({ team, stats }: { team: Team; stats: ZoneStats }) {
 }
 
 export function TurnoverZoneMap({ events, homeTeam, awayTeam }: TurnoverZoneMapProps) {
+  const [open, setOpen] = useState(true)
   const home = buildStats(events, homeTeam.name)
   const away = buildStats(events, awayTeam.name)
 
@@ -78,14 +82,17 @@ export function TurnoverZoneMap({ events, homeTeam, awayTeam }: TurnoverZoneMapP
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>턴오버 지도</CardTitle>
-        <CardDescription>
-          {describe(homeTeam, home)} · {describe(awayTeam, away)}
-        </CardDescription>
+    <Card className="break-inside-avoid">
+      <CardHeader className="flex flex-row items-start justify-between gap-2">
+        <div>
+          <CardTitle>턴오버 지도</CardTitle>
+          <CardDescription>
+            {describe(homeTeam, home)} · {describe(awayTeam, away)}
+          </CardDescription>
+        </div>
+        <CollapseToggleButton open={open} onClick={() => setOpen(o => !o)} />
       </CardHeader>
-      <CardContent className="space-y-4 max-w-xl mx-auto">
+      <CardContent className={cn("space-y-4 max-w-xl mx-auto", !open && "hidden print:block")}>
         <ZoneRow team={homeTeam} stats={home} />
         <ZoneRow team={awayTeam} stats={away} />
       </CardContent>

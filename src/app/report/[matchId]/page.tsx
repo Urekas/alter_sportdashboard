@@ -11,7 +11,7 @@ import { Activity, Loader2, Video, AlertTriangle } from "lucide-react"
 import type { MatchData } from "@/lib/types"
 import { TournamentService } from "@/lib/tournament-service"
 import { buildCircleEntries } from "@/lib/parser"
-import { buildVideoDeepLink } from "@/lib/utils"
+import { buildVideoDeepLink, cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { StatsCard } from "@/components/stats-card"
 import { MatchSummaryBar } from "@/components/match-summary-bar"
@@ -28,6 +28,7 @@ import { PressureBattleChart } from "@/components/pressure-battle-chart"
 import { PressureAnalysisMap } from "@/components/pressure-analysis-map"
 import { TurnoverZoneMap } from "@/components/turnover-zone-map"
 import { LineupTable } from "@/components/lineup-section"
+import { CollapsibleSection, CollapseToggleButton } from "@/components/collapsible-section"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TrendingDown, Target, Sword, Shield, Users } from "lucide-react"
 
@@ -37,6 +38,7 @@ export default function PlayerReportPage({ params }: { params: Promise<{ matchId
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [circleEntryMode, setCircleEntryMode] = useState<'3' | '5'>('3')
+  const [lineupOpen, setLineupOpen] = useState(true)
   const liveCircleEntries = useMemo(
     () => matchData ? buildCircleEntries(matchData.events, matchData.homeTeam.name, matchData.awayTeam.name) : [],
     [matchData]
@@ -111,11 +113,12 @@ export default function PlayerReportPage({ params }: { params: Promise<{ matchId
         </div>
 
         {(matchData.lineups?.home || matchData.lineups?.away) && (
-          <Card>
-            <CardHeader>
+          <Card className="break-inside-avoid">
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
               <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> 라인업</CardTitle>
+              <CollapseToggleButton open={lineupOpen} onClick={() => setLineupOpen(o => !o)} />
             </CardHeader>
-            <CardContent>
+            <CardContent className={cn(!lineupOpen && "hidden print:block")}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {matchData.lineups.home && <LineupTable team={matchData.lineups.home} teamName={matchData.homeTeam.name} teamColor={matchData.homeTeam.color} onPlayerClick={() => {}} />}
                 {matchData.lineups.away && <LineupTable team={matchData.lineups.away} teamName={matchData.awayTeam.name} teamColor={matchData.awayTeam.color} onPlayerClick={() => {}} />}
@@ -152,17 +155,11 @@ export default function PlayerReportPage({ params }: { params: Promise<{ matchId
 
         <MatchEventTimeline data={matchData} lockedVideo readOnly />
 
-        <div>
-          <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2 mb-6">
-            <Activity className="h-6 w-6" /> 쿼터별 상세 데이터
-          </div>
+        <CollapsibleSection title="쿼터별 상세 데이터" icon={<Activity className="h-6 w-6" />}>
           <QuarterlyStatsTable data={matchData} />
-        </div>
+        </CollapsibleSection>
 
-        <div className="space-y-8">
-          <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-            <Sword className="h-6 w-6" /> 공격 성능 분석
-          </div>
+        <CollapsibleSection title="공격 성능 분석" icon={<Sword className="h-6 w-6" />} className="space-y-8">
           {matchData.videoMatchId && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2 -mt-4">
               <Video className="h-3.5 w-3.5 text-[#e15b47]" />
@@ -171,12 +168,9 @@ export default function PlayerReportPage({ params }: { params: Promise<{ matchId
           )}
           <AttackThreatChart data={matchData.attackThreatData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} videoMatchId={matchData.videoMatchId} lockedVideo />
           <BuildUpEfficiencyChart data={matchData} />
-        </div>
+        </CollapsibleSection>
 
-        <div className="space-y-8">
-          <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-            <Target className="h-6 w-6" /> 공격 점유 및 속도 분석
-          </div>
+        <CollapsibleSection title="공격 점유 및 속도 분석" icon={<Target className="h-6 w-6" />} className="space-y-8">
           <MatchTrajectoryChart data={matchData} />
           <div className="flex items-center justify-end gap-1 -mb-2">
             <span className="text-xs text-muted-foreground mr-1">서클 진입 분석:</span>
@@ -187,15 +181,12 @@ export default function PlayerReportPage({ params }: { params: Promise<{ matchId
             <CircleEntryAnalysis teamName={matchData.homeTeam.name} entries={liveCircleEntries.filter(e => e.team === matchData.homeTeam.name)} teamColor={matchData.homeTeam.color} mode={circleEntryMode} />
             <CircleEntryAnalysis teamName={matchData.awayTeam.name} entries={liveCircleEntries.filter(e => e.team === matchData.awayTeam.name)} teamColor={matchData.awayTeam.color} mode={circleEntryMode} />
           </div>
-        </div>
+        </CollapsibleSection>
 
-        <div className="space-y-8">
-          <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-            <Shield className="h-6 w-6" /> 압박 분석
-          </div>
+        <CollapsibleSection title="압박 분석" icon={<Shield className="h-6 w-6" />} className="space-y-8">
           <PressureBattleChart data={matchData.pressureData} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
           <PressureAnalysisMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} isCompact />
-        </div>
+        </CollapsibleSection>
 
         <TurnoverZoneMap events={matchData.events} homeTeam={matchData.homeTeam} awayTeam={matchData.awayTeam} />
       </div>

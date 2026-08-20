@@ -10,6 +10,8 @@ import { useState, useMemo, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { cn } from "@/lib/utils"
+import { CollapseToggleButton } from "./collapsible-section"
 
 export interface ShotDatum {
   id: string
@@ -289,6 +291,7 @@ export function ShotZoneMap({
 }: ShotZoneMapProps) {
   const [showGrid, setShowGrid] = useState(defaultGrid)
   const [tooltip, setTooltip] = useState<Tooltip | null>(null)
+  const [open, setOpen] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const shotsA = useMemo(() => shots.filter(s => s.side === 'A'), [shots])
@@ -299,7 +302,7 @@ export function ShotZoneMap({
   const handleLeave = () => setTooltip(null)
 
   return (
-    <Card ref={containerRef} className="relative">
+    <Card ref={containerRef} className="relative break-inside-avoid">
       <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
         <div>
           <CardTitle>{title}</CardTitle>
@@ -314,9 +317,10 @@ export function ShotZoneMap({
             <Switch id="shot-grid-toggle" checked={showGrid} onCheckedChange={setShowGrid} />
             <Label htmlFor="shot-grid-toggle" className="text-xs font-bold cursor-pointer">구역 그리드</Label>
           </div>
+          <CollapseToggleButton open={open} onClick={() => setOpen(o => !o)} />
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className={cn(!open && "hidden print:block")}>
         <div className={showSideB ? "grid grid-cols-1 lg:grid-cols-2 gap-6 lg:divide-x lg:gap-x-0" : ""}>
           <div className={showSideB ? "lg:pr-6" : ""}>
             <SidePanel
