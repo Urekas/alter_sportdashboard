@@ -418,7 +418,7 @@ export function Dashboard() {
       </header>
 
       <div className="flex gap-6 items-start">
-      {matchData && siblingMatches.length > 1 && (
+      {viewMode === 'single' && matchData && siblingMatches.length > 1 && (
         <aside className="hidden lg:block w-64 shrink-0 print-hidden sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto border rounded-lg">
           <div className="px-3 py-2 border-b bg-muted/30 text-xs font-bold text-muted-foreground uppercase tracking-wide">
             {tournamentName || "대회 경기 목록"} ({siblingMatches.length})

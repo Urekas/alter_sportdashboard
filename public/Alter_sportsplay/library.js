@@ -454,6 +454,7 @@ async function fetchAndRenderPlaylists(playlistsUl) {
                     </div>
                 </div>
                 <div style="display:flex; gap:6px;">
+                    <button class="small-btn share-pl-btn" title="선수단 공유 링크 (이 재생목록만 잠금 화면으로 열림)" style="background:#2ecc71;"><i class="fa-solid fa-share-nodes"></i></button>
                     <button class="small-btn edit-pl-btn" title="편집 (카트로 불러오기)" style="background:#3498db;"><i class="fa-solid fa-pen-to-square"></i></button>
                     <button class="small-btn delete-pl-btn" title="삭제" style="background:#e74c3c;"><i class="fa-solid fa-trash-can"></i></button>
                 </div>
@@ -462,6 +463,21 @@ async function fetchAndRenderPlaylists(playlistsUl) {
             li.addEventListener('click', (e) => {
                 if (e.target.closest('button')) return;
                 loadSelectedPlaylist(data.event_ids, data.title);
+            });
+
+            li.querySelector('.share-pl-btn').addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const url = `${location.origin}/Alter_sportsplay/index.html?playlistId=${d.id}&lock=1`;
+                if (navigator.share) {
+                    try { await navigator.share({ title: data.title || '재생목록', url }); return; }
+                    catch (err) { if (err?.name === 'AbortError') return; }
+                }
+                try {
+                    await navigator.clipboard.writeText(url);
+                    alert('선수단 공유 링크가 복사되었습니다:\n' + url);
+                } catch (err) {
+                    alert('클립보드 복사 실패. 아래 링크를 직접 복사해주세요:\n' + url);
+                }
             });
 
             li.querySelector('.edit-pl-btn').addEventListener('click', () => {

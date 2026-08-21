@@ -154,15 +154,60 @@ function hideDeepLinkStatus(delay) {
   setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, delay || 0);
 }
 
+// 재생목록(Playlists 컬렉션) 딥링크 — "이 경기 페널티코너 모음"처럼 미리 만들어둔 클립
+// 묶음을 선수단에게 공유하는 링크(?playlistId=X&lock=1)를 처리합니다. 재생목록은 보통
+// 한 경기 안에서 클립을 골라 만들기 때문에, 첫 클립의 match_id 기준으로 그 경기 영상을
+// 불러온 뒤 재생목록만 필터링해서 Events 패널에 올려줍니다(맨 위 "필터링 전체 재생" 버튼으로
+// 이어보기 가능 — 기존 Organizer 큐 재생 로직 재사용).
+async function handlePlaylistDeepLink(playlistId) {
+  showDeepLinkStatus('재생목록 불러오는 중...', 'loading');
+  try {
+    const plSnap = await getDoc(doc(db, 'Playlists', playlistId));
+    if (!plSnap.exists()) { showDeepLinkStatus('재생목록을 찾을 수 없어요.', 'error'); hideDeepLinkStatus(4000); return; }
+    const plData = plSnap.data();
+    const eventIds = plData.event_ids || [];
+    if (eventIds.length === 0) { showDeepLinkStatus('재생목록에 클립이 없어요.', 'error'); hideDeepLinkStatus(4000); return; }
+
+    const eventDocs = await Promise.all(eventIds.map(id => getDoc(doc(db, 'Events', id))));
+    const events = eventDocs.filter(d => d.exists()).map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.start_time - b.start_time);
+    if (events.length === 0) { showDeepLinkStatus('재생목록의 클립을 찾을 수 없어요.', 'error'); hideDeepLinkStatus(4000); return; }
+
+    const matchId = events[0].match_id;
+    const matchSnap = matchId ? await getDoc(doc(db, 'Matches', matchId)) : null;
+    if (matchSnap?.exists()) {
+      loadMatchForAnalysis(matchId, matchSnap.data());
+    }
+
+    // loadMatchForAnalysis의 카메라 세팅이 끝난 뒤에 재생목록을 올려야 정상 동작함.
+    setTimeout(() => {
+      updateCurrentPlaylist(events);
+      window.showViewerSection?.();
+      document.getElementById('tab-btn-events')?.click();
+      showDeepLinkStatus(`"${plData.title || '재생목록'}" ${events.length}개 클립 준비됨 — 위 재생 버튼을 눌러주세요`, 'success');
+      hideDeepLinkStatus(4000);
+    }, 1200);
+  } catch (e) {
+    console.error('Playlist deep link error:', e);
+    showDeepLinkStatus('재생목록을 불러오는 중 오류가 발생했어요.', 'error');
+    hideDeepLinkStatus(4000);
+  }
+}
+
 async function handleUrlParams() {
   const params = new URLSearchParams(window.location.search);
   const matchId = params.get('matchId');
   const time = params.get('time');
+  const playlistId = params.get('playlistId');
 
   // 선수단 배포 링크(대시보드 리포트 페이지에서 생성) — Explorer(다른 경기 탐색, 연결 해제 등
   // 관리 기능)를 숨기고 이 경기의 Viewer 화면에만 갇히게 함(styles.css의 .locked-viewer-mode).
   if (params.get('lock') === '1') {
     document.body.classList.add('locked-viewer-mode');
+  }
+
+  if (playlistId) {
+    await handlePlaylistDeepLink(playlistId);
+    return; // matchId/time 파라미터와는 배타적 — 재생목록 딥링크는 여기서 끝
   }
 
   if(matchId) {
