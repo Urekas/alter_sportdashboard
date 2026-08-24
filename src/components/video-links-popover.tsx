@@ -18,6 +18,7 @@ interface VideoLinksPopoverProps {
 const CAM_LABELS: Record<string, string> = {
   tactical_cam1: "전술캠 1",
   tactical_cam2: "전술캠 2",
+  tactical_cam3: "전술캠 3",
   broadcast_cam: "중계 영상",
 }
 

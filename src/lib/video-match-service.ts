@@ -14,12 +14,14 @@ const EVENTS_BATCH_SIZE = 400; // Alter_sportsplay/app.jsÏùò uploadEventsBatchÏô
 export interface VideoUrls {
   tactical_cam1: string;
   tactical_cam2: string;
+  tactical_cam3: string;
   broadcast_cam: string;
 }
 
 export interface VideoOffsets {
   tactical_cam1: number;
   tactical_cam2: number;
+  tactical_cam3: number;
   broadcast_cam: number;
 }
 

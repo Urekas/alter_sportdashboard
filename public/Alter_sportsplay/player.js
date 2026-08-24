@@ -2,7 +2,8 @@ import { db, collection, getDocs, query, orderBy, limit, where } from './firebas
 
 export let player;       // cam1 (전술캠1)
 export let player2;      // cam2 (전술캠2)
-export let player3;      // cam3 (중계캠)
+export let player3;      // cam3 (전술캠3)
+export let player4;      // cam4 (중계캠)
 export let isPlayerReady = false;
 export let allEvents = [];
 export let currentPlaylist = [];
@@ -14,6 +15,7 @@ export let activeMatchId = null; // 현재 분석 중인 경기 ID
 export const playlistCart = new Set(); // 공유 선택 카트 (이벤트 ID 저장)
 let isPlayer2Ready = false;
 let isPlayer3Ready = false;
+let isPlayer4Ready = false;
 let activeCam = 1; // 카메라 전환(switchCam)이 참조하는 현재 활성 카메라 번호 — 선언이 빠져 있어서
                     // strict mode(ES 모듈은 항상 strict) 아래서 switchCam 호출 시 ReferenceError로
                     // 매번 조용히 실패하고 있었음(전술캠/중계캠 전환이 전혀 안 되던 원인).
@@ -23,12 +25,13 @@ let activeCam = 1; // 카메라 전환(switchCam)이 참조하는 현재 활성 
 // 실제 동기화 로직과 동일: "경기 클럭 시간 = 그 카메라 영상 자체 시간 + 오프셋". 예전엔 이 오프셋이
 // 저장만 되고 재생/탐색 어디서도 실제로 안 쓰여서, 오프셋이 0이 아닌 카메라는 항상 몇 초씩
 // 어긋난 지점을 보여주고 있었음(카메라 전환 시 재동기화도 아예 안 됐음) — 전부 이걸로 고침.
-let cameraOffsets = { 1: 0, 2: 0, 3: 0 };
+let cameraOffsets = { 1: 0, 2: 0, 3: 0, 4: 0 };
 export function setCameraOffsets(offsets) {
   cameraOffsets = {
     1: Number(offsets?.tactical_cam1) || 0,
     2: Number(offsets?.tactical_cam2) || 0,
-    3: Number(offsets?.broadcast_cam) || 0,
+    3: Number(offsets?.tactical_cam3) || 0,
+    4: Number(offsets?.broadcast_cam) || 0,
   };
 }
 function camOffset(n) { return cameraOffsets[n] || 0; }
@@ -83,10 +86,17 @@ export function initPlayer() {
     events: { 'onReady': ()=>{ isPlayer3Ready=true; }, 'onStateChange': onPlayerStateChange }
   });
 
+  player4 = new YT.Player('youtube-player-4', {
+    height:'100%', width:'100%', videoId: '',
+    playerVars: pv,
+    events: { 'onReady': ()=>{ isPlayer4Ready=true; }, 'onStateChange': onPlayerStateChange }
+  });
+
   // 카메라 전환 버튼
   document.getElementById('cam1-btn')?.addEventListener('click',()=>switchCam(1));
   document.getElementById('cam2-btn')?.addEventListener('click',()=>switchCam(2));
   document.getElementById('cam3-btn')?.addEventListener('click',()=>switchCam(3));
+  document.getElementById('cam4-btn')?.addEventListener('click',()=>switchCam(4));
 }
 
 function switchCam(n) {
@@ -102,14 +112,16 @@ function switchCam(n) {
   const wrappers = [null,
     document.getElementById('player-wrapper-1'),
     document.getElementById('player-wrapper-2'),
-    document.getElementById('player-wrapper-3')
+    document.getElementById('player-wrapper-3'),
+    document.getElementById('player-wrapper-4')
   ];
   const btns = [null,
     document.getElementById('cam1-btn'),
     document.getElementById('cam2-btn'),
-    document.getElementById('cam3-btn')
+    document.getElementById('cam3-btn'),
+    document.getElementById('cam4-btn')
   ];
-  [1,2,3].forEach(i=>{
+  [1,2,3,4].forEach(i=>{
     if(wrappers[i]){
       wrappers[i].style.opacity = (i===n)?'1':'0';
       wrappers[i].style.pointerEvents = (i===n)?'auto':'none';
@@ -121,7 +133,7 @@ function switchCam(n) {
     }
   });
   // 활성 플레이어를 전역에 노출 (drawing.js에서 사용)
-  const activePlayer = n===1?player : n===2?player2 : player3;
+  const activePlayer = n===1?player : n===2?player2 : n===3?player3 : player4;
   window._activeSportsplayPlayer = activePlayer;
 
   // 새로 활성화된 카메라를 오프셋 반영해서 같은 경기 클럭 지점으로 재동기화 — 예전엔 전환만 하고
@@ -208,7 +220,7 @@ export function pausePlayer() {
 // 카메라별 영상 로드 (app.js에서 사용 - ES Module 내부 참조)
 export function loadVideoInCam(cam, videoId) {
   if (!videoId) return;
-  const pl = cam === 1 ? player : cam === 2 ? player2 : player3;
+  const pl = cam === 1 ? player : cam === 2 ? player2 : cam === 3 ? player3 : player4;
   if (pl && typeof pl.loadVideoById === 'function') {
     pl.loadVideoById(videoId);
   } else if (cam === 1) {
@@ -661,6 +673,7 @@ document.addEventListener('keydown', (e) => {
     case 'Digit1':     e.preventDefault(); switchCam(1); break;
     case 'Digit2':     e.preventDefault(); switchCam(2); break;
     case 'Digit3':     e.preventDefault(); switchCam(3); break;
+    case 'Digit4':     e.preventDefault(); switchCam(4); break;
   }
 });
 

@@ -26,6 +26,8 @@ const emptyForm = {
   tacticalOffset1: "0",
   tacticalUrl2: "",
   tacticalOffset2: "0",
+  tacticalUrl3: "",
+  tacticalOffset3: "0",
   broadcastUrl: "",
   broadcastOffset: "0",
 }
@@ -50,6 +52,8 @@ export function VideoLinkDialog({ match, open, onOpenChange, onSaved }: VideoLin
             tacticalOffset1: String(meta.video_offsets?.tactical_cam1 ?? 0),
             tacticalUrl2: meta.video_urls?.tactical_cam2 || "",
             tacticalOffset2: String(meta.video_offsets?.tactical_cam2 ?? 0),
+            tacticalUrl3: meta.video_urls?.tactical_cam3 || "",
+            tacticalOffset3: String(meta.video_offsets?.tactical_cam3 ?? 0),
             broadcastUrl: meta.video_urls?.broadcast_cam || "",
             broadcastOffset: String(meta.video_offsets?.broadcast_cam ?? 0),
           })
@@ -96,11 +100,13 @@ export function VideoLinkDialog({ match, open, onOpenChange, onSaved }: VideoLin
         video_urls: {
           tactical_cam1: form.tacticalUrl1.trim(),
           tactical_cam2: form.tacticalUrl2.trim(),
+          tactical_cam3: form.tacticalUrl3.trim(),
           broadcast_cam: form.broadcastUrl.trim(),
         },
         video_offsets: {
           tactical_cam1: parseFloat(form.tacticalOffset1) || 0,
           tactical_cam2: parseFloat(form.tacticalOffset2) || 0,
+          tactical_cam3: parseFloat(form.tacticalOffset3) || 0,
           broadcast_cam: parseFloat(form.broadcastOffset) || 0,
         },
       })
@@ -159,6 +165,7 @@ export function VideoLinkDialog({ match, open, onOpenChange, onSaved }: VideoLin
             {[
               { label: "전술캠 1", urlKey: 'tacticalUrl1', offsetKey: 'tacticalOffset1' },
               { label: "전술캠 2", urlKey: 'tacticalUrl2', offsetKey: 'tacticalOffset2' },
+              { label: "전술캠 3", urlKey: 'tacticalUrl3', offsetKey: 'tacticalOffset3' },
               { label: "중계 영상", urlKey: 'broadcastUrl', offsetKey: 'broadcastOffset' },
             ].map((row) => (
               <div key={row.urlKey} className="space-y-1 border-t pt-3">

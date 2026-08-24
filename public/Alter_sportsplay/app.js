@@ -23,8 +23,11 @@ export function loadMatchForAnalysis(matchId, matchData) {
     const id2 = extractVideoId(urls.tactical_cam2 || '');
     if(id2) loadVideoInCam(2, id2);
 
-    const id3 = extractVideoId(urls.broadcast_cam || '');
+    const id3 = extractVideoId(urls.tactical_cam3 || '');
     if(id3) loadVideoInCam(3, id3);
+
+    const id4 = extractVideoId(urls.broadcast_cam || '');
+    if(id4) loadVideoInCam(4, id4);
 
     const searchInput = document.getElementById('event-search');
     if(searchInput) searchInput.value = '';
