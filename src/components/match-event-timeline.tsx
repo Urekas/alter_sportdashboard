@@ -24,12 +24,22 @@ interface MatchEventTimelineProps {
 }
 
 type TimelineKind = 'pc' | 'shot' | 'stroke' | 'goal'
+// 득점일 때 어떤 시도에서 나온 골인지 — 필드샷/페널티코너/페널티스트로크 구분용.
+type GoalSource = 'field' | 'pc' | 'stroke'
 
 const KIND_META: Record<TimelineKind, { label: string; icon: typeof Flag; highlight?: boolean }> = {
   pc: { label: "페널티 코너", icon: Flag },
   shot: { label: "슈팅", icon: Target },
   stroke: { label: "스트로크", icon: CircleDot },
   goal: { label: "득점", icon: Trophy, highlight: true },
+}
+
+// 득점 라벨을 더 구체적으로 — "득점"만 보여주는 대신 필드/PC/스트로크 중 어디서 나온
+// 골인지까지 표시합니다.
+const GOAL_SOURCE_LABEL: Record<GoalSource, string> = {
+  field: "필드 득점",
+  pc: "페널티코너 득점",
+  stroke: "페널티스트로크 득점",
 }
 
 // 예전엔 득점/페널티코너/슈팅을 각각 따로 태깅된 코드로 구분했는데, 실제 데이터를 보면
@@ -50,17 +60,17 @@ function hasNearbyGoalMarker(event: MatchEvent, allEvents: MatchEvent[]): boolea
   return nearby.some(e => normalizeShotOutput(e.shotOutput, e.resultLabel, e.outDir) === 'goal' || /득점$/.test(e.code.trim()));
 }
 
-function classify(event: MatchEvent, allEvents: MatchEvent[]): TimelineKind | null {
+function classify(event: MatchEvent, allEvents: MatchEvent[]): { kind: TimelineKind; goalSource?: GoalSource } | null {
   const c = event.code.trim();
   if (/스트로크|STROKE|PS$/i.test(c)) {
-    return hasNearbyGoalMarker(event, allEvents) ? 'goal' : 'stroke';
+    return hasNearbyGoalMarker(event, allEvents) ? { kind: 'goal', goalSource: 'stroke' } : { kind: 'stroke' };
   }
   if (/슈팅$/.test(c)) {
-    if (hasNearbyGoalMarker(event, allEvents)) return 'goal';
     const nearby = allEvents.filter(e => e.team === event.team && Math.abs(e.time - event.time) <= NEARBY_WINDOW_SEC);
     const isPc = isPcAttempt(c, event.shotType) || nearby.some(e => /페널티코너$/.test(e.code.trim()));
-    if (isPc) return 'pc';
-    return 'shot';
+    if (hasNearbyGoalMarker(event, allEvents)) return { kind: 'goal', goalSource: isPc ? 'pc' : 'field' };
+    if (isPc) return { kind: 'pc' };
+    return { kind: 'shot' };
   }
   return null;
 }
@@ -85,8 +95,11 @@ export function MatchEventTimeline({ data, onEventsUpdate, lockedVideo, readOnly
   // 시간순으로 정렬한 뒤, 득점이 나올 때마다 누적 스코어를 같이 기록합니다.
   const timeline = useMemo(() => {
     const withKind = events
-      .map((event, index) => ({ event, index, kind: classify(event, events) }))
-      .filter((x): x is { event: MatchEvent; index: number; kind: TimelineKind } => x.kind !== null)
+      .map((event, index) => {
+        const c = classify(event, events);
+        return c ? { event, index, kind: c.kind, goalSource: c.goalSource } : null;
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null)
       .sort((a, b) => a.event.time - b.event.time);
 
     let home = 0, away = 0;
@@ -140,9 +153,10 @@ export function MatchEventTimeline({ data, onEventsUpdate, lockedVideo, readOnly
   if (!hasEvents) return null;
 
   const renderSide = (row: Extract<(typeof timeline)[number], { type: 'event' }>, side: 'home' | 'away') => {
-    const { event, index, kind, scoreHome, scoreAway } = row;
+    const { event, index, kind, goalSource, scoreHome, scoreAway } = row;
     const meta = KIND_META[kind];
     const Icon = meta.icon;
+    const label = kind === 'goal' && goalSource ? GOAL_SOURCE_LABEL[goalSource] : meta.label;
     const team = side === 'home' ? homeTeam : awayTeam;
     const isEditing = editingIndex === index;
     const align = side === 'home' ? 'items-end text-right' : 'items-start text-left';
@@ -157,7 +171,7 @@ export function MatchEventTimeline({ data, onEventsUpdate, lockedVideo, readOnly
           <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: `${team.color}20` }}>
             <Icon className="h-2.5 w-2.5" style={{ color: team.color }} />
           </span>
-          <span className={`text-xs ${meta.highlight ? 'font-bold' : ''}`}>{meta.label}</span>
+          <span className={`text-xs ${meta.highlight ? 'font-bold' : ''}`}>{label}</span>
           {data.videoMatchId && (
             <button onClick={() => openClip(event.time)} className="print-hidden text-muted-foreground hover:text-primary">
               <PlayCircle className="h-3 w-3" />
