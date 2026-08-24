@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast"
 import { TournamentService } from "@/lib/tournament-service"
 import type { MatchData, MatchEvent } from "@/lib/types"
 import { openInNewTab, buildVideoDeepLink } from "@/lib/utils"
+import { isPcAttempt, normalizeShotOutput } from "./shot-zone-map"
 
 interface MatchEventTimelineProps {
   data: MatchData
@@ -31,12 +32,27 @@ const KIND_META: Record<TimelineKind, { label: string; icon: typeof Flag; highli
   goal: { label: "득점", icon: Trophy, highlight: true },
 }
 
-function classify(code: string): TimelineKind | null {
-  const c = code.trim();
-  if (/득점$/.test(c)) return 'goal';
-  if (/페널티코너$/.test(c)) return 'pc';
-  if (/슈팅$/.test(c)) return 'shot';
+// 예전엔 득점/페널티코너/슈팅을 각각 따로 태깅된 코드로 구분했는데, 실제 데이터를 보면
+// 슈팅 한 번이 "슈팅"/"득점"/"페널티코너" 최대 3개 코드로 몇 초 간격을 두고 따로 태깅되는
+// 경우가 흔함(같은 장면이 여러 줄로 중복 표시됨) — 게다가 GOAL 표시가 "슈팅" 쪽이 아니라
+// "페널티코너"/"득점" 쪽에만 붙는 경우도 있어서 슈팅 하나만 봐서는 놓칠 수 있음. 그래서
+// "슈팅"으로 태깅된 이벤트만 한 줄씩 모으고, 같은 팀·비슷한 시각(±8초)에 같이 태깅된
+// 득점/페널티코너 마커까지 함께 봐서 득점 여부·PC 여부를 판별함(shot-zone-map.tsx의
+// isPcAttempt/normalizeShotOutput과 같은 판별 기준 재사용). 득점이 PC에서 나온 경우엔
+// 득점 표시를 우선함. 스트로크는 별도 코드로 계속 그대로 둡니다.
+const NEARBY_WINDOW_SEC = 8;
+
+function classify(event: MatchEvent, allEvents: MatchEvent[]): TimelineKind | null {
+  const c = event.code.trim();
   if (/스트로크|STROKE|PS$/i.test(c)) return 'stroke';
+  if (/슈팅$/.test(c)) {
+    const nearby = allEvents.filter(e => e.team === event.team && Math.abs(e.time - event.time) <= NEARBY_WINDOW_SEC);
+    const isGoal = nearby.some(e => normalizeShotOutput(e.shotOutput, e.resultLabel, e.outDir) === 'goal' || /득점$/.test(e.code.trim()));
+    if (isGoal) return 'goal';
+    const isPc = isPcAttempt(c, event.shotType) || nearby.some(e => /페널티코너$/.test(e.code.trim()));
+    if (isPc) return 'pc';
+    return 'shot';
+  }
   return null;
 }
 
@@ -60,7 +76,7 @@ export function MatchEventTimeline({ data, onEventsUpdate, lockedVideo, readOnly
   // 시간순으로 정렬한 뒤, 득점이 나올 때마다 누적 스코어를 같이 기록합니다.
   const timeline = useMemo(() => {
     const withKind = events
-      .map((event, index) => ({ event, index, kind: classify(event.code) }))
+      .map((event, index) => ({ event, index, kind: classify(event, events) }))
       .filter((x): x is { event: MatchEvent; index: number; kind: TimelineKind } => x.kind !== null)
       .sort((a, b) => a.event.time - b.event.time);
 
