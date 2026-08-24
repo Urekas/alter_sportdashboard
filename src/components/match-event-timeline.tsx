@@ -39,16 +39,25 @@ const KIND_META: Record<TimelineKind, { label: string; icon: typeof Flag; highli
 // "슈팅"으로 태깅된 이벤트만 한 줄씩 모으고, 같은 팀·비슷한 시각(±8초)에 같이 태깅된
 // 득점/페널티코너 마커까지 함께 봐서 득점 여부·PC 여부를 판별함(shot-zone-map.tsx의
 // isPcAttempt/normalizeShotOutput과 같은 판별 기준 재사용). 득점이 PC에서 나온 경우엔
-// 득점 표시를 우선함. 스트로크는 별도 코드로 계속 그대로 둡니다.
+// 득점 표시를 우선함. 페널티 스트로크(코드가 "PS"로 끝남)도 같은 방식으로 득점 여부를
+// 봐서, 스트로크가 골로 들어간 경우엔 "스트로크" 대신 "득점"으로 표시합니다.
 const NEARBY_WINDOW_SEC = 8;
+
+// 같은 팀·비슷한 시각(±8초)에 득점을 나타내는 마커(결과 GOAL 또는 "...득점" 코드)가
+// 있는지 확인 — 슈팅/스트로크 둘 다 이걸로 득점 여부를 판별합니다.
+function hasNearbyGoalMarker(event: MatchEvent, allEvents: MatchEvent[]): boolean {
+  const nearby = allEvents.filter(e => e.team === event.team && Math.abs(e.time - event.time) <= NEARBY_WINDOW_SEC);
+  return nearby.some(e => normalizeShotOutput(e.shotOutput, e.resultLabel, e.outDir) === 'goal' || /득점$/.test(e.code.trim()));
+}
 
 function classify(event: MatchEvent, allEvents: MatchEvent[]): TimelineKind | null {
   const c = event.code.trim();
-  if (/스트로크|STROKE|PS$/i.test(c)) return 'stroke';
+  if (/스트로크|STROKE|PS$/i.test(c)) {
+    return hasNearbyGoalMarker(event, allEvents) ? 'goal' : 'stroke';
+  }
   if (/슈팅$/.test(c)) {
+    if (hasNearbyGoalMarker(event, allEvents)) return 'goal';
     const nearby = allEvents.filter(e => e.team === event.team && Math.abs(e.time - event.time) <= NEARBY_WINDOW_SEC);
-    const isGoal = nearby.some(e => normalizeShotOutput(e.shotOutput, e.resultLabel, e.outDir) === 'goal' || /득점$/.test(e.code.trim()));
-    if (isGoal) return 'goal';
     const isPc = isPcAttempt(c, event.shotType) || nearby.some(e => /페널티코너$/.test(e.code.trim()));
     if (isPc) return 'pc';
     return 'shot';
