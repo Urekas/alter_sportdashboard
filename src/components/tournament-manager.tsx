@@ -129,6 +129,16 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
     return new Set(currentTournamentMatches.filter(m => typeof m.matchNumber === 'number').map(m => m.matchNumber as number));
   }, [currentTournamentMatches]);
 
+  // 일정 행에서 바로 XML 교체·영상 연결·보기·삭제까지 할 수 있게 — matchNumber로 실제 등록된
+  // 경기(MatchData)를 찾음. "경기 일정"과 "등록된 경기"를 따로 오가지 않아도 되게 하는 게 목적.
+  const linkedMatchByNumber = useMemo(() => {
+    const map = new Map<number, MatchData>();
+    currentTournamentMatches.forEach(m => {
+      if (typeof m.matchNumber === 'number') map.set(m.matchNumber, m);
+    });
+    return map;
+  }, [currentTournamentMatches]);
+
   // 새 슬롯 업로드 시 팀 색상을 기존 경기와 맞추기 위한 팀명 -> 색상 맵
   const teamColorMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -791,6 +801,7 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
                 <TableBody>
                   {resolvedSchedule.map((s, index) => {
                     const isLinked = linkedMatchNumbers.has(s.matchNumber);
+                    const linkedMatch = linkedMatchByNumber.get(s.matchNumber);
                     const teamsConfirmed = !s.homeIsRef && !s.awayIsRef;
                     if (editingScheduleIndex === index && scheduleRowDraft) {
                       return (
@@ -822,9 +833,28 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
                         <TableCell className="text-center text-xs">{s.stage}</TableCell>
                         <TableCell className="text-center text-xs font-mono">{s.score || '-'}</TableCell>
                         <TableCell className="text-center text-[10px] uppercase font-bold text-muted-foreground">{s.status}</TableCell>
-                        <TableCell className="text-center">
-                          {isLinked ? (
-                            <span className="text-[10px] font-bold text-emerald-600 uppercase">완료</span>
+                        <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                          {isLinked && linkedMatch ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <Button size="icon" variant="ghost" className="h-7 w-7" title="리포트 보기" onClick={() => onViewMatch?.(linkedMatch)}><Eye className="h-3.5 w-3.5" /></Button>
+                              <Button size="icon" variant="ghost" className={`h-7 w-7 ${linkedMatch.videoMatchId ? 'text-orange-500' : ''}`} title="영상 연결" onClick={() => setVideoLinkMatch(linkedMatch)}><Video className="h-3.5 w-3.5" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-600" title="XML 교체" onClick={(e) => handleReplaceFile(e, linkedMatch.id!)}><RefreshCw className="h-3.5 w-3.5" /></Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:bg-destructive/10" title="삭제"><Trash2 className="h-3.5 w-3.5" /></Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>경기를 삭제하시겠습니까?</AlertDialogTitle>
+                                    <AlertDialogDescription>이 작업은 되돌릴 수 없습니다. 해당 경기 데이터가 영구적으로 삭제됩니다.</AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>취소</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteMatch(linkedMatch.id!)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">삭제</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
                           ) : teamsConfirmed ? (
                             <Button
                               size="sm" variant="outline"
