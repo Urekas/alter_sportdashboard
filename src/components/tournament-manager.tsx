@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useState, useMemo, useRef } from "react"
-import { Trophy, Database, Trash2, Edit3, Save, X, Plus, ChevronRight, RefreshCw, ArrowLeft, ArrowUp, ArrowDown, Eye, Users, Video, CalendarClock, Link2, Settings2, FileDown } from "lucide-react"
+import { Trophy, Database, Trash2, Edit3, Save, X, Plus, ChevronRight, RefreshCw, ArrowLeft, ArrowUp, ArrowDown, Eye, Users, Video, CalendarClock, Link2, Settings2, FileDown, Sparkles } from "lucide-react"
 import { VideoLinkDialog } from "./video-link-dialog"
 import { VideoLinksPopover } from "./video-links-popover"
 import { TournamentService } from "@/lib/tournament-service"
@@ -79,6 +79,7 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
   const [selectedTournamentIds, setSelectedTournamentIds] = useState<Set<string>>(new Set())
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null)
   const [replaceMatchId, setReplaceMatchId] = useState<string | null>(null)
+  const [reparsingMatchId, setReparsingMatchId] = useState<string | null>(null)
   const [videoLinkMatch, setVideoLinkMatch] = useState<MatchData | null>(null)
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false)
   const [scheduleText, setScheduleText] = useState("")
@@ -646,6 +647,46 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
     event.target.value = '';
   }
 
+  // 슈팅 태깅 도구에서 "이 경기 원본 XML에 저장"을 누르면 rawSourceText만 갱신되고
+  // (events/matchStats 등 실제 리포트에 쓰이는 계산된 필드는 안 건드림 — parser.ts의 파싱
+  // 로직이 이 Next.js 앱 안에만 있어서 정적 페이지인 태깅 도구에선 직접 재계산을 못 함),
+  // 그래서 이미 저장돼 있는 rawSourceText를 다시 읽어서 여기서 재파싱 + 저장함. 파일을
+  // 다시 고를 필요 없이 버튼 한 번으로 태깅 결과가 리포트에 반영되게 하는 게 목적.
+  const handleReparseFromSaved = async (matchId: string) => {
+    if (!db) return;
+    const match = rawMatches?.find(m => m.id === matchId);
+    if (!match?.rawSourceText) {
+      toast({ title: "저장된 원본 XML이 없어요", variant: "destructive" });
+      return;
+    }
+    setReparsingMatchId(matchId);
+    try {
+      const isCsv = (match.rawSourceFileName || '').toLowerCase().endsWith('.csv');
+      const parsed = isCsv ? parseCSVData(match.rawSourceText) : parseXMLData(match.rawSourceText);
+      const updatedData = createMatchDataFromUpload(
+        parsed.events,
+        parsed.teams.home,
+        parsed.teams.away,
+        match.homeTeam.color,
+        match.awayTeam.color,
+        selectedTournament?.name,
+        match.matchName
+      );
+      updatedData.rawSourceText = match.rawSourceText;
+      updatedData.rawSourceFileName = match.rawSourceFileName;
+      await TournamentService.updateMatchData(db, matchId, updatedData);
+      const videoMatchId = match.videoMatchId;
+      if (videoMatchId) {
+        await VideoMatchService.syncEvents(db, videoMatchId, updatedData.events);
+      }
+      toast({ title: "재분석 완료 — 태깅 결과가 리포트에 반영됐어요" + (videoMatchId ? " (연결된 영상 이벤트도 갱신함)" : "") });
+    } catch (err: any) {
+      toast({ title: "재분석 실패", description: err.message, variant: "destructive" });
+    } finally {
+      setReparsingMatchId(null);
+    }
+  }
+
   // "미입력 경기 슬롯" — 일정표에 이미 팀이 확정된(참조 미해석 아닌) 경기인데
   // 아직 실제 XML/CSV가 업로드 안 된 행에서 바로 업로드 + matchNumber 연결까지 한번에 처리
   const handleSlotUploadClick = (entry: ResolvedScheduleEntry) => {
@@ -838,6 +879,9 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
                             <div className="flex items-center justify-center gap-1">
                               <Button size="icon" variant="ghost" className="h-7 w-7" title="리포트 보기" onClick={() => onViewMatch?.(linkedMatch)}><Eye className="h-3.5 w-3.5" /></Button>
                               <Button size="icon" variant="ghost" className={`h-7 w-7 ${linkedMatch.videoMatchId ? 'text-orange-500' : ''}`} title="영상 연결" onClick={() => setVideoLinkMatch(linkedMatch)}><Video className="h-3.5 w-3.5" /></Button>
+                              {linkedMatch.rawSourceText && (
+                                <Button size="icon" variant="ghost" className="h-7 w-7 text-violet-600" title="슈팅 태깅 도구에 저장된 XML로 재분석" disabled={reparsingMatchId === linkedMatch.id} onClick={() => handleReparseFromSaved(linkedMatch.id!)}><Sparkles className={`h-3.5 w-3.5 ${reparsingMatchId === linkedMatch.id ? 'animate-pulse' : ''}`} /></Button>
+                              )}
                               <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-600" title="XML 교체" onClick={(e) => handleReplaceFile(e, linkedMatch.id!)}><RefreshCw className="h-3.5 w-3.5" /></Button>
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
@@ -1049,6 +1093,9 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
                           <Button variant="outline" size="sm" className={`h-8 text-xs font-bold ${m.videoMatchId ? 'border-orange-500 text-orange-500 hover:bg-orange-50' : 'border-muted-foreground/40 text-muted-foreground hover:bg-muted/50'}`} onClick={() => setVideoLinkMatch(m)}><Video className="h-3 w-3 mr-1" /> 영상</Button>
                           <VideoLinksPopover videoMatchId={m.videoMatchId} />
                           <Button variant="outline" size="sm" className={`h-8 text-xs font-bold ${m.rawSourceText ? 'border-primary text-primary hover:bg-primary/5' : 'border-muted-foreground/30 text-muted-foreground/60'}`} title={m.rawSourceText ? '원본 XML 다운로드' : '저장된 원본 XML 없음'} onClick={() => handleDownloadXml(m)}><FileDown className="h-3 w-3 mr-1" /> XML</Button>
+                          {m.rawSourceText && (
+                            <Button variant="outline" size="sm" className="h-8 text-xs font-bold border-violet-600 text-violet-600 hover:bg-violet-50" title="슈팅 태깅 도구에 저장된 XML로 재분석" disabled={reparsingMatchId === m.id} onClick={() => handleReparseFromSaved(m.id!)}><Sparkles className={`h-3 w-3 mr-1 ${reparsingMatchId === m.id ? 'animate-pulse' : ''}`} /> {reparsingMatchId === m.id ? "재분석 중..." : "재분석"}</Button>
+                          )}
                           <Button variant="outline" size="sm" className="h-8 text-xs font-bold border-emerald-600 text-emerald-600 hover:bg-emerald-50" onClick={(e) => handleReplaceFile(e, m.id!)}><RefreshCw className="h-3 w-3 mr-1" /> 교체</Button>
 
                           <AlertDialog>

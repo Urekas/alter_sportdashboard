@@ -2071,13 +2071,13 @@
                 alert("저장할 원본 XML이 없습니다. SCTimeline(JSON)이 아니라 XML 파일을 업로드해주세요.");
                 return;
             }
-            if (!confirm(`"${matchLabel}" 경기의 원본 XML을 지금 태깅한 내용(${merged.mergedCount}/${merged.totalInstances}건 매칭)으로 덮어쓸까요?\n대시보드의 통계·이벤트는 바뀌지 않고, 저장된 원본 XML 텍스트만 갱신됩니다.`)) return;
+            if (!confirm(`"${matchLabel}" 경기의 원본 XML을 지금 태깅한 내용(${merged.mergedCount}/${merged.totalInstances}건 매칭)으로 덮어쓸까요?\n저장 직후엔 통계·리포트에 바로 반영되지 않아요 — 대시보드의 대회 관리 화면에서 이 경기의 "재분석"(✨) 버튼을 한 번 눌러줘야 리포트에 반영됩니다.`)) return;
 
             btnSaveToDashboard.disabled = true;
             setSaveStatus('저장 중...');
             try {
                 await window.ShotTaggingDB.saveRawXmlToMatch(matchId, merged.xmlText, `태깅결과_${sourceName}_Sportscode.xml`);
-                setSaveStatus(`저장 완료 (${merged.mergedCount}건 반영) — ${new Date().toLocaleTimeString('ko-KR')}`);
+                setSaveStatus(`저장 완료 (${merged.mergedCount}건 반영) — 대시보드 대회 관리에서 "재분석" 버튼을 눌러야 리포트에 반영돼요. (${new Date().toLocaleTimeString('ko-KR')})`);
             } catch (err) {
                 setSaveStatus('저장 실패: ' + err.message, true);
                 alert('저장 실패: ' + err.message);
