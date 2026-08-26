@@ -582,17 +582,24 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
     }
   }
 
-  const handleMoveOrder = async (matchId: string, currentOrder: number, direction: 'up' | 'down') => {
+  // currentIndex는 정렬된 currentTournamentMatches 배열에서의 위치(화면에 보이는 순서)입니다.
+  // 예전엔 이 위치를 orderIndex 필드값과 같다고 가정하고 find(m => m.orderIndex === targetOrder)로
+  // 스왑 대상을 찾았는데, 경기를 삭제하면 orderIndex에 구멍이 생겨서(예: 0,1,3,4 — 2가 없음)
+  // 그 뒤에 있는 경기들은 스왑 대상을 영영 못 찾아 "버튼을 눌러도 조용히 아무 일도 안 일어나는"
+  // 상태가 됐습니다. 이제 배열 위치로 바로 이웃 항목을 찾아서 두 orderIndex 값 자체를
+  // 맞바꾸는 방식이라 orderIndex에 구멍이 있어도 항상 정상 동작합니다.
+  const handleMoveOrder = async (currentIndex: number, direction: 'up' | 'down') => {
     if (!db) return;
-    const targetOrder = direction === 'up' ? currentOrder - 1 : currentOrder + 1;
-    if (targetOrder < 0 || targetOrder >= currentTournamentMatches.length) return;
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= currentTournamentMatches.length) return;
 
-    const swapMatch = currentTournamentMatches.find(m => m.orderIndex === targetOrder);
-    if (!swapMatch || !swapMatch.id) return;
+    const currentMatch = currentTournamentMatches[currentIndex];
+    const swapMatch = currentTournamentMatches[targetIndex];
+    if (!currentMatch?.id || !swapMatch?.id) return;
 
     try {
-      await TournamentService.updateMatchOrder(db, matchId, targetOrder);
-      await TournamentService.updateMatchOrder(db, swapMatch.id, currentOrder);
+      await TournamentService.updateMatchOrder(db, currentMatch.id, swapMatch.orderIndex ?? targetIndex);
+      await TournamentService.updateMatchOrder(db, swapMatch.id, currentMatch.orderIndex ?? currentIndex);
       toast({ title: "순서 변경 완료" });
     } catch (e: any) {
       toast({ title: "순서 변경 실패", description: e.message, variant: "destructive" });
@@ -1033,9 +1040,9 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
                       <TableRow key={m.id || idx} className="hover:bg-muted/5 group">
                         <TableCell className="text-center">
                           <div className="flex flex-col items-center gap-1">
-                            <Button size="icon" variant="ghost" className="h-6 w-6" disabled={idx === 0} onClick={(e) => { e.stopPropagation(); handleMoveOrder(m.id!, idx, 'up'); }}><ArrowUp className="h-3 w-3" /></Button>
+                            <Button size="icon" variant="ghost" className="h-6 w-6" disabled={idx === 0} onClick={(e) => { e.stopPropagation(); handleMoveOrder(idx, 'up'); }}><ArrowUp className="h-3 w-3" /></Button>
                             <span className="text-xs font-black">{String(idx + 1).padStart(2, '0')}</span>
-                            <Button size="icon" variant="ghost" className="h-6 w-6" disabled={idx === currentTournamentMatches.length - 1} onClick={(e) => { e.stopPropagation(); handleMoveOrder(m.id!, idx, 'down'); }}><ArrowDown className="h-3 w-3" /></Button>
+                            <Button size="icon" variant="ghost" className="h-6 w-6" disabled={idx === currentTournamentMatches.length - 1} onClick={(e) => { e.stopPropagation(); handleMoveOrder(idx, 'down'); }}><ArrowDown className="h-3 w-3" /></Button>
                           </div>
                         </TableCell>
                         <TableCell className="pl-6">
