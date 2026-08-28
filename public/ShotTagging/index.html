@@ -48,6 +48,25 @@
         .rounded, .rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl, .rounded-sm {
             border-radius: 0 !important;
         }
+
+        /* "화면 꽉 채우기"(#panel-left.expanded-video) 상태에서만 video-stage를
+           aspect-video(가로폭 기준 고정 높이) 대신 남은 세로 공간을 그대로 채우게 바꿈.
+           기본(사이드 패널 보이는) 상태는 폭이 좁아서 aspect-video로 딱 맞게 그려지지만,
+           패널을 다 접어 폭이 화면 전체로 커지면 16:9 비율상 높이도 같이 커져서(예:
+           1920px 폭 → 1080px 높이) #panel-left에 남은 세로 공간을 넘어버려 아래쪽이
+           overflow-hidden에 잘려나가던 버그 수정. 안의 video/유튜브 엘리먼트는 이미
+           object-contain으로 부모 박스에 맞춰 레터박스 처리되므로, 바깥 박스 모양이
+           바뀌어도 화면 비율이 깨지지 않고 안전하게 꽉 참. */
+        #panel-left.expanded-video #video-stage {
+            aspect-ratio: unset;
+            flex: 1 1 0%;
+            min-height: 0;
+        }
+        #panel-left.expanded-video #edit-form-container {
+            flex-grow: 0;
+            flex-shrink: 0;
+            max-height: 32vh;
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col h-screen overflow-hidden">
@@ -127,7 +146,7 @@
         <!-- LEFT PANEL: Video Player -->
         <section id="panel-left" class="bg-[#eae9e9] flex flex-col relative shrink-0 transition-all duration-100" style="width: 50%;">
             <!-- Video Container -->
-            <div class="w-full bg-black aspect-video relative flex items-center justify-center shrink-0 group">
+            <div id="video-stage" class="w-full bg-black aspect-video relative flex items-center justify-center shrink-0 group">
                 <div id="video-layer-container" class="w-full h-full absolute inset-0"></div>
                 <div id="video-overlay" class="absolute inset-0 flex items-center justify-center pointer-events-none bg-black/80 z-20">
                     <span class="text-gray-500 text-sm font-semibold"><i class="fa-solid fa-film mr-2"></i>비디오를 추가해주세요</span>
@@ -749,13 +768,22 @@
                         right: panelRight.style.width
                     };
                     panelLeft.style.width = '100%';
-                    panelMiddle.classList.add('hidden'); 
+                    panelLeft.classList.add('expanded-video');
+                    panelMiddle.classList.add('hidden');
                     panelRight.classList.add('hidden');
                     resizer1.classList.add('hidden');
                     resizer2.classList.add('hidden');
                     document.getElementById('btn-toggle-layout').innerHTML = '<i class="fa-solid fa-compress"></i> 원래대로';
+                    // "화면 꽉 채우기"가 지금까지 브라우저 탭 안에서 패널 폭만 넓히는
+                    // 레이아웃 토글이라 주소창 등 브라우저 크롬이 그대로 남아있어서
+                    // "전체화면이 안 된다"는 신고를 받음 — 실제 전체화면 API도 같이
+                    // 호출해서 진짜 화면 전체를 씀(실패해도(권한/컨텍스트 제약) 레이아웃
+                    // 확장 자체는 그대로 진행 — 조용히 무시).
+                    document.documentElement.requestFullscreen?.().catch(() => {});
                 } else {
+                    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
                     panelLeft.style.width = savedWidths.left;
+                    panelLeft.classList.remove('expanded-video');
                     panelMiddle.style.width = savedWidths.middle;
                     panelRight.style.width = savedWidths.right;
                     
@@ -764,7 +792,16 @@
                     resizer1.classList.remove('hidden');
                     resizer2.classList.remove('hidden');
                     document.getElementById('btn-toggle-layout').innerHTML = '<i class="fa-solid fa-expand"></i> 화면 꽉 채우기';
-                    setTimeout(resizeCanvases, 350); 
+                    setTimeout(resizeCanvases, 350);
+                }
+            });
+
+            // Esc 등으로 브라우저 전체화면이 밖에서(버튼 클릭이 아니라) 풀리면 레이아웃도
+            // 같이 원래대로 되돌림 — 안 그러면 전체화면만 빠져나오고 패널이 계속 접힌
+            // "꽉 채우기" 상태로 남아 어색해짐.
+            document.addEventListener('fullscreenchange', () => {
+                if (!document.fullscreenElement && isExpandedLayout) {
+                    document.getElementById('btn-toggle-layout').click();
                 }
             });
         };
