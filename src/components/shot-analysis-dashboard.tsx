@@ -107,7 +107,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
           // MatchEvent.id가 경기 내에서도 중복될 수 있어서(Sportscode 원본 데이터 특성,
           // match-event-timeline.tsx와 동일한 이유) 경기ID+인덱스 조합을 진짜 식별자로 씀.
           id: `${m.id}-${idx}`, side: isUs ? 'A' : 'B', teamName: e.team, player: e.shooter, output,
-          shotType: e.shotType, isPC: isPcAttempt(e.code, e.shotType), code: e.code,
+          shotType: e.shotType, shotSituation: e.shotSituation, isPC: isPcAttempt(e.code, e.shotType, e.shotSituation), code: e.code,
           xLoc: e.xLoc, yLoc: e.yLoc, xGoal: e.xGoal, yGoal: e.yGoal, outDir: e.outDir,
           matchName: m.matchName, quarter: e.quarter, time: e.time,
           matchId: m.id, videoMatchId: m.videoMatchId,
@@ -156,7 +156,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
     let rows = shots
     if (logTeamFilter !== 'ALL') rows = rows.filter(s => s.side === logTeamFilter)
     if (logMatchFilter) rows = rows.filter(s => s.matchId && logMatchFilter.has(s.matchId))
-    if (logZoneFilter !== 'ALL') rows = rows.filter(s => getShotKind(s.code || '', s.shotType) === logZoneFilter)
+    if (logZoneFilter !== 'ALL') rows = rows.filter(s => getShotKind(s.code || '', s.shotType, s.shotSituation) === logZoneFilter)
     if (logTypeFilter !== 'ALL') rows = rows.filter(s => s.shotType === logTypeFilter)
     if (logOutputFilter !== 'ALL') rows = rows.filter(s => s.output === logOutputFilter)
     if (logSearch.trim()) {
@@ -448,7 +448,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
                           <TableCell className="text-xs font-bold">{s.player || '-'}</TableCell>
                           <TableCell className="text-center text-[11px]">
                             {(() => {
-                              const kind = getShotKind(s.code || '', s.shotType)
+                              const kind = getShotKind(s.code || '', s.shotType, s.shotSituation)
                               const kindMeta = { field: ['필드슛', 'outline'], pc: ['PC', 'destructive'], ps: ['PS', 'secondary'] } as const
                               const [kindLabel, kindVariant] = kindMeta[kind]
                               return (

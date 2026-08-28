@@ -144,11 +144,16 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     let shotType = "";
     let shotOutput = "";
     let outDir = "";
+    let shotSituation = "";
     let xLoc: number | undefined, yLoc: number | undefined, xGoal: number | undefined, yGoal: number | undefined;
 
     for (let i = 0; i < labels.length; i++) {
       const groupText = labels[i].getElementsByTagName("group")[0]?.textContent || "";
       const text = (labels[i].getElementsByTagName("text")[0]?.textContent || "").trim();
+      // 슈팅 상황(필드슛/PC/PS) 구분값 — 태깅 도구의 사용자 정의 커스텀 필드라 그룹 이름이
+      // "슈팅 상황" 등 태거마다 다를 수 있어서, 그룹 이름이 아니라 값 자체(field_shot/
+      // PC_direct/PC_var/PS 중 하나)로 판별합니다 — 어느 그룹에 들어있든 상관없이 잡힘.
+      if (/^(field_shot|pc_direct|pc_var|ps)$/i.test(text)) shotSituation = text;
       // GK_Player를 먼저 체크해야 합니다 — "Player"가 그 안에 포함된 문자열이라 순서가 중요합니다.
       if (/GK[_\s]?Player/i.test(groupText)) defender = text;
       else if (/^Player$/i.test(groupText)) shooter = text;
@@ -190,6 +195,7 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
       ...(shotType ? { shotType } : {}),
       ...(shotOutput ? { shotOutput } : {}),
       ...(outDir ? { outDir } : {}),
+      ...(shotSituation ? { shotSituation } : {}),
       ...(xLoc !== undefined ? { xLoc } : {}),
       ...(yLoc !== undefined ? { yLoc } : {}),
       ...(xGoal !== undefined ? { xGoal } : {}),

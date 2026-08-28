@@ -65,8 +65,8 @@ function getFilterKey(kind: TimelineKind, goalSource?: GoalSource): FilterKey {
 // "페널티코너"/"득점" 쪽에만 붙는 경우도 있어서 슈팅 하나만 봐서는 놓칠 수 있음. 그래서
 // "슈팅"으로 태깅된 이벤트만 한 줄씩 모으고, 같은 팀·비슷한 시각(±8초)에 같이 태깅된
 // 득점/페널티코너 마커까지 함께 봐서 득점 여부·PC 여부를 판별함. PC/필드/PS 구분은
-// getShotKind(shot-zone-map.tsx — 태깅 도구의 "슈팅 상황" 라벨인 shotType:
-// field_shot/PC_direct/PC_var/PS를 최우선으로 보고, 없으면 code 텍스트로 대체 판별)를
+// getShotKind(shot-zone-map.tsx — 태깅 도구의 "슈팅 상황" 커스텀 필드값(shotSituation:
+// field_shot/PC_direct/PC_var/PS)을 최우선으로 보고, 없으면 shotType/code 텍스트로 대체 판별)를
 // 그대로 재사용합니다.
 //
 // (실측 확인 시도: "슈팅" 이벤트 자기 자신의 Output만 보고 판정하도록 단순화해봤는데,
@@ -100,7 +100,7 @@ function buildGoalAssignments(events: MatchEvent[]): Set<MatchEvent> {
 function classify(event: MatchEvent, allEvents: MatchEvent[], goalEvents: Set<MatchEvent>): { kind: TimelineKind; goalSource?: GoalSource } | null {
   const c = event.code.trim();
   const isGoal = goalEvents.has(event);
-  const shotKind = getShotKind(c, event.shotType); // 'field' | 'pc' | 'ps' — shotType(슈팅 상황 라벨) 우선, 없으면 code 텍스트
+  const shotKind = getShotKind(c, event.shotType, event.shotSituation); // 'field' | 'pc' | 'ps' — shotSituation("슈팅 상황") 우선, 없으면 shotType/code 텍스트
   if (shotKind === 'ps' || /스트로크|STROKE|PS$/i.test(c)) {
     return isGoal ? { kind: 'goal', goalSource: 'stroke' } : { kind: 'stroke' };
   }

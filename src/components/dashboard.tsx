@@ -576,8 +576,8 @@ export function Dashboard() {
                     teamName: e.team,
                     player: e.shooter,
                     output: normalizeShotOutput(e.shotOutput, e.resultLabel, e.outDir),
-                    shotType: e.shotType,
-                    isPC: isPcAttempt(e.code, e.shotType), code: e.code,
+                    shotType: e.shotType, shotSituation: e.shotSituation,
+                    isPC: isPcAttempt(e.code, e.shotType, e.shotSituation), code: e.code,
                     xLoc: e.xLoc, yLoc: e.yLoc, xGoal: e.xGoal, yGoal: e.yGoal, outDir: e.outDir,
                     matchName: matchData.matchName, quarter: e.quarter, time: e.time,
                   }))}

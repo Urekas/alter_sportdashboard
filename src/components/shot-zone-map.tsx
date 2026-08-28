@@ -20,6 +20,7 @@ export interface ShotDatum {
   player?: string
   output: 'goal' | 'save' | 'block' | 'out' | 'fail' | 'unknown'
   shotType?: string
+  shotSituation?: string // "슈팅 상황" 커스텀 필드값 — field_shot/PC_direct/PC_var/PS (getShotKind가 최우선으로 봄)
   isPC?: boolean // 페널티코너 시도 여부 — true면 사각형, false/미지정이면 원형(필드슛)으로 그림
   xLoc?: number
   yLoc?: number
@@ -205,9 +206,9 @@ function SidePanel({
   const clipId = useId()
   // 슈팅 발사 위치 그리드 전용 — PC/필드슛 선택은 이 지도(그리드+마커)에만 적용됨(골대 타겟은 항상 전체).
   const zoneShots = useMemo(() => {
-    if (zoneFilter === 'field') return shots.filter(s => getShotKind(s.code || '', s.shotType) === 'field')
+    if (zoneFilter === 'field') return shots.filter(s => getShotKind(s.code || '', s.shotType, s.shotSituation) === 'field')
     if (zoneFilter === 'pc') return shots.filter(s => s.isPC)
-    if (zoneFilter === 'ps') return shots.filter(s => getShotKind(s.code || '', s.shotType) === 'ps')
+    if (zoneFilter === 'ps') return shots.filter(s => getShotKind(s.code || '', s.shotType, s.shotSituation) === 'ps')
     return shots
   }, [shots, zoneFilter])
   const fieldShots = useMemo(() => zoneShots.filter(s => fieldPixel(s) !== null), [zoneShots])
@@ -446,7 +447,15 @@ export type ShotKind = 'field' | 'pc' | 'ps'
 // PC_direct·PC_var(페널티코너 — 두 변형 다 PC로 묶음) / PS(페널티스트로크). 이 표준값이 있으면
 // 그걸 최우선으로 쓰고, 없으면(과거 데이터가 타격 방식 — hit/push/flick/reverse/tip_in 등 —
 // 으로만 태깅돼 카테고리 값이 안 남아있는 경우) code 텍스트(페널티코너/스트로크·PS)로 대체 판별.
-export function getShotKind(code: string, shotType?: string): ShotKind {
+// shotSituation(태깅 도구의 "슈팅 상황" 커스텀 필드 — field_shot/PC_direct/PC_var/PS)이
+// 최우선 근거입니다. 없으면(과거 데이터, 또는 이 필드를 안 쓴 태깅) shotType(예전엔 이 값이
+// 여기 들어올 거라 가정했던 흔적 — 실제로는 "Type" 라벨=타격 방식이라 대개 hit/push 등이지만
+// 혹시 situation 값이 들어와 있는 경우도 대비)를 보고, 그것도 없으면 code 텍스트로 대체 판별.
+export function getShotKind(code: string, shotType?: string, shotSituation?: string): ShotKind {
+  const s = (shotSituation || '').trim()
+  if (/^ps$/i.test(s)) return 'ps'
+  if (/^pc/i.test(s)) return 'pc'
+  if (/^field_shot$/i.test(s)) return 'field'
   const t = (shotType || '').trim()
   if (/^ps$/i.test(t)) return 'ps'
   if (/^pc/i.test(t)) return 'pc'
@@ -456,10 +465,10 @@ export function getShotKind(code: string, shotType?: string): ShotKind {
   return 'field'
 }
 
-// 페널티코너(PC) 시도인지 판별 — getShotKind와 같은 기준(우선 표준 Type 값, 없으면 code 텍스트).
+// 페널티코너(PC) 시도인지 판별 — getShotKind와 같은 기준(우선 슈팅 상황 값, 없으면 Type/code 텍스트).
 // 지도에서 원형(필드슛/PS)/사각형(PC) 구분에 씁니다.
-export function isPcAttempt(code: string, shotType?: string): boolean {
-  return getShotKind(code, shotType) === 'pc'
+export function isPcAttempt(code: string, shotType?: string, shotSituation?: string): boolean {
+  return getShotKind(code, shotType, shotSituation) === 'pc'
 }
 
 export function normalizeShotOutput(shotOutput: string | undefined, resultLabel: string | undefined, outDir: string | undefined): ShotDatum['output'] {

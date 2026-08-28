@@ -26,8 +26,13 @@ export interface MatchEvent {
   xGoal?: number;
   yGoal?: number;
   outDir?: string;     // "OUT Dir" 라벨 — LEFT/RIGHT/UP (골대를 벗어난 방향)
-  shotType?: string;   // "Type" 라벨 — field_shot/PC_direct/PC_var 등
+  shotType?: string;   // "Type" 라벨 — hit/push/flick/reverse/tip_in/sweep 등 타격 방식(기술)
   shotOutput?: string; // "Output" 라벨 원본값 — goal/save/block/out/fail (resultLabel과 별개로 보존)
+  // 슈팅 상황(필드슛/PC/PS 구분) — 태깅 도구의 커스텀 필드(사용자가 만든 필드라 그룹 이름은
+  // 태거마다 다를 수 있음, 예: "슈팅 상황")에서 값 자체가 field_shot/PC_direct/PC_var/PS 중
+  // 하나면 그룹 이름과 무관하게 이 필드에 담김(parser.ts 참고). shot-zone-map.tsx의
+  // getShotKind()가 이 값을 최우선으로 봄 — shotType(타격 방식)과는 별개의 정보라 필드를 분리함.
+  shotSituation?: string;
 }
 
 export interface TeamMatchStats {
