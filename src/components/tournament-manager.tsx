@@ -586,20 +586,29 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
   // 예전엔 이 위치를 orderIndex 필드값과 같다고 가정하고 find(m => m.orderIndex === targetOrder)로
   // 스왑 대상을 찾았는데, 경기를 삭제하면 orderIndex에 구멍이 생겨서(예: 0,1,3,4 — 2가 없음)
   // 그 뒤에 있는 경기들은 스왑 대상을 영영 못 찾아 "버튼을 눌러도 조용히 아무 일도 안 일어나는"
-  // 상태가 됐습니다. 이제 배열 위치로 바로 이웃 항목을 찾아서 두 orderIndex 값 자체를
-  // 맞바꾸는 방식이라 orderIndex에 구멍이 있어도 항상 정상 동작합니다.
+  // 상태가 됐습니다(1차 수정, 배열 위치로 이웃을 찾도록 바꿈).
+  // 그런데 실제로 orderIndex "중복"까지 있는 경우가 있었음(같은 대회에 업로드된 여러 경기가
+  // 같은 orderIndex 값을 공유 — 예: M20/M23/M14가 셋 다 orderIndex=8) — 이러면 이웃 두 값을
+  // 서로 바꿔치기해도 둘 다 이미 같은 값이라 실질적으로 아무 것도 안 바뀐 것처럼 보임(사용자가
+  // "눌러도 안 움직여짐"으로 신고한 원인). 그래서 스왑 직전에 화면에 보이는 현재 순서 그대로
+  // 전체를 0..N-1로 재부여(renormalize)한 뒤 인접한 두 값만 맞바꾸고 그 결과를 전부 저장 —
+  // 값이 항상 서로 다른 정수이므로 중복이 있어도 매번 확실하게 순서가 바뀌고, 부수적으로
+  // 남아있던 다른 중복/구멍도 클릭할 때마다 점점 깨끗하게 정리됩니다.
   const handleMoveOrder = async (currentIndex: number, direction: 'up' | 'down') => {
     if (!db) return;
     const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
     if (targetIndex < 0 || targetIndex >= currentTournamentMatches.length) return;
 
-    const currentMatch = currentTournamentMatches[currentIndex];
-    const swapMatch = currentTournamentMatches[targetIndex];
-    if (!currentMatch?.id || !swapMatch?.id) return;
+    const normalizedOrder = currentTournamentMatches.map((_, i) => i);
+    [normalizedOrder[currentIndex], normalizedOrder[targetIndex]] = [normalizedOrder[targetIndex], normalizedOrder[currentIndex]];
 
     try {
-      await TournamentService.updateMatchOrder(db, currentMatch.id, swapMatch.orderIndex ?? targetIndex);
-      await TournamentService.updateMatchOrder(db, swapMatch.id, currentMatch.orderIndex ?? currentIndex);
+      await Promise.all(
+        currentTournamentMatches
+          .map((m, i) => ({ id: m.id, prevOrder: m.orderIndex, newOrder: normalizedOrder[i] }))
+          .filter(({ id, prevOrder, newOrder }) => id && prevOrder !== newOrder)
+          .map(({ id, newOrder }) => TournamentService.updateMatchOrder(db, id!, newOrder))
+      );
       toast({ title: "순서 변경 완료" });
     } catch (e: any) {
       toast({ title: "순서 변경 실패", description: e.message, variant: "destructive" });
