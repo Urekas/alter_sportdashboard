@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Flag, Target, CircleDot, Trophy, PlayCircle, Check, Pencil, Shield } from "lucide-react"
+import { Flag, Target, CircleDot, Trophy, PlayCircle, Check, Pencil, Shield, ListVideo, Loader2 } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Input } from "@/components/ui/input"
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { useFirestore } from "@/firebase"
 import { useToast } from "@/hooks/use-toast"
 import { TournamentService } from "@/lib/tournament-service"
+import { VideoMatchService } from "@/lib/video-match-service"
 import type { MatchData, MatchEvent } from "@/lib/types"
 import { openInNewTab, buildVideoDeepLink } from "@/lib/utils"
 import { isPcAttempt, normalizeShotOutput } from "./shot-zone-map"
@@ -40,6 +41,22 @@ const GOAL_SOURCE_LABEL: Record<GoalSource, string> = {
   field: "필드 득점",
   pc: "페널티코너 득점",
   stroke: "페널티스트로크 득점",
+}
+
+// 필터 UI/재생목록 만들기 — 6가지 종류(득점 3종 + 비득점 3종)로 골라 보고, 그 중 원하는
+// 것만 골라서 비디오 도구 재생목록으로 바로 뽑아볼 수 있게 합니다.
+type FilterKey = 'goal-field' | 'goal-pc' | 'goal-stroke' | 'pc' | 'shot' | 'stroke'
+const FILTER_OPTIONS: { key: FilterKey; label: string }[] = [
+  { key: 'goal-field', label: '필드 득점' },
+  { key: 'goal-pc', label: '페널티코너 득점' },
+  { key: 'goal-stroke', label: '페널티스트로크 득점' },
+  { key: 'pc', label: '페널티 코너' },
+  { key: 'shot', label: '슈팅' },
+  { key: 'stroke', label: '스트로크' },
+]
+function getFilterKey(kind: TimelineKind, goalSource?: GoalSource): FilterKey {
+  if (kind === 'goal') return `goal-${goalSource || 'field'}` as FilterKey
+  return kind as FilterKey
 }
 
 // 예전엔 득점/페널티코너/슈팅을 각각 따로 태깅된 코드로 구분했는데, 실제 데이터를 보면
@@ -90,7 +107,17 @@ export function MatchEventTimeline({ data, onEventsUpdate, lockedVideo, readOnly
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [editValue, setEditValue] = useState("")
   const [events, setEvents] = useState<MatchEvent[]>(data.events)
+  const [activeFilters, setActiveFilters] = useState<Set<FilterKey>>(new Set(FILTER_OPTIONS.map(f => f.key)))
+  const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false)
   const { homeTeam, awayTeam } = data
+
+  const toggleFilter = (key: FilterKey) => {
+    setActiveFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
 
   // 시간순으로 정렬한 뒤, 득점이 나올 때마다 누적 스코어를 같이 기록합니다.
   const timeline = useMemo(() => {
@@ -124,6 +151,42 @@ export function MatchEventTimeline({ data, onEventsUpdate, lockedVideo, readOnly
     });
     return rows;
   }, [events, homeTeam.name, awayTeam.name]);
+
+  // 필터 체크한 종류만 남긴 뷰 — 스코어 계산엔 영향 없게(항상 전체 이벤트 기준) timeline은
+  // 그대로 두고, 화면에 보여줄 행만 여기서 추려냄. 뒤에 남는 이벤트가 하나도 없는 구분선
+  // (쿼터 헤더)은 같이 없애서 빈 헤더만 덩그러니 남지 않게 합니다.
+  const visibleTimeline = useMemo(() => {
+    if (activeFilters.size === FILTER_OPTIONS.length) return timeline;
+    const filtered = timeline.filter(row => row.type === 'divider' || activeFilters.has(getFilterKey(row.kind, row.goalSource)));
+    return filtered.filter((row, i) => row.type !== 'divider' || filtered[i + 1]?.type === 'event');
+  }, [timeline, activeFilters]);
+
+  const visibleEvents = useMemo(
+    () => visibleTimeline.filter((r): r is Extract<typeof r, { type: 'event' }> => r.type === 'event').map(r => r.event),
+    [visibleTimeline]
+  );
+
+  // 필터로 골라낸 이벤트만 비디오 도구 재생목록으로 바로 만들어서 새 탭(잠금 모드)으로 엽니다.
+  const handleCreatePlaylist = async () => {
+    if (!db || !data.videoMatchId || visibleEvents.length === 0) return;
+    setIsCreatingPlaylist(true);
+    try {
+      const title = `${data.matchName || `${homeTeam.name} vs ${awayTeam.name}`} — 필터 결과 (${visibleEvents.length}개)`;
+      const { playlistId, matchedCount } = await VideoMatchService.createPlaylistFromEvents(db, data.videoMatchId, visibleEvents, title);
+      if (matchedCount === 0) {
+        toast({ title: "영상 도구에서 매칭되는 클립을 찾지 못했어요", description: "영상 연결 후 이벤트가 동기화됐는지 확인해주세요.", variant: "destructive" });
+        return;
+      }
+      const url = `${window.location.origin}/Alter_sportsplay/index.html?playlistId=${playlistId}&lock=1`;
+      openInNewTab(url);
+      try { await navigator.clipboard.writeText(url); } catch {}
+      toast({ title: `재생목록 생성 완료 (${matchedCount}개 클립)`, description: "새 탭에서 바로 재생돼요 — 링크도 클립보드에 복사했어요." });
+    } catch (e: any) {
+      toast({ title: "재생목록 생성 실패", description: e.message, variant: "destructive" });
+    } finally {
+      setIsCreatingPlaylist(false);
+    }
+  }
 
   const startEdit = (index: number, e: MatchEvent) => {
     setEditingIndex(index);
@@ -216,9 +279,11 @@ export function MatchEventTimeline({ data, onEventsUpdate, lockedVideo, readOnly
     );
   }
 
-  const timelineGrid = (
+  // 화면(필터 적용된 visibleTimeline)과 인쇄(항상 전체 timeline)가 서로 다른 행 목록을
+  // 보여줘야 해서 함수로 뽑음 — 인쇄는 화면 필터 상태와 무관하게 항상 전체를 보여줍니다.
+  const renderGrid = (rows: typeof timeline) => (
     <div className="grid grid-cols-[1fr_64px_1fr]">
-      {timeline.map((row, i) => {
+      {rows.map((row, i) => {
         if (row.type === 'divider') {
           return (
             <div key={`d-${i}`} className="col-span-3 text-center text-[11px] font-bold text-muted-foreground bg-muted/30 rounded py-1.5 my-2">
@@ -245,6 +310,30 @@ export function MatchEventTimeline({ data, onEventsUpdate, lockedVideo, readOnly
     </div>
   );
 
+  const filterBar = (
+    <div className="print-hidden flex flex-wrap items-center gap-1.5 pb-3 mb-3 border-b">
+      <span className="text-[11px] font-bold text-muted-foreground mr-1">필터:</span>
+      {FILTER_OPTIONS.map(opt => (
+        <button
+          key={opt.key}
+          onClick={() => toggleFilter(opt.key)}
+          className={`px-2 py-1 rounded text-[10px] font-bold border transition-colors ${activeFilters.has(opt.key) ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/30 text-muted-foreground border-transparent hover:bg-muted/60'}`}
+        >{opt.label}</button>
+      ))}
+      {!readOnly && data.videoMatchId && (
+        <Button
+          size="sm" variant="outline"
+          className="h-7 text-[11px] font-bold ml-auto"
+          disabled={isCreatingPlaylist || visibleEvents.length === 0}
+          onClick={handleCreatePlaylist}
+        >
+          {isCreatingPlaylist ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <ListVideo className="h-3 w-3 mr-1" />}
+          이 필터로 재생목록 만들기 ({visibleEvents.length}개)
+        </Button>
+      )}
+    </div>
+  );
+
   return (
     <Card>
       <Accordion type="single" collapsible defaultValue="timeline">
@@ -262,14 +351,16 @@ export function MatchEventTimeline({ data, onEventsUpdate, lockedVideo, readOnly
           </CardHeader>
           <AccordionContent className="print:hidden">
             <div className="px-6 pt-4">
-              {timelineGrid}
+              {filterBar}
+              {renderGrid(visibleTimeline)}
             </div>
           </AccordionContent>
         </AccordionItem>
       </Accordion>
-      {/* 화면에서 접힌 상태로 인쇄하더라도, 인쇄물엔 항상 펼쳐진 내용이 나오게 합니다. */}
+      {/* 화면에서 접힌 상태로 인쇄하더라도, 인쇄물엔 항상 펼쳐진 전체 내용이 나오게 합니다
+          (화면 필터 상태와 무관 — 인쇄에서 정보가 빠지면 안 되니 timeline 전체를 씀). */}
       <div className="hidden print:block px-6 pb-6">
-        {timelineGrid}
+        {renderGrid(timeline)}
       </div>
     </Card>
   )

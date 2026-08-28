@@ -101,6 +101,31 @@ export const VideoMatchService = {
     }
   },
 
+  // 대시보드 리포트(이벤트 타임라인)에서 필터링한 이벤트들만 골라 비디오 도구의 재생목록
+  // (Playlists 컬렉션 — Alter_sportsplay의 Library 탭에서 클립 체크해 만드는 것과 동일한
+  // 스키마)으로 바로 만듭니다. Playlists.event_ids는 'Events' 컬렉션 문서 ID를 가리키는데,
+  // 대시보드의 matchData.events는 배열 안 값이라 자체 문서 ID가 없어서 — syncEvents가 이미
+  // match_id+code+start_time을 그대로 복사해서 저장해뒀다는 점을 이용해 그 조합으로 맞는
+  // Events 문서를 찾아 ID만 모읍니다.
+  async createPlaylistFromEvents(db: Firestore, videoMatchId: string, events: MatchEvent[], title: string): Promise<{ playlistId: string; matchedCount: number }> {
+    const q = query(collection(db, VIDEO_EVENTS_COL), where('match_id', '==', videoMatchId));
+    const snap = await getDocs(q);
+    const eventDocs = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+
+    const eventIds: string[] = [];
+    events.forEach(ev => {
+      const found = eventDocs.find(ed => ed.code === ev.code && ed.team === ev.team && Math.abs((ed.start_time ?? -Infinity) - ev.time) < 0.05);
+      if (found) eventIds.push(found.id);
+    });
+
+    const ref = await addDoc(collection(db, 'Playlists'), {
+      title,
+      event_ids: eventIds,
+      created_at: new Date().toISOString(),
+    });
+    return { playlistId: ref.id, matchedCount: eventIds.length };
+  },
+
   // 영상 연결을 끊을 때: 비디오 도구 쪽 문서(Matches/Events)만 지우고, 대시보드 매치(실제 통계
   // 데이터)는 절대 건드리지 않습니다. 호출 측에서 별도로 matches/{id}.videoMatchId를 비웁니다.
   async deleteVideoMatch(db: Firestore, videoMatchId: string): Promise<void> {
