@@ -121,7 +121,7 @@ const CIRCLE_GRID_COLS = 3
 const CIRCLE_GRID_ROWS = 2
 const SHOOTING_CIRCLE_RADIUS = (14.63 / 23) * FIELD_MAX_Y
 
-export type ZoneFilter = 'all' | 'field' | 'pc'
+export type ZoneFilter = 'all' | 'field' | 'pc' | 'ps'
 
 function ShotMarker({ shot, x, y, r, fill, stroke, onEnter, onMove, onLeave, onClick }: {
   shot: ShotDatum, x: number, y: number, r: number, fill: string, stroke: string,
@@ -205,8 +205,9 @@ function SidePanel({
   const clipId = useId()
   // 슈팅 발사 위치 그리드 전용 — PC/필드슛 선택은 이 지도(그리드+마커)에만 적용됨(골대 타겟은 항상 전체).
   const zoneShots = useMemo(() => {
-    if (zoneFilter === 'field') return shots.filter(s => !s.isPC)
+    if (zoneFilter === 'field') return shots.filter(s => getShotKind(s.code || '', s.shotType) === 'field')
     if (zoneFilter === 'pc') return shots.filter(s => s.isPC)
+    if (zoneFilter === 'ps') return shots.filter(s => getShotKind(s.code || '', s.shotType) === 'ps')
     return shots
   }, [shots, zoneFilter])
   const fieldShots = useMemo(() => zoneShots.filter(s => fieldPixel(s) !== null), [zoneShots])
@@ -330,6 +331,7 @@ const ZONE_FILTER_OPTIONS: { key: ZoneFilter, label: string }[] = [
   { key: 'all', label: '전체' },
   { key: 'field', label: '필드슛' },
   { key: 'pc', label: 'PC' },
+  { key: 'ps', label: 'PS' },
 ]
 
 export function ShotZoneMap({
@@ -438,11 +440,26 @@ export function isShotAttemptCode(code: string): boolean {
   return /슈팅|페널티코너|\bPC\b/i.test(code) && !/진입/.test(code)
 }
 
-// 페널티코너(PC) 시도인지 판별 — code 텍스트("페널티코너"/"PC") 또는 태깅 도구 Type 라벨
-// (PC_direct/PC_var 등, "PC"로 시작)로 판단합니다. 지도에서 원형(필드슛)/사각형(PC) 구분에 씁니다.
+export type ShotKind = 'field' | 'pc' | 'ps'
+
+// 슈팅 태깅 도구에서 "슈팅 상황"을 태깅할 때 쓰는 표준 Type 값 — field_shot(필드슛) /
+// PC_direct·PC_var(페널티코너 — 두 변형 다 PC로 묶음) / PS(페널티스트로크). 이 표준값이 있으면
+// 그걸 최우선으로 쓰고, 없으면(과거 데이터가 타격 방식 — hit/push/flick/reverse/tip_in 등 —
+// 으로만 태깅돼 카테고리 값이 안 남아있는 경우) code 텍스트(페널티코너/스트로크·PS)로 대체 판별.
+export function getShotKind(code: string, shotType?: string): ShotKind {
+  const t = (shotType || '').trim()
+  if (/^ps$/i.test(t)) return 'ps'
+  if (/^pc/i.test(t)) return 'pc'
+  if (/^field_shot$/i.test(t)) return 'field'
+  if (/스트로크|STROKE|\bPS\b/i.test(code)) return 'ps'
+  if (/페널티코너|\bPC\b/i.test(code)) return 'pc'
+  return 'field'
+}
+
+// 페널티코너(PC) 시도인지 판별 — getShotKind와 같은 기준(우선 표준 Type 값, 없으면 code 텍스트).
+// 지도에서 원형(필드슛/PS)/사각형(PC) 구분에 씁니다.
 export function isPcAttempt(code: string, shotType?: string): boolean {
-  if (shotType && /^pc/i.test(shotType.trim())) return true
-  return /페널티코너|\bPC\b/i.test(code)
+  return getShotKind(code, shotType) === 'pc'
 }
 
 export function normalizeShotOutput(shotOutput: string | undefined, resultLabel: string | undefined, outDir: string | undefined): ShotDatum['output'] {

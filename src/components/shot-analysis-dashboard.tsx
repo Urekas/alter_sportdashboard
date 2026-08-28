@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { StatsCard } from "./stats-card"
-import { ShotZoneMap, isShotAttemptCode, normalizeShotOutput, isPcAttempt, type ShotDatum } from "./shot-zone-map"
+import { ShotZoneMap, isShotAttemptCode, normalizeShotOutput, isPcAttempt, getShotKind, type ShotDatum } from "./shot-zone-map"
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase"
 import { collection, query } from "firebase/firestore"
@@ -52,7 +52,9 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
   // 타임라인 로그 전용 하위 필터 — 위쪽 카테고리/대회/팀 캐스케이드는 안 건드림
   const [logTeamFilter, setLogTeamFilter] = useState<'ALL' | 'A' | 'B'>('ALL')
   const [logMatchFilter, setLogMatchFilter] = useState<Set<string> | null>(null) // null = 전체(필터 안 함)
-  const [logZoneFilter, setLogZoneFilter] = useState<'ALL' | 'field' | 'pc'>('ALL') // PC/필드슛 구분(정확한 shotType 값과 무관하게 isPC 기준)
+  // 필드슛/PC/PS 구분 — 태깅 도구의 표준 Type 값(field_shot/PC_direct/PC_var/PS)을 최우선으로,
+  // 없으면 code 텍스트로 대체 판별(getShotKind, shot-zone-map.tsx).
+  const [logZoneFilter, setLogZoneFilter] = useState<'ALL' | 'field' | 'pc' | 'ps'>('ALL')
   const [logTypeFilter, setLogTypeFilter] = useState<string>('ALL')
   const [logOutputFilter, setLogOutputFilter] = useState<string>('ALL')
   const [logSearch, setLogSearch] = useState('')
@@ -154,8 +156,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
     let rows = shots
     if (logTeamFilter !== 'ALL') rows = rows.filter(s => s.side === logTeamFilter)
     if (logMatchFilter) rows = rows.filter(s => s.matchId && logMatchFilter.has(s.matchId))
-    if (logZoneFilter === 'field') rows = rows.filter(s => !s.isPC)
-    else if (logZoneFilter === 'pc') rows = rows.filter(s => s.isPC)
+    if (logZoneFilter !== 'ALL') rows = rows.filter(s => getShotKind(s.code || '', s.shotType) === logZoneFilter)
     if (logTypeFilter !== 'ALL') rows = rows.filter(s => s.shotType === logTypeFilter)
     if (logOutputFilter !== 'ALL') rows = rows.filter(s => s.output === logOutputFilter)
     if (logSearch.trim()) {
@@ -360,7 +361,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
                 </div>
 
                 <div className="flex rounded-md border overflow-hidden">
-                  {([['ALL', '전체 유형'], ['field', '필드슛'], ['pc', 'PC']] as const).map(([v, label]) => (
+                  {([['ALL', '전체 유형'], ['field', '필드슛'], ['pc', 'PC'], ['ps', 'PS']] as const).map(([v, label]) => (
                     <button key={v} onClick={() => setLogZoneFilter(v)}
                       className={`px-3 py-1.5 text-xs font-bold transition-colors ${logZoneFilter === v ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}>
                       {label}
@@ -446,10 +447,17 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
                           <TableCell className="text-xs">{s.quarter || ''} {min !== null ? `${min}:${String(sec).padStart(2, '0')}` : ''}</TableCell>
                           <TableCell className="text-xs font-bold">{s.player || '-'}</TableCell>
                           <TableCell className="text-center text-[11px]">
-                            <div className="flex flex-col items-center gap-0.5">
-                              <Badge variant={s.isPC ? 'destructive' : 'outline'} className="text-[9px] px-1.5 py-0">{s.isPC ? 'PC' : '필드슛'}</Badge>
-                              {s.shotType && <span className="text-muted-foreground">{s.shotType}</span>}
-                            </div>
+                            {(() => {
+                              const kind = getShotKind(s.code || '', s.shotType)
+                              const kindMeta = { field: ['필드슛', 'outline'], pc: ['PC', 'destructive'], ps: ['PS', 'secondary'] } as const
+                              const [kindLabel, kindVariant] = kindMeta[kind]
+                              return (
+                                <div className="flex flex-col items-center gap-0.5">
+                                  <Badge variant={kindVariant} className="text-[9px] px-1.5 py-0">{kindLabel}</Badge>
+                                  {s.shotType && <span className="text-muted-foreground">{s.shotType}</span>}
+                                </div>
+                              )
+                            })()}
                           </TableCell>
                           <TableCell className="text-center">
                             <Badge variant="outline" className="text-[10px]">{OUTPUT_LABELS[s.output]}</Badge>
