@@ -268,6 +268,47 @@ async function handleUrlParams() {
   }
 }
 
+// --- 전체화면 토글 ---
+// video-container 위 오버레이 버튼(⛶) — video-container "만" 전체화면하면 그 바깥에 있는
+// #bottom-panel(재생바·그리기 툴바)이 Fullscreen API 특성상 통째로 안 보이게 돼서(전체화면
+// 대상의 자손만 화면에 남음), 대신 document.documentElement(페이지 전체)를 전체화면 대상으로
+// 삼음 — 주소창 등 브라우저 크롬만 없어지고 기존 레이아웃(헤더/컨트롤 포함)은 그대로 유지되어
+// 모바일 가로 모드에서 실질적인 화면 공간을 넓히는 효과. 아이콘은 상태에 맞춰 expand/compress로 토글.
+function initFullscreenToggle() {
+  const btn = document.getElementById('btn-fullscreen');
+  const icon = btn?.querySelector('i');
+  if (!btn) return;
+
+  const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;
+
+  function updateIcon() {
+    const active = !!fsElement();
+    if (icon) icon.className = active ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+    btn.title = active ? '전체화면 종료' : '전체화면';
+  }
+
+  btn.addEventListener('click', async () => {
+    try {
+      if (fsElement()) {
+        if (document.exitFullscreen) await document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      } else {
+        const root = document.documentElement;
+        if (root.requestFullscreen) await root.requestFullscreen();
+        else if (root.webkitRequestFullscreen) root.webkitRequestFullscreen();
+        // 가로 폭이 충분히 넓어진 상태에서 세로로 든 폰이면 가로 회전 유도(지원 브라우저만,
+        // 실패해도 조용히 무시 — iOS Safari 등 미지원 환경에서도 전체화면 자체는 정상 동작해야 함).
+        try { await screen.orientation?.lock?.('landscape'); } catch {}
+      }
+    } catch (e) {
+      console.warn('전체화면 전환 실패:', e);
+    }
+  });
+
+  document.addEventListener('fullscreenchange', updateIcon);
+  document.addEventListener('webkitfullscreenchange', updateIcon);
+}
+
 // --- Global YT 콜백 ---
 window.onYouTubeIframeAPIReady = () => { initPlayer(); };
 
@@ -286,4 +327,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   await fetchAndRenderEvents();
   initLibrary();
   initDrawingBoard();
+  initFullscreenToggle();
 });
