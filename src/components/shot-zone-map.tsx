@@ -6,7 +6,7 @@
 // 캔버스 픽셀 스케일링 없이 1:1로 그립니다(태깅 도구 자체 좌표계와 동일).
 // 홈/어웨이는 한 지도에 겹쳐 그리지 않고 완전히 분리된 패널로 각각 표시합니다
 // (겹쳐 두면 점이 뒤섞여 읽기 어렵다는 사용자 피드백 반영).
-import { useState, useMemo, useRef } from "react"
+import { useState, useMemo, useRef, useId } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
@@ -75,19 +75,52 @@ function fieldPixel(shot: ShotDatum): { x: number, y: number } | null {
   return { x: shot.xLoc, y: FIELD_MAX_Y - shot.yLoc }
 }
 
-// 두 원(D자 슈팅서클) 아웃라인을 SVG path로 — 캔버스 arc 수식을 그대로 이식(23m=height, 55m=width 비례).
-function circleOutlinePath(radius: number) {
+// D자 슈팅서클 기하 정보(중심점들, 반지름, 바운딩박스) — 아웃라인 path와 그리드 셀 계산이 공유.
+function circleGeom(radius: number) {
   const cx = FIELD_MAX_X / 2
   const backlineY = FIELD_MAX_Y
   const straightW = (3.66 / 55.0) * FIELD_MAX_X
   const leftCx = cx - straightW / 2
   const rightCx = cx + straightW / 2
-  const leftStart = { x: leftCx - radius, y: backlineY }
-  const leftEnd = { x: leftCx, y: backlineY - radius }
-  const rightStart = { x: rightCx, y: backlineY - radius }
-  const rightEnd = { x: rightCx + radius, y: backlineY }
+  return {
+    backlineY, leftCx, rightCx, radius,
+    leftStart: { x: leftCx - radius, y: backlineY },
+    leftEnd: { x: leftCx, y: backlineY - radius },
+    rightStart: { x: rightCx, y: backlineY - radius },
+    rightEnd: { x: rightCx + radius, y: backlineY },
+    boxMinX: leftCx - radius, boxMaxX: rightCx + radius,
+    boxMinY: backlineY - radius, boxMaxY: backlineY,
+  }
+}
+
+// 두 원(D자 슈팅서클) 아웃라인을 SVG path로 — 캔버스 arc 수식을 그대로 이식(23m=height, 55m=width 비례).
+function circleOutlinePath(radius: number) {
+  const { leftStart, leftEnd, rightStart, rightEnd } = circleGeom(radius)
   return `M ${leftStart.x} ${leftStart.y} A ${radius} ${radius} 0 0 1 ${leftEnd.x} ${leftEnd.y} L ${rightStart.x} ${rightStart.y} A ${radius} ${radius} 0 0 1 ${rightEnd.x} ${rightEnd.y}`
 }
+
+// 그리드를 서클 내부로만 자르는 클립용 — 위 아웃라인에 백라인을 따라 닫는 선을 더해 폐곡선으로 만듦.
+function circleClipPath(radius: number) {
+  const { leftStart } = circleGeom(radius)
+  return `${circleOutlinePath(radius)} L ${leftStart.x} ${leftStart.y} Z`
+}
+
+// 슈팅 서클(D자) 내부 판정 — 가운데 직선 구간(leftCx~rightCx)은 사각형처럼, 양옆은 backlineY를
+// 중심으로 한 사분원으로 취급(원 아웃라인 자체가 그렇게 그려지므로 그 기하와 동일하게 맞춤).
+function isInsideCircle(x: number, y: number, geom: ReturnType<typeof circleGeom>): boolean {
+  const { leftCx, rightCx, backlineY, radius, boxMinY, boxMaxY } = geom
+  if (y < boxMinY || y > boxMaxY) return false
+  if (x >= leftCx && x <= rightCx) return true
+  const dCx = x < leftCx ? leftCx : rightCx
+  const dx = x - dCx, dy = y - backlineY
+  return dx * dx + dy * dy <= radius * radius
+}
+
+const CIRCLE_GRID_COLS = 3
+const CIRCLE_GRID_ROWS = 2
+const SHOOTING_CIRCLE_RADIUS = (14.63 / 23) * FIELD_MAX_Y
+
+export type ZoneFilter = 'all' | 'field' | 'pc'
 
 function ShotMarker({ shot, x, y, r, fill, stroke, onEnter, onMove, onLeave, onClick }: {
   shot: ShotDatum, x: number, y: number, r: number, fill: string, stroke: string,
@@ -110,19 +143,23 @@ interface Tooltip { x: number, y: number, shot: ShotDatum }
 
 interface GridCell { col: number, row: number, x: number, y: number, w: number, h: number, count: number, goals: number }
 
-function buildFieldGrid(shots: ShotDatum[], gridCols: number, gridRows: number): GridCell[] {
-  const cellW = FIELD_MAX_X / gridCols
-  const cellH = FIELD_MAX_Y / gridRows
-  const cells: GridCell[] = Array.from({ length: gridCols * gridRows }, (_, i) => {
-    const col = i % gridCols, row = Math.floor(i / gridCols)
-    return { col, row, x: col * cellW, y: row * cellH, w: cellW, h: cellH, count: 0, goals: 0 }
+// 슈팅 발사 위치 그리드 — 서클 내부만, 3열(좌/중/우) x 2행(상/하) 고정 6칸.
+// 서클 밖으로 찍힌 슈팅(좌표 오차/필드 먼 거리 슛 등)은 어느 칸에도 집계하지 않음.
+function buildCircleGrid(shots: ShotDatum[], radius: number): GridCell[] {
+  const geom = circleGeom(radius)
+  const { boxMinX, boxMinY, boxMaxX, boxMaxY } = geom
+  const cellW = (boxMaxX - boxMinX) / CIRCLE_GRID_COLS
+  const cellH = (boxMaxY - boxMinY) / CIRCLE_GRID_ROWS
+  const cells: GridCell[] = Array.from({ length: CIRCLE_GRID_COLS * CIRCLE_GRID_ROWS }, (_, i) => {
+    const col = i % CIRCLE_GRID_COLS, row = Math.floor(i / CIRCLE_GRID_COLS)
+    return { col, row, x: boxMinX + col * cellW, y: boxMinY + row * cellH, w: cellW, h: cellH, count: 0, goals: 0 }
   })
   shots.forEach(s => {
     const p = fieldPixel(s)
-    if (!p) return
-    const col = Math.min(gridCols - 1, Math.max(0, Math.floor(p.x / cellW)))
-    const row = Math.min(gridRows - 1, Math.max(0, Math.floor(p.y / cellH)))
-    const cell = cells[row * gridCols + col]
+    if (!p || !isInsideCircle(p.x, p.y, geom)) return
+    const col = Math.min(CIRCLE_GRID_COLS - 1, Math.max(0, Math.floor((p.x - boxMinX) / cellW)))
+    const row = Math.min(CIRCLE_GRID_ROWS - 1, Math.max(0, Math.floor((p.y - boxMinY) / cellH)))
+    const cell = cells[row * CIRCLE_GRID_COLS + col]
     cell.count++
     if (s.output === 'goal') cell.goals++
   })
@@ -150,24 +187,30 @@ function buildGoalGrid(shots: ShotDatum[], goalGridSize: number): GridCell[] {
 }
 
 function SidePanel({
-  label, color, shots, showGrid, gridCols, gridRows, goalGridSize,
+  label, color, shots, showGrid, zoneFilter, goalGridSize,
   onEnter, onMove, onLeave, onShotClick,
 }: {
   label: string
   color: string
   shots: ShotDatum[]
   showGrid: boolean
-  gridCols: number
-  gridRows: number
+  zoneFilter: ZoneFilter
   goalGridSize: number
   onEnter: (e: React.MouseEvent, shot: ShotDatum) => void
   onMove: (e: React.MouseEvent) => void
   onLeave: () => void
   onShotClick?: (shot: ShotDatum) => void
 }) {
-  const fieldShots = useMemo(() => shots.filter(s => fieldPixel(s) !== null), [shots])
+  const clipId = useId()
+  // 슈팅 발사 위치 그리드 전용 — PC/필드슛 선택은 이 지도(그리드+마커)에만 적용됨(골대 타겟은 항상 전체).
+  const zoneShots = useMemo(() => {
+    if (zoneFilter === 'field') return shots.filter(s => !s.isPC)
+    if (zoneFilter === 'pc') return shots.filter(s => s.isPC)
+    return shots
+  }, [shots, zoneFilter])
+  const fieldShots = useMemo(() => zoneShots.filter(s => fieldPixel(s) !== null), [zoneShots])
   const goalShots = useMemo(() => shots.filter(s => goalPixel(s) !== null), [shots])
-  const fieldGrid = useMemo(() => showGrid ? buildFieldGrid(fieldShots, gridCols, gridRows) : [], [showGrid, fieldShots, gridCols, gridRows])
+  const fieldGrid = useMemo(() => showGrid ? buildCircleGrid(fieldShots, SHOOTING_CIRCLE_RADIUS) : [], [showGrid, fieldShots])
   const goalGrid = useMemo(() => showGrid ? buildGoalGrid(shots, goalGridSize) : [], [showGrid, shots, goalGridSize])
   const maxFieldCount = Math.max(1, ...fieldGrid.map(c => c.count))
   const maxGoalCount = Math.max(1, ...goalGrid.map(c => c.count))
@@ -192,22 +235,32 @@ function SidePanel({
         <div>
           <p className="text-xs font-bold text-muted-foreground mb-1">슈팅 발사 위치</p>
           <svg viewBox={`0 0 ${FIELD_MAX_X} ${FIELD_MAX_Y}`} className="w-full h-auto rounded-lg border" style={{ background: '#2d2b2b' }}>
-            <path d={circleOutlinePath((14.63 / 23) * FIELD_MAX_Y)} fill="none" stroke="#eae7e7" strokeWidth={1.5} />
+            <defs>
+              <clipPath id={clipId}>
+                <path d={circleClipPath(SHOOTING_CIRCLE_RADIUS)} />
+              </clipPath>
+            </defs>
+            <path d={circleOutlinePath(SHOOTING_CIRCLE_RADIUS)} fill="none" stroke="#eae7e7" strokeWidth={1.5} />
             <path d={circleOutlinePath(((14.63 + 5) / 23) * FIELD_MAX_Y)} fill="none" stroke="rgba(234,231,231,0.35)" strokeWidth={1} strokeDasharray="4 4" />
             <circle cx={FIELD_MAX_X / 2} cy={FIELD_MAX_Y - (6.4 / 23) * FIELD_MAX_Y} r={2.2} fill="#eae7e7" />
             <line x1={0} y1={0.5} x2={FIELD_MAX_X} y2={0.5} stroke="#eae7e7" strokeWidth={1.5} />
             <line x1={0} y1={FIELD_MAX_Y - 0.5} x2={FIELD_MAX_X} y2={FIELD_MAX_Y - 0.5} stroke="#eae7e7" strokeWidth={1.5} />
 
-            {showGrid && fieldGrid.map((c, i) => (
-              <g key={i}>
-                <rect x={c.x} y={c.y} width={c.w} height={c.h} fill={color} opacity={c.count > 0 ? 0.12 + (c.count / maxFieldCount) * 0.35 : 0.02} stroke="rgba(255,255,255,0.15)" strokeWidth={0.5} />
-                {c.count > 0 && (
-                  <text x={c.x + c.w / 2} y={c.y + c.h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={13} fill="#fff" fontWeight={700}>
-                    {c.goals}/{c.count}
-                  </text>
-                )}
+            {/* 그리드는 서클(D자) 내부로만 클립 — 3x2(좌/중/우 x 상/하) 6칸, 밖으로 삐져나가지 않음 */}
+            {showGrid && (
+              <g clipPath={`url(#${clipId})`}>
+                {fieldGrid.map((c, i) => (
+                  <g key={i}>
+                    <rect x={c.x} y={c.y} width={c.w} height={c.h} fill={color} opacity={c.count > 0 ? 0.12 + (c.count / maxFieldCount) * 0.35 : 0.02} stroke="rgba(255,255,255,0.15)" strokeWidth={0.5} />
+                    {c.count > 0 && (
+                      <text x={c.x + c.w / 2} y={c.y + c.h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={13} fill="#fff" fontWeight={700}>
+                        {c.goals}/{c.count}
+                      </text>
+                    )}
+                  </g>
+                ))}
               </g>
-            ))}
+            )}
 
             {fieldShots.map(s => {
               const p = fieldPixel(s)!
@@ -268,11 +321,15 @@ interface ShotZoneMapProps {
   title?: string
   description?: string
   defaultGrid?: boolean
-  gridCols?: number
-  gridRows?: number
   goalGridSize?: number
   onShotClick?: (shot: ShotDatum) => void // 마커 클릭 시(예: 영상의 그 시점으로 이동) — 없으면 그냥 hover 툴팁만
 }
+
+const ZONE_FILTER_OPTIONS: { key: ZoneFilter, label: string }[] = [
+  { key: 'all', label: '전체' },
+  { key: 'field', label: '필드슛' },
+  { key: 'pc', label: 'PC' },
+]
 
 export function ShotZoneMap({
   shots,
@@ -284,12 +341,11 @@ export function ShotZoneMap({
   title = "슈팅 위치 · 골대 타겟 맵",
   description,
   defaultGrid = false,
-  gridCols = 4,
-  gridRows = 3,
   goalGridSize = 3,
   onShotClick,
 }: ShotZoneMapProps) {
   const [showGrid, setShowGrid] = useState(defaultGrid)
+  const [zoneFilter, setZoneFilter] = useState<ZoneFilter>('all')
   const [tooltip, setTooltip] = useState<Tooltip | null>(null)
   const [open, setOpen] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -313,6 +369,23 @@ export function ShotZoneMap({
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full border-2 border-current" /> 필드슛</span>
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 border-2 border-current rounded-[2px]" /> PC</span>
           </div>
+          {showGrid && (
+            <div className="flex items-center gap-1 print-hidden bg-muted rounded-md p-0.5">
+              {ZONE_FILTER_OPTIONS.map(opt => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => setZoneFilter(opt.key)}
+                  className={cn(
+                    "text-xs font-bold px-2 py-1 rounded transition-colors",
+                    zoneFilter === opt.key ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex items-center gap-2 print-hidden">
             <Switch id="shot-grid-toggle" checked={showGrid} onCheckedChange={setShowGrid} />
             <Label htmlFor="shot-grid-toggle" className="text-xs font-bold cursor-pointer">구역 그리드</Label>
@@ -324,16 +397,16 @@ export function ShotZoneMap({
         <div className={showSideB ? "grid grid-cols-1 lg:grid-cols-2 gap-6 lg:divide-x lg:gap-x-0" : ""}>
           <div className={showSideB ? "lg:pr-6" : ""}>
             <SidePanel
-              label={sideALabel} color={sideAColor} shots={shotsA} showGrid={showGrid}
-              gridCols={gridCols} gridRows={gridRows} goalGridSize={goalGridSize}
+              label={sideALabel} color={sideAColor} shots={shotsA} showGrid={showGrid} zoneFilter={zoneFilter}
+              goalGridSize={goalGridSize}
               onEnter={handleEnter} onMove={handleMove} onLeave={handleLeave} onShotClick={onShotClick}
             />
           </div>
           {showSideB && (
             <div className="lg:pl-6">
               <SidePanel
-                label={sideBLabel} color={sideBColor} shots={shotsB} showGrid={showGrid}
-                gridCols={gridCols} gridRows={gridRows} goalGridSize={goalGridSize}
+                label={sideBLabel} color={sideBColor} shots={shotsB} showGrid={showGrid} zoneFilter={zoneFilter}
+                goalGridSize={goalGridSize}
                 onEnter={handleEnter} onMove={handleMove} onLeave={handleLeave} onShotClick={onShotClick}
               />
             </div>
