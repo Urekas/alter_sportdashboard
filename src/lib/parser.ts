@@ -154,6 +154,13 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
       // "슈팅 상황" 등 태거마다 다를 수 있어서, 그룹 이름이 아니라 값 자체(field_shot/
       // PC_direct/PC_var/PS 중 하나)로 판별합니다 — 어느 그룹에 들어있든 상관없이 잡힘.
       if (/^(field_shot|pc_direct|pc_var|ps)$/i.test(text)) shotSituation = text;
+      // 위치/구역 라벨("좌_75", "중_50", "CE_L 45" 등)이 <group> 태그 없이 그냥 <text>로만
+      // 오는 경우가 실제 태깅 데이터의 기본 관례임(실측 확인 — 이 값들이 전부 그룹 없는 라벨).
+      // 그래서 "지역/Location/Zone" 그룹 이름 매칭으로는 거의 항상 못 잡고 locationLabel이
+      // 비어서, 압박 분석·서클 진입 분석 등 위치 기반 기능이 전부 기본값(중앙/50존)으로
+      // 몰리는 버그가 있었음 — 그룹 이름과 무관하게 값 자체의 표기 패턴(좌/우/중 + 구역 숫자,
+      // 또는 CE_L/CE_R + 각도)으로 판별하도록 보강.
+      if (!locLabel && /^(좌|우|중|CE[_\s]?[LR])[_\s]?\d*$/.test(text)) locLabel = text;
       // GK_Player를 먼저 체크해야 합니다 — "Player"가 그 안에 포함된 문자열이라 순서가 중요합니다.
       if (/GK[_\s]?Player/i.test(groupText)) defender = text;
       else if (/^Player$/i.test(groupText)) shooter = text;
