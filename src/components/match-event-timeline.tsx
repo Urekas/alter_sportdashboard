@@ -13,7 +13,7 @@ import { TournamentService } from "@/lib/tournament-service"
 import { VideoMatchService } from "@/lib/video-match-service"
 import type { MatchData, MatchEvent } from "@/lib/types"
 import { openInNewTab, buildVideoDeepLink } from "@/lib/utils"
-import { isPcAttempt, normalizeShotOutput } from "./shot-zone-map"
+import { isPcAttempt } from "./shot-zone-map"
 
 interface MatchEventTimelineProps {
   data: MatchData
@@ -65,27 +65,48 @@ function getFilterKey(kind: TimelineKind, goalSource?: GoalSource): FilterKey {
 // "페널티코너"/"득점" 쪽에만 붙는 경우도 있어서 슈팅 하나만 봐서는 놓칠 수 있음. 그래서
 // "슈팅"으로 태깅된 이벤트만 한 줄씩 모으고, 같은 팀·비슷한 시각(±8초)에 같이 태깅된
 // 득점/페널티코너 마커까지 함께 봐서 득점 여부·PC 여부를 판별함(shot-zone-map.tsx의
-// isPcAttempt/normalizeShotOutput과 같은 판별 기준 재사용). 득점이 PC에서 나온 경우엔
-// 득점 표시를 우선함. 페널티 스트로크(코드가 "PS"로 끝남)도 같은 방식으로 득점 여부를
-// 봐서, 스트로크가 골로 들어간 경우엔 "스트로크" 대신 "득점"으로 표시합니다.
+// isPcAttempt와 같은 판별 기준 재사용). 득점이 PC에서 나온 경우엔 득점 표시를 우선함.
+// 페널티 스트로크(코드가 "PS"로 끝남)도 같은 방식으로 득점 여부를 봐서, 스트로크가 골로
+// 들어간 경우엔 "스트로크" 대신 "득점"으로 표시합니다.
 const NEARBY_WINDOW_SEC = 8;
 
-// 같은 팀·비슷한 시각(±8초)에 득점을 나타내는 마커(결과 GOAL 또는 "...득점" 코드)가
-// 있는지 확인 — 슈팅/스트로크 둘 다 이걸로 득점 여부를 판별합니다.
-function hasNearbyGoalMarker(event: MatchEvent, allEvents: MatchEvent[]): boolean {
-  const nearby = allEvents.filter(e => e.team === event.team && Math.abs(e.time - event.time) <= NEARBY_WINDOW_SEC);
-  return nearby.some(e => normalizeShotOutput(e.shotOutput, e.resultLabel, e.outDir) === 'goal' || /득점$/.test(e.code.trim()));
+// 버그 수정(실제 경기 스코어 4:2인데 타임라인엔 7:3으로 뻥튀기됐던 문제): 개별 이벤트의
+// resultLabel(예: "GOAL")은 Sportscode 시퀀스 코딩 특성상 그 골로 이어진 시퀀스 안의 관련
+// 없는 이벤트(A25 START/ATT/빌드업 등)에도 폭넓게 같이 붙어있어서 신뢰할 수 없고, 리바운드
+// 상황처럼 "슈팅" 코드가 연달아 여러 번 태깅된 경우 그 중 여러 개가 각자 GOAL스러운 라벨을
+// 갖고 있으면 hasNearbyGoalMarker를 이벤트별로 독립 판정할 때 전부 득점으로 잡혀버려서 실제
+// 골 1개가 로그엔 2~3개로 뻥튀기됨. 반면 "...득점" 코드(예: "중국 득점")는 실측 확인 결과
+// 실제 골 1개당 정확히 1개씩만 존재함 — 이게 진짜 득점 개수의 기준. 그래서 이벤트별 독립
+// 판정 대신, 마커 1개당 가장 가까운 슈팅/스트로크 이벤트 딱 하나만 전역적으로 짝지어서
+// "그 골"로 표시하고, 같은 시퀀스의 나머지 슈팅 이벤트는 resultLabel이 뭐든 득점으로 세지
+// 않습니다.
+function buildGoalAssignments(events: MatchEvent[]): Set<MatchEvent> {
+  const markers = [...events.filter(e => /득점$/.test(e.code.trim()))].sort((a, b) => a.time - b.time);
+  const candidates = events.filter(e => /슈팅$/.test(e.code.trim()) || /스트로크|STROKE|PS$/i.test(e.code.trim()));
+  const claimed = new Set<MatchEvent>();
+  markers.forEach(marker => {
+    let best: MatchEvent | null = null;
+    let bestDiff = Infinity;
+    candidates.forEach(c => {
+      if (claimed.has(c) || c.team !== marker.team) return;
+      const diff = Math.abs(c.time - marker.time);
+      if (diff <= NEARBY_WINDOW_SEC && diff < bestDiff) { best = c; bestDiff = diff; }
+    });
+    if (best) claimed.add(best);
+  });
+  return claimed;
 }
 
-function classify(event: MatchEvent, allEvents: MatchEvent[]): { kind: TimelineKind; goalSource?: GoalSource } | null {
+function classify(event: MatchEvent, allEvents: MatchEvent[], goalEvents: Set<MatchEvent>): { kind: TimelineKind; goalSource?: GoalSource } | null {
   const c = event.code.trim();
+  const isGoal = goalEvents.has(event);
   if (/스트로크|STROKE|PS$/i.test(c)) {
-    return hasNearbyGoalMarker(event, allEvents) ? { kind: 'goal', goalSource: 'stroke' } : { kind: 'stroke' };
+    return isGoal ? { kind: 'goal', goalSource: 'stroke' } : { kind: 'stroke' };
   }
   if (/슈팅$/.test(c)) {
     const nearby = allEvents.filter(e => e.team === event.team && Math.abs(e.time - event.time) <= NEARBY_WINDOW_SEC);
     const isPc = isPcAttempt(c, event.shotType) || nearby.some(e => /페널티코너$/.test(e.code.trim()));
-    if (hasNearbyGoalMarker(event, allEvents)) return { kind: 'goal', goalSource: isPc ? 'pc' : 'field' };
+    if (isGoal) return { kind: 'goal', goalSource: isPc ? 'pc' : 'field' };
     if (isPc) return { kind: 'pc' };
     return { kind: 'shot' };
   }
@@ -121,9 +142,10 @@ export function MatchEventTimeline({ data, onEventsUpdate, lockedVideo, readOnly
 
   // 시간순으로 정렬한 뒤, 득점이 나올 때마다 누적 스코어를 같이 기록합니다.
   const timeline = useMemo(() => {
+    const goalEvents = buildGoalAssignments(events);
     const withKind = events
       .map((event, index) => {
-        const c = classify(event, events);
+        const c = classify(event, events, goalEvents);
         return c ? { event, index, kind: c.kind, goalSource: c.goalSource } : null;
       })
       .filter((x): x is NonNullable<typeof x> => x !== null)
