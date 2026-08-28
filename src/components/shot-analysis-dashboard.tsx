@@ -26,6 +26,8 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase"
 import { collection, query } from "firebase/firestore"
 import { openInNewTab } from "@/lib/utils"
+import { useToast } from "@/hooks/use-toast"
+import { VideoMatchService } from "@/lib/video-match-service"
 
 interface ShotAnalysisDashboardProps {
   tournaments: Tournament[]
@@ -50,13 +52,16 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
   // 타임라인 로그 전용 하위 필터 — 위쪽 카테고리/대회/팀 캐스케이드는 안 건드림
   const [logTeamFilter, setLogTeamFilter] = useState<'ALL' | 'A' | 'B'>('ALL')
   const [logMatchFilter, setLogMatchFilter] = useState<Set<string> | null>(null) // null = 전체(필터 안 함)
+  const [logZoneFilter, setLogZoneFilter] = useState<'ALL' | 'field' | 'pc'>('ALL') // PC/필드슛 구분(정확한 shotType 값과 무관하게 isPC 기준)
   const [logTypeFilter, setLogTypeFilter] = useState<string>('ALL')
   const [logOutputFilter, setLogOutputFilter] = useState<string>('ALL')
   const [logSearch, setLogSearch] = useState('')
 
   const [playerSortKey, setPlayerSortKey] = useState<PlayerStatKey>('total')
   const [playerSortDesc, setPlayerSortDesc] = useState(true)
+  const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false)
 
+  const { toast } = useToast()
   const db = useFirestore()
   const matchesQuery = useMemoFirebase(() => db ? query(collection(db, 'matches')) : null, [db])
   const { data: matches, isLoading } = useCollection<MatchData>(matchesQuery)
@@ -91,14 +96,16 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
     relevant.forEach(m => {
       m.events.forEach((e, idx) => {
         if (!isShotAttemptCode(e.code)) return
-        if (e.xLoc === undefined && e.yLoc === undefined && e.xGoal === undefined && e.yGoal === undefined && !e.outDir) return
+        // 좌표(xLoc/yLoc/xGoal/yGoal/outDir)가 없는 시도(특히 PC — 위치를 안 찍는 경우가 대부분)도
+        // 지도엔 못 그리지만 타임라인 로그·통계·재생목록엔 포함해야 하므로 여기서 걸러내지 않음
+        // (지도 쪽은 ShotZoneMap 내부에서 좌표 있는 것만 알아서 골라 그림).
         const isUs = e.team === effectiveTeam
         const output = normalizeShotOutput(e.shotOutput, e.resultLabel, e.outDir)
         result.push({
           // MatchEvent.id가 경기 내에서도 중복될 수 있어서(Sportscode 원본 데이터 특성,
           // match-event-timeline.tsx와 동일한 이유) 경기ID+인덱스 조합을 진짜 식별자로 씀.
           id: `${m.id}-${idx}`, side: isUs ? 'A' : 'B', teamName: e.team, player: e.shooter, output,
-          shotType: e.shotType, isPC: isPcAttempt(e.code, e.shotType),
+          shotType: e.shotType, isPC: isPcAttempt(e.code, e.shotType), code: e.code,
           xLoc: e.xLoc, yLoc: e.yLoc, xGoal: e.xGoal, yGoal: e.yGoal, outDir: e.outDir,
           matchName: m.matchName, quarter: e.quarter, time: e.time,
           matchId: m.id, videoMatchId: m.videoMatchId,
@@ -147,6 +154,8 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
     let rows = shots
     if (logTeamFilter !== 'ALL') rows = rows.filter(s => s.side === logTeamFilter)
     if (logMatchFilter) rows = rows.filter(s => s.matchId && logMatchFilter.has(s.matchId))
+    if (logZoneFilter === 'field') rows = rows.filter(s => !s.isPC)
+    else if (logZoneFilter === 'pc') rows = rows.filter(s => s.isPC)
     if (logTypeFilter !== 'ALL') rows = rows.filter(s => s.shotType === logTypeFilter)
     if (logOutputFilter !== 'ALL') rows = rows.filter(s => s.output === logOutputFilter)
     if (logSearch.trim()) {
@@ -154,10 +163,10 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
       rows = rows.filter(s => `${s.player || ''} ${s.matchName || ''} ${s.teamName}`.toLowerCase().includes(q))
     }
     return [...rows].sort((a, b) => (a.matchName || '').localeCompare(b.matchName || '') || (a.time ?? 0) - (b.time ?? 0))
-  }, [shots, logTeamFilter, logMatchFilter, logTypeFilter, logOutputFilter, logSearch])
+  }, [shots, logTeamFilter, logMatchFilter, logZoneFilter, logTypeFilter, logOutputFilter, logSearch])
 
   const resetLogFilters = () => {
-    setLogTeamFilter('ALL'); setLogMatchFilter(null); setLogTypeFilter('ALL'); setLogOutputFilter('ALL'); setLogSearch('')
+    setLogTeamFilter('ALL'); setLogMatchFilter(null); setLogZoneFilter('ALL'); setLogTypeFilter('ALL'); setLogOutputFilter('ALL'); setLogSearch('')
   }
 
   const toggleMatchInFilter = (matchId: string, allMatchIds: string[]) => {
@@ -166,6 +175,59 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
       if (base.has(matchId)) base.delete(matchId); else base.add(matchId)
       return base
     })
+  }
+
+  // 지금 필터에 걸린 행들만 모아서 비디오 도구 재생목록으로 만듭니다. 이 화면은 여러 경기를
+  // 한 번에 모아 보여주는 화면이라(match-event-timeline.tsx의 단일 경기 버전과 달리) 필터링된
+  // 행이 여러 경기에 걸쳐 있을 수 있는데, Alter_sportsplay의 연속재생은 "한 경기 영상"만 이어
+  // 재생하는 구조라(player.js — 클립 넘어갈 때 경기/카메라를 안 바꾸고 그냥 seek만 함) 경기가
+  // 섞인 하나의 재생목록을 만들면 다른 경기 클립은 엉뚱한 시점을 보여주게 됨. 그래서 경기별로
+  // 나눠서 각각 재생목록을 만들고, 첫 번째 것만 새 탭으로 열어줌(나머지는 영상 도구 라이브러리
+  // 탭에서 목록으로 볼 수 있음).
+  const handleCreatePlaylist = async () => {
+    if (!db || logRows.length === 0) return
+    const byMatch = new Map<string, { matchName: string, rows: ShotDatum[] }>()
+    logRows.forEach(s => {
+      if (!s.videoMatchId || !s.code || s.time === undefined) return
+      const key = s.videoMatchId
+      if (!byMatch.has(key)) byMatch.set(key, { matchName: s.matchName || '경기', rows: [] })
+      byMatch.get(key)!.rows.push(s)
+    })
+    if (byMatch.size === 0) {
+      toast({ title: "영상이 연결된 행이 없어요", description: "필터에 걸린 슈팅 중 영상이 연결된 경기의 시도가 없습니다.", variant: "destructive" })
+      return
+    }
+
+    setIsCreatingPlaylist(true)
+    try {
+      const created: { matchName: string, playlistId: string, matchedCount: number }[] = []
+      for (const [videoMatchId, group] of byMatch) {
+        const events = group.rows.map(s => ({ code: s.code!, team: s.teamName, time: s.time! }))
+        const title = `${effectiveTeam} 슈팅분석 — ${group.matchName} (${events.length}개)`
+        const { playlistId, matchedCount } = await VideoMatchService.createPlaylistFromEvents(db, videoMatchId, events, title)
+        if (matchedCount > 0) created.push({ matchName: group.matchName, playlistId, matchedCount })
+      }
+      if (created.length === 0) {
+        toast({ title: "영상 도구에서 매칭되는 클립을 찾지 못했어요", description: "영상 연결 후 이벤트가 동기화됐는지 확인해주세요.", variant: "destructive" })
+        return
+      }
+      const url = `${window.location.origin}/Alter_sportsplay/index.html?playlistId=${created[0].playlistId}&lock=1`
+      openInNewTab(url)
+      try { await navigator.clipboard.writeText(url) } catch {}
+      const totalClips = created.reduce((sum, c) => sum + c.matchedCount, 0)
+      toast({
+        title: created.length > 1
+          ? `경기 ${created.length}개로 나눠 재생목록 ${created.length}개 생성 (총 ${totalClips}개 클립)`
+          : `재생목록 생성 완료 (${totalClips}개 클립)`,
+        description: created.length > 1
+          ? `여러 경기가 섞여 있어 경기별로 나눴어요. "${created[0].matchName}" 재생목록을 새 탭에서 열었어요 — 나머지는 영상 도구의 재생목록 목록에서 볼 수 있어요.`
+          : "새 탭에서 바로 재생돼요 — 링크도 클립보드에 복사했어요.",
+      })
+    } catch (e: any) {
+      toast({ title: "재생목록 생성 실패", description: e.message, variant: "destructive" })
+    } finally {
+      setIsCreatingPlaylist(false)
+    }
   }
 
   const sortIcon = (key: PlayerStatKey) => playerSortKey !== key
@@ -273,7 +335,18 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
                 <CardTitle className="flex items-center gap-2"><ListVideo className="h-5 w-5" /> 타임라인 로그</CardTitle>
                 <CardDescription>{logRows.length}건 표시 중 (전체 {shots.length}건) · 행을 클릭하면 영상이 연결된 경기는 그 장면으로 바로 이동합니다</CardDescription>
               </div>
-              <Button variant="ghost" size="sm" onClick={resetLogFilters} className="h-8 text-xs font-bold gap-1.5"><RotateCcw className="h-3.5 w-3.5" /> 필터 초기화</Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  disabled={isCreatingPlaylist || logRows.length === 0}
+                  onClick={handleCreatePlaylist}
+                  className="h-8 text-xs font-bold gap-1.5"
+                >
+                  {isCreatingPlaylist ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ListVideo className="h-3.5 w-3.5" />}
+                  이 필터로 재생목록 만들기 ({logRows.length}개)
+                </Button>
+                <Button variant="ghost" size="sm" onClick={resetLogFilters} className="h-8 text-xs font-bold gap-1.5"><RotateCcw className="h-3.5 w-3.5" /> 필터 초기화</Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
@@ -282,6 +355,15 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
                     <button key={v} onClick={() => setLogTeamFilter(v)}
                       className={`px-3 py-1.5 text-xs font-bold transition-colors ${logTeamFilter === v ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}>
                       {v === 'ALL' ? '전체 팀' : v === 'A' ? effectiveTeam : '상대팀'}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex rounded-md border overflow-hidden">
+                  {([['ALL', '전체 유형'], ['field', '필드슛'], ['pc', 'PC']] as const).map(([v, label]) => (
+                    <button key={v} onClick={() => setLogZoneFilter(v)}
+                      className={`px-3 py-1.5 text-xs font-bold transition-colors ${logZoneFilter === v ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}>
+                      {label}
                     </button>
                   ))}
                 </div>
@@ -363,7 +445,12 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
                           <TableCell className="max-w-[160px] truncate text-xs font-semibold">{s.matchName || '-'}</TableCell>
                           <TableCell className="text-xs">{s.quarter || ''} {min !== null ? `${min}:${String(sec).padStart(2, '0')}` : ''}</TableCell>
                           <TableCell className="text-xs font-bold">{s.player || '-'}</TableCell>
-                          <TableCell className="text-center text-[11px] text-muted-foreground">{s.shotType || '-'}{s.isPC && <span className="ml-1">(PC)</span>}</TableCell>
+                          <TableCell className="text-center text-[11px]">
+                            <div className="flex flex-col items-center gap-0.5">
+                              <Badge variant={s.isPC ? 'destructive' : 'outline'} className="text-[9px] px-1.5 py-0">{s.isPC ? 'PC' : '필드슛'}</Badge>
+                              {s.shotType && <span className="text-muted-foreground">{s.shotType}</span>}
+                            </div>
+                          </TableCell>
                           <TableCell className="text-center">
                             <Badge variant="outline" className="text-[10px]">{OUTPUT_LABELS[s.output]}</Badge>
                           </TableCell>

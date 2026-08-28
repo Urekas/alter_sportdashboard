@@ -107,7 +107,9 @@ export const VideoMatchService = {
   // 대시보드의 matchData.events는 배열 안 값이라 자체 문서 ID가 없어서 — syncEvents가 이미
   // match_id+code+start_time을 그대로 복사해서 저장해뒀다는 점을 이용해 그 조합으로 맞는
   // Events 문서를 찾아 ID만 모읍니다.
-  async createPlaylistFromEvents(db: Firestore, videoMatchId: string, events: MatchEvent[], title: string): Promise<{ playlistId: string; matchedCount: number }> {
+  // events는 매칭에 code+team+time 세 필드만 쓰므로 MatchEvent 전체가 아니라 이 세 필드만
+  // 있으면 됨(Pick) — 슈팅 분석처럼 ShotDatum에서 이 세 값만 뽑아 넘기는 호출부도 지원하기 위함.
+  async createPlaylistFromEvents(db: Firestore, videoMatchId: string, events: Pick<MatchEvent, 'code' | 'team' | 'time'>[], title: string): Promise<{ playlistId: string; matchedCount: number }> {
     const q = query(collection(db, VIDEO_EVENTS_COL), where('match_id', '==', videoMatchId));
     const snap = await getDocs(q);
     const eventDocs = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));

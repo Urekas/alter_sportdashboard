@@ -31,6 +31,7 @@ export interface ShotDatum {
   time?: number
   matchId?: string       // 여러 경기를 한 번에 모아 보여줄 때(슈팅 분석 등) 어느 경기 소속인지
   videoMatchId?: string  // 그 경기에 영상이 연결돼있으면 클릭→영상 이동에 씀(없으면 이동 불가)
+  code?: string          // 원본 MatchEvent.code — 비디오 도구 Events 컬렉션과의 매칭(재생목록 생성)에 씀
 }
 
 const FIELD_MAX_X = 550
