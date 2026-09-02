@@ -134,10 +134,16 @@ export const TournamentService = {
 
   // 팀 이름만 고쳐씁니다(오타 수정 등) — 스탯은 홈/어웨이 자리 그대로라 재계산이 필요 없습니다.
   // 홈/어웨이 자리를 서로 바꾸는 건 다른 문제(스탯도 같이 뒤바뀌어야 함)라 updateMatchData로 처리합니다.
-  async updateMatchTeamNames(dbInstance: Firestore, matchId: string, homeName: string, awayName: string) {
+  // homeTeam.name/awayTeam.name만 바꾸면 events[].team(각 이벤트에 박혀있는 팀명 문자열)은
+  // 그대로 남아서, 팀 이름을 바꾼 순간 모든 팀 기준 집계(KPI/슈팅 분석/타임라인 등이 전부
+  // event.team === homeTeam.name으로 비교함)가 깨짐 — updatedEvents를 넘기면 그 배열로
+  // events까지 같이 덮어써서 이 불일치를 막습니다(호출 측에서 옛 이름→새 이름으로 치환해 넘김).
+  async updateMatchTeamNames(dbInstance: Firestore, matchId: string, homeName: string, awayName: string, updatedEvents?: MatchData['events']) {
     if (!matchId) return;
     const docRef = doc(dbInstance, MATCHES_COL, matchId);
-    await updateDoc(docRef, { 'homeTeam.name': homeName, 'awayTeam.name': awayName });
+    const updates: Record<string, any> = { 'homeTeam.name': homeName, 'awayTeam.name': awayName };
+    if (updatedEvents) updates.events = updatedEvents;
+    await updateDoc(docRef, updates);
   },
 
   // events 배열 전체를 다시 씁니다 (예: 특정 이벤트의 관련 선수 메모 추가/수정 후).

@@ -455,11 +455,19 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
     setEditAwayName(m.awayTeam.name);
   }
 
-  const handleSaveTeamNames = async (matchId: string) => {
-    if (!db || !editHomeName.trim() || !editAwayName.trim()) return;
+  const handleSaveTeamNames = async (m: MatchData) => {
+    if (!db || !m.id || !editHomeName.trim() || !editAwayName.trim()) return;
+    const newHome = editHomeName.trim(), newAway = editAwayName.trim();
+    const oldHome = m.homeTeam.name, oldAway = m.awayTeam.name;
     setIsSavingTeams(true);
     try {
-      await TournamentService.updateMatchTeamNames(db, matchId, editHomeName.trim(), editAwayName.trim());
+      // 이름이 실제로 바뀐 경우에만 events[].team도 같이 치환 — 그대로면(예: 색만 고치려고
+      // 연 경우) 굳이 전체 배열을 다시 쓸 필요 없음.
+      const needsEventUpdate = newHome !== oldHome || newAway !== oldAway;
+      const updatedEvents = needsEventUpdate
+        ? m.events.map(e => e.team === oldHome ? { ...e, team: newHome } : e.team === oldAway ? { ...e, team: newAway } : e)
+        : undefined;
+      await TournamentService.updateMatchTeamNames(db, m.id, newHome, newAway, updatedEvents);
       setEditingTeamsMatchId(null);
       toast({ title: "팀 이름 수정 완료" });
     } catch (e: any) {
@@ -1067,10 +1075,10 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
                                 <p className="font-bold text-base flex items-center gap-2">{m.matchName} <Eye className="h-3 w-3 opacity-0 group-hover:opacity-100" /></p>
                                 {editingTeamsMatchId === m.id ? (
                                   <div className="flex items-center gap-1 mt-1" onClick={(e) => e.stopPropagation()}>
-                                    <Input value={editHomeName} onChange={(e) => setEditHomeName(e.target.value)} className="h-7 w-28 text-xs" onKeyDown={(e) => e.key === 'Enter' && handleSaveTeamNames(m.id!)} autoFocus />
+                                    <Input value={editHomeName} onChange={(e) => setEditHomeName(e.target.value)} className="h-7 w-28 text-xs" onKeyDown={(e) => e.key === 'Enter' && handleSaveTeamNames(m)} autoFocus />
                                     <span className="text-[10px] text-muted-foreground">vs</span>
-                                    <Input value={editAwayName} onChange={(e) => setEditAwayName(e.target.value)} className="h-7 w-28 text-xs" onKeyDown={(e) => e.key === 'Enter' && handleSaveTeamNames(m.id!)} />
-                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-600" disabled={isSavingTeams} onClick={() => handleSaveTeamNames(m.id!)}><Save className="h-3.5 w-3.5" /></Button>
+                                    <Input value={editAwayName} onChange={(e) => setEditAwayName(e.target.value)} className="h-7 w-28 text-xs" onKeyDown={(e) => e.key === 'Enter' && handleSaveTeamNames(m)} />
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-600" disabled={isSavingTeams} onClick={() => handleSaveTeamNames(m)}><Save className="h-3.5 w-3.5" /></Button>
                                     <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setEditingTeamsMatchId(null)}><X className="h-3.5 w-3.5" /></Button>
                                   </div>
                                 ) : (
