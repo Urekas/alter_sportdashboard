@@ -1237,7 +1237,7 @@
             videoFiles = []; currentVideoIndex = 0; currentAbstractTimelineTime = 0;
             videoPlayers.forEach(v => { v.pause(); v.src=''; v.remove(); }); videoPlayers = [];
             document.getElementById('video-overlay').style.display = 'flex'; document.getElementById('no-video-overlay').style.display = 'none';
-            document.getElementById('btn-clear-videos').classList.remove('hidden'); inputSyncOffset.disabled = true; inputSyncOffset.value = 0;
+            document.getElementById('btn-clear-videos').classList.add('hidden'); inputSyncOffset.disabled = true; inputSyncOffset.value = 0;
             inputPlaybackRate.disabled = true; inputPlaybackRate.value = "1";
             document.getElementById('input-sync-json').disabled = true;
             document.getElementById('current-time-display').innerText = "00:00.00";
@@ -1342,6 +1342,20 @@
             document.querySelectorAll('.custom-dynamic-input').forEach(inp => { inp.value = ''; inp.disabled = true; });
             dispFieldCoord.innerText = "우측 캔버스 클릭"; dispGoalCoord.innerText = "우측 캔버스 클릭";
             sortAndRenderTimeline();
+            // 한 경기 다 태깅하고 다음 경기로 넘어갈 때마다 화면(영상·대시보드 연동 선택)이
+            // 그대로 남아있어서 매번 새로고침해야 했던 문제 — 화면 전체를 새로고침한 것과
+            // 똑같은 "빈" 상태로 되돌림. 영상을 안 지우면 다음 경기 영상을 올렸을 때 이전
+            // 경기 영상 옆에 그냥 추가(누적)만 되어서 두 경기 영상이 섞여버림.
+            clearAllVideos();
+            // 대회 선택은 그대로 두고(같은 대회 안에서 여러 경기를 이어서 태깅하는 경우가
+            // 많음) 경기 선택만 초기화 — 이전 경기가 계속 선택된 채로 남아 실수로 그 경기에
+            // 덮어쓰는 걸 방지.
+            if (typeof saveMatchSelect !== 'undefined' && saveMatchSelect) {
+                saveMatchSelect.value = '';
+                if (typeof btnSaveToDashboard !== 'undefined' && btnSaveToDashboard) btnSaveToDashboard.disabled = true;
+                if (typeof btnLoadFromDashboard !== 'undefined' && btnLoadFromDashboard) btnLoadFromDashboard.disabled = true;
+            }
+            if (typeof setSaveStatus === 'function') setSaveStatus('');
         }
 
         function parseSportscodeJSON(json) {
