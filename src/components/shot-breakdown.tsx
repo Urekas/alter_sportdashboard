@@ -42,9 +42,15 @@ function formatEventTime(seconds: number): string {
   return `${m}:${s < 10 ? '0' + s : s}`;
 }
 
-// 슈팅(필드) + 페널티코너 시도를 합쳐 "골대를 향한 시도"로 보고, 결과별로 묶습니다.
+// "{team} 슈팅"으로 코딩된 시도만 모읍니다. 예전엔 "{team} 페널티코너" 코드도 같이 합쳐서
+// "슈팅+PC"로 봤는데, 실제 데이터를 보면 하나의 PC 시도가 "페널티코너" 코드와 "슈팅" 코드
+// 둘 다로 태깅되는 경우가 있어서(예: PC 스트라이크는 "페널티코너", 이어지는 리바운드는
+// "슈팅") 같은 골/시도가 두 코드에 걸쳐 중복 집계되는 문제가 있었음(사용자 신고: "PC 득점과
+// 슈팅 득점 두 개가 있으면 겹침" — 실제로는 같은 골 하나). 태깅 도구가 PC 시도도 "슈팅"
+// 코드 + 슈팅 상황(shotSituation=PC_direct/PC_var)으로 남기는 지금 관례에서는 "페널티코너"
+// 코드를 안 합쳐도 PC 시도가 이미 "슈팅" 쪽에 잡히므로, 중복 방지를 위해 "슈팅" 코드만 씀.
 function collectShotEvents(events: MatchEvent[], team: string): MatchEvent[] {
-  return events.filter(e => e.team === team && (e.code.trim() === `${team} 슈팅` || e.code.trim() === `${team} 페널티코너`));
+  return events.filter(e => e.team === team && e.code.trim() === `${team} 슈팅`);
 }
 
 export function ShotBreakdown({ data, lockedVideo }: ShotBreakdownProps) {
@@ -77,7 +83,7 @@ export function ShotBreakdown({ data, lockedVideo }: ShotBreakdownProps) {
           <CardTitle>슈팅 결과 브레이크다운</CardTitle>
           <CardDescription>
             <span className="font-bold" style={{ color: homeTeam.color }}>{homeTeam.name}</span> vs{" "}
-            <span className="font-bold" style={{ color: awayTeam.color }}>{awayTeam.name}</span> — 슈팅+PC 시도가 어떤 결과로 끝났는지
+            <span className="font-bold" style={{ color: awayTeam.color }}>{awayTeam.name}</span> — 슈팅 시도가 어떤 결과로 끝났는지
             {videoMatchId && <span className="print-hidden"> · 숫자를 클릭하면 해당 장면 영상을 볼 수 있어요.</span>}
           </CardDescription>
         </div>
@@ -86,7 +92,7 @@ export function ShotBreakdown({ data, lockedVideo }: ShotBreakdownProps) {
       <CardContent className={cn(!open && "hidden print:block")}>
         <div className="flex items-center justify-between text-sm font-bold mb-4 pb-3 border-b">
           <span style={{ color: homeTeam.color }}>전체 시도 {grouped.home.total}</span>
-          <span className="text-muted-foreground text-xs">슈팅 + PC</span>
+          <span className="text-muted-foreground text-xs">슈팅</span>
           <span style={{ color: awayTeam.color }}>전체 시도 {grouped.away.total}</span>
         </div>
         <div className="flex flex-col gap-4">
