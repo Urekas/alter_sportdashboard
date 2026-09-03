@@ -32,18 +32,25 @@ function parseScheduleText(text: string): ScheduleEntry[] {
     let cols = line.split('\t').map(c => c.trim());
     if (cols.length < 4) cols = line.split(/ {2,}/).map(c => c.trim());
     if (cols.length < 3) continue;
-    const matchNumber = parseInt(cols[0], 10);
+    // Match # 칸이 사이트마다 다름 — 순수 숫자("1")도 있고 "M01"처럼 M 접두사+0채움도 있어서
+    // parseInt(cols[0])를 바로 쓰면 "M01"은 NaN이 돼서 행 전체가 통째로 스킵됨(실제 신고
+    // 사례 — 아시안게임 일정표가 전부 "M01"~"M40" 형식이라 한 줄도 안 잡혔음). 숫자 부분만
+    // 뽑아서 판별하도록 고침 — "1"/"01"/"M1"/"M01" 전부 동일하게 인식.
+    const numMatch = cols[0].match(/\d+/);
+    const matchNumber = numMatch ? parseInt(numMatch[0], 10) : NaN;
     if (isNaN(matchNumber)) continue; // 헤더 행("Match #...") 등은 자동으로 건너뜀
     const dateTime = cols[1] || '';
     const details = cols[2] || '';
-    const m = details.match(/^(.+?)\s+v\s+(.+?)\s*\(([^)]+)\)\s*$/);
+    // 스테이지 괄호("(Pool A)")가 없는 녹아웃 라운드 행("6th Pool A v 6th Pool B")도 있어서
+    // 괄호 부분을 선택적으로 처리 — 없으면 stage는 빈 문자열.
+    const m = details.match(/^(.+?)\s+v\s+(.+?)(?:\s*\(([^)]+)\))?\s*$/);
     if (!m) continue;
     entries.push({
       matchNumber,
       dateTime,
       homeRef: m[1].trim(),
       awayRef: m[2].trim(),
-      stage: m[3].trim(),
+      stage: (m[3] || '').trim(),
       score: (cols[3] || '').trim(),
       status: (cols[4] || '').trim(),
       venue: (cols[5] || '').trim(),

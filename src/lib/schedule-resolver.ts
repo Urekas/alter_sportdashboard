@@ -34,7 +34,9 @@ interface MatchResult {
 }
 
 function parseWinnerLoserRef(ref: string): { type: 'winner' | 'loser'; matchNumber: number } | null {
-  const m = ref.trim().match(/^(winner|loser)\s+(\d+)$/i);
+  // "Winner 34"뿐 아니라 "Winner M34"처럼 경기번호 앞에 M 접두사가 붙는 일정표도 있어서(예:
+  // 아시안게임 일정표) m? 로 선택적으로 허용 — parseScheduleText의 Match # 파싱과 동일한 이유.
+  const m = ref.trim().match(/^(winner|loser)\s+m?(\d+)$/i);
   if (!m) return null;
   return { type: m[1].toLowerCase() as 'winner' | 'loser', matchNumber: parseInt(m[2], 10) };
 }
