@@ -347,6 +347,15 @@
       toggleLeft?.addEventListener('click', toggleLeftPanel);
       showLeft?.addEventListener('click', toggleLeftPanel);
 
+      // 모바일 가로(랜드스케이프)에서는 패널을 접은 상태로 시작 — 좁은 화면(예: 667px)에서
+      // 패널(200px)이 영상 영역을 크게 잠식해 "화면이 작다"는 피드백이 있었음. 기본으로
+      // 접어서 영상에 화면을 최대한 내주고, 필요하면 "► Explorer" 버튼으로 바로 펼 수 있음.
+      // 세로 모드/데스크톱은 기존 그대로(펼친 채 시작).
+      if (window.matchMedia('(max-width: 940px) and (orientation: landscape)').matches) {
+        body.classList.add('hide-left');
+        showLeft?.classList.remove('hidden');
+      }
+
       // ── 상단 섹션 전환 (Explorer ↔ Viewer) — 예전엔 별도 우측 패널이었던 걸
       // 왼쪽 패널 안 섹션 전환으로 통합함 ──
       const sectionBtnExplorer = document.getElementById('section-btn-explorer');
