@@ -10,6 +10,7 @@ import { useState, useMemo, useRef, useId } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { CollapseToggleButton } from "./collapsible-section"
 
@@ -335,6 +336,14 @@ const ZONE_FILTER_OPTIONS: { key: ZoneFilter, label: string }[] = [
   { key: 'ps', label: 'PS' },
 ]
 
+// 결과별 필터 — "한 번에 다 떠서 보기 힘들다"는 피드백으로 추가. 미분류(unknown)도 필터로
+// 골라볼 수 있게 OUTCOME_LABELS 순서 그대로 옵션화(전체 포함).
+type OutputFilter = 'all' | ShotDatum['output']
+const OUTPUT_FILTER_OPTIONS: { key: OutputFilter, label: string }[] = [
+  { key: 'all', label: '전체' },
+  ...(Object.keys(OUTCOME_LABELS) as ShotDatum['output'][]).map(k => ({ key: k, label: OUTCOME_LABELS[k] })),
+]
+
 export function ShotZoneMap({
   shots,
   sideALabel = "팀 A",
@@ -350,12 +359,23 @@ export function ShotZoneMap({
 }: ShotZoneMapProps) {
   const [showGrid, setShowGrid] = useState(defaultGrid)
   const [zoneFilter, setZoneFilter] = useState<ZoneFilter>('all')
+  const [outputFilter, setOutputFilter] = useState<OutputFilter>('all')
+  const [playerFilter, setPlayerFilter] = useState<string>('ALL')
   const [tooltip, setTooltip] = useState<Tooltip | null>(null)
   const [open, setOpen] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const shotsA = useMemo(() => shots.filter(s => s.side === 'A'), [shots])
-  const shotsB = useMemo(() => shots.filter(s => s.side === 'B'), [shots])
+  // 결과/선수 필터는 지도 전체(발사 위치 + 골대 타겟 + 집계)에 공통 적용 — 한 화면에 다 몰려서
+  // 안 보이던 걸 결과별/선수별로 쪼개 볼 수 있게. 선수 목록은 결과 필터 이전(shots) 기준이라
+  // 결과를 바꿔도 선수 드롭다운 옵션이 줄어들지 않음.
+  const players = useMemo(() => Array.from(new Set(shots.map(s => s.player).filter((p): p is string => !!p))).sort((a, b) => a.localeCompare(b, 'ko')), [shots])
+  const filteredShots = useMemo(() => shots.filter(s =>
+    (outputFilter === 'all' || s.output === outputFilter) &&
+    (playerFilter === 'ALL' || s.player === playerFilter)
+  ), [shots, outputFilter, playerFilter])
+
+  const shotsA = useMemo(() => filteredShots.filter(s => s.side === 'A'), [filteredShots])
+  const shotsB = useMemo(() => filteredShots.filter(s => s.side === 'B'), [filteredShots])
 
   const handleEnter = (e: React.MouseEvent, shot: ShotDatum) => setTooltip({ x: e.clientX, y: e.clientY, shot })
   const handleMove = (e: React.MouseEvent) => setTooltip(t => t ? { ...t, x: e.clientX, y: e.clientY } : t)
@@ -397,6 +417,47 @@ export function ShotZoneMap({
           <CollapseToggleButton open={open} onClick={() => setOpen(o => !o)} />
         </div>
       </CardHeader>
+      {open && (
+        <div className="px-6 pb-4 -mt-2 flex flex-wrap items-center gap-2 print-hidden">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase mr-1">결과</span>
+          <div className="flex items-center gap-1 bg-muted rounded-md p-0.5">
+            {OUTPUT_FILTER_OPTIONS.map(opt => (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => setOutputFilter(opt.key)}
+                className={cn(
+                  "text-xs font-bold px-2 py-1 rounded transition-colors",
+                  outputFilter === opt.key ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          {players.length > 0 && (
+            <>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase ml-2 mr-1">선수</span>
+              <Select value={playerFilter} onValueChange={setPlayerFilter}>
+                <SelectTrigger className="h-7 w-36 text-xs"><SelectValue placeholder="전체 선수" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">전체 선수</SelectItem>
+                  {players.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+          {(outputFilter !== 'all' || playerFilter !== 'ALL') && (
+            <button
+              type="button"
+              onClick={() => { setOutputFilter('all'); setPlayerFilter('ALL') }}
+              className="text-[11px] font-bold text-muted-foreground hover:text-foreground underline ml-1"
+            >
+              필터 초기화
+            </button>
+          )}
+        </div>
+      )}
       <CardContent className={cn(!open && "hidden print:block")}>
         <div className={showSideB ? "grid grid-cols-1 lg:grid-cols-2 gap-6 lg:divide-x lg:gap-x-0" : ""}>
           <div className={showSideB ? "lg:pr-6" : ""}>
@@ -439,6 +500,16 @@ export function ShotZoneMap({
 // 없으므로 제외합니다(태깅 도구에서 위치를 안 찍은 이벤트 — 좌표 없이도 이벤트 자체는 존재할 수 있음).
 export function isShotAttemptCode(code: string): boolean {
   return /슈팅|페널티코너|\bPC\b/i.test(code) && !/진입/.test(code)
+}
+
+// code 자체가 "OOO 슈팅"인 것만 — "OOO 페널티코너"로 별도 코딩된 이벤트(슈팅이 아니라 PC
+// 획득/상황 자체를 표시하는 별개 태그)는 뺀다. 그 슈팅이 PC에서 나온 건지는 이미 shotSituation/
+// shotType(태깅 도구의 "슈팅 상황" 값 — getShotKind 참고)으로 "슈팅" 이벤트 자체에 표시되므로,
+// "페널티코너" 코드 이벤트까지 같이 세면 같은 장면이 두 번(슈팅 1건 + PC 1건) 잡혀 중복 집계됨.
+// 슈팅 분석 화면의 KPI·타임라인 로그·선수별 통계처럼 "슈팅 시도 횟수"를 세는 곳에 쓰고,
+// 지도(ShotZoneMap)의 PC 사각형 마커·위치 표시는 그대로 isShotAttemptCode를 씀(영향 없음).
+export function isShotOnlyCode(code: string): boolean {
+  return /슈팅/i.test(code) && !/진입/.test(code)
 }
 
 export type ShotKind = 'field' | 'pc' | 'ps'

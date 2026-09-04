@@ -157,11 +157,39 @@ function hideDeepLinkStatus(delay) {
   setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, delay || 0);
 }
 
+// 여러 경기로 나뉜 재생목록(sibling_playlist_ids)을 넘나드는 고정 네비게이션 바.
+// "경기별 재생목록" 구조 자체는 그대로 두고(player.js가 한 경기 영상만 이어 재생하는 구조라
+// 그대로 유지하기로 함), 목록 간 이동만 버튼 한 번으로 되게 해서 여러 경기에 걸친 클립을
+// 이어서 훑어볼 수 있게 함(예: 한 선수의 PC를 경기 여러 개에 걸쳐 보기).
+function renderSiblingPlaylistNav(siblingIds, currentPlaylistId, currentTitle) {
+  let el = document.getElementById('sibling-playlist-nav');
+  if (!siblingIds || siblingIds.length < 2) { el?.remove(); return; }
+
+  const idx = siblingIds.indexOf(currentPlaylistId);
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'sibling-playlist-nav';
+    el.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:9998;display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;background:#1e293b;border:1px solid #475569;box-shadow:0 4px 12px rgba(0,0,0,0.3);font-size:12px;color:#fff;';
+    document.body.appendChild(el);
+  }
+  const prevDisabled = idx <= 0;
+  const nextDisabled = idx === -1 || idx >= siblingIds.length - 1;
+  el.innerHTML = `
+    <button id="sibling-prev-btn" ${prevDisabled ? 'disabled' : ''} style="background:none;border:none;color:${prevDisabled ? '#64748b' : '#fff'};cursor:${prevDisabled ? 'default' : 'pointer'};font-weight:700;padding:2px 6px;">◀ 이전 경기</button>
+    <span style="color:#94a3b8;">${idx === -1 ? '?' : idx + 1} / ${siblingIds.length}${currentTitle ? ' · ' + currentTitle : ''}</span>
+    <button id="sibling-next-btn" ${nextDisabled ? 'disabled' : ''} style="background:none;border:none;color:${nextDisabled ? '#64748b' : '#fff'};cursor:${nextDisabled ? 'default' : 'pointer'};font-weight:700;padding:2px 6px;">다음 경기 ▶</button>
+  `;
+  if (!prevDisabled) el.querySelector('#sibling-prev-btn').addEventListener('click', () => handlePlaylistDeepLink(siblingIds[idx - 1]));
+  if (!nextDisabled) el.querySelector('#sibling-next-btn').addEventListener('click', () => handlePlaylistDeepLink(siblingIds[idx + 1]));
+}
+
 // 재생목록(Playlists 컬렉션) 딥링크 — "이 경기 페널티코너 모음"처럼 미리 만들어둔 클립
 // 묶음을 선수단에게 공유하는 링크(?playlistId=X&lock=1)를 처리합니다. 재생목록은 보통
 // 한 경기 안에서 클립을 골라 만들기 때문에, 첫 클립의 match_id 기준으로 그 경기 영상을
 // 불러온 뒤 재생목록만 필터링해서 Events 패널에 올려줍니다(맨 위 "필터링 전체 재생" 버튼으로
 // 이어보기 가능 — 기존 Organizer 큐 재생 로직 재사용).
+// 같은 필터로 만든 재생목록이 여러 경기로 나뉜 경우(sibling_playlist_ids) prev/next 버튼도 같이
+// 그려서, URL을 새로 안 열어도 이 함수를 다시 호출하는 것만으로 경기를 넘나들 수 있게 함.
 async function handlePlaylistDeepLink(playlistId) {
   showDeepLinkStatus('재생목록 불러오는 중...', 'loading');
   try {
@@ -180,6 +208,15 @@ async function handlePlaylistDeepLink(playlistId) {
     if (matchSnap?.exists()) {
       loadMatchForAnalysis(matchId, matchSnap.data());
     }
+
+    // 공유 가능한 링크를 유지하면서(새로고침해도 지금 보는 경기가 그대로 열리도록) 주소만 갱신.
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('playlistId', playlistId);
+      window.history.replaceState({}, '', url);
+    } catch {}
+
+    renderSiblingPlaylistNav(plData.sibling_playlist_ids, playlistId, matchSnap?.exists() ? matchSnap.data().match_name : '');
 
     // loadMatchForAnalysis의 카메라 세팅이 끝난 뒤에 재생목록을 올려야 정상 동작함.
     setTimeout(() => {
