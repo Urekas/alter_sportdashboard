@@ -108,6 +108,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
           // match-event-timeline.tsx와 동일한 이유) 경기ID+인덱스 조합을 진짜 식별자로 씀.
           id: `${m.id}-${idx}`, side: isUs ? 'A' : 'B', teamName: e.team, player: e.shooter, output,
           shotType: e.shotType, shotSituation: e.shotSituation, isPC: isPcAttempt(e.code, e.shotType, e.shotSituation), code: e.code,
+          assistType: e.assistType, defensePressure: e.defensePressure,
           xLoc: e.xLoc, yLoc: e.yLoc, xGoal: e.xGoal, yGoal: e.yGoal, outDir: e.outDir,
           matchName: m.matchName, quarter: e.quarter, time: e.time,
           matchId: m.id, videoMatchId: m.videoMatchId,
@@ -437,13 +438,15 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
                       <TableHead className="text-center">타입</TableHead>
                       <TableHead className="text-center">결과</TableHead>
                       <TableHead className="text-center">OUT</TableHead>
+                      <TableHead className="text-center">어시스트</TableHead>
+                      <TableHead className="text-center">수비 압박</TableHead>
                       <TableHead className="text-right">좌표</TableHead>
                       <TableHead className="text-center">영상</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {logRows.length === 0 ? (
-                      <TableRow><TableCell colSpan={9} className="text-center py-10 text-muted-foreground">조건에 맞는 슈팅이 없습니다.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={11} className="text-center py-10 text-muted-foreground">조건에 맞는 슈팅이 없습니다.</TableCell></TableRow>
                     ) : logRows.map(s => {
                       const canPlay = !!s.videoMatchId
                       const min = s.time !== undefined ? Math.floor(s.time / 60) : null
@@ -478,6 +481,8 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
                             <Badge variant="outline" className="text-[10px]">{OUTPUT_LABELS[s.output]}</Badge>
                           </TableCell>
                           <TableCell className="text-center text-[11px] text-amber-600 font-bold">{s.outDir || '-'}</TableCell>
+                          <TableCell className="text-center text-[11px]">{s.assistType || '-'}</TableCell>
+                          <TableCell className="text-center text-[11px]">{s.defensePressure || '-'}</TableCell>
                           <TableCell className="text-right text-[10px] font-mono text-muted-foreground">
                             {s.xLoc !== undefined ? `${s.xLoc},${s.yLoc}` : '-'}
                           </TableCell>

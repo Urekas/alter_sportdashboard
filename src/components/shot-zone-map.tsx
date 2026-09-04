@@ -22,6 +22,8 @@ export interface ShotDatum {
   output: 'goal' | 'save' | 'block' | 'out' | 'fail' | 'unknown'
   shotType?: string
   shotSituation?: string // "슈팅 상황" 커스텀 필드값 — field_shot/PC_direct/PC_var/PS (getShotKind가 최우선으로 봄)
+  assistType?: string    // "어시스트 유형" 커스텀 필드값 — 컷백/크로스/스루패스/리바운드/단독돌파/PC인젝션 등
+  defensePressure?: string // "수비 압박" 커스텀 필드값 — Low(오픈)/Medium/High(완전압박) 등
   isPC?: boolean // 페널티코너 시도 여부 — true면 사각형, false/미지정이면 원형(필드슛)으로 그림
   xLoc?: number
   yLoc?: number
@@ -491,6 +493,8 @@ export function ShotZoneMap({
           <div className="font-bold" style={{ color: OUTCOME_COLORS[tooltip.shot.output] }}>{OUTCOME_LABELS[tooltip.shot.output]} {tooltip.shot.isPC && <span className="text-slate-400 font-normal">· PC</span>}</div>
           {tooltip.shot.player && <div>선수: <span className="font-semibold">{tooltip.shot.player}</span></div>}
           {tooltip.shot.shotType && <div className="text-slate-400">타입: {tooltip.shot.shotType}</div>}
+          {tooltip.shot.assistType && <div className="text-slate-400">어시스트: {tooltip.shot.assistType}</div>}
+          {tooltip.shot.defensePressure && <div className="text-slate-400">수비 압박: {tooltip.shot.defensePressure}</div>}
           {tooltip.shot.matchName && <div className="text-slate-400 truncate">{tooltip.shot.matchName}</div>}
           {tooltip.shot.quarter && <div className="text-slate-400">{tooltip.shot.quarter}</div>}
         </div>

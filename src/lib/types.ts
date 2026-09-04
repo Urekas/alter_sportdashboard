@@ -33,6 +33,12 @@ export interface MatchEvent {
   // 하나면 그룹 이름과 무관하게 이 필드에 담김(parser.ts 참고). shot-zone-map.tsx의
   // getShotKind()가 이 값을 최우선으로 봄 — shotType(타격 방식)과는 별개의 정보라 필드를 분리함.
   shotSituation?: string;
+  // 슈팅 태깅 도구(public/ShotTagging)의 기본 커스텀 필드 2종 — 그룹 이름이 각각
+  // "어시스트 유형"/"수비 압박"으로 고정된 기본 템플릿값이라(도구 설정에서 이름을 바꾸지
+  // 않는 한) parser.ts가 이 그룹 이름 그대로 매칭해서 담는다. shotSituation과 달리 값이
+  // 정해진 패턴이 아니라 자유 텍스트/옵션이라 그룹 이름 매칭 외엔 방법이 없음.
+  assistType?: string;      // "어시스트 유형" — 컷백/크로스/스루패스/리바운드/단독돌파/PC인젝션 등
+  defensePressure?: string; // "수비 압박" — Low(오픈)/Medium/High(완전압박) 등
 }
 
 export interface TeamMatchStats {
