@@ -7,7 +7,13 @@ import { initLibrary } from './library.js';
 // --- 유틸 ---
 export function extractVideoId(url) {
   if (!url) return null;
-  const match = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  // studio.youtube.com/video/<ID>/edit — 유튜브 스튜디오 편집 화면 주소를 그대로 복사해
+  // 붙여넣는 실수가 흔함. 이 형식은 임베드용 URL이 아니라 아래 일반 정규식이 못 잡아서
+  // ID 추출이 null로 실패 → 빈 videoId로 플레이어가 로드돼 "오류가 발생했습니다"만 뜨는
+  // 원인이었음(사용자 신고). ID 자체는 studio 링크에도 그대로 들어있어서 여기서 먼저 잡는다.
+  const studioMatch = url.match(/studio\.youtube\.com\/video\/([a-zA-Z0-9_-]{11})/);
+  if (studioMatch) return studioMatch[1];
+  const match = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:live\/|[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
   return match ? match[1] : null;
 }
 
