@@ -77,10 +77,10 @@ function getKindDetailLabel(s: Pick<ShotDatum, 'code' | 'shotType' | 'shotSituat
   return KIND_DETAIL_LABELS[getShotKindDetailed(s.code || '', s.shotType, s.shotSituation)]
 }
 
-// 득점 시점의 스코어 상황(우세/동점/열세) — 슈팅 태깅과 무관하게 원본 이벤트의 "OOO 득점" 코드
-// (경기당 한 번씩 팀 이름으로 찍히는 골 이벤트, quarterly-stats 등 다른 곳에서도 이 코드로 집계함)를
-// 시간순으로 훑어서 팀별 누적 스코어를 재구성한다. 슈팅 태깅 도구의 output=goal과는 별개 트랙이라
-// (오래된 경기는 슈팅 태깅 자체가 없을 수 있음) 항상 정확하려면 이 원본 코드를 써야 함.
+// 득점 시점의 스코어 상황(우세/동점/열세) — "OOO 슈팅" 코드 이벤트 중 결과가 득점인 것만 시간순으로
+// 훑어서 팀별 누적 스코어를 재구성한다(슈팅 태깅 결과가 곧 득점 여부의 기준 — 별도 "OOO 득점"
+// 마커에는 슈터 정보가 없어서 예전엔 그걸 썼다가 매칭이 부정확했음). 슈팅 태깅이 안 된 경기는
+// 이 표에서 득점이 안 잡힐 수 있음(슈팅분석 화면 전체가 태깅 데이터 의존적인 것과 동일한 한계).
 type GoalSituation = 'lead' | 'tied' | 'trail'
 interface GoalSituationRow {
   matchId: string, matchName?: string, quarter?: string, time: number,
@@ -272,36 +272,18 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
     const rows: GoalSituationRow[] = []
     teamMatches.forEach(m => {
       const homeName = m.homeTeam.name, awayName = m.awayTeam.name
-      const goalEvents = m.events
-        .filter(e => e.code.trim() === `${homeName} 득점` || e.code.trim() === `${awayName} 득점`)
+      // 사용자 지적대로 별도 "OOO 득점" 마커가 아니라, 슈팅 태깅에서 실제 결과가 득점으로
+      // 찍힌 이벤트("OOO 슈팅" 코드, output=goal) 기준으로 득점 시점을 판단한다 — 슈터·쿼터·
+      // 시간까지 같은 이벤트에서 그대로 나와서 별도 매칭(이전의 "가장 가까운 시간" 추정)이
+      // 필요 없고 더 정확함. PC/PS로 넣은 득점도 슈팅 상황과 무관하게 이 이벤트에 다 잡힘.
+      const goalShots = m.events
+        .filter(e => (e.code.trim() === `${homeName} 슈팅` || e.code.trim() === `${awayName} 슈팅`)
+          && normalizeShotOutput(e.shotOutput, e.resultLabel, e.outDir) === 'goal')
         .slice()
         .sort((a, b) => a.time - b.time)
 
-      // "OOO 득점" 마커 이벤트 자체엔 슈터 정보가 없음(relatedPlayer는 사후 수동 입력 전엔
-      // 항상 비어있음) — 대신 같은 팀의 슈팅 태깅 이벤트(output=goal)에는 shooter가 있으므로,
-      // 득점 마커와 시간이 가장 가까운(60초 이내) 골 슈팅을 찾아 그 슈터를 득점자로 쓴다.
-      // 수동으로 relatedPlayer를 입력해둔 경우엔 그걸 최우선으로 씀.
-      const scorerCandidatesByTeam = new Map<string, { time: number, shooter: string, used: boolean }[]>()
-      ;[homeName, awayName].forEach(team => {
-        scorerCandidatesByTeam.set(team, m.events
-          .filter(e => e.code.trim() === `${team} 슈팅` && e.shooter && normalizeShotOutput(e.shotOutput, e.resultLabel, e.outDir) === 'goal')
-          .map(e => ({ time: e.time, shooter: e.shooter!, used: false })))
-      })
-      const findNearestScorer = (team: string, time: number): string | undefined => {
-        const candidates = scorerCandidatesByTeam.get(team) || []
-        let best: { time: number, shooter: string, used: boolean } | null = null
-        let bestDiff = Infinity
-        for (const c of candidates) {
-          if (c.used) continue
-          const diff = Math.abs(c.time - time)
-          if (diff < bestDiff && diff <= 60) { best = c; bestDiff = diff }
-        }
-        if (best) { best.used = true; return best.shooter }
-        return undefined
-      }
-
       const score: Record<string, number> = { [homeName]: 0, [awayName]: 0 }
-      goalEvents.forEach(e => {
+      goalShots.forEach(e => {
         const scoringTeam = e.team
         const opponent = scoringTeam === homeName ? awayName : homeName
         const before = score[scoringTeam] ?? 0
@@ -310,7 +292,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
           const situation: GoalSituation = before > oppBefore ? 'lead' : before === oppBefore ? 'tied' : 'trail'
           rows.push({
             matchId: m.id || '', matchName: m.matchName, quarter: e.quarter, time: e.time,
-            scorer: e.relatedPlayer || findNearestScorer(scoringTeam, e.time),
+            scorer: e.relatedPlayer || e.shooter,
             scoreLabel: `${before + 1} : ${oppBefore}`, situation,
             videoMatchId: m.videoMatchId, code: e.code, team: e.team,
           })
