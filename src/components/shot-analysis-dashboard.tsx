@@ -276,6 +276,30 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
         .filter(e => e.code.trim() === `${homeName} 득점` || e.code.trim() === `${awayName} 득점`)
         .slice()
         .sort((a, b) => a.time - b.time)
+
+      // "OOO 득점" 마커 이벤트 자체엔 슈터 정보가 없음(relatedPlayer는 사후 수동 입력 전엔
+      // 항상 비어있음) — 대신 같은 팀의 슈팅 태깅 이벤트(output=goal)에는 shooter가 있으므로,
+      // 득점 마커와 시간이 가장 가까운(60초 이내) 골 슈팅을 찾아 그 슈터를 득점자로 쓴다.
+      // 수동으로 relatedPlayer를 입력해둔 경우엔 그걸 최우선으로 씀.
+      const scorerCandidatesByTeam = new Map<string, { time: number, shooter: string, used: boolean }[]>()
+      ;[homeName, awayName].forEach(team => {
+        scorerCandidatesByTeam.set(team, m.events
+          .filter(e => e.code.trim() === `${team} 슈팅` && e.shooter && normalizeShotOutput(e.shotOutput, e.resultLabel, e.outDir) === 'goal')
+          .map(e => ({ time: e.time, shooter: e.shooter!, used: false })))
+      })
+      const findNearestScorer = (team: string, time: number): string | undefined => {
+        const candidates = scorerCandidatesByTeam.get(team) || []
+        let best: { time: number, shooter: string, used: boolean } | null = null
+        let bestDiff = Infinity
+        for (const c of candidates) {
+          if (c.used) continue
+          const diff = Math.abs(c.time - time)
+          if (diff < bestDiff && diff <= 60) { best = c; bestDiff = diff }
+        }
+        if (best) { best.used = true; return best.shooter }
+        return undefined
+      }
+
       const score: Record<string, number> = { [homeName]: 0, [awayName]: 0 }
       goalEvents.forEach(e => {
         const scoringTeam = e.team
@@ -286,7 +310,8 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
           const situation: GoalSituation = before > oppBefore ? 'lead' : before === oppBefore ? 'tied' : 'trail'
           rows.push({
             matchId: m.id || '', matchName: m.matchName, quarter: e.quarter, time: e.time,
-            scorer: e.relatedPlayer, scoreLabel: `${before + 1} : ${oppBefore}`, situation,
+            scorer: e.relatedPlayer || findNearestScorer(scoringTeam, e.time),
+            scoreLabel: `${before + 1} : ${oppBefore}`, situation,
             videoMatchId: m.videoMatchId, code: e.code, team: e.team,
           })
         }
