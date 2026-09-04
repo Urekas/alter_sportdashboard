@@ -575,6 +575,7 @@ export function Dashboard() {
                     side: e.team === matchData.homeTeam.name ? 'A' : 'B',
                     teamName: e.team,
                     player: e.shooter,
+                    defender: e.defender,
                     output: normalizeShotOutput(e.shotOutput, e.resultLabel, e.outDir),
                     shotType: e.shotType, shotSituation: e.shotSituation,
                     assistType: e.assistType, defensePressure: e.defensePressure,
