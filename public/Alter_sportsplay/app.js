@@ -1,6 +1,6 @@
 ﻿import { db, collection, writeBatch, doc, getDocs, orderBy, query, getDoc, deleteDoc, where, updateDoc } from './firebase-config.js';
 
-import { initPlayer, fetchAndRenderEvents, fetchEventsForMatch, updateCurrentPlaylist, allEvents, loadVideoInCam, setActiveMatch, activeMatchId, setCameraOffsets, seekActiveToMatchTime } from './player.js';
+import { initPlayer, fetchAndRenderEvents, fetchEventsForMatch, updateCurrentPlaylist, allEvents, loadVideoInCam, setActiveMatch, activeMatchId, setCameraOffsets, seekActiveToMatchTime, playOrganizerPlaylist, isPlayerReady } from './player.js';
 import { initDrawingBoard } from './drawing.js';
 import { initLibrary } from './library.js';
 
@@ -223,8 +223,26 @@ async function handlePlaylistDeepLink(playlistId) {
       updateCurrentPlaylist(events);
       window.showViewerSection?.();
       document.getElementById('tab-btn-events')?.click();
-      showDeepLinkStatus(`"${plData.title || '재생목록'}" ${events.length}개 클립 준비됨 — 위 재생 버튼을 눌러주세요`, 'success');
-      hideDeepLinkStatus(4000);
+
+      // 링크를 열자마자 바로 보이게 — 버튼을 한 번 더 누를 필요 없이 자동으로 첫 클립부터
+      // 이어재생(Organizer 큐)을 시작함. 유튜브 플레이어가 아직 준비 안 됐을 수 있어서
+      // (isPlayerReady) 최대 20초 폴링 후 자동재생, 그동안은 안내 문구만 보여줌.
+      showDeepLinkStatus(`"${plData.title || '재생목록'}" ${events.length}개 클립 — 자동재생 준비 중...`, 'loading');
+      const startedAt = Date.now();
+      const readyCheck = setInterval(() => {
+        if (isPlayerReady) {
+          clearInterval(readyCheck);
+          playOrganizerPlaylist(events);
+          showDeepLinkStatus(`"${plData.title || '재생목록'}" ${events.length}개 클립 자동재생 중`, 'success');
+          hideDeepLinkStatus(4000);
+          return;
+        }
+        if (Date.now() - startedAt > 20000) {
+          clearInterval(readyCheck);
+          showDeepLinkStatus(`"${plData.title || '재생목록'}" ${events.length}개 클립 준비됨 — 위 재생 버튼을 눌러주세요`, 'error');
+          hideDeepLinkStatus(5000);
+        }
+      }, 300);
     }, 1200);
   } catch (e) {
     console.error('Playlist deep link error:', e);
