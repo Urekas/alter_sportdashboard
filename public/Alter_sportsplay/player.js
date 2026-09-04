@@ -479,7 +479,7 @@ export function playSingleClip(index) {
   }
 }
 
-function playOrganizerPlaylist(eventsArray) {
+export function playOrganizerPlaylist(eventsArray) {
   if (eventsArray.length === 0) return;
   
   playingSingleClip = false; // 연속 큐 모드
