@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { StatsCard } from "./stats-card"
-import { ShotZoneMap, isShotAttemptCode, normalizeShotOutput, isPcAttempt, getShotKind, type ShotDatum } from "./shot-zone-map"
+import { ShotZoneMap, isShotAttemptCode, isShotOnlyCode, normalizeShotOutput, isPcAttempt, getShotKind, type ShotDatum } from "./shot-zone-map"
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase"
 import { collection, query } from "firebase/firestore"
@@ -112,6 +112,11 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
           matchName: m.matchName, quarter: e.quarter, time: e.time,
           matchId: m.id, videoMatchId: m.videoMatchId,
         })
+        // KPI 합계는 code가 "OOO 페널티코너"로 따로 태깅된 이벤트를 빼고 "OOO 슈팅"만 센다 —
+        // 그 슈팅이 PC 상황이었는지는 이미 shotSituation/shotType에 담겨 있어서, PC 코드
+        // 이벤트까지 같이 세면 같은 장면이 두 번(슈팅 1 + PC 1) 잡혀 총 슈팅 수가 부풀려짐.
+        // 지도(ShotZoneMap)에 넘기는 result에는 그대로 다 넣어서 PC 사각형 표시는 안 건드림.
+        if (!isShotOnlyCode(e.code)) return
         const bucket = isUs ? kpiSum.us : kpiSum.opp
         bucket.total++
         if (output === 'goal') bucket.goal++
@@ -125,7 +130,9 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
 
   const playerStats = useMemo(() => {
     const map = new Map<string, { player: string, total: number, goal: number, save: number, block: number, out: number, fail: number }>()
-    shots.filter(s => s.side === 'A' && s.player).forEach(s => {
+    // KPI와 동일하게 "OOO 페널티코너" 코드는 제외 — PC 여부는 이미 shotType/badge로 표시되므로
+    // "OOO 슈팅"만 세야 선수별 총 시도 수가 중복 없이 나옴.
+    shots.filter(s => s.side === 'A' && s.player && isShotOnlyCode(s.code || '')).forEach(s => {
       const key = s.player!
       if (!map.has(key)) map.set(key, { player: key, total: 0, goal: 0, save: 0, block: 0, out: 0, fail: 0 })
       const row = map.get(key)!
@@ -153,7 +160,10 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
 
   // 로그 필터 — 경기 다중선택은 null(전체)이 기본, 사용자가 한 번이라도 체크박스를 건드리면 Set으로 좁혀짐
   const logRows = useMemo(() => {
-    let rows = shots
+    // "OOO 페널티코너" 코드는 로그에서 제외 — 같은 시도가 "OOO 슈팅"으로 이미 한 번 잡혀
+    // 있는데 PC 코드까지 별도 행으로 뜨면 중복으로 보임(사용자 피드백). PC 여부는 행의
+    // "타입" 배지(getShotKind)로 그대로 표시됨.
+    let rows = shots.filter(s => isShotOnlyCode(s.code || ''))
     if (logTeamFilter !== 'ALL') rows = rows.filter(s => s.side === logTeamFilter)
     if (logMatchFilter) rows = rows.filter(s => s.matchId && logMatchFilter.has(s.matchId))
     if (logZoneFilter !== 'ALL') rows = rows.filter(s => getShotKind(s.code || '', s.shotType, s.shotSituation) === logZoneFilter)
@@ -211,6 +221,11 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
       if (created.length === 0) {
         toast({ title: "영상 도구에서 매칭되는 클립을 찾지 못했어요", description: "영상 연결 후 이벤트가 동기화됐는지 확인해주세요.", variant: "destructive" })
         return
+      }
+      // 경기가 여러 개로 나뉜 경우 서로 연결해서, 영상 도구 안에서 "다음/이전 경기" 버튼으로
+      // 바로 넘나들 수 있게 함 (한 선수의 PC를 여러 경기에 걸쳐 이어보는 용도).
+      if (created.length > 1) {
+        await VideoMatchService.linkPlaylistSiblings(db, created.map(c => c.playlistId))
       }
       const url = `${window.location.origin}/Alter_sportsplay/index.html?playlistId=${created[0].playlistId}&lock=1`
       openInNewTab(url)

@@ -101,6 +101,19 @@ export const VideoMatchService = {
     }
   },
 
+  // 여러 경기에 걸쳐 필터링된 슈팅 로그로 "재생목록 만들기"를 누르면 경기별로 재생목록이
+  // 여러 개 생기는데(플레이어가 한 경기 영상만 이어 재생하는 구조라 하나로 합칠 수 없음 —
+  // createPlaylistFromEvents 주석 참고), 그 여러 개를 순서대로 넘나들 수 있게 서로 연결한다.
+  // 각 Playlists 문서에 전체 목록(sibling_playlist_ids)을 그대로 저장 — Alter_sportsplay가
+  // 재생목록을 열 때 이 필드를 보고 "다음/이전 경기" 버튼을 그려서, 클릭 한 번으로 다음
+  // 경기의 영상+클립으로 바로 전환할 수 있게 한다(경기별 분리 구조 자체는 유지).
+  async linkPlaylistSiblings(db: Firestore, playlistIds: string[]): Promise<void> {
+    if (playlistIds.length < 2) return
+    const batch = writeBatch(db)
+    playlistIds.forEach(id => batch.update(doc(db, 'Playlists', id), { sibling_playlist_ids: playlistIds }))
+    await batch.commit()
+  },
+
   // 대시보드 리포트(이벤트 타임라인)에서 필터링한 이벤트들만 골라 비디오 도구의 재생목록
   // (Playlists 컬렉션 — Alter_sportsplay의 Library 탭에서 클립 체크해 만드는 것과 동일한
   // 스키마)으로 바로 만듭니다. Playlists.event_ids는 'Events' 컬렉션 문서 ID를 가리키는데,
