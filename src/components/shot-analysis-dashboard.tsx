@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { StatsCard } from "./stats-card"
-import { ShotZoneMap, isShotAttemptCode, isShotOnlyCode, normalizeShotOutput, isPcAttempt, getShotKind, type ShotDatum } from "./shot-zone-map"
+import { ShotZoneMap, isShotAttemptCode, isShotOnlyCode, normalizeShotOutput, isPcAttempt, getShotKindDetailed, type ShotDatum, type ShotKindDetailed } from "./shot-zone-map"
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase"
 import { collection, query } from "firebase/firestore"
@@ -64,18 +64,13 @@ function buildGkRateRows(sideShots: ShotDatum[], getKey: (s: ShotDatum) => strin
   })).sort((a, b) => b.attempts - a.attempts)
 }
 
-// getShotKind는 PC_direct/PC_var를 둘 다 'pc' 하나로 묶는데(지도 마커 모양 등 다른 곳에서는
-// 그대로가 맞음), 선방율 구분별 표에서는 둘을 나눠 보고 싶다는 요청 — 슈팅 상황(shotSituation)/
-// Type 값에 direct/var 구분이 남아있으면 그대로 쓰고, 없으면(과거 데이터 등) 기존 3분류로 폴백.
+// 지도(ShotZoneMap)/타임라인 로그와 동일한 shot-zone-map.tsx의 getShotKindDetailed를 그대로 써서
+// 구분 기준이 화면마다 어긋나지 않게 함. 여기선 표시용 한글/영문 라벨로만 매핑.
+const KIND_DETAIL_LABELS: Record<ShotKindDetailed, string> = {
+  field: '필드슛', pc_direct: 'PC (Direct)', pc_var: 'PC (Var)', ps: 'PS',
+}
 function getKindDetailLabel(s: Pick<ShotDatum, 'code' | 'shotType' | 'shotSituation'>): string {
-  const sit = (s.shotSituation || '').trim()
-  const t = (s.shotType || '').trim()
-  if (/^ps$/i.test(sit) || /^ps$/i.test(t)) return 'PS'
-  if (/^pc_direct$/i.test(sit) || /^pc_direct$/i.test(t)) return 'PC (Direct)'
-  if (/^pc_var$/i.test(sit) || /^pc_var$/i.test(t)) return 'PC (Var)'
-  if (/^field_shot$/i.test(sit) || /^field_shot$/i.test(t)) return '필드슛'
-  const kind = getShotKind(s.code || '', s.shotType, s.shotSituation)
-  return kind === 'field' ? '필드슛' : kind === 'pc' ? 'PC (구분 미상)' : 'PS'
+  return KIND_DETAIL_LABELS[getShotKindDetailed(s.code || '', s.shotType, s.shotSituation)]
 }
 
 // 득점 시점의 스코어 상황(우세/동점/열세) — 슈팅 태깅과 무관하게 원본 이벤트의 "OOO 득점" 코드
@@ -99,9 +94,9 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
   // 타임라인 로그 전용 하위 필터 — 위쪽 카테고리/대회/팀 캐스케이드는 안 건드림
   const [logTeamFilter, setLogTeamFilter] = useState<'ALL' | 'A' | 'B'>('ALL')
   const [logMatchFilter, setLogMatchFilter] = useState<Set<string> | null>(null) // null = 전체(필터 안 함)
-  // 필드슛/PC/PS 구분 — 태깅 도구의 표준 Type 값(field_shot/PC_direct/PC_var/PS)을 최우선으로,
-  // 없으면 code 텍스트로 대체 판별(getShotKind, shot-zone-map.tsx).
-  const [logZoneFilter, setLogZoneFilter] = useState<'ALL' | 'field' | 'pc' | 'ps'>('ALL')
+  // 필드슛/PC-Direct/PC-Var/PS 구분 — 태깅 도구의 표준 Type 값(field_shot/PC_direct/PC_var/PS)을
+  // 최우선으로, 없으면 code 텍스트로 대체 판별(getShotKindDetailed, shot-zone-map.tsx).
+  const [logZoneFilter, setLogZoneFilter] = useState<'ALL' | ShotKindDetailed>('ALL')
   const [logTypeFilter, setLogTypeFilter] = useState<string>('ALL')
   const [logOutputFilter, setLogOutputFilter] = useState<string>('ALL')
   const [logAssistFilter, setLogAssistFilter] = useState<string>('ALL')
@@ -238,9 +233,20 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
     else { setDefenderSortKey(key); setDefenderSortDesc(key !== 'defender') }
   }
 
+  // 골키퍼 선택 — block은 필드 플레이어 기록이라(defender 필드가 골키퍼/필드 블로커를 같이 담음)
+  // save/goal(골키퍼가 실제로 상대한 시도)에 등장한 defender만 키퍼 후보로 잡는다.
+  const [selectedKeeper, setSelectedKeeper] = useState<string>('ALL')
+  const keeperNames = useMemo(() => Array.from(new Set(
+    ourDefenseShots.filter(s => (s.output === 'save' || s.output === 'goal') && s.defender).map(s => s.defender!)
+  )).sort((a, b) => a.localeCompare(b, 'ko')), [ourDefenseShots])
+  const gkScopedShots = useMemo(
+    () => selectedKeeper === 'ALL' ? ourDefenseShots : ourDefenseShots.filter(s => s.defender === selectedKeeper),
+    [ourDefenseShots, selectedKeeper]
+  )
+
   // 골키퍼 선방율 — 필드슛/PC(Direct)/PC(Var)/PS 구분별, 그리고 슈팅 유형(shotType)별로 각각.
-  const gkRateByKind = useMemo(() => buildGkRateRows(ourDefenseShots, getKindDetailLabel), [ourDefenseShots])
-  const gkRateByType = useMemo(() => buildGkRateRows(ourDefenseShots, s => s.shotType), [ourDefenseShots])
+  const gkRateByKind = useMemo(() => buildGkRateRows(gkScopedShots, getKindDetailLabel), [gkScopedShots])
+  const gkRateByType = useMemo(() => buildGkRateRows(gkScopedShots, s => s.shotType), [gkScopedShots])
 
   // effectiveTeam이 관여한 경기들의 득점 이벤트를 시간순으로 재구성해서, 각 득점이
   // 그 시점 스코어 기준 우세/동점/열세 중 어느 상황에서 나온 건지 계산.
@@ -296,7 +302,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
     let rows = shots.filter(s => isShotOnlyCode(s.code || ''))
     if (logTeamFilter !== 'ALL') rows = rows.filter(s => s.side === logTeamFilter)
     if (logMatchFilter) rows = rows.filter(s => s.matchId && logMatchFilter.has(s.matchId))
-    if (logZoneFilter !== 'ALL') rows = rows.filter(s => getShotKind(s.code || '', s.shotType, s.shotSituation) === logZoneFilter)
+    if (logZoneFilter !== 'ALL') rows = rows.filter(s => getShotKindDetailed(s.code || '', s.shotType, s.shotSituation) === logZoneFilter)
     if (logTypeFilter !== 'ALL') rows = rows.filter(s => s.shotType === logTypeFilter)
     if (logOutputFilter !== 'ALL') rows = rows.filter(s => s.output === logOutputFilter)
     if (logAssistFilter !== 'ALL') rows = rows.filter(s => s.assistType === logAssistFilter)
@@ -311,6 +317,9 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
   const resetLogFilters = () => {
     setLogTeamFilter('ALL'); setLogMatchFilter(null); setLogZoneFilter('ALL'); setLogTypeFilter('ALL'); setLogOutputFilter('ALL')
     setLogAssistFilter('ALL'); setLogPressureFilter('ALL'); setLogSearch('')
+    // 팀/대회가 바뀌면 keeperNames 후보 자체가 바뀌므로 이전 팀의 키퍼 이름이 그대로 남아
+    // 빈 표로 보이지 않도록 같이 초기화.
+    setSelectedKeeper('ALL')
   }
 
   const toggleMatchInFilter = (matchId: string, allMatchIds: string[]) => {
@@ -509,7 +518,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
                 </div>
 
                 <div className="flex rounded-md border overflow-hidden">
-                  {([['ALL', '전체 유형'], ['field', '필드슛'], ['pc', 'PC'], ['ps', 'PS']] as const).map(([v, label]) => (
+                  {([['ALL', '전체 유형'], ['field', '필드슛'], ['pc_direct', 'PC-Direct'], ['pc_var', 'PC-Var'], ['ps', 'PS']] as const).map(([v, label]) => (
                     <button key={v} onClick={() => setLogZoneFilter(v)}
                       className={`px-3 py-1.5 text-xs font-bold transition-colors ${logZoneFilter === v ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}>
                       {label}
@@ -618,8 +627,11 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
                           <TableCell className="text-xs font-bold">{s.player || '-'}</TableCell>
                           <TableCell className="text-center text-[11px]">
                             {(() => {
-                              const kind = getShotKind(s.code || '', s.shotType, s.shotSituation)
-                              const kindMeta = { field: ['필드슛', 'outline'], pc: ['PC', 'destructive'], ps: ['PS', 'secondary'] } as const
+                              const kind = getShotKindDetailed(s.code || '', s.shotType, s.shotSituation)
+                              const kindMeta = {
+                                field: ['필드슛', 'outline'], pc_direct: ['PC-Direct', 'destructive'],
+                                pc_var: ['PC-Var', 'default'], ps: ['PS', 'secondary'],
+                              } as const
                               const [kindLabel, kindVariant] = kindMeta[kind]
                               return (
                                 <div className="flex flex-col items-center gap-0.5">
@@ -730,11 +742,20 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
             </Card>
           )}
 
-          {(gkRateByKind.length > 0 || gkRateByType.length > 0) && (
+          {keeperNames.length > 0 && (
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5" /> 골키퍼 선방율</CardTitle>
-                <CardDescription>{effectiveTeam}이 막아낸 상대 슈팅/PC 기준 (선방율 = 선방 / (선방 + 실점)) · PC는 Direct/Var 구분됩니다</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5" /> 골키퍼 선방율</CardTitle>
+                  <CardDescription>{effectiveTeam}이 막아낸 상대 슈팅/PC 기준 (선방율 = 선방 / (선방 + 실점)) · PC는 Direct/Var 구분됩니다 · 블락은 필드 플레이어 기록이라 제외</CardDescription>
+                </div>
+                <Select value={selectedKeeper} onValueChange={setSelectedKeeper}>
+                  <SelectTrigger className="h-8 w-36 text-xs"><SelectValue placeholder="키퍼 선택" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">전체 키퍼</SelectItem>
+                    {keeperNames.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {gkRateByKind.length > 0 && (

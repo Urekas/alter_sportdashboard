@@ -126,7 +126,8 @@ const CIRCLE_GRID_COLS = 3
 const CIRCLE_GRID_ROWS = 2
 const SHOOTING_CIRCLE_RADIUS = (14.63 / 23) * FIELD_MAX_Y
 
-export type ZoneFilter = 'all' | 'field' | 'pc' | 'ps'
+// PC를 Direct/Var로 나눠서 볼 수 있게 — 필터 값 자체가 getShotKindDetailed의 세부분류와 맞음.
+export type ZoneFilter = 'all' | 'field' | 'pc_direct' | 'pc_var' | 'ps'
 
 function ShotMarker({ shot, x, y, r, fill, stroke, onEnter, onMove, onLeave, onClick }: {
   shot: ShotDatum, x: number, y: number, r: number, fill: string, stroke: string,
@@ -212,10 +213,8 @@ function SidePanel({
   // 적용됨. 예전엔 골대 타겟은 항상 전체를 보여줬는데, PC랑 필드슛 타겟 위치가 섞여 있으면
   // 구분해서 보기 어렵다는 피드백으로 여기도 zoneFilter를 그대로 반영하도록 통일함.
   const zoneShots = useMemo(() => {
-    if (zoneFilter === 'field') return shots.filter(s => getShotKind(s.code || '', s.shotType, s.shotSituation) === 'field')
-    if (zoneFilter === 'pc') return shots.filter(s => s.isPC)
-    if (zoneFilter === 'ps') return shots.filter(s => getShotKind(s.code || '', s.shotType, s.shotSituation) === 'ps')
-    return shots
+    if (zoneFilter === 'all') return shots
+    return shots.filter(s => getShotKindDetailed(s.code || '', s.shotType, s.shotSituation) === zoneFilter)
   }, [shots, zoneFilter])
   const fieldShots = useMemo(() => zoneShots.filter(s => fieldPixel(s) !== null), [zoneShots])
   const goalShots = useMemo(() => zoneShots.filter(s => goalPixel(s) !== null), [zoneShots])
@@ -339,7 +338,8 @@ interface ShotZoneMapProps {
 const ZONE_FILTER_OPTIONS: { key: ZoneFilter, label: string }[] = [
   { key: 'all', label: '전체' },
   { key: 'field', label: '필드슛' },
-  { key: 'pc', label: 'PC' },
+  { key: 'pc_direct', label: 'PC-Direct' },
+  { key: 'pc_var', label: 'PC-Var' },
   { key: 'ps', label: 'PS' },
 ]
 
@@ -549,6 +549,32 @@ export function getShotKind(code: string, shotType?: string, shotSituation?: str
 // 지도에서 원형(필드슛/PS)/사각형(PC) 구분에 씁니다.
 export function isPcAttempt(code: string, shotType?: string, shotSituation?: string): boolean {
   return getShotKind(code, shotType, shotSituation) === 'pc'
+}
+
+export type ShotKindDetailed = 'field' | 'pc_direct' | 'pc_var' | 'ps'
+
+// getShotKind의 'pc' 한 덩어리를 PC_direct/PC_var 두 변형으로 더 쪼갠 버전 — 지도 필터·타임라인
+// 로그·GK 선방율 등 "직접 PC와 변형 PC를 구분해서 보고 싶다"는 요청에 씀. 마커 모양(원/사각형)은
+// 여전히 isPcAttempt(getShotKind) 기준 그대로라 direct/var 둘 다 사각형으로 그려짐 — 이 함수는
+// 필터링·집계용 세부 분류만 담당.
+export function getShotKindDetailed(code: string, shotType?: string, shotSituation?: string): ShotKindDetailed {
+  const s = (shotSituation || '').trim()
+  if (/^ps$/i.test(s)) return 'ps'
+  if (/^pc_direct$/i.test(s)) return 'pc_direct'
+  if (/^pc_var$/i.test(s)) return 'pc_var'
+  if (/^field_shot$/i.test(s)) return 'field'
+  const t = (shotType || '').trim()
+  if (/^ps$/i.test(t)) return 'ps'
+  if (/^pc_direct$/i.test(t)) return 'pc_direct'
+  if (/^pc_var$/i.test(t)) return 'pc_var'
+  if (/^field_shot$/i.test(t)) return 'field'
+  // shotSituation/shotType에 direct/var 구분이 아예 안 남아있는 경우(과거 데이터 등) —
+  // getShotKind의 3분류로 판별한 뒤 PC는 기본값으로 direct 취급(실제로도 variation보다
+  // direct 상황이 더 흔함). 굳이 5번째 "구분불명" 버킷을 만들어 필터를 더 복잡하게
+  // 만들기보다, 소수 예외를 direct 쪽에 합치는 쪽을 택함.
+  const kind = getShotKind(code, shotType, shotSituation)
+  if (kind === 'pc') return 'pc_direct'
+  return kind
 }
 
 export function normalizeShotOutput(shotOutput: string | undefined, resultLabel: string | undefined, outDir: string | undefined): ShotDatum['output'] {
