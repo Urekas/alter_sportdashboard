@@ -111,6 +111,14 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
   const [playerSortDesc, setPlayerSortDesc] = useState(true)
   const [defenderSortKey, setDefenderSortKey] = useState<DefenderStatKey>('total')
   const [defenderSortDesc, setDefenderSortDesc] = useState(true)
+  // "선수별 슈팅 통계"(공격)와 "수비 기록"(블락/선방) 두 표에 공통으로 적용하는 구분 필터 —
+  // PC는 Direct/Var를 합쳐서(여기선 굳이 더 안 쪼갬, 세부 구분은 GK 선방율 표에서 이미 가능).
+  const [attemptKindFilter, setAttemptKindFilter] = useState<'ALL' | 'field' | 'pc' | 'ps'>('ALL')
+  const matchesAttemptKindFilter = (s: ShotDatum) => {
+    if (attemptKindFilter === 'ALL') return true
+    const kind = getShotKindDetailed(s.code || '', s.shotType, s.shotSituation)
+    return attemptKindFilter === 'pc' ? (kind === 'pc_direct' || kind === 'pc_var') : kind === attemptKindFilter
+  }
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false)
 
   const { toast } = useToast()
@@ -188,7 +196,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
     const map = new Map<string, { player: string, total: number, goal: number, save: number, block: number, out: number, fail: number }>()
     // KPI와 동일하게 "OOO 페널티코너" 코드는 제외 — PC 여부는 이미 shotType/badge로 표시되므로
     // "OOO 슈팅"만 세야 선수별 총 시도 수가 중복 없이 나옴.
-    shots.filter(s => s.side === 'A' && s.player && isShotOnlyCode(s.code || '')).forEach(s => {
+    shots.filter(s => s.side === 'A' && s.player && isShotOnlyCode(s.code || '') && matchesAttemptKindFilter(s)).forEach(s => {
       const key = s.player!
       if (!map.has(key)) map.set(key, { player: key, total: 0, goal: 0, save: 0, block: 0, out: 0, fail: 0 })
       const row = map.get(key)!
@@ -205,7 +213,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
       return playerSortDesc ? (bv as number) - (av as number) : (av as number) - (bv as number)
     })
     return arr
-  }, [shots, playerSortKey, playerSortDesc])
+  }, [shots, playerSortKey, playerSortDesc, attemptKindFilter])
 
   const togglePlayerSort = (key: PlayerStatKey) => {
     if (playerSortKey === key) setPlayerSortDesc(d => !d)
@@ -218,7 +226,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
 
   const defenderStats = useMemo(() => {
     const map = new Map<string, { defender: string, save: number, block: number, total: number }>()
-    ourDefenseShots.filter(s => s.defender && (s.output === 'save' || s.output === 'block')).forEach(s => {
+    ourDefenseShots.filter(s => s.defender && (s.output === 'save' || s.output === 'block') && matchesAttemptKindFilter(s)).forEach(s => {
       const key = s.defender!
       if (!map.has(key)) map.set(key, { defender: key, save: 0, block: 0, total: 0 })
       const row = map.get(key)!
@@ -235,7 +243,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
       return defenderSortDesc ? (bv as number) - (av as number) : (av as number) - (bv as number)
     })
     return arr
-  }, [ourDefenseShots, defenderSortKey, defenderSortDesc])
+  }, [ourDefenseShots, defenderSortKey, defenderSortDesc, attemptKindFilter])
 
   const toggleDefenderSort = (key: DefenderStatKey) => {
     if (defenderSortKey === key) setDefenderSortDesc(d => !d)
@@ -671,6 +679,20 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
               </div>
             </CardContent>
           </Card>
+
+          {/* 아래 "선수별 슈팅 통계"·"수비 기록" 두 표에 공통 적용 — 필터 결과가 0건이어도
+              컨트롤 자체는 계속 보여야 하니 playerStats/defenderStats 길이로 안 가림. */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase">구분 (아래 선수별 슈팅 통계 · 수비 기록 공통 적용)</span>
+            <div className="flex items-center gap-1 bg-muted rounded-md p-0.5">
+              {([['ALL', '전체'], ['field', '필드슛'], ['pc', 'PC'], ['ps', 'PS']] as const).map(([v, label]) => (
+                <button key={v} onClick={() => setAttemptKindFilter(v)}
+                  className={`text-xs font-bold px-2 py-1 rounded transition-colors ${attemptKindFilter === v ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {playerStats.length > 0 && (
             <Card>
