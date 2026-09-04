@@ -145,6 +145,8 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
     let shotOutput = "";
     let outDir = "";
     let shotSituation = "";
+    let assistType = "";
+    let defensePressure = "";
     let xLoc: number | undefined, yLoc: number | undefined, xGoal: number | undefined, yGoal: number | undefined;
 
     for (let i = 0; i < labels.length; i++) {
@@ -173,6 +175,10 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
       else if (/^Y_Loc$/i.test(groupText) && text !== "") yLoc = parseFloat(text);
       else if (/^X_Goal$/i.test(groupText) && text !== "") xGoal = parseFloat(text);
       else if (/^Y_Goal$/i.test(groupText) && text !== "") yGoal = parseFloat(text);
+      // 슈팅 태깅 도구의 기본 커스텀 필드 2종 — 그룹 이름이 도구 기본 템플릿값("어시스트 유형"/
+      // "수비 압박")으로 고정돼 있어서(types.ts 참고) 슈팅 상황과 달리 그룹 이름으로 매칭한다.
+      else if (/^어시스트\s*유형$/i.test(groupText)) assistType = text;
+      else if (/^수비\s*압박$/i.test(groupText)) defensePressure = text;
       else ungroupedText += text + " ";
       if (!detectedTeams) detectedTeams = detectRealTeamNames(text);
     }
@@ -203,6 +209,8 @@ export const parseXMLData = (xmlText: string): { events: MatchEvent[], teams: { 
       ...(shotOutput ? { shotOutput } : {}),
       ...(outDir ? { outDir } : {}),
       ...(shotSituation ? { shotSituation } : {}),
+      ...(assistType ? { assistType } : {}),
+      ...(defensePressure ? { defensePressure } : {}),
       ...(xLoc !== undefined ? { xLoc } : {}),
       ...(yLoc !== undefined ? { yLoc } : {}),
       ...(xGoal !== undefined ? { xGoal } : {}),
