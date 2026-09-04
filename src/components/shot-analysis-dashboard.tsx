@@ -10,7 +10,7 @@
 // KPI 비교 카드 추가. 그리드 칸 크기 조절 UI는 사용자가 "나중에 직접 하겠다"고 보류한 항목이라
 // 이번에도 안 건드림(gridCols/gridRows/goalGridSize는 이미 props로 존재).
 import { useMemo, useState } from "react"
-import { Trophy, Users, Loader2, Target, Sword, ShieldCheck, Table2, ListVideo, ArrowUp, ArrowDown, ArrowUpDown, Video, Search, RotateCcw } from "lucide-react"
+import { Trophy, Users, Loader2, Target, ShieldCheck, Table2, ListVideo, ArrowUp, ArrowDown, ArrowUpDown, Video, Search, RotateCcw } from "lucide-react"
 import type { MatchData, Tournament } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -44,6 +44,10 @@ function openShotVideo(shot: ShotDatum) {
 
 type PlayerStatKey = 'player' | 'total' | 'goal' | 'save' | 'block' | 'out' | 'fail'
 type DefenderStatKey = 'defender' | 'total' | 'save' | 'block'
+
+// 상단 KPI 비교 카드용 집계 — total은 isShotOnlyCode 기준("OOO 슈팅" 코드만, PC 코드 중복 제외).
+// field/pc/ps는 그 total 안에서의 구분별 개수(합쳐서 total과 같음), pc는 Direct+Var 합계.
+interface KpiBucket { total: number, field: number, pc: number, ps: number, goal: number, save: number, block: number }
 
 // 필드슛/PC/PS 및 슈팅 유형(shotType)별 GK 선방율 산출용 — "선방율"은 표준 정의(선방 / (선방+실점))를
 // 따름. block/out/fail은 골키퍼가 막았다기보다 다른 방식으로 무산된 시도라 분모에서 제외.
@@ -135,11 +139,12 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
   const effectiveTeam = teamName && allTeamNames.includes(teamName) ? teamName : (allTeamNames[0] || "")
 
   const { shots, teamMatches, kpi } = useMemo(() => {
-    if (!effectiveTeam) return { shots: [] as ShotDatum[], teamMatches: [] as MatchData[], kpi: { us: { total: 0, goal: 0, save: 0, block: 0 }, opp: { total: 0, goal: 0, save: 0, block: 0 } } }
+    const emptyBucket = (): KpiBucket => ({ total: 0, field: 0, pc: 0, ps: 0, goal: 0, save: 0, block: 0 })
+    if (!effectiveTeam) return { shots: [] as ShotDatum[], teamMatches: [] as MatchData[], kpi: { us: emptyBucket(), opp: emptyBucket() } }
 
     const relevant = scopedMatches.filter(m => m.homeTeam.name === effectiveTeam || m.awayTeam.name === effectiveTeam)
     const result: ShotDatum[] = []
-    const kpiSum = { us: { total: 0, goal: 0, save: 0, block: 0 }, opp: { total: 0, goal: 0, save: 0, block: 0 } }
+    const kpiSum = { us: emptyBucket(), opp: emptyBucket() }
 
     relevant.forEach(m => {
       m.events.forEach((e, idx) => {
@@ -166,6 +171,10 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
         if (!isShotOnlyCode(e.code)) return
         const bucket = isUs ? kpiSum.us : kpiSum.opp
         bucket.total++
+        const kind = getShotKindDetailed(e.code, e.shotType, e.shotSituation)
+        if (kind === 'field') bucket.field++
+        else if (kind === 'ps') bucket.ps++
+        else bucket.pc++ // pc_direct + pc_var 합계
         if (output === 'goal') bucket.goal++
         else if (output === 'save') bucket.save++
         else if (output === 'block') bucket.block++
@@ -447,33 +456,34 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
         <>
           {/* 우리팀 vs 상대팀 KPI 비교 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="border-2 border-primary/30">
-              <CardContent className="pt-5">
-                <div className="text-xs font-black uppercase tracking-widest text-primary mb-3">{effectiveTeam} (우리팀)</div>
-                <div className="grid grid-cols-3 gap-3 text-center">
-                  <div><div className="text-2xl font-black">{kpi.us.total}</div><div className="text-[10px] text-muted-foreground font-bold uppercase">총 슈팅</div></div>
-                  <div><div className="text-2xl font-black text-emerald-600">{kpi.us.goal}</div><div className="text-[10px] text-muted-foreground font-bold uppercase">득점 ({kpi.us.total > 0 ? Math.round((kpi.us.goal / kpi.us.total) * 100) : 0}%)</div></div>
-                  <div><div className="text-2xl font-black">{kpi.us.save + kpi.us.block}</div><div className="text-[10px] text-muted-foreground font-bold uppercase">선방+블락</div></div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-2">
-              <CardContent className="pt-5">
-                <div className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3">상대팀 전체</div>
-                <div className="grid grid-cols-3 gap-3 text-center">
-                  <div><div className="text-2xl font-black">{kpi.opp.total}</div><div className="text-[10px] text-muted-foreground font-bold uppercase">총 슈팅</div></div>
-                  <div><div className="text-2xl font-black text-rose-600">{kpi.opp.goal}</div><div className="text-[10px] text-muted-foreground font-bold uppercase">득점 ({kpi.opp.total > 0 ? Math.round((kpi.opp.goal / kpi.opp.total) * 100) : 0}%)</div></div>
-                  <div><div className="text-2xl font-black">{kpi.opp.save + kpi.opp.block}</div><div className="text-[10px] text-muted-foreground font-bold uppercase">선방+블락</div></div>
-                </div>
-              </CardContent>
-            </Card>
+            {([['us', effectiveTeam + ' (우리팀)', 'text-primary', 'border-primary/30', 'text-emerald-600'],
+               ['opp', '상대팀 전체', 'text-muted-foreground', '', 'text-rose-600']] as const).map(([key, label, titleColor, border, goalColor]) => {
+              const b = kpi[key]
+              const goalRate = b.total > 0 ? Math.round((b.goal / b.total) * 100) : 0
+              const validShots = b.goal + b.save
+              return (
+                <Card key={key} className={`border-2 ${border}`}>
+                  <CardContent className="pt-5">
+                    <div className={`text-xs font-black uppercase tracking-widest mb-3 ${titleColor}`}>{label}</div>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 text-center">
+                      <div><div className="text-2xl font-black">{b.total}</div><div className="text-[10px] text-muted-foreground font-bold uppercase">총 슈팅</div></div>
+                      <div><div className="text-xl font-black">{b.field}</div><div className="text-[10px] text-muted-foreground font-bold uppercase">필드슛</div></div>
+                      <div><div className="text-xl font-black">{b.pc}</div><div className="text-[10px] text-muted-foreground font-bold uppercase">PC</div></div>
+                      <div><div className="text-xl font-black">{b.ps}</div><div className="text-[10px] text-muted-foreground font-bold uppercase">PS</div></div>
+                      <div><div className={`text-2xl font-black ${goalColor}`}>{b.goal}</div><div className="text-[10px] text-muted-foreground font-bold uppercase">득점 ({goalRate}%)</div></div>
+                      <div><div className="text-2xl font-black">{validShots}</div><div className="text-[10px] text-muted-foreground font-bold uppercase">유효슈팅<br />(득점+선방)</div></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatsCard title={`${effectiveTeam} 슈팅 시도`} value={kpi.us.total} icon={<Sword className="h-4 w-4" />} />
-            <StatsCard title="득점" value={kpi.us.goal} icon={<Target className="h-4 w-4" />} />
+            <StatsCard title={`${effectiveTeam} 유효슈팅률`} value={kpi.us.total > 0 ? ((kpi.us.goal + kpi.us.save) / kpi.us.total) * 100 : 0} isPercentage icon={<Target className="h-4 w-4" />} />
             <StatsCard title="득점률" value={kpi.us.total > 0 ? (kpi.us.goal / kpi.us.total) * 100 : 0} isPercentage icon={<Target className="h-4 w-4" />} />
-            <StatsCard title="상대 GK 선방 + 블락" value={kpi.us.save + kpi.us.block} icon={<ShieldCheck className="h-4 w-4" />} />
+            <StatsCard title="상대 GK 선방" value={kpi.us.save} icon={<ShieldCheck className="h-4 w-4" />} />
+            <StatsCard title="상대 블락" value={kpi.us.block} icon={<ShieldCheck className="h-4 w-4" />} />
           </div>
 
           <ShotZoneMap
