@@ -19,6 +19,7 @@ export interface ShotDatum {
   side: 'A' | 'B' // A/B — 팀 구분(호출부가 의미 부여: 홈/어웨이, 우리팀/상대팀 등). 이제 각자 별도 패널에 그려짐.
   teamName: string
   player?: string
+  defender?: string // 막은 선수(골키퍼/필드 블로커) — MatchEvent.defender("GK_Player" 라벨) 그대로
   output: 'goal' | 'save' | 'block' | 'out' | 'fail' | 'unknown'
   shotType?: string
   shotSituation?: string // "슈팅 상황" 커스텀 필드값 — field_shot/PC_direct/PC_var/PS (getShotKind가 최우선으로 봄)

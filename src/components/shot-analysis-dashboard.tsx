@@ -43,6 +43,53 @@ function openShotVideo(shot: ShotDatum) {
 }
 
 type PlayerStatKey = 'player' | 'total' | 'goal' | 'save' | 'block' | 'out' | 'fail'
+type DefenderStatKey = 'defender' | 'total' | 'save' | 'block'
+
+// 필드슛/PC/PS 및 슈팅 유형(shotType)별 GK 선방율 산출용 — "선방율"은 표준 정의(선방 / (선방+실점))를
+// 따름. block/out/fail은 골키퍼가 막았다기보다 다른 방식으로 무산된 시도라 분모에서 제외.
+interface GkRateRow { label: string, attempts: number, saves: number, goals: number, rate: number }
+function buildGkRateRows(sideShots: ShotDatum[], getKey: (s: ShotDatum) => string | undefined): GkRateRow[] {
+  const map = new Map<string, { saves: number, goals: number }>()
+  sideShots.forEach(s => {
+    if (s.output !== 'save' && s.output !== 'goal') return
+    const key = getKey(s)
+    if (!key) return
+    if (!map.has(key)) map.set(key, { saves: 0, goals: 0 })
+    const row = map.get(key)!
+    if (s.output === 'save') row.saves++; else row.goals++
+  })
+  return Array.from(map.entries()).map(([label, v]) => ({
+    label, attempts: v.saves + v.goals, saves: v.saves, goals: v.goals,
+    rate: (v.saves + v.goals) > 0 ? (v.saves / (v.saves + v.goals)) * 100 : 0,
+  })).sort((a, b) => b.attempts - a.attempts)
+}
+
+// getShotKind는 PC_direct/PC_var를 둘 다 'pc' 하나로 묶는데(지도 마커 모양 등 다른 곳에서는
+// 그대로가 맞음), 선방율 구분별 표에서는 둘을 나눠 보고 싶다는 요청 — 슈팅 상황(shotSituation)/
+// Type 값에 direct/var 구분이 남아있으면 그대로 쓰고, 없으면(과거 데이터 등) 기존 3분류로 폴백.
+function getKindDetailLabel(s: Pick<ShotDatum, 'code' | 'shotType' | 'shotSituation'>): string {
+  const sit = (s.shotSituation || '').trim()
+  const t = (s.shotType || '').trim()
+  if (/^ps$/i.test(sit) || /^ps$/i.test(t)) return 'PS'
+  if (/^pc_direct$/i.test(sit) || /^pc_direct$/i.test(t)) return 'PC (Direct)'
+  if (/^pc_var$/i.test(sit) || /^pc_var$/i.test(t)) return 'PC (Var)'
+  if (/^field_shot$/i.test(sit) || /^field_shot$/i.test(t)) return '필드슛'
+  const kind = getShotKind(s.code || '', s.shotType, s.shotSituation)
+  return kind === 'field' ? '필드슛' : kind === 'pc' ? 'PC (구분 미상)' : 'PS'
+}
+
+// 득점 시점의 스코어 상황(우세/동점/열세) — 슈팅 태깅과 무관하게 원본 이벤트의 "OOO 득점" 코드
+// (경기당 한 번씩 팀 이름으로 찍히는 골 이벤트, quarterly-stats 등 다른 곳에서도 이 코드로 집계함)를
+// 시간순으로 훑어서 팀별 누적 스코어를 재구성한다. 슈팅 태깅 도구의 output=goal과는 별개 트랙이라
+// (오래된 경기는 슈팅 태깅 자체가 없을 수 있음) 항상 정확하려면 이 원본 코드를 써야 함.
+type GoalSituation = 'lead' | 'tied' | 'trail'
+interface GoalSituationRow {
+  matchId: string, matchName?: string, quarter?: string, time: number,
+  scorer?: string, scoreLabel: string, situation: GoalSituation,
+  videoMatchId?: string, code: string, team: string,
+}
+const SITUATION_LABELS: Record<GoalSituation, string> = { lead: '우세', tied: '동점', trail: '열세' }
+const SITUATION_COLORS: Record<GoalSituation, string> = { lead: 'text-emerald-600', tied: 'text-amber-600', trail: 'text-rose-600' }
 
 export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProps) {
   const [category, setCategory] = useState("")
@@ -57,10 +104,14 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
   const [logZoneFilter, setLogZoneFilter] = useState<'ALL' | 'field' | 'pc' | 'ps'>('ALL')
   const [logTypeFilter, setLogTypeFilter] = useState<string>('ALL')
   const [logOutputFilter, setLogOutputFilter] = useState<string>('ALL')
+  const [logAssistFilter, setLogAssistFilter] = useState<string>('ALL')
+  const [logPressureFilter, setLogPressureFilter] = useState<string>('ALL')
   const [logSearch, setLogSearch] = useState('')
 
   const [playerSortKey, setPlayerSortKey] = useState<PlayerStatKey>('total')
   const [playerSortDesc, setPlayerSortDesc] = useState(true)
+  const [defenderSortKey, setDefenderSortKey] = useState<DefenderStatKey>('total')
+  const [defenderSortDesc, setDefenderSortDesc] = useState(true)
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false)
 
   const { toast } = useToast()
@@ -106,7 +157,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
         result.push({
           // MatchEvent.id가 경기 내에서도 중복될 수 있어서(Sportscode 원본 데이터 특성,
           // match-event-timeline.tsx와 동일한 이유) 경기ID+인덱스 조합을 진짜 식별자로 씀.
-          id: `${m.id}-${idx}`, side: isUs ? 'A' : 'B', teamName: e.team, player: e.shooter, output,
+          id: `${m.id}-${idx}`, side: isUs ? 'A' : 'B', teamName: e.team, player: e.shooter, defender: e.defender, output,
           shotType: e.shotType, shotSituation: e.shotSituation, isPC: isPcAttempt(e.code, e.shotType, e.shotSituation), code: e.code,
           assistType: e.assistType, defensePressure: e.defensePressure,
           xLoc: e.xLoc, yLoc: e.yLoc, xGoal: e.xGoal, yGoal: e.yGoal, outDir: e.outDir,
@@ -157,7 +208,85 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
     else { setPlayerSortKey(key); setPlayerSortDesc(key !== 'player') }
   }
 
+  // 상대팀이 우리 쪽 골문으로 쏜 시도(side 'B') 전체 — 이 팀 수비진(골키퍼/필드 블로커)의
+  // 블락·선방 기록과 키퍼 선방율은 전부 이 집합 기준으로 계산한다.
+  const ourDefenseShots = useMemo(() => shots.filter(s => s.side === 'B' && isShotOnlyCode(s.code || '')), [shots])
+
+  const defenderStats = useMemo(() => {
+    const map = new Map<string, { defender: string, save: number, block: number, total: number }>()
+    ourDefenseShots.filter(s => s.defender && (s.output === 'save' || s.output === 'block')).forEach(s => {
+      const key = s.defender!
+      if (!map.has(key)) map.set(key, { defender: key, save: 0, block: 0, total: 0 })
+      const row = map.get(key)!
+      if (s.output === 'save') row.save++; else row.block++
+      row.total++
+    })
+    const arr = Array.from(map.values())
+    arr.sort((a, b) => {
+      const av = a[defenderSortKey], bv = b[defenderSortKey]
+      if (typeof av === 'string' || typeof bv === 'string') {
+        const cmp = String(av).localeCompare(String(bv), 'ko')
+        return defenderSortDesc ? -cmp : cmp
+      }
+      return defenderSortDesc ? (bv as number) - (av as number) : (av as number) - (bv as number)
+    })
+    return arr
+  }, [ourDefenseShots, defenderSortKey, defenderSortDesc])
+
+  const toggleDefenderSort = (key: DefenderStatKey) => {
+    if (defenderSortKey === key) setDefenderSortDesc(d => !d)
+    else { setDefenderSortKey(key); setDefenderSortDesc(key !== 'defender') }
+  }
+
+  // 골키퍼 선방율 — 필드슛/PC(Direct)/PC(Var)/PS 구분별, 그리고 슈팅 유형(shotType)별로 각각.
+  const gkRateByKind = useMemo(() => buildGkRateRows(ourDefenseShots, getKindDetailLabel), [ourDefenseShots])
+  const gkRateByType = useMemo(() => buildGkRateRows(ourDefenseShots, s => s.shotType), [ourDefenseShots])
+
+  // effectiveTeam이 관여한 경기들의 득점 이벤트를 시간순으로 재구성해서, 각 득점이
+  // 그 시점 스코어 기준 우세/동점/열세 중 어느 상황에서 나온 건지 계산.
+  const goalSituations = useMemo(() => {
+    if (!effectiveTeam) return [] as GoalSituationRow[]
+    const rows: GoalSituationRow[] = []
+    teamMatches.forEach(m => {
+      const homeName = m.homeTeam.name, awayName = m.awayTeam.name
+      const goalEvents = m.events
+        .filter(e => e.code.trim() === `${homeName} 득점` || e.code.trim() === `${awayName} 득점`)
+        .slice()
+        .sort((a, b) => a.time - b.time)
+      const score: Record<string, number> = { [homeName]: 0, [awayName]: 0 }
+      goalEvents.forEach(e => {
+        const scoringTeam = e.team
+        const opponent = scoringTeam === homeName ? awayName : homeName
+        const before = score[scoringTeam] ?? 0
+        const oppBefore = score[opponent] ?? 0
+        if (scoringTeam === effectiveTeam) {
+          const situation: GoalSituation = before > oppBefore ? 'lead' : before === oppBefore ? 'tied' : 'trail'
+          rows.push({
+            matchId: m.id || '', matchName: m.matchName, quarter: e.quarter, time: e.time,
+            scorer: e.relatedPlayer, scoreLabel: `${before + 1} : ${oppBefore}`, situation,
+            videoMatchId: m.videoMatchId, code: e.code, team: e.team,
+          })
+        }
+        score[scoringTeam] = before + 1
+      })
+    })
+    return rows.sort((a, b) => (a.matchName || '').localeCompare(b.matchName || '') || a.time - b.time)
+  }, [teamMatches, effectiveTeam])
+
+  const goalSituationSummary = useMemo(() => {
+    const c: Record<GoalSituation, number> = { lead: 0, tied: 0, trail: 0 }
+    goalSituations.forEach(r => c[r.situation]++)
+    return c
+  }, [goalSituations])
+
+  const openGoalVideo = (row: GoalSituationRow) => {
+    if (!row.videoMatchId) return
+    openInNewTab(`/Alter_sportsplay/index.html?matchId=${row.videoMatchId}&time=${Math.max(0, Math.floor(row.time))}`)
+  }
+
   const shotTypes = useMemo(() => Array.from(new Set(shots.map(s => s.shotType).filter(Boolean))) as string[], [shots])
+  const assistTypes = useMemo(() => Array.from(new Set(shots.map(s => s.assistType).filter(Boolean))) as string[], [shots])
+  const pressureLevels = useMemo(() => Array.from(new Set(shots.map(s => s.defensePressure).filter(Boolean))) as string[], [shots])
 
   // 로그 필터 — 경기 다중선택은 null(전체)이 기본, 사용자가 한 번이라도 체크박스를 건드리면 Set으로 좁혀짐
   const logRows = useMemo(() => {
@@ -170,15 +299,18 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
     if (logZoneFilter !== 'ALL') rows = rows.filter(s => getShotKind(s.code || '', s.shotType, s.shotSituation) === logZoneFilter)
     if (logTypeFilter !== 'ALL') rows = rows.filter(s => s.shotType === logTypeFilter)
     if (logOutputFilter !== 'ALL') rows = rows.filter(s => s.output === logOutputFilter)
+    if (logAssistFilter !== 'ALL') rows = rows.filter(s => s.assistType === logAssistFilter)
+    if (logPressureFilter !== 'ALL') rows = rows.filter(s => s.defensePressure === logPressureFilter)
     if (logSearch.trim()) {
       const q = logSearch.trim().toLowerCase()
       rows = rows.filter(s => `${s.player || ''} ${s.matchName || ''} ${s.teamName}`.toLowerCase().includes(q))
     }
     return [...rows].sort((a, b) => (a.matchName || '').localeCompare(b.matchName || '') || (a.time ?? 0) - (b.time ?? 0))
-  }, [shots, logTeamFilter, logMatchFilter, logZoneFilter, logTypeFilter, logOutputFilter, logSearch])
+  }, [shots, logTeamFilter, logMatchFilter, logZoneFilter, logTypeFilter, logOutputFilter, logAssistFilter, logPressureFilter, logSearch])
 
   const resetLogFilters = () => {
-    setLogTeamFilter('ALL'); setLogMatchFilter(null); setLogZoneFilter('ALL'); setLogTypeFilter('ALL'); setLogOutputFilter('ALL'); setLogSearch('')
+    setLogTeamFilter('ALL'); setLogMatchFilter(null); setLogZoneFilter('ALL'); setLogTypeFilter('ALL'); setLogOutputFilter('ALL')
+    setLogAssistFilter('ALL'); setLogPressureFilter('ALL'); setLogSearch('')
   }
 
   const toggleMatchInFilter = (matchId: string, allMatchIds: string[]) => {
@@ -421,6 +553,26 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
                   </SelectContent>
                 </Select>
 
+                {assistTypes.length > 0 && (
+                  <Select value={logAssistFilter} onValueChange={setLogAssistFilter}>
+                    <SelectTrigger className="h-8 w-32 text-xs"><SelectValue placeholder="어시스트" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">전체 어시스트</SelectItem>
+                      {assistTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {pressureLevels.length > 0 && (
+                  <Select value={logPressureFilter} onValueChange={setLogPressureFilter}>
+                    <SelectTrigger className="h-8 w-32 text-xs"><SelectValue placeholder="수비 압박" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">전체 압박강도</SelectItem>
+                      {pressureLevels.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+
                 <div className="relative flex-1 min-w-[160px]">
                   <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <Input value={logSearch} onChange={(e) => setLogSearch(e.target.value)} placeholder="선수/경기명 검색..." className="h-8 pl-8 text-xs" />
@@ -537,6 +689,164 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
                     ))}
                   </TableBody>
                 </Table>
+              </CardContent>
+            </Card>
+          )}
+
+          {defenderStats.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5" /> 수비 기록 (블락 · GK 선방)</CardTitle>
+                <CardDescription>{effectiveTeam}이 상대 슈팅/PC를 막은 선수 기준 · 컬럼을 클릭하면 정렬됩니다</CardDescription>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {([
+                        ['defender', '선수', 'left'],
+                        ['total', '합계', 'center'],
+                        ['save', 'GK 선방', 'center'],
+                        ['block', '블락', 'center'],
+                      ] as [DefenderStatKey, string, string][]).map(([key, label, align]) => (
+                        <TableHead key={key} className={`cursor-pointer select-none hover:text-primary transition-colors ${align === 'center' ? 'text-center' : ''}`} onClick={() => toggleDefenderSort(key)}>
+                          <span className={`inline-flex items-center gap-1 ${align === 'center' ? 'justify-center' : ''}`}>{label}</span>
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {defenderStats.map(row => (
+                      <TableRow key={row.defender}>
+                        <TableCell className="font-bold">{row.defender}</TableCell>
+                        <TableCell className="text-center font-bold text-primary">{row.total}</TableCell>
+                        <TableCell className="text-center text-sky-600 font-bold">{row.save}</TableCell>
+                        <TableCell className="text-center text-purple-600 font-bold">{row.block}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
+          {(gkRateByKind.length > 0 || gkRateByType.length > 0) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5" /> 골키퍼 선방율</CardTitle>
+                <CardDescription>{effectiveTeam}이 막아낸 상대 슈팅/PC 기준 (선방율 = 선방 / (선방 + 실점)) · PC는 Direct/Var 구분됩니다</CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {gkRateByKind.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-muted-foreground uppercase mb-2">구분별</p>
+                    <Table>
+                      <TableHeader><TableRow>
+                        <TableHead>구분</TableHead>
+                        <TableHead className="text-center">시도</TableHead>
+                        <TableHead className="text-center">선방</TableHead>
+                        <TableHead className="text-center">실점</TableHead>
+                        <TableHead className="text-center">선방율</TableHead>
+                      </TableRow></TableHeader>
+                      <TableBody>
+                        {gkRateByKind.map(row => (
+                          <TableRow key={row.label}>
+                            <TableCell className="font-bold">{row.label}</TableCell>
+                            <TableCell className="text-center">{row.attempts}</TableCell>
+                            <TableCell className="text-center text-sky-600">{row.saves}</TableCell>
+                            <TableCell className="text-center text-rose-600">{row.goals}</TableCell>
+                            <TableCell className="text-center font-bold text-primary">{row.rate.toFixed(1)}%</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+                {gkRateByType.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-muted-foreground uppercase mb-2">슈팅 유형별</p>
+                    <Table>
+                      <TableHeader><TableRow>
+                        <TableHead>유형</TableHead>
+                        <TableHead className="text-center">시도</TableHead>
+                        <TableHead className="text-center">선방</TableHead>
+                        <TableHead className="text-center">실점</TableHead>
+                        <TableHead className="text-center">선방율</TableHead>
+                      </TableRow></TableHeader>
+                      <TableBody>
+                        {gkRateByType.map(row => (
+                          <TableRow key={row.label}>
+                            <TableCell className="font-bold">{row.label}</TableCell>
+                            <TableCell className="text-center">{row.attempts}</TableCell>
+                            <TableCell className="text-center text-sky-600">{row.saves}</TableCell>
+                            <TableCell className="text-center text-rose-600">{row.goals}</TableCell>
+                            <TableCell className="text-center font-bold text-primary">{row.rate.toFixed(1)}%</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {goalSituations.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5" /> 득점 상황 분석</CardTitle>
+                <CardDescription>{effectiveTeam}의 득점이 그 시점 스코어 기준 우세/동점/열세 중 어느 상황에서 나왔는지</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="rounded-lg bg-emerald-50 py-3">
+                    <div className="text-2xl font-black text-emerald-600">{goalSituationSummary.lead}</div>
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase">우세 상황 득점</div>
+                  </div>
+                  <div className="rounded-lg bg-amber-50 py-3">
+                    <div className="text-2xl font-black text-amber-600">{goalSituationSummary.tied}</div>
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase">동점 상황 득점</div>
+                  </div>
+                  <div className="rounded-lg bg-rose-50 py-3">
+                    <div className="text-2xl font-black text-rose-600">{goalSituationSummary.trail}</div>
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase">열세 상황 득점</div>
+                  </div>
+                </div>
+                <div className="overflow-x-auto rounded-lg border">
+                  <Table>
+                    <TableHeader><TableRow>
+                      <TableHead>경기</TableHead>
+                      <TableHead>쿼터/시간</TableHead>
+                      <TableHead>득점자</TableHead>
+                      <TableHead className="text-center">스코어</TableHead>
+                      <TableHead className="text-center">상황</TableHead>
+                      <TableHead className="text-center">영상</TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>
+                      {goalSituations.map((row, i) => {
+                        const canPlay = !!row.videoMatchId
+                        const min = Math.floor(row.time / 60), sec = Math.floor(row.time % 60)
+                        return (
+                          <TableRow
+                            key={`${row.matchId}-${i}`}
+                            className={canPlay ? "cursor-pointer hover:bg-primary/5" : ""}
+                            onClick={() => canPlay && openGoalVideo(row)}
+                            title={canPlay ? "클릭하면 이 득점 장면 영상으로 이동합니다" : "이 경기는 영상이 연결돼있지 않습니다"}
+                          >
+                            <TableCell className="max-w-[160px] truncate text-xs font-semibold">{row.matchName || '-'}</TableCell>
+                            <TableCell className="text-xs">{row.quarter || ''} {min}:{String(sec).padStart(2, '0')}</TableCell>
+                            <TableCell className="text-xs font-bold">{row.scorer || '-'}</TableCell>
+                            <TableCell className="text-center text-xs font-mono">{row.scoreLabel}</TableCell>
+                            <TableCell className={`text-center text-xs font-bold ${SITUATION_COLORS[row.situation]}`}>{SITUATION_LABELS[row.situation]}</TableCell>
+                            <TableCell className="text-center">
+                              {canPlay ? <Video className="h-4 w-4 mx-auto text-primary" /> : <Video className="h-4 w-4 mx-auto opacity-20" />}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           )}
