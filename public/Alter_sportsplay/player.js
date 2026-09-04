@@ -108,6 +108,13 @@ function switchCam(n) {
   const wasPlaying = isPlayerReady && prevPlayer && typeof prevPlayer.getPlayerState === 'function'
     && prevPlayer.getPlayerState() === YT.PlayerState.PLAYING;
 
+  // 이전 카메라를 반드시 멈춤 — 안 그러면 화면(opacity:0)에만 안 보일 뿐 백그라운드에서 계속
+  // 재생돼서, 카메라를 여러 번 돌리며 볼 때 여러 각도의 소리가 동시에 겹쳐 들리는 문제가 있었음
+  // (사용자 신고). 한 번에 하나의 카메라만 소리가 나야 하므로 전환 즉시 이전 것부터 정지.
+  if (prevPlayer && typeof prevPlayer.pauseVideo === 'function') {
+    prevPlayer.pauseVideo();
+  }
+
   activeCam = n;
   const wrappers = [null,
     document.getElementById('player-wrapper-1'),
@@ -181,10 +188,20 @@ function onPlayerReady(event) {
 
 
 function onPlayerStateChange(event) {
-  // cam1/cam2/cam3 전부 같은 핸들러를 씀 — 지금 화면에 안 보이는(비활성) 카메라가 백그라운드에서
+  // cam1/cam2/cam3/cam4 전부 같은 핸들러를 씀 — 지금 화면에 안 보이는(비활성) 카메라가 백그라운드에서
   // 자동재생되며 상태변화를 일으켜도 재생/정지 버튼이 잘못 바뀌지 않도록, 실제로 이 이벤트를
   // 일으킨 플레이어가 지금 활성 카메라일 때만 UI를 갱신함.
-  if (event.target !== getActivePlayer()) return;
+  if (event.target !== getActivePlayer()) {
+    // 비활성 카메라가 재생 상태로 바뀌면 즉시 멈춘다 — loadVideoById()는 유튜브 API 특성상
+    // 로드와 동시에 자동재생을 시작해서, 경기 로드 시 카메라 2/3/4(중계캠 포함)가 화면엔 안
+    // 보여도 소리는 같이 나고 있었음(사용자 신고: 각도 전환 시 여러 각도 소리가 겹쳐 들림).
+    // switchCam()도 전환 직전 이전 카메라를 pauseVideo()하지만, 여기서 한 번 더 막아두면
+    // 초기 로드 autoplay나 다른 경로로 비활성 카메라가 재생되는 경우까지 전부 방어된다.
+    if (event.data === YT.PlayerState.PLAYING && typeof event.target.pauseVideo === 'function') {
+      event.target.pauseVideo();
+    }
+    return;
+  }
   // YT.PlayerState.PLAYING = 1, PAUSED = 2
   if (event.data === YT.PlayerState.PLAYING) {
     playPauseBtn.textContent = '⏸ 일시 정지';
