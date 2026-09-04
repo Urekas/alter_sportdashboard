@@ -205,7 +205,9 @@ function SidePanel({
   onShotClick?: (shot: ShotDatum) => void
 }) {
   const clipId = useId()
-  // 슈팅 발사 위치 그리드 전용 — PC/필드슛 선택은 이 지도(그리드+마커)에만 적용됨(골대 타겟은 항상 전체).
+  // 필드슛/PC/PS 구분 필터 — 발사 위치 지도뿐 아니라 골대 타겟 지도(그리드+마커)에도 똑같이
+  // 적용됨. 예전엔 골대 타겟은 항상 전체를 보여줬는데, PC랑 필드슛 타겟 위치가 섞여 있으면
+  // 구분해서 보기 어렵다는 피드백으로 여기도 zoneFilter를 그대로 반영하도록 통일함.
   const zoneShots = useMemo(() => {
     if (zoneFilter === 'field') return shots.filter(s => getShotKind(s.code || '', s.shotType, s.shotSituation) === 'field')
     if (zoneFilter === 'pc') return shots.filter(s => s.isPC)
@@ -213,18 +215,20 @@ function SidePanel({
     return shots
   }, [shots, zoneFilter])
   const fieldShots = useMemo(() => zoneShots.filter(s => fieldPixel(s) !== null), [zoneShots])
-  const goalShots = useMemo(() => shots.filter(s => goalPixel(s) !== null), [shots])
+  const goalShots = useMemo(() => zoneShots.filter(s => goalPixel(s) !== null), [zoneShots])
   const fieldGrid = useMemo(() => showGrid ? buildCircleGrid(fieldShots, SHOOTING_CIRCLE_RADIUS) : [], [showGrid, fieldShots])
-  const goalGrid = useMemo(() => showGrid ? buildGoalGrid(shots, goalGridSize) : [], [showGrid, shots, goalGridSize])
+  const goalGrid = useMemo(() => showGrid ? buildGoalGrid(zoneShots, goalGridSize) : [], [showGrid, zoneShots, goalGridSize])
   const maxFieldCount = Math.max(1, ...fieldGrid.map(c => c.count))
   const maxGoalCount = Math.max(1, ...goalGrid.map(c => c.count))
   const g = goalFrameGeom()
 
+  // 아래 결과 요약 배지도 두 지도와 같은 기준(zoneShots)으로 세야, PC만 골라봤을 때
+  // 지도 위 마커 개수랑 배지 숫자가 서로 안 맞는 일이 없음.
   const outcomeSummary = useMemo(() => {
     const counts: Record<ShotDatum['output'], number> = { goal: 0, save: 0, block: 0, out: 0, fail: 0, unknown: 0 }
-    shots.forEach(s => counts[s.output]++)
+    zoneShots.forEach(s => counts[s.output]++)
     return counts
-  }, [shots])
+  }, [zoneShots])
 
   return (
     <div className="space-y-3">
@@ -393,23 +397,23 @@ export function ShotZoneMap({
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full border-2 border-current" /> 필드슛</span>
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 border-2 border-current rounded-[2px]" /> PC</span>
           </div>
-          {showGrid && (
-            <div className="flex items-center gap-1 print-hidden bg-muted rounded-md p-0.5">
-              {ZONE_FILTER_OPTIONS.map(opt => (
-                <button
-                  key={opt.key}
-                  type="button"
-                  onClick={() => setZoneFilter(opt.key)}
-                  className={cn(
-                    "text-xs font-bold px-2 py-1 rounded transition-colors",
-                    zoneFilter === opt.key ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* 필드슛/PC/PS 구분 — 발사 위치 지도뿐 아니라 골대 타겟 지도에도 같이 적용되므로
+              (zoneShots) 그리드를 안 켜도 항상 보이게 둔다. */}
+          <div className="flex items-center gap-1 print-hidden bg-muted rounded-md p-0.5">
+            {ZONE_FILTER_OPTIONS.map(opt => (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => setZoneFilter(opt.key)}
+                className={cn(
+                  "text-xs font-bold px-2 py-1 rounded transition-colors",
+                  zoneFilter === opt.key ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-2 print-hidden">
             <Switch id="shot-grid-toggle" checked={showGrid} onCheckedChange={setShowGrid} />
             <Label htmlFor="shot-grid-toggle" className="text-xs font-bold cursor-pointer">구역 그리드</Label>
