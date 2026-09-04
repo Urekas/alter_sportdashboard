@@ -1018,7 +1018,9 @@ body.locked-viewer-mode #section-explorer {
    0px를 주는 기존 규칙과도 그대로 호환됨. */
 @media (max-width: 940px) and (orientation: landscape) {
   :root {
-    --panel-width: 260px;
+    /* 260px는 폭이 좁은 실기기 가로 화면(예: 667px)에서 영상 영역을 407px까지 눌러버려서
+       "화면이 너무 작다"는 피드백으로 축소 — 목록 텍스트는 여전히 읽을 수 있는 선. */
+    --panel-width: 200px;
   }
   body {
     height: 100vh;
@@ -1030,5 +1032,37 @@ body.locked-viewer-mode #section-explorer {
   #bottom-panel {
     min-height: 56px;
     padding: 6px 12px;
+  }
+  /* 터치 타깃 확대 — 기존 29x32px(패널 토글)/38x38px(전체화면)는 실기기 터치로 정확히
+     누르기 어려워서(사용자 신고: "옆에 익스플로어 접는 게 잘 안 됨") Apple/Google 권장
+     최소 터치 영역(44px)에 맞춤. 아이콘 자체 크기는 유지하고 클릭 가능 영역만 넓힘. */
+  #toggle-left-btn, #show-left-btn {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 1.4rem;
+  }
+  .video-fullscreen-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1.3rem;
+  }
+  /* 카메라 전환 버튼 줄(전술캠1~3·중계캠)이 좁은 화면에선 가로 스크롤 밖으로 밀려나는데
+     (기존 overflow-x:auto 자체는 정상 동작 — 위 940px 공통 규칙), 스크롤 가능하다는
+     시각적 힌트가 없어 "화면 밖에 있는 버튼을 놓쳤다"는 인상을 줌. 오른쪽 끝에 옅은
+     그라디언트 페이드로 "더 있음"을 암시. */
+  .workspace-header {
+    position: relative;
+  }
+  .workspace-header::after {
+    content: '';
+    position: sticky;
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: 24px;
+    margin-left: -24px;
+    flex-shrink: 0;
+    background: linear-gradient(to right, transparent, var(--bg));
+    pointer-events: none;
   }
 }
