@@ -9,7 +9,7 @@
 // 2026-08 개편: 타임라인 로그(전체 슈팅 목록, 클릭→영상 이동) + 선수별 통계 정렬 + 우리팀/상대팀
 // KPI 비교 카드 추가. 그리드 칸 크기 조절 UI는 사용자가 "나중에 직접 하겠다"고 보류한 항목이라
 // 이번에도 안 건드림(gridCols/gridRows/goalGridSize는 이미 props로 존재).
-import { useMemo, useState } from "react"
+import { Fragment, useMemo, useState } from "react"
 import { Trophy, Users, Loader2, Target, Sword, ShieldCheck, Table2, ListVideo, ArrowUp, ArrowDown, ArrowUpDown, Video, Search, RotateCcw } from "lucide-react"
 import type { MatchData, Tournament } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -42,7 +42,8 @@ function openShotVideo(shot: ShotDatum) {
   openInNewTab(`/Alter_sportsplay/index.html?matchId=${shot.videoMatchId}&time=${Math.max(0, Math.floor(shot.time))}`)
 }
 
-type PlayerStatKey = 'player' | 'total' | 'goal' | 'save' | 'block' | 'out' | 'fail'
+type PlayerStatKey = 'player' | 'total' | 'goal' | 'save' | 'block' | 'out' | 'fail' | 'rate'
+type DefenderStatKey = 'player' | 'total' | 'block' | 'save' | 'goal' | 'saveRate'
 
 export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProps) {
   const [category, setCategory] = useState("")
@@ -62,6 +63,13 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
   const [playerSortKey, setPlayerSortKey] = useState<PlayerStatKey>('total')
   const [playerSortDesc, setPlayerSortDesc] = useState(true)
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false)
+  // 선수별 슈팅 통계 + 수비/골키퍼 기록에 공통으로 적용되는 필드슛/PC 구분 — 사용자 요청:
+  // "PC선수들의 슈팅이나 필드 슈팅 성공율 각각 보고 싶거든", "PC 상황에서의 선방율, 필드상황에서의
+  // 선방율" 둘 다 이 하나의 토글로 해결(전체를 고르면 지금까지처럼 합산).
+  const [statsZoneFilter, setStatsZoneFilter] = useState<'ALL' | 'field' | 'pc'>('ALL')
+  const [defenderSortKey, setDefenderSortKey] = useState<DefenderStatKey>('total')
+  const [defenderSortDesc, setDefenderSortDesc] = useState(true)
+  const [expandedDefenderKey, setExpandedDefenderKey] = useState<string | null>(null)
 
   const { toast } = useToast()
   const db = useFirestore()
@@ -108,8 +116,9 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
           // match-event-timeline.tsx와 동일한 이유) 경기ID+인덱스 조합을 진짜 식별자로 씀.
           id: `${m.id}-${idx}`, side: isUs ? 'A' : 'B', teamName: e.team, player: e.shooter, output,
           shotType: e.shotType, shotSituation: e.shotSituation, isPC: isPcAttempt(e.code, e.shotType, e.shotSituation), code: e.code,
+          defender: e.defender,
           xLoc: e.xLoc, yLoc: e.yLoc, xGoal: e.xGoal, yGoal: e.yGoal, outDir: e.outDir,
-          matchName: m.matchName, quarter: e.quarter, time: e.time,
+          matchName: m.matchName, matchNumber: m.matchNumber, quarter: e.quarter, time: e.time,
           matchId: m.id, videoMatchId: m.videoMatchId,
         })
         const bucket = isUs ? kpiSum.us : kpiSum.opp
@@ -123,16 +132,24 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
     return { shots: result, teamMatches: relevant, kpi: kpiSum }
   }, [scopedMatches, effectiveTeam])
 
+  // statsZoneFilter로 좁힌 시도만 대상 — "PC선수들의 슈팅이나 필드 슈팅 성공율 각각 보고 싶거든"
+  const statsScopedShots = useMemo(() => {
+    if (statsZoneFilter === 'ALL') return shots
+    return shots.filter(s => getShotKind(s.code || '', s.shotType, s.shotSituation) === statsZoneFilter)
+  }, [shots, statsZoneFilter])
+
   const playerStats = useMemo(() => {
     const map = new Map<string, { player: string, total: number, goal: number, save: number, block: number, out: number, fail: number }>()
-    shots.filter(s => s.side === 'A' && s.player).forEach(s => {
+    statsScopedShots.filter(s => s.side === 'A' && s.player).forEach(s => {
       const key = s.player!
       if (!map.has(key)) map.set(key, { player: key, total: 0, goal: 0, save: 0, block: 0, out: 0, fail: 0 })
       const row = map.get(key)!
       row.total++
       if (s.output !== 'unknown') (row as any)[s.output]++
     })
-    const arr = Array.from(map.values())
+    const arr = map.size > 0
+      ? Array.from(map.values()).map(row => ({ ...row, rate: row.total > 0 ? (row.goal / row.total) * 100 : 0 }))
+      : []
     arr.sort((a, b) => {
       const av = a[playerSortKey], bv = b[playerSortKey]
       if (typeof av === 'string' || typeof bv === 'string') {
@@ -142,12 +159,50 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
       return playerSortDesc ? (bv as number) - (av as number) : (av as number) - (bv as number)
     })
     return arr
-  }, [shots, playerSortKey, playerSortDesc])
+  }, [statsScopedShots, playerSortKey, playerSortDesc])
 
   const togglePlayerSort = (key: PlayerStatKey) => {
     if (playerSortKey === key) setPlayerSortDesc(d => !d)
     else { setPlayerSortKey(key); setPlayerSortDesc(key !== 'player') }
   }
+
+  // 수비/골키퍼 기록 — "수비기록 이거 선수들 각각 몇번 막았는지 그리고 누르면 해당블록 볼 수 있게",
+  // "골키퍼 선방율도 PC 선방율 아닌선방율. PC 상황에서의 슈팅별 선방율, 필드상황에서의 선방율".
+  // 상대(side==='B')가 쏜 시도 중 defender(GK_Player, 막아낸 선수) 라벨이 있는 것만 집계 —
+  // 선방율은 "막아냈거나 실점한" 시도(save+goal) 중 save 비율(블락/아웃/실패는 GK 판단력과 무관해 분모 제외).
+  const defenderStats = useMemo(() => {
+    const map = new Map<string, { player: string, total: number, block: number, save: number, goal: number, out: number, fail: number, clips: Record<ShotDatum['output'], ShotDatum[]> }>()
+    statsScopedShots.filter(s => s.side === 'B' && s.defender).forEach(s => {
+      const key = s.defender!
+      if (!map.has(key)) map.set(key, { player: key, total: 0, block: 0, save: 0, goal: 0, out: 0, fail: 0, clips: { goal: [], save: [], block: [], out: [], fail: [], unknown: [] } })
+      const row = map.get(key)!
+      row.total++
+      if (row.hasOwnProperty(s.output)) (row as any)[s.output]++
+      row.clips[s.output].push(s)
+    })
+    const arr = Array.from(map.values()).map(row => ({
+      ...row,
+      saveRate: (row.save + row.goal) > 0 ? (row.save / (row.save + row.goal)) * 100 : 0,
+    }))
+    arr.sort((a, b) => {
+      const av = a[defenderSortKey], bv = b[defenderSortKey]
+      if (typeof av === 'string' || typeof bv === 'string') {
+        const cmp = String(av).localeCompare(String(bv), 'ko')
+        return defenderSortDesc ? -cmp : cmp
+      }
+      return defenderSortDesc ? (bv as number) - (av as number) : (av as number) - (bv as number)
+    })
+    return arr
+  }, [statsScopedShots, defenderSortKey, defenderSortDesc])
+
+  const toggleDefenderSort = (key: DefenderStatKey) => {
+    if (defenderSortKey === key) setDefenderSortDesc(d => !d)
+    else { setDefenderSortKey(key); setDefenderSortDesc(key !== 'player') }
+  }
+
+  const defenderSortIcon = (key: DefenderStatKey) => defenderSortKey !== key
+    ? <ArrowUpDown className="h-3 w-3 opacity-40" />
+    : defenderSortDesc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />
 
   const shotTypes = useMemo(() => Array.from(new Set(shots.map(s => s.shotType).filter(Boolean))) as string[], [shots])
 
@@ -163,7 +218,9 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
       const q = logSearch.trim().toLowerCase()
       rows = rows.filter(s => `${s.player || ''} ${s.matchName || ''} ${s.teamName}`.toLowerCase().includes(q))
     }
-    return [...rows].sort((a, b) => (a.matchName || '').localeCompare(b.matchName || '') || (a.time ?? 0) - (b.time ?? 0))
+    // 경기 순서는 matchName 문자열 비교 대신 matchNumber(숫자)로 — "M6"과 "M46"처럼 자리수
+    // 표기가 안 맞으면 문자열 비교('4'<'6')로는 M46이 M6보다 앞에 와버리는 버그가 있었음.
+    return [...rows].sort((a, b) => (a.matchNumber ?? 0) - (b.matchNumber ?? 0) || (a.matchName || '').localeCompare(b.matchName || '') || (a.time ?? 0) - (b.time ?? 0))
   }, [shots, logTeamFilter, logMatchFilter, logZoneFilter, logTypeFilter, logOutputFilter, logSearch])
 
   const resetLogFilters = () => {
@@ -478,6 +535,21 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
             </CardContent>
           </Card>
 
+          {(playerStats.length > 0 || defenderStats.length > 0) && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase mr-0.5">시도 구분</span>
+              <div className="flex rounded-md border overflow-hidden">
+                {([['ALL', '전체'], ['field', '필드슛'], ['pc', 'PC']] as const).map(([v, label]) => (
+                  <button key={v} onClick={() => setStatsZoneFilter(v)}
+                    className={`px-3 py-1.5 text-xs font-bold transition-colors ${statsZoneFilter === v ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <span className="text-[10px] text-muted-foreground">아래 선수별 슈팅 통계·수비/골키퍼 기록 두 표에 함께 적용됩니다</span>
+            </div>
+          )}
+
           {playerStats.length > 0 && (
             <Card>
               <CardHeader>
@@ -492,6 +564,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
                         ['player', '선수', 'left'],
                         ['total', '총 시도', 'center'],
                         ['goal', '득점', 'center'],
+                        ['rate', '성공률', 'center'],
                         ['save', 'GK 선방', 'center'],
                         ['block', '블락', 'center'],
                         ['out', '아웃', 'center'],
@@ -509,12 +582,101 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
                         <TableCell className="font-bold">{row.player}</TableCell>
                         <TableCell className="text-center font-bold text-primary">{row.total}</TableCell>
                         <TableCell className="text-center text-emerald-600 font-bold">{row.goal}</TableCell>
+                        <TableCell className="text-center font-bold">{Math.round(row.rate)}%</TableCell>
                         <TableCell className="text-center">{row.save}</TableCell>
                         <TableCell className="text-center">{row.block}</TableCell>
                         <TableCell className="text-center">{row.out}</TableCell>
                         <TableCell className="text-center">{row.fail}</TableCell>
                       </TableRow>
                     ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
+          {defenderStats.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5" /> 수비/골키퍼 기록</CardTitle>
+                <CardDescription>상대팀 시도 기준 (GK_Player 라벨이 태깅된 시도만 집계) · 선방율 = 선방 / (선방+실점) · 시도 수를 클릭하면 그 장면들을 볼 수 있습니다</CardDescription>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {([
+                        ['player', '선수', 'left'],
+                        ['total', '상대 시도', 'center'],
+                        ['block', '블락', 'center'],
+                        ['save', '선방', 'center'],
+                        ['goal', '실점', 'center'],
+                        ['saveRate', '선방율', 'center'],
+                      ] as [DefenderStatKey, string, string][]).map(([key, label, align]) => (
+                        <TableHead key={key} className={`cursor-pointer select-none hover:text-primary transition-colors ${align === 'center' ? 'text-center' : ''}`} onClick={() => toggleDefenderSort(key)}>
+                          <span className={`inline-flex items-center gap-1 ${align === 'center' ? 'justify-center' : ''}`}>{label} {defenderSortIcon(key)}</span>
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {defenderStats.map(row => {
+                      const cell = (outcome: ShotDatum['output'], value: number, cls: string) => {
+                        const clips = row.clips[outcome]
+                        const cellKey = `${row.player}-${outcome}`
+                        if (clips.length === 0) return <TableCell className={`text-center ${cls}`}>{value}</TableCell>
+                        return (
+                          <TableCell className="text-center">
+                            <button
+                              type="button"
+                              className={`font-bold hover:underline underline-offset-2 inline-flex items-center gap-1 ${cls}`}
+                              onClick={() => setExpandedDefenderKey(expandedDefenderKey === cellKey ? null : cellKey)}
+                            >
+                              {value}<Video className="h-3 w-3 opacity-60" />
+                            </button>
+                          </TableCell>
+                        )
+                      }
+                      const expandedOutcome = (['block', 'save', 'goal'] as const).find(o => expandedDefenderKey === `${row.player}-${o}`)
+                      return (
+                        <Fragment key={row.player}>
+                          <TableRow>
+                            <TableCell className="font-bold">{row.player}</TableCell>
+                            <TableCell className="text-center font-bold text-primary">{row.total}</TableCell>
+                            {cell('block', row.block, 'font-bold')}
+                            {cell('save', row.save, 'font-bold text-sky-600')}
+                            {cell('goal', row.goal, 'font-bold text-rose-600')}
+                            <TableCell className="text-center font-bold">{Math.round(row.saveRate)}%</TableCell>
+                          </TableRow>
+                          {expandedOutcome && (
+                            <TableRow key={`${row.player}-expanded`}>
+                              <TableCell colSpan={6} className="bg-muted/40">
+                                <p className="text-[10px] font-bold text-muted-foreground mb-1.5">
+                                  {row.player} · {OUTPUT_LABELS[expandedOutcome]} 장면 {row.clips[expandedOutcome].length}개
+                                </p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {row.clips[expandedOutcome].map((s, i) => {
+                                    const canPlay = !!s.videoMatchId && s.time !== undefined
+                                    const min = s.time !== undefined ? Math.floor(s.time / 60) : null
+                                    const sec = s.time !== undefined ? Math.floor(s.time % 60) : null
+                                    return (
+                                      <button
+                                        key={i}
+                                        disabled={!canPlay}
+                                        onClick={() => canPlay && openShotVideo(s)}
+                                        className="text-[11px] font-mono bg-background border rounded px-2 py-0.5 hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                      >
+                                        {min !== null ? `${min}:${String(sec).padStart(2, '0')}` : '-'} · {s.matchName || ''}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </Fragment>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>

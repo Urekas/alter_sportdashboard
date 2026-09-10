@@ -28,11 +28,16 @@ export interface ShotDatum {
   yGoal?: number
   outDir?: string
   matchName?: string
+  matchNumber?: number   // 일정표 "Match #"(예: M06=6) — 경기 순서 정렬은 matchName 문자열
+                          // 비교(localeCompare) 대신 이 숫자로 해야 함("M6"과 "M46"을 문자열로
+                          // 비교하면 '4'<'6'이라 M46이 M6보다 앞에 와버림 — 자리수 안 맞는 실제
+                          // 이름 표기 차이 때문에 생기는 버그, 숫자 비교면 항상 정확함).
   quarter?: string
   time?: number
   matchId?: string       // 여러 경기를 한 번에 모아 보여줄 때(슈팅 분석 등) 어느 경기 소속인지
   videoMatchId?: string  // 그 경기에 영상이 연결돼있으면 클릭→영상 이동에 씀(없으면 이동 불가)
   code?: string          // 원본 MatchEvent.code — 비디오 도구 Events 컬렉션과의 매칭(재생목록 생성)에 씀
+  defender?: string      // "GK_Player" 라벨 — 이 슈팅을 막은 선수(골키퍼/필드 블로커)
 }
 
 const FIELD_MAX_X = 550
@@ -188,6 +193,29 @@ function buildGoalGrid(shots: ShotDatum[], goalGridSize: number): GridCell[] {
   return cells
 }
 
+// PC_direct(스트레이트 인젝션) 슈팅 전용 3지점 분석 — 요청: "PC 쏠때 1지점 2지점 3지점 이렇게
+// 되거든? ... 중간 살짝 오른쪽 살짝 왼쪽. direct일때만 그거 세개 위치 한번 나눠서 보여줄 수 있는
+// 방법". 서클 가운데 직선 구간(circleGeom의 leftCx~rightCx, 코너 인젝션이 실제로 일어나는 폭)을
+// 3등분해서 사용자가 평소 찍는 세 위치에 대응시킴 — 서클 밖으로 벗어난 좌표는 양끝 칸으로 clamp.
+const PC_DIRECT_LABELS = ['살짝 왼쪽', '중앙', '살짝 오른쪽'] as const
+interface PcSpot { label: string, count: number, goals: number }
+
+function buildPcDirectSpots(shots: ShotDatum[]): PcSpot[] {
+  const { leftCx, rightCx } = circleGeom(SHOOTING_CIRCLE_RADIUS)
+  const third = (rightCx - leftCx) / 3
+  const spots: PcSpot[] = PC_DIRECT_LABELS.map(label => ({ label, count: 0, goals: 0 }))
+  shots.forEach(s => {
+    if (s.xLoc === undefined) return
+    if (getShotKind(s.code || '', s.shotType, s.shotSituation) !== 'pc') return
+    if (!/^pc_direct$/i.test((s.shotSituation || '').trim())) return
+    const x = Math.min(rightCx, Math.max(leftCx, s.xLoc))
+    const idx = Math.min(2, Math.floor((x - leftCx) / third))
+    spots[idx].count++
+    if (s.output === 'goal') spots[idx].goals++
+  })
+  return spots
+}
+
 function SidePanel({
   label, color, shots, showGrid, zoneFilter, goalGridSize,
   onEnter, onMove, onLeave, onShotClick,
@@ -215,8 +243,9 @@ function SidePanel({
   const goalShots = useMemo(() => shots.filter(s => goalPixel(s) !== null), [shots])
   const fieldGrid = useMemo(() => showGrid ? buildCircleGrid(fieldShots, SHOOTING_CIRCLE_RADIUS) : [], [showGrid, fieldShots])
   const goalGrid = useMemo(() => showGrid ? buildGoalGrid(shots, goalGridSize) : [], [showGrid, shots, goalGridSize])
-  const maxFieldCount = Math.max(1, ...fieldGrid.map(c => c.count))
-  const maxGoalCount = Math.max(1, ...goalGrid.map(c => c.count))
+  // zoneFilter(필드슛/PC/PS 선택)와 무관하게 항상 이 사이드의 PC_direct 전체를 기준으로 봄 —
+  // "direct일때만" 세 지점을 보고 싶은 것이지 위 토글로 좁혀진 부분집합을 또 나누려는 게 아님.
+  const pcDirectSpots = useMemo(() => buildPcDirectSpots(shots), [shots])
   const g = goalFrameGeom()
 
   const outcomeSummary = useMemo(() => {
@@ -252,16 +281,22 @@ function SidePanel({
             {/* 그리드는 서클(D자) 내부로만 클립 — 3x2(좌/중/우 x 상/하) 6칸, 밖으로 삐져나가지 않음 */}
             {showGrid && (
               <g clipPath={`url(#${clipId})`}>
-                {fieldGrid.map((c, i) => (
-                  <g key={i}>
-                    <rect x={c.x} y={c.y} width={c.w} height={c.h} fill={color} opacity={c.count > 0 ? 0.12 + (c.count / maxFieldCount) * 0.35 : 0.02} stroke="rgba(255,255,255,0.15)" strokeWidth={0.5} />
-                    {c.count > 0 && (
-                      <text x={c.x + c.w / 2} y={c.y + c.h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={13} fill="#fff" fontWeight={700}>
-                        {c.goals}/{c.count}
-                      </text>
-                    )}
-                  </g>
-                ))}
+                {fieldGrid.map((c, i) => {
+                  // 칸 음영은 이제 "시도 횟수"가 아니라 "실제 득점 성공율"(득점/시도)을 나타냄 —
+                  // 시도가 많아도 득점 확률이 낮으면 옅게, 적게 쐈어도 잘 들어가면 진하게.
+                  const rate = c.count > 0 ? c.goals / c.count : 0
+                  return (
+                    <g key={i}>
+                      <rect x={c.x} y={c.y} width={c.w} height={c.h} fill={color} opacity={c.count > 0 ? 0.12 + rate * 0.55 : 0.02} stroke="rgba(255,255,255,0.15)" strokeWidth={0.5} />
+                      {c.count > 0 && (
+                        <text x={c.x + c.w / 2} y={c.y + c.h / 2} textAnchor="middle" dominantBaseline="middle" fill="#fff" fontWeight={700}>
+                          <tspan x={c.x + c.w / 2} dy="-3" fontSize={13}>{c.goals}/{c.count}</tspan>
+                          <tspan x={c.x + c.w / 2} dy="13" fontSize={10} fillOpacity={0.85}>{Math.round(rate * 100)}%</tspan>
+                        </text>
+                      )}
+                    </g>
+                  )
+                })}
               </g>
             )}
 
@@ -271,6 +306,28 @@ function SidePanel({
             })}
           </svg>
         </div>
+
+        {/* PC Direct 3지점 분석 — 태깅된 PC_direct 슈팅이 하나라도 있을 때만 표시 */}
+        {pcDirectSpots.some(s => s.count > 0) && (
+          <div>
+            <p className="text-xs font-bold text-muted-foreground mb-1">PC Direct 지점별 성공율</p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {pcDirectSpots.map(s => {
+                const rate = s.count > 0 ? s.goals / s.count : 0
+                return (
+                  <div key={s.label} className="relative rounded-md border overflow-hidden text-center">
+                    <div className="absolute inset-0" style={{ backgroundColor: color, opacity: s.count > 0 ? 0.12 + rate * 0.55 : 0.02 }} />
+                    <div className="relative px-2 py-1.5">
+                      <div className="text-[10px] font-bold text-muted-foreground">{s.label}</div>
+                      <div className="text-sm font-black">{s.count > 0 ? `${s.goals}/${s.count}` : '-'}</div>
+                      {s.count > 0 && <div className="text-[10px] font-bold" style={{ color }}>{Math.round(rate * 100)}%</div>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* 골대 도착 타겟 */}
         <div>
@@ -286,16 +343,21 @@ function SidePanel({
             ))}
             <path d={`M ${g.marginX} ${g.marginYBottom} L ${g.marginX} ${g.marginYTop} L ${GOAL_MAX_X - g.marginX} ${g.marginYTop} L ${GOAL_MAX_X - g.marginX} ${g.marginYBottom}`} fill="none" stroke="#ec3013" strokeWidth={2.5} strokeLinejoin="round" />
 
-            {showGrid && goalGrid.map((c, i) => (
-              <g key={i}>
-                <rect x={c.x} y={c.y} width={c.w} height={c.h} fill={color} opacity={c.count > 0 ? 0.1 + (c.count / maxGoalCount) * 0.35 : 0.02} stroke="rgba(255,255,255,0.15)" strokeWidth={0.5} />
-                {c.count > 0 && (
-                  <text x={c.x + c.w / 2} y={c.y + c.h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={13} fill="#fff" fontWeight={700}>
-                    {c.goals}/{c.count}
-                  </text>
-                )}
-              </g>
-            ))}
+            {showGrid && goalGrid.map((c, i) => {
+              // 발사 위치 그리드와 동일하게 "시도 횟수"가 아니라 "실제 득점 성공율"로 음영을 매김.
+              const rate = c.count > 0 ? c.goals / c.count : 0
+              return (
+                <g key={i}>
+                  <rect x={c.x} y={c.y} width={c.w} height={c.h} fill={color} opacity={c.count > 0 ? 0.12 + rate * 0.55 : 0.02} stroke="rgba(255,255,255,0.15)" strokeWidth={0.5} />
+                  {c.count > 0 && (
+                    <text x={c.x + c.w / 2} y={c.y + c.h / 2} textAnchor="middle" dominantBaseline="middle" fill="#fff" fontWeight={700}>
+                      <tspan x={c.x + c.w / 2} dy="-3" fontSize={13}>{c.goals}/{c.count}</tspan>
+                      <tspan x={c.x + c.w / 2} dy="13" fontSize={10} fillOpacity={0.85}>{Math.round(rate * 100)}%</tspan>
+                    </text>
+                  )}
+                </g>
+              )
+            })}
 
             {goalShots.map(s => {
               const p = goalPixel(s)!
@@ -320,6 +382,7 @@ interface ShotZoneMapProps {
   sideBLabel?: string
   sideAColor?: string
   sideBColor?: string
+  showSideA?: boolean
   showSideB?: boolean
   title?: string
   description?: string
@@ -341,6 +404,7 @@ export function ShotZoneMap({
   sideBLabel = "팀 B",
   sideAColor = "#ec3013",
   sideBColor = "#2d2b2b",
+  showSideA = true,
   showSideB = true,
   title = "슈팅 위치 · 골대 타겟 맵",
   description,
@@ -352,7 +416,15 @@ export function ShotZoneMap({
   const [zoneFilter, setZoneFilter] = useState<ZoneFilter>('all')
   const [tooltip, setTooltip] = useState<Tooltip | null>(null)
   const [open, setOpen] = useState(true)
+  // 우리팀/상대팀을 따로따로 볼 수 있게 하는 선택(둘 다 표시 가능한 경우에만 노출) — 사용자
+  // 요청: "중국애들만 혹은 다른팀애들만 이렇게 묶어서 볼 수 있게". showSideA/showSideB prop이
+  // 이미 false인 쪽은 이 선택과 무관하게 항상 숨김(호출부가 애초에 한쪽만 쓰기로 정한 경우).
+  const [sideDisplay, setSideDisplay] = useState<'both' | 'A' | 'B'>('both')
   const containerRef = useRef<HTMLDivElement>(null)
+
+  const canToggleSides = showSideA && showSideB
+  const effectiveShowSideA = showSideA && (!canToggleSides || sideDisplay !== 'B')
+  const effectiveShowSideB = showSideB && (!canToggleSides || sideDisplay !== 'A')
 
   const shotsA = useMemo(() => shots.filter(s => s.side === 'A'), [shots])
   const shotsB = useMemo(() => shots.filter(s => s.side === 'B'), [shots])
@@ -373,6 +445,23 @@ export function ShotZoneMap({
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full border-2 border-current" /> 필드슛</span>
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 border-2 border-current rounded-[2px]" /> PC</span>
           </div>
+          {canToggleSides && (
+            <div className="flex items-center gap-1 print-hidden bg-muted rounded-md p-0.5">
+              {([['both', '전체'], ['A', sideALabel], ['B', sideBLabel]] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSideDisplay(key)}
+                  className={cn(
+                    "text-xs font-bold px-2 py-1 rounded transition-colors",
+                    sideDisplay === key ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
           {showGrid && (
             <div className="flex items-center gap-1 print-hidden bg-muted rounded-md p-0.5">
               {ZONE_FILTER_OPTIONS.map(opt => (
@@ -398,16 +487,18 @@ export function ShotZoneMap({
         </div>
       </CardHeader>
       <CardContent className={cn(!open && "hidden print:block")}>
-        <div className={showSideB ? "grid grid-cols-1 lg:grid-cols-2 gap-6 lg:divide-x lg:gap-x-0" : ""}>
-          <div className={showSideB ? "lg:pr-6" : ""}>
-            <SidePanel
-              label={sideALabel} color={sideAColor} shots={shotsA} showGrid={showGrid} zoneFilter={zoneFilter}
-              goalGridSize={goalGridSize}
-              onEnter={handleEnter} onMove={handleMove} onLeave={handleLeave} onShotClick={onShotClick}
-            />
-          </div>
-          {showSideB && (
-            <div className="lg:pl-6">
+        <div className={effectiveShowSideA && effectiveShowSideB ? "grid grid-cols-1 lg:grid-cols-2 gap-6 lg:divide-x lg:gap-x-0" : ""}>
+          {effectiveShowSideA && (
+            <div className={effectiveShowSideB ? "lg:pr-6" : ""}>
+              <SidePanel
+                label={sideALabel} color={sideAColor} shots={shotsA} showGrid={showGrid} zoneFilter={zoneFilter}
+                goalGridSize={goalGridSize}
+                onEnter={handleEnter} onMove={handleMove} onLeave={handleLeave} onShotClick={onShotClick}
+              />
+            </div>
+          )}
+          {effectiveShowSideB && (
+            <div className={effectiveShowSideA ? "lg:pl-6" : ""}>
               <SidePanel
                 label={sideBLabel} color={sideBColor} shots={shotsB} showGrid={showGrid} zoneFilter={zoneFilter}
                 goalGridSize={goalGridSize}
