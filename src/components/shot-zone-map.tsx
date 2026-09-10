@@ -201,7 +201,8 @@ function buildGoalGrid(shots: ShotDatum[], goalGridSize: number): GridCell[] {
 // 되거든? ... 중간 살짝 오른쪽 살짝 왼쪽. direct일때만 그거 세개 위치 한번 나눠서 보여줄 수 있는
 // 방법". 서클 가운데 직선 구간(circleGeom의 leftCx~rightCx, 코너 인젝션이 실제로 일어나는 폭)을
 // 3등분해서 사용자가 평소 찍는 세 위치에 대응시킴 — 서클 밖으로 벗어난 좌표는 양끝 칸으로 clamp.
-const PC_DIRECT_LABELS = ['살짝 왼쪽', '중앙', '살짝 오른쪽'] as const
+// 라벨은 "살짝 좌/중앙/살짝 우"였다가 사용자 요청으로 "좌/중/우"로 단순화.
+const PC_DIRECT_LABELS = ['좌', '중', '우'] as const
 interface PcSpot { label: string, count: number, goals: number }
 
 function buildPcDirectSpots(shots: ShotDatum[]): PcSpot[] {
