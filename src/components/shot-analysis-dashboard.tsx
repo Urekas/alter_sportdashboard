@@ -229,12 +229,31 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
   const ourDefenseShots = useMemo(() => shots.filter(s => s.side === 'B' && isShotOnlyCode(s.code || '')), [shots])
 
   const defenderStats = useMemo(() => {
-    const map = new Map<string, { defender: string, save: number, block: number, total: number, clips: { save: ShotDatum[], block: ShotDatum[] } }>()
+    // 요청: "수비기록도 PC인지 아닌지 알려줘야지" — 합계 숫자 하나로만 보이면 그 블락/선방이
+    // 필드슛 상황에서 나온 건지 PC 상황에서 나온 건지 알 수 없어서, 유형별 세부 카운트를
+    // 같이 들고 있다가 표에 작은 보조 텍스트로 같이 보여준다(선방은 PS도 있을 수 있어 3분류,
+    // 블락은 PS 상황 자체가 없어 2분류).
+    const map = new Map<string, {
+      defender: string, save: number, block: number, total: number,
+      saveField: number, savePc: number, savePs: number, blockField: number, blockPc: number,
+      clips: { save: ShotDatum[], block: ShotDatum[] },
+    }>()
     ourDefenseShots.filter(s => s.defender && (s.output === 'save' || s.output === 'block') && matchesAttemptKindFilter(s)).forEach(s => {
       const key = s.defender!
-      if (!map.has(key)) map.set(key, { defender: key, save: 0, block: 0, total: 0, clips: { save: [], block: [] } })
+      if (!map.has(key)) map.set(key, { defender: key, save: 0, block: 0, total: 0, saveField: 0, savePc: 0, savePs: 0, blockField: 0, blockPc: 0, clips: { save: [], block: [] } })
       const row = map.get(key)!
-      if (s.output === 'save') row.save++; else row.block++
+      const kind = getShotKindDetailed(s.code || '', s.shotType, s.shotSituation)
+      const isPc = kind === 'pc_direct' || kind === 'pc_var'
+      if (s.output === 'save') {
+        row.save++
+        if (kind === 'ps') row.savePs++
+        else if (isPc) row.savePc++
+        else row.saveField++
+      } else {
+        row.block++
+        if (isPc) row.blockPc++
+        else row.blockField++
+      }
       row.total++
       row.clips[s.output as 'save' | 'block'].push(s)
     })
@@ -268,7 +287,10 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
 
   // 골키퍼 선방율 — 필드슛/PC(Direct)/PC(Var)/PS 구분별, 그리고 슈팅 유형(shotType)별로 각각.
   const gkRateByKind = useMemo(() => buildGkRateRows(gkScopedShots, getKindDetailLabel), [gkScopedShots])
-  const gkRateByType = useMemo(() => buildGkRateRows(gkScopedShots, s => s.shotType), [gkScopedShots])
+  // 요청: "슈팅 유형별 선방도 PC인지 아닌지 알려줘야지" — 같은 유형(hit/push/flick 등)이라도
+  // 필드슛일 때랑 PC일 때 선방율이 다를 수 있는데 예전엔 유형만 보고 섞어서 셌음. 이제 유형+구분을
+  // 묶어서 키로 쓰기 때문에 "hit · 필드슛"과 "hit · PC (Direct)"가 서로 다른 행으로 분리됨.
+  const gkRateByType = useMemo(() => buildGkRateRows(gkScopedShots, s => s.shotType ? `${s.shotType} · ${getKindDetailLabel(s)}` : undefined), [gkScopedShots])
 
   // effectiveTeam이 관여한 경기들의 득점 이벤트를 시간순으로 재구성해서, 각 득점이
   // 그 시점 스코어 기준 우세/동점/열세 중 어느 상황에서 나온 건지 계산.
@@ -779,10 +801,26 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
                   </TableHeader>
                   <TableBody>
                     {defenderStats.map(row => {
+                      // 요청: "수비기록도 PC인지 아닌지 알려줘야지" — 합계 숫자 밑에 필드슛/PC(/PS)
+                      // 세부 건수를 작은 보조 텍스트로 같이 보여준다(0인 구분은 생략).
+                      const breakdown = (outcome: 'save' | 'block') => {
+                        const parts = outcome === 'save'
+                          ? [['필드', row.saveField], ['PC', row.savePc], ['PS', row.savePs]] as const
+                          : [['필드', row.blockField], ['PC', row.blockPc]] as const
+                        return parts.filter(([, n]) => n > 0).map(([label, n]) => `${label} ${n}`).join(' · ')
+                      }
                       const cell = (outcome: 'save' | 'block', value: number, cls: string) => {
                         const clips = row.clips[outcome]
                         const cellKey = `${row.defender}-${outcome}`
-                        if (clips.length === 0) return <TableCell className={`text-center ${cls}`}>{value}</TableCell>
+                        const detail = breakdown(outcome)
+                        if (clips.length === 0) {
+                          return (
+                            <TableCell className={`text-center ${cls}`}>
+                              {value}
+                              {detail && <div className="text-[10px] font-normal text-muted-foreground">{detail}</div>}
+                            </TableCell>
+                          )
+                        }
                         return (
                           <TableCell className="text-center">
                             <button
@@ -792,6 +830,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
                             >
                               {value}<Video className="h-3 w-3 opacity-60" />
                             </button>
+                            {detail && <div className="text-[10px] font-normal text-muted-foreground">{detail}</div>}
                           </TableCell>
                         )
                       }
