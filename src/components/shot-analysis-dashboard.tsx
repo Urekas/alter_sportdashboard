@@ -9,7 +9,7 @@
 // 2026-08 개편: 타임라인 로그(전체 슈팅 목록, 클릭→영상 이동) + 선수별 통계 정렬 + 우리팀/상대팀
 // KPI 비교 카드 추가. 그리드 칸 크기 조절 UI는 사용자가 "나중에 직접 하겠다"고 보류한 항목이라
 // 이번에도 안 건드림(gridCols/gridRows/goalGridSize는 이미 props로 존재).
-import { useMemo, useState } from "react"
+import { Fragment, useMemo, useState } from "react"
 import { Trophy, Users, Loader2, Target, ShieldCheck, Table2, ListVideo, ArrowUp, ArrowDown, ArrowUpDown, Video, Search, RotateCcw } from "lucide-react"
 import type { MatchData, Tournament } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -83,7 +83,7 @@ function getKindDetailLabel(s: Pick<ShotDatum, 'code' | 'shotType' | 'shotSituat
 // 이 표에서 득점이 안 잡힐 수 있음(슈팅분석 화면 전체가 태깅 데이터 의존적인 것과 동일한 한계).
 type GoalSituation = 'lead' | 'tied' | 'trail'
 interface GoalSituationRow {
-  matchId: string, matchName?: string, quarter?: string, time: number,
+  matchId: string, matchName?: string, matchNumber?: number, quarter?: string, time: number,
   scorer?: string, scoreLabel: string, situation: GoalSituation,
   videoMatchId?: string, code: string, team: string,
 }
@@ -111,6 +111,10 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
   const [playerSortDesc, setPlayerSortDesc] = useState(true)
   const [defenderSortKey, setDefenderSortKey] = useState<DefenderStatKey>('total')
   const [defenderSortDesc, setDefenderSortDesc] = useState(true)
+  // 수비 기록 표에서 "누르면 해당 블락/선방 장면 볼 수 있게" — `${defender}-save`/`${defender}-block`
+  // 형태의 키로 어느 선수의 어느 결과 칩 목록이 펼쳐져 있는지 추적(shot-breakdown.tsx의
+  // expandedKey 패턴과 동일).
+  const [expandedDefenderKey, setExpandedDefenderKey] = useState<string | null>(null)
   // "선수별 슈팅 통계"(공격)와 "수비 기록"(블락/선방) 두 표에 공통으로 적용하는 구분 필터 —
   // PC는 Direct/Var를 합쳐서(여기선 굳이 더 안 쪼갬, 세부 구분은 GK 선방율 표에서 이미 가능).
   const [attemptKindFilter, setAttemptKindFilter] = useState<'ALL' | 'field' | 'pc' | 'ps'>('ALL')
@@ -169,7 +173,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
           shotType: e.shotType, shotSituation: e.shotSituation, isPC: isPcAttempt(e.code, e.shotType, e.shotSituation), code: e.code,
           assistType: e.assistType, defensePressure: e.defensePressure,
           xLoc: e.xLoc, yLoc: e.yLoc, xGoal: e.xGoal, yGoal: e.yGoal, outDir: e.outDir,
-          matchName: m.matchName, quarter: e.quarter, time: e.time,
+          matchName: m.matchName, matchNumber: m.matchNumber, quarter: e.quarter, time: e.time,
           matchId: m.id, videoMatchId: m.videoMatchId,
         })
         // KPI 합계는 code가 "OOO 페널티코너"로 따로 태깅된 이벤트를 빼고 "OOO 슈팅"만 센다 —
@@ -225,13 +229,14 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
   const ourDefenseShots = useMemo(() => shots.filter(s => s.side === 'B' && isShotOnlyCode(s.code || '')), [shots])
 
   const defenderStats = useMemo(() => {
-    const map = new Map<string, { defender: string, save: number, block: number, total: number }>()
+    const map = new Map<string, { defender: string, save: number, block: number, total: number, clips: { save: ShotDatum[], block: ShotDatum[] } }>()
     ourDefenseShots.filter(s => s.defender && (s.output === 'save' || s.output === 'block') && matchesAttemptKindFilter(s)).forEach(s => {
       const key = s.defender!
-      if (!map.has(key)) map.set(key, { defender: key, save: 0, block: 0, total: 0 })
+      if (!map.has(key)) map.set(key, { defender: key, save: 0, block: 0, total: 0, clips: { save: [], block: [] } })
       const row = map.get(key)!
       if (s.output === 'save') row.save++; else row.block++
       row.total++
+      row.clips[s.output as 'save' | 'block'].push(s)
     })
     const arr = Array.from(map.values())
     arr.sort((a, b) => {
@@ -291,7 +296,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
         if (scoringTeam === effectiveTeam) {
           const situation: GoalSituation = before > oppBefore ? 'lead' : before === oppBefore ? 'tied' : 'trail'
           rows.push({
-            matchId: m.id || '', matchName: m.matchName, quarter: e.quarter, time: e.time,
+            matchId: m.id || '', matchName: m.matchName, matchNumber: m.matchNumber, quarter: e.quarter, time: e.time,
             scorer: e.relatedPlayer || e.shooter,
             scoreLabel: `${before + 1} : ${oppBefore}`, situation,
             videoMatchId: m.videoMatchId, code: e.code, team: e.team,
@@ -300,7 +305,10 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
         score[scoringTeam] = before + 1
       })
     })
-    return rows.sort((a, b) => (a.matchName || '').localeCompare(b.matchName || '') || a.time - b.time)
+    // 경기 순서는 matchName 문자열 비교 대신 matchNumber(숫자)로 — "M6"과 "M46"처럼 자리수
+    // 표기가 안 맞으면 문자열 비교('4'<'6')로는 M46이 M6보다 앞에 와버리는 버그가 있었음
+    // (사용자 지적: "M6이 실제로는 M06이야").
+    return rows.sort((a, b) => (a.matchNumber ?? 0) - (b.matchNumber ?? 0) || (a.matchName || '').localeCompare(b.matchName || '') || a.time - b.time)
   }, [teamMatches, effectiveTeam])
 
   const goalSituationSummary = useMemo(() => {
@@ -335,7 +343,9 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
       const q = logSearch.trim().toLowerCase()
       rows = rows.filter(s => `${s.player || ''} ${s.matchName || ''} ${s.teamName}`.toLowerCase().includes(q))
     }
-    return [...rows].sort((a, b) => (a.matchName || '').localeCompare(b.matchName || '') || (a.time ?? 0) - (b.time ?? 0))
+    // 경기 순서는 matchName 문자열 비교 대신 matchNumber(숫자)로 — "M6"과 "M46"처럼 자리수
+    // 표기가 안 맞으면 문자열 비교('4'<'6')로는 M46이 M6보다 앞에 와버리는 버그가 있었음.
+    return [...rows].sort((a, b) => (a.matchNumber ?? 0) - (b.matchNumber ?? 0) || (a.matchName || '').localeCompare(b.matchName || '') || (a.time ?? 0) - (b.time ?? 0))
   }, [shots, logTeamFilter, logMatchFilter, logZoneFilter, logTypeFilter, logOutputFilter, logAssistFilter, logPressureFilter, logSearch])
 
   const resetLogFilters = () => {
@@ -344,6 +354,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
     // 팀/대회가 바뀌면 keeperNames 후보 자체가 바뀌므로 이전 팀의 키퍼 이름이 그대로 남아
     // 빈 표로 보이지 않도록 같이 초기화.
     setSelectedKeeper('ALL')
+    setExpandedDefenderKey(null)
   }
 
   const toggleMatchInFilter = (matchId: string, allMatchIds: string[]) => {
@@ -748,7 +759,7 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5" /> 수비 기록 (블락 · GK 선방)</CardTitle>
-                <CardDescription>{effectiveTeam}이 상대 슈팅/PC를 막은 선수 기준 · 컬럼을 클릭하면 정렬됩니다</CardDescription>
+                <CardDescription>{effectiveTeam}이 상대 슈팅/PC를 막은 선수 기준 · 컬럼을 클릭하면 정렬되고, 숫자를 클릭하면 그 장면들을 볼 수 있습니다</CardDescription>
               </CardHeader>
               <CardContent className="overflow-x-auto">
                 <Table>
@@ -767,14 +778,61 @@ export function ShotAnalysisDashboard({ tournaments }: ShotAnalysisDashboardProp
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {defenderStats.map(row => (
-                      <TableRow key={row.defender}>
-                        <TableCell className="font-bold">{row.defender}</TableCell>
-                        <TableCell className="text-center font-bold text-primary">{row.total}</TableCell>
-                        <TableCell className="text-center text-sky-600 font-bold">{row.save}</TableCell>
-                        <TableCell className="text-center text-purple-600 font-bold">{row.block}</TableCell>
-                      </TableRow>
-                    ))}
+                    {defenderStats.map(row => {
+                      const cell = (outcome: 'save' | 'block', value: number, cls: string) => {
+                        const clips = row.clips[outcome]
+                        const cellKey = `${row.defender}-${outcome}`
+                        if (clips.length === 0) return <TableCell className={`text-center ${cls}`}>{value}</TableCell>
+                        return (
+                          <TableCell className="text-center">
+                            <button
+                              type="button"
+                              className={`font-bold hover:underline underline-offset-2 inline-flex items-center gap-1 ${cls}`}
+                              onClick={() => setExpandedDefenderKey(expandedDefenderKey === cellKey ? null : cellKey)}
+                            >
+                              {value}<Video className="h-3 w-3 opacity-60" />
+                            </button>
+                          </TableCell>
+                        )
+                      }
+                      const expandedOutcome = (['save', 'block'] as const).find(o => expandedDefenderKey === `${row.defender}-${o}`)
+                      return (
+                        <Fragment key={row.defender}>
+                          <TableRow>
+                            <TableCell className="font-bold">{row.defender}</TableCell>
+                            <TableCell className="text-center font-bold text-primary">{row.total}</TableCell>
+                            {cell('save', row.save, 'text-sky-600')}
+                            {cell('block', row.block, 'text-purple-600')}
+                          </TableRow>
+                          {expandedOutcome && (
+                            <TableRow>
+                              <TableCell colSpan={4} className="bg-muted/40">
+                                <p className="text-[10px] font-bold text-muted-foreground mb-1.5">
+                                  {row.defender} · {expandedOutcome === 'save' ? 'GK 선방' : '블락'} 장면 {row.clips[expandedOutcome].length}개
+                                </p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {row.clips[expandedOutcome].map((s, i) => {
+                                    const canPlay = !!s.videoMatchId && s.time !== undefined
+                                    const min = s.time !== undefined ? Math.floor(s.time / 60) : null
+                                    const sec = s.time !== undefined ? Math.floor(s.time % 60) : null
+                                    return (
+                                      <button
+                                        key={i}
+                                        disabled={!canPlay}
+                                        onClick={() => canPlay && openShotVideo(s)}
+                                        className="text-[11px] font-mono bg-background border rounded px-2 py-0.5 hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                      >
+                                        {min !== null ? `${min}:${String(sec).padStart(2, '0')}` : '-'} · {s.matchName || ''}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </Fragment>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>
