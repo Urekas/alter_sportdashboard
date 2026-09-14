@@ -167,6 +167,18 @@ export const TournamentService = {
     await updateDoc(docRef, { orderIndex: newOrder });
   },
 
+  // 개인 코딩(예: alter_coda/CodaBuilder로 태깅한 개인 볼터치) 원본 XML을 rawSourceText와
+  // 별도 필드로 저장/갱신합니다 — events/matchStats는 절대 안 건드림(팀 스탯 재계산 없음).
+  async updatePersonalCoding(
+    dbInstance: Firestore,
+    matchId: string,
+    data: { personalCodingXml?: string; personalCodingFileName?: string; personalCodingOffsetSeconds?: number }
+  ) {
+    if (!matchId) return;
+    const docRef = doc(dbInstance, MATCHES_COL, matchId);
+    await updateDoc(docRef, data);
+  },
+
   async updateMatchData(dbInstance: Firestore, matchId: string, matchData: MatchData) {
     if (!matchId) return;
     const { id, uploadedAt, ...dataToSave } = matchData;

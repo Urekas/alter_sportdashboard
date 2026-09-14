@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useState, useMemo, useRef } from "react"
-import { Trophy, Database, Trash2, Edit3, Save, X, Plus, ChevronRight, RefreshCw, ArrowLeft, ArrowUp, ArrowDown, Eye, Users, Video, CalendarClock, Link2, Settings2, FileDown, Sparkles } from "lucide-react"
+import { Trophy, Database, Trash2, Edit3, Save, X, Plus, ChevronRight, RefreshCw, ArrowLeft, ArrowUp, ArrowDown, Eye, Users, Video, CalendarClock, Link2, Settings2, FileDown, Sparkles, Upload, GitMerge } from "lucide-react"
 import { VideoLinkDialog } from "./video-link-dialog"
 import { VideoLinksPopover } from "./video-links-popover"
 import { TournamentService } from "@/lib/tournament-service"
@@ -21,6 +21,7 @@ import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, query } from "firebase/firestore"
 import { parseXMLData, parseCSVData, createMatchDataFromUpload, decodeUploadedFile } from "@/lib/parser"
 import { VideoMatchService } from "@/lib/video-match-service"
+import { mergeSportscodeXml } from "@/lib/mergeXml"
 
 // FIH TMS류 사이트에서 그대로 복사-붙여넣기한 일정표를 파싱합니다.
 // 탭 구분(엑셀/TMS 표에서 복사 시 보통 탭)이 기본이고, 없으면 공백 2칸+ 로 대체 분리합니다.
@@ -109,8 +110,12 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
   const [editAwayName, setEditAwayName] = useState("")
   const [isSavingTeams, setIsSavingTeams] = useState(false)
   const [swappingMatchId, setSwappingMatchId] = useState<string | null>(null)
+  const [personalCodingMatchId, setPersonalCodingMatchId] = useState<string | null>(null)
+  const [personalCodingOffsetInput, setPersonalCodingOffsetInput] = useState("0")
+  const [isSavingPersonalCoding, setIsSavingPersonalCoding] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const slotFileInputRef = useRef<HTMLInputElement>(null)
+  const personalCodingFileInputRef = useRef<HTMLInputElement>(null)
 
   const tourneyQuery = useMemoFirebase(() => db ? query(collection(db, 'tournaments')) : null, [db]);
   const matchesQuery = useMemoFirebase(() => db ? query(collection(db, 'matches')) : null, [db]);
@@ -534,6 +539,76 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
     URL.revokeObjectURL(url)
   }
 
+  // 개인 코딩(예: alter_coda/CodaBuilder로 태깅한 개인 볼터치) XML 다이얼로그를 엽니다.
+  // 오프셋 입력은 이 경기에 마지막으로 저장된 값으로 초기화합니다.
+  const handleOpenPersonalCoding = (m: MatchData) => {
+    setPersonalCodingMatchId(m.id!)
+    setPersonalCodingOffsetInput(String(m.personalCodingOffsetSeconds ?? 0))
+  }
+
+  const handlePersonalCodingFileClick = () => {
+    personalCodingFileInputRef.current?.click()
+  }
+
+  // 원본(rawSourceText)과 별도 필드에만 저장 — events/matchStats는 안 건드림.
+  const onPersonalCodingFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!personalCodingMatchId || !event.target.files || !event.target.files[0] || !db) return;
+    const file = event.target.files[0];
+    const matchId = personalCodingMatchId;
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const ab = e.target?.result as ArrayBuffer;
+        const content = decodeUploadedFile(ab);
+        setIsSavingPersonalCoding(true);
+        await TournamentService.updatePersonalCoding(db, matchId, {
+          personalCodingXml: content,
+          personalCodingFileName: file.name,
+        });
+        toast({ title: "개인코딩 XML 저장 완료" });
+      } catch (err: any) {
+        toast({ title: "저장 실패", description: err.message, variant: "destructive" });
+      } finally {
+        setIsSavingPersonalCoding(false);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    event.target.value = '';
+  }
+
+  const handleDownloadPersonalXml = (m: MatchData) => {
+    if (!m.personalCodingXml) return;
+    const blob = new Blob([m.personalCodingXml], { type: "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = m.personalCodingFileName || `${m.matchName || "match"}_personal.xml`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // 원본 경기 XML + 개인코딩 XML을 보정값(초)만큼 밀어서 합친 결과를 다운로드합니다.
+  // rawSourceText/events/matchStats는 그대로 두고(개인 트래킹이 팀 스탯 재계산에 섞이지
+  // 않게) 병합 결과는 파일로만 내보냅니다. 다음에 다시 열 때 편하도록 오프셋 값만 저장.
+  const handleMergeDownload = async (m: MatchData) => {
+    if (!m.personalCodingXml) return;
+    const offsetSeconds = parseFloat(personalCodingOffsetInput) || 0;
+    const result = mergeSportscodeXml(m.rawSourceText, m.personalCodingXml, offsetSeconds);
+    const blob = new Blob([result.xml], { type: "application/xml;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${m.matchName || "match"}_merged.xml`;
+    link.click();
+    URL.revokeObjectURL(url);
+    if (db && m.id) {
+      try {
+        await TournamentService.updatePersonalCoding(db, m.id, { personalCodingOffsetSeconds: offsetSeconds });
+      } catch { /* 오프셋 저장 실패는 다운로드 자체를 막을 이유가 아니라서 무시 */ }
+    }
+    toast({ title: "병합 XML 다운로드 완료", description: `원본 ${result.baseInstanceCount}개 + 개인코딩 ${result.overlayInstanceCount}개` });
+  }
+
   const handleDeleteMatch = async (id: string) => {
     if (!id || !db) return;
     try {
@@ -856,6 +931,7 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
         </Card>
         <input type="file" ref={fileInputRef} onChange={onFileChange} className="hidden" accept=".xml,.csv" />
         <input type="file" ref={slotFileInputRef} onChange={onSlotFileChange} className="hidden" accept=".xml,.csv" />
+        <input type="file" ref={personalCodingFileInputRef} onChange={onPersonalCodingFileChange} className="hidden" accept=".xml,.csv" />
 
         {selectedTournament.schedule && selectedTournament.schedule.length > 0 && (
           <Card className="border-2 shadow-xl">
@@ -1128,6 +1204,64 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
                             <Button variant="outline" size="sm" className="h-8 text-xs font-bold border-violet-600 text-violet-600 hover:bg-violet-50" title="슈팅 태깅 도구에 저장된 XML로 재분석" disabled={reparsingMatchId === m.id} onClick={() => handleReparseFromSaved(m.id!)}><Sparkles className={`h-3 w-3 mr-1 ${reparsingMatchId === m.id ? 'animate-pulse' : ''}`} /> {reparsingMatchId === m.id ? "재분석 중..." : "재분석"}</Button>
                           )}
                           <Button variant="outline" size="sm" className="h-8 text-xs font-bold border-emerald-600 text-emerald-600 hover:bg-emerald-50" onClick={(e) => handleReplaceFile(e, m.id!)}><RefreshCw className="h-3 w-3 mr-1" /> 교체</Button>
+
+                          <Dialog open={personalCodingMatchId === m.id} onOpenChange={(open) => !open && setPersonalCodingMatchId(null)}>
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="outline" size="sm"
+                                className={`h-8 text-xs font-bold ${m.personalCodingXml ? 'border-sky-600 text-sky-600 hover:bg-sky-50' : 'border-muted-foreground/40 text-muted-foreground hover:bg-muted/50'}`}
+                                title="개인 코딩(볼터치 등) XML 업로드/병합"
+                                onClick={() => handleOpenPersonalCoding(m)}
+                              ><GitMerge className="h-3 w-3 mr-1" /> 개인코딩</Button>
+                            </DialogTrigger>
+                            <DialogContent onClick={(e) => e.stopPropagation()} className="sm:max-w-md">
+                              <DialogHeader>
+                                <DialogTitle>개인코딩 XML — {m.matchName}</DialogTitle>
+                                <DialogDescription>alter_coda(코다빌더) 등으로 따로 태깅한 개인 트래킹 XML을 이 경기 원본과 합칩니다. 팀 스탯(events/matchStats)에는 영향 없어요.</DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4 py-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="text-sm">
+                                    {m.personalCodingXml ? (
+                                      <span className="text-emerald-600 font-semibold">저장됨: {m.personalCodingFileName || '(파일명 없음)'}</span>
+                                    ) : (
+                                      <span className="text-muted-foreground">업로드된 개인코딩 XML이 없어요.</span>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-1 shrink-0">
+                                    <Button size="sm" variant="outline" disabled={isSavingPersonalCoding} onClick={handlePersonalCodingFileClick}>
+                                      <Upload className="h-3 w-3 mr-1" /> {isSavingPersonalCoding ? "저장 중..." : (m.personalCodingXml ? "다시 업로드" : "업로드")}
+                                    </Button>
+                                    {m.personalCodingXml && (
+                                      <Button size="sm" variant="outline" onClick={() => handleDownloadPersonalXml(m)}>개인코딩만 다운로드</Button>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {m.personalCodingXml && (() => {
+                                  const offsetSeconds = parseFloat(personalCodingOffsetInput) || 0;
+                                  const preview = mergeSportscodeXml(m.rawSourceText, m.personalCodingXml, offsetSeconds);
+                                  return (
+                                    <div className="space-y-2 border-t pt-3">
+                                      <Label className="text-xs">싱크 보정값 (초) — 코다 Start를 누른 순간이 원본 XML 기준 몇 초였는지</Label>
+                                      <Input type="number" step="0.1" value={personalCodingOffsetInput} onChange={(e) => setPersonalCodingOffsetInput(e.target.value)} className="h-8 w-32" />
+                                      <p className="text-xs text-muted-foreground">
+                                        원본 {preview.baseInstanceCount}개 + 개인코딩 {preview.overlayInstanceCount}개 병합
+                                        {preview.overlayFirstStart !== undefined && (
+                                          <> · 개인코딩 첫 이벤트 {preview.overlayFirstStart.toFixed(1)}s → 보정 후 {preview.overlayFirstStartShifted!.toFixed(1)}s</>
+                                        )}
+                                      </p>
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                              <DialogFooter>
+                                {m.personalCodingXml && (
+                                  <Button onClick={() => handleMergeDownload(m)}>병합 XML 다운로드</Button>
+                                )}
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
 
                           <AlertDialog>
                             <AlertDialogTrigger asChild>

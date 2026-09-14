@@ -128,6 +128,12 @@ export interface MatchData {
   rawSourceText?: string;     // 업로드한 XML/CSV 원본 텍스트 (재다운로드용)
   rawSourceFileName?: string; // 원본 파일 이름
   lineups?: { home?: TeamLineup; away?: TeamLineup }; // TMS 라인업 붙여넣기 결과 (선택적)
+  // 개인 코딩(예: 본인 볼터치 트래킹, alter_coda/CodaBuilder로 별도 태깅) 원본 XML —
+  // rawSourceText와 별도 필드로 둬서 events/matchStats 재계산에는 안 섞이게 함.
+  // rawSourceText와 병합해서 내려받을 때만 쓰이는 참고용 원본.
+  personalCodingXml?: string;
+  personalCodingFileName?: string;
+  personalCodingOffsetSeconds?: number; // 마지막으로 쓴 싱크 보정값(초) — 다음에 열 때 기본값
 }
 
 export interface ScheduleEntry {
