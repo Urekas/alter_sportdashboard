@@ -25,6 +25,7 @@ import { useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import { mapZone } from "@/lib/parser";
 import { analyzeMatch, type MatchAnalysisOutput } from "@/ai/flows/match-analysis-flow";
+import { usePrintLogoEnabled, PrintLogoSwitch, PrintLogoMark } from "./print-logo-toggle";
 
 interface TournamentDashboardProps {
   tournamentId?: string;
@@ -45,7 +46,8 @@ export function TournamentDashboard({ tournamentId, externalMatches, externalTit
   const [opponentColor, setOpponentColor] = useState("#2d2b2b");
   const [aiAnalysis, setAiAnalysis] = useState<MatchAnalysisOutput | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
-  
+  const [printLogoEnabled, setPrintLogoEnabled] = usePrintLogoEnabled();
+
   // 차트 조절용 상태
   const [quadHeight, setQuadHeight] = useState(450);
   const [pressureHeight, setPressureHeight] = useState(400);
@@ -366,13 +368,17 @@ export function TournamentDashboard({ tournamentId, externalMatches, externalTit
             대회 누적 AI 분석
           </Button>
           <Button variant="default" className="bg-emerald-600 hover:bg-emerald-700 h-11 px-6 font-bold" onClick={() => window.print()}><FileDown className="mr-2 h-5 w-5" /> PDF 저장</Button>
+          <PrintLogoSwitch enabled={printLogoEnabled} onChange={setPrintLogoEnabled} />
         </div>
       </div>
 
       <div className="break-inside-avoid space-y-8">
-        <div className="mb-6 hidden print:block border-b-2 pb-4">
-          <h1 className="text-4xl font-black italic text-primary uppercase tracking-tighter">{tournamentName}</h1>
-          <p className="text-muted-foreground font-bold">Cumulative Performance Analysis: {currentTeam}</p>
+        <div className="mb-6 hidden print:flex print:items-end print:justify-between border-b-2 pb-4">
+          <div>
+            <h1 className="text-4xl font-black italic text-primary uppercase tracking-tighter">{tournamentName}</h1>
+            <p className="text-muted-foreground font-bold">Cumulative Performance Analysis: {currentTeam}</p>
+          </div>
+          <PrintLogoMark enabled={printLogoEnabled} className="hidden print:block shrink-0" />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-3">

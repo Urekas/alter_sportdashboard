@@ -45,9 +45,11 @@ import { PlayerRecordDialog } from "./player-record-dialog"
 import { TeamAnalysisDashboard } from "./team-analysis-dashboard"
 import { VideoLinksPopover } from "./video-links-popover"
 import { CollapsibleSection } from "./collapsible-section"
+import { usePrintLogoEnabled, PrintLogoSwitch, PrintLogoMark } from "./print-logo-toggle"
 
 export function Dashboard() {
   const [viewMode, setViewMode] = useState<'single' | 'tournament' | 'manage' | 'shots' | 'h2h' | 'team'>('single')
+  const [printLogoEnabled, setPrintLogoEnabled] = usePrintLogoEnabled()
   const [matchData, setMatchData] = useState<MatchData | null>(null)
   const [parsedEvents, setParsedEvents] = useState<MatchEvent[]>([])
   const [detectedTeams, setDetectedTeams] = useState<string[]>([])
@@ -407,6 +409,7 @@ export function Dashboard() {
                       <Button variant="outline" onClick={handleDownloadRawXml} className="h-9 border-muted-foreground/40 text-muted-foreground hover:bg-muted/50"><FileDown className="mr-2 h-4 w-4" /> XML</Button>
                     )}
                     <Button variant="default" onClick={() => window.print()} className="bg-emerald-600 hover:bg-emerald-700 h-9"><FileDown className="mr-2 h-4 w-4" /> PDF</Button>
+                    <PrintLogoSwitch enabled={printLogoEnabled} onChange={setPrintLogoEnabled} />
                   </>
                 )}
                 {!matchData && <Button variant="outline" onClick={handleLoadMockData} className="h-9">데모</Button>}
@@ -504,6 +507,7 @@ export function Dashboard() {
                 <h1 className="text-2xl sm:text-4xl font-black italic tracking-tighter text-foreground mt-1 font-headline print:text-3xl break-words">{matchData.matchName || "Match Performance Analysis"}</h1>
               </div>
               <div className="flex flex-wrap gap-2">
+                <PrintLogoMark enabled={printLogoEnabled} className="hidden print:block self-start" />
                 <Button variant="outline" size="sm" className="print-hidden border-primary text-primary font-bold h-9" onClick={handleAiAnalysis} disabled={isAiLoading}>
                   {isAiLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <BrainCircuit className="h-4 w-4 mr-2" />}
                   AI 전술 분석 실행
