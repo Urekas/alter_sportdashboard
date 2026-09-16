@@ -129,7 +129,7 @@ export function TournamentRadarChart({
   };
 
   return (
-    <div className={`w-full ${isMobile ? 'h-[320px]' : 'h-[450px]'} bg-card rounded-xl border border-border/50 flex flex-col items-center justify-center p-4`}>
+    <div className={`w-full ${isMobile ? 'h-[320px]' : 'h-[450px]'} bg-card rounded-xl border border-border/50 flex flex-col items-center justify-center p-4 break-inside-avoid`}>
       <h3 className="text-lg font-bold mb-4 text-primary">{title}</h3>
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart cx="50%" cy="50%" outerRadius={isMobile ? '65%' : '70%'} data={data}>

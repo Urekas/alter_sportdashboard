@@ -123,7 +123,10 @@ export function MatchTrajectoryChart({ data, isTournamentView, allMatchesPoints 
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-[450px] sm:h-[700px] print:h-[280px] w-full mt-8">
+        {/* mta-print-tall — 다른 차트들과 같은 전역 260px 인쇄 상한(globals.css)에 걸리면
+            사분면 라벨/범례가 많은 이 차트는 너무 작아져서 안 읽힘(사용자 피드백) —
+            이 차트만 globals.css에서 더 큰 값으로 별도 override */}
+        <div className="mta-print-tall h-[450px] sm:h-[700px] print:h-[420px] w-full mt-8">
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart margin={isMobile ? { top: 40, right: 16, bottom: 50, left: 16 } : { top: 60, right: 80, bottom: 80, left: 60 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />

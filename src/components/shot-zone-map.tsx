@@ -554,10 +554,16 @@ export function ShotZoneMap({
           )}
         </div>
       )}
-      <CardContent className={cn(!open && "hidden print:block")}>
-        <div className={effectiveShowSideA && effectiveShowSideB ? "grid grid-cols-1 lg:grid-cols-2 gap-6 lg:divide-x lg:gap-x-0" : ""}>
+      {/* 접었으면 인쇄에서도 뺌(사용자 피드백) — 예전엔 print:block으로 접힘 상태와 무관하게 항상 인쇄했음 */}
+      <CardContent className={cn(!open && "hidden")}>
+        {/* print:grid-cols-2 — A4 인쇄 페이지 폭(~180mm)이 lg 브레이크포인트(1024px)보다 훨씬
+            좁아서 lg:grid-cols-2가 인쇄 시엔 절대 안 켜짐 → 화면에선 좌우로 나란히 보이던 우리팀/
+            상대팀 지도 4개(필드+골대 x 2팀)가 인쇄만 하면 세로로 전부 쌓여서 화면 대비 2배 높이가
+            되고, 그 결과 한 페이지에 못 들어가 어중간한 위치에서 잘리던 문제 — print:에도 명시적으로
+            2열을 강제해서 화면과 똑같은 레이아웃으로 인쇄되게 함. */}
+        <div className={effectiveShowSideA && effectiveShowSideB ? "grid grid-cols-1 lg:grid-cols-2 print:grid-cols-2 gap-6 lg:divide-x lg:gap-x-0 print:divide-x print:gap-x-0" : ""}>
           {effectiveShowSideA && (
-            <div className={effectiveShowSideB ? "lg:pr-6" : ""}>
+            <div className={effectiveShowSideB ? "lg:pr-6 print:pr-6" : ""}>
               <SidePanel
                 label={sideALabel} color={sideAColor} shots={shotsA} showGrid={showGrid} zoneFilter={zoneFilter}
                 goalGridSize={goalGridSize}
@@ -566,7 +572,7 @@ export function ShotZoneMap({
             </div>
           )}
           {effectiveShowSideB && (
-            <div className={effectiveShowSideA ? "lg:pl-6" : ""}>
+            <div className={effectiveShowSideA ? "lg:pl-6 print:pl-6" : ""}>
               <SidePanel
                 label={sideBLabel} color={sideBColor} shots={shotsB} showGrid={showGrid} zoneFilter={zoneFilter}
                 goalGridSize={goalGridSize}

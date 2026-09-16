@@ -372,8 +372,13 @@ export function TournamentDashboard({ tournamentId, externalMatches, externalTit
         </div>
       </div>
 
-      <div className="break-inside-avoid space-y-8">
-        <div className="mb-6 hidden print:flex print:items-end print:justify-between border-b-2 pb-4">
+      {/* 이 아래(스탯 카드 2벌 + 레이더 차트 3개 + BasicMatchStats)를 예전엔 통째로 하나의
+          break-inside-avoid로 묶었는데, 레이더 차트들이 각자 450px 고정 높이라 셋 다 합치면
+          쉽게 한 페이지를 넘어서고 그러면 이 블록 전체가 다음 페이지로 밀려 앞 페이지가
+          거의 비어버렸음 — 이제 각 조각(레이더 차트는 자체적으로, BasicMatchStats는 이미
+          자체적으로)이 개별로 안 잘리게만 하고 흘러가게 둔다. */}
+      <div className="space-y-8">
+        <div className="mb-6 hidden print:flex print:items-end print:justify-between border-b-2 pb-4 break-after-avoid">
           <div>
             <h1 className="text-4xl font-black italic text-primary uppercase tracking-tighter">{tournamentName}</h1>
             <p className="text-muted-foreground font-bold">Cumulative Performance Analysis: {currentTeam}</p>
@@ -381,7 +386,7 @@ export function TournamentDashboard({ tournamentId, externalMatches, externalTit
           <PrintLogoMark enabled={printLogoEnabled} className="hidden print:block shrink-0" />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="space-y-3">
+          <div className="space-y-3 break-inside-avoid">
             <div className="flex items-center gap-2 font-bold text-xl" style={{ color: selectedTeamColor }}>
               <div className="w-4 h-4 rounded-full" style={{ backgroundColor: selectedTeamColor }} />
               {currentTeam} (누적 평균)
@@ -393,7 +398,7 @@ export function TournamentDashboard({ tournamentId, externalMatches, externalTit
               <StatsCard title="압박 지수 (SPP)" value={mockMatch.matchStats.home.spp} rank={teamRanks?.spp} icon={<TrendingDown className="h-4 w-4" />} isTime />
             </div>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-3 break-inside-avoid">
             <div className="flex items-center gap-2 font-bold text-xl" style={{ color: opponentColor }}>
               <div className="w-4 h-4 rounded-full" style={{ backgroundColor: opponentColor }} />
               대회 전체 평균
@@ -451,11 +456,14 @@ export function TournamentDashboard({ tournamentId, externalMatches, externalTit
         <QuarterlyStatsTable data={mockMatch} />
       </div>
 
-      <div className="break-inside-avoid space-y-8">
-        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+      {/* 안의 차트들(AttackThreatChart 등)이 이미 각자 break-inside-avoid를 갖고 있어서
+          섹션 전체를 또 묶으면 이중 보호 — 오히려 다 합쳐 한 페이지가 안 되면 통째로 다음
+          페이지로 밀림. 제목만 break-after-avoid로 보호하고 나머지는 흘러가게 둠. */}
+      <div className="space-y-8">
+        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2 break-after-avoid">
           <Sword className="h-6 w-6" /> 공격 성능 분석
         </div>
-        <AttackThreatChart 
+        <AttackThreatChart
           data={mockMatch.attackThreatData} 
           homeTeam={{ name: currentTeam, color: selectedTeamColor }} 
           awayTeam={{ name: '상대팀', color: opponentColor }} 
@@ -517,8 +525,11 @@ export function TournamentDashboard({ tournamentId, externalMatches, externalTit
         />
       </div>
 
-      <div className="break-inside-avoid space-y-8">
-        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+      {/* 안의 PressureBattleChart/PressureAnalysisMap이 이미 각자 break-inside-avoid를
+          갖고 있어서(합치면 쉽게 한 페이지를 넘는 크기) 섹션 전체를 또 묶지 않고 제목만
+          break-after-avoid로 보호. */}
+      <div className="space-y-8">
+        <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2 break-after-avoid">
           <Shield className="h-6 w-6" /> 압박 분석
         </div>
         <div className="space-y-4">
@@ -594,17 +605,19 @@ export function TournamentDashboard({ tournamentId, externalMatches, externalTit
       </div>
 
       {aiAnalysis && (
-        <div className="break-inside-avoid space-y-8">
-          <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+        // 카드 5개를 통째로 묶지 않고 각각 개별 break-inside-avoid로 — 이유는 위 dashboard.tsx
+        // 쪽 동일 섹션 주석 참고(다 합쳐 한 페이지가 안 되면 통째로 밀려 앞 페이지가 텅 빔).
+        <div className="space-y-8">
+          <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2 break-after-avoid">
             <Sparkles className="h-6 w-6" /> AI 누적 전술 분석 리포트 (Alter_Focus | Hockey Analytics)
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="border-2 border-primary/20"><CardHeader className="bg-primary/5"><CardTitle className="text-lg flex items-center gap-2"><Info className="h-5 w-5 text-primary" /> 1. 경기 최종 결과 요약</CardTitle></CardHeader><CardContent className="pt-6"><p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.matchSummary}</p></CardContent></Card>
-            <Card className="border-2 border-primary/20"><CardHeader className="bg-emerald-500/5"><CardTitle className="text-lg flex items-center gap-2"><Target className="h-5 w-5 text-emerald-600" /> 2. 핵심 성능 지표 (KPI) 분석</CardTitle></CardHeader><CardContent className="pt-6"><p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.kpiAnalysis}</p></CardContent></Card>
-            <Card className="border-2 border-primary/20"><CardHeader className="bg-blue-500/5"><CardTitle className="text-lg flex items-center gap-2"><TrendingUp className="h-5 w-5 text-blue-600" /> 3. 주요 그래프 및 데이터 해석</CardTitle></CardHeader><CardContent className="pt-6"><p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.dataInterpretation}</p></CardContent></Card>
-            <Card className="border-2 border-primary/20"><CardHeader className="bg-orange-500/5"><CardTitle className="text-lg flex items-center gap-2"><Activity className="h-5 w-5 text-orange-600" /> 4. 쿼터별 세부 특징</CardTitle></CardHeader><CardContent className="pt-6"><p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.quarterlyAnalysis}</p></CardContent></Card>
+            <Card className="border-2 border-primary/20 break-inside-avoid"><CardHeader className="bg-primary/5"><CardTitle className="text-lg flex items-center gap-2"><Info className="h-5 w-5 text-primary" /> 1. 경기 최종 결과 요약</CardTitle></CardHeader><CardContent className="pt-6"><p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.matchSummary}</p></CardContent></Card>
+            <Card className="border-2 border-primary/20 break-inside-avoid"><CardHeader className="bg-emerald-500/5"><CardTitle className="text-lg flex items-center gap-2"><Target className="h-5 w-5 text-emerald-600" /> 2. 핵심 성능 지표 (KPI) 분석</CardTitle></CardHeader><CardContent className="pt-6"><p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.kpiAnalysis}</p></CardContent></Card>
+            <Card className="border-2 border-primary/20 break-inside-avoid"><CardHeader className="bg-blue-500/5"><CardTitle className="text-lg flex items-center gap-2"><TrendingUp className="h-5 w-5 text-blue-600" /> 3. 주요 그래프 및 데이터 해석</CardTitle></CardHeader><CardContent className="pt-6"><p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.dataInterpretation}</p></CardContent></Card>
+            <Card className="border-2 border-primary/20 break-inside-avoid"><CardHeader className="bg-orange-500/5"><CardTitle className="text-lg flex items-center gap-2"><Activity className="h-5 w-5 text-orange-600" /> 4. 쿼터별 세부 특징</CardTitle></CardHeader><CardContent className="pt-6"><p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.quarterlyAnalysis}</p></CardContent></Card>
           </div>
-          <Card className="bg-primary text-primary-foreground border-none shadow-xl"><CardContent className="p-6 flex items-center gap-4"><div className="bg-white/20 p-3 rounded-xl"><Sparkles className="h-8 w-8 text-white" /></div><div><p className="text-xs font-bold uppercase tracking-widest opacity-80">5. 최종 분석</p><p className="text-sm font-semibold mt-2 whitespace-pre-wrap">{aiAnalysis.finalVerdict}</p></div></CardContent></Card>
+          <Card className="bg-primary text-primary-foreground border-none shadow-xl break-inside-avoid"><CardContent className="p-6 flex items-center gap-4"><div className="bg-white/20 p-3 rounded-xl"><Sparkles className="h-8 w-8 text-white" /></div><div><p className="text-xs font-bold uppercase tracking-widest opacity-80">5. 최종 분석</p><p className="text-sm font-semibold mt-2 whitespace-pre-wrap">{aiAnalysis.finalVerdict}</p></div></CardContent></Card>
         </div>
       )}
     </div>

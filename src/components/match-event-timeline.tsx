@@ -131,6 +131,10 @@ export function MatchEventTimeline({ data, onEventsUpdate, lockedVideo, readOnly
   const [events, setEvents] = useState<MatchEvent[]>(data.events)
   const [activeFilters, setActiveFilters] = useState<Set<FilterKey>>(new Set(FILTER_OPTIONS.map(f => f.key)))
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false)
+  // 아코디언을 Radix 비제어 방식(defaultValue) 그대로 두면 지금 접혀있는지 리액트 쪽에서
+  // 알 방법이 없어서 인쇄 시 항상 펼쳐서 보여줄 수밖에 없었음 — 직접 열림 상태를 들고 있어야
+  // "화면에서 접었으면 인쇄에서도 뺀다"가 가능해서 제어 컴포넌트로 전환.
+  const [accordionOpen, setAccordionOpen] = useState(true)
   const { homeTeam, awayTeam } = data
 
   const toggleFilter = (key: FilterKey) => {
@@ -304,12 +308,19 @@ export function MatchEventTimeline({ data, onEventsUpdate, lockedVideo, readOnly
 
   // 화면(필터 적용된 visibleTimeline)과 인쇄(항상 전체 timeline)가 서로 다른 행 목록을
   // 보여줘야 해서 함수로 뽑음 — 인쇄는 화면 필터 상태와 무관하게 항상 전체를 보여줍니다.
+  // 예전엔 이 타임라인 전체(카드 통째)를 dashboard.tsx 쪽에서 break-inside-avoid로 묶었는데,
+  // 이벤트가 많은 경기는 한 페이지에 다 안 들어가서 결국 강제로 어딘가에서 잘렸고(그것도
+  // display:contents라 행 경계를 못 지키는 자리에서) — 이제 타임라인 자체는 페이지를 넘어
+  // 자연스럽게 흘러가게 두고, "행 하나(홈/스코어/어웨이 3칸)"만 안 잘리게 보호한다.
+  // display:contents인 바깥 wrapper 자체엔 break-inside가 안 먹혀서(박스를 안 만드므로)
+  // 실제 grid item(칸) 3개 각각에 걸어야 함 — 같은 grid row에 나란히 배치되므로 셋 다 안
+  // 잘리면 사실상 그 행 전체가 페이지 경계에서 안 잘리는 것과 같은 효과.
   const renderGrid = (rows: typeof timeline) => (
     <div className="grid grid-cols-[1fr_64px_1fr]">
       {rows.map((row, i) => {
         if (row.type === 'divider') {
           return (
-            <div key={`d-${i}`} className="col-span-3 text-center text-[11px] font-bold text-muted-foreground bg-muted/30 rounded py-1.5 my-2">
+            <div key={`d-${i}`} className="col-span-3 text-center text-[11px] font-bold text-muted-foreground bg-muted/30 rounded py-1.5 my-2 break-inside-avoid break-after-avoid">
               {row.quarter}
             </div>
           );
@@ -317,14 +328,14 @@ export function MatchEventTimeline({ data, onEventsUpdate, lockedVideo, readOnly
         const isHome = row.event.team === homeTeam.name;
         return (
           <div key={row.index} className="contents">
-            <div className={`border-r ${isHome ? '' : 'opacity-0'}`}>
+            <div className={`border-r break-inside-avoid ${isHome ? '' : 'opacity-0'}`}>
               {isHome && renderSide(row, 'home')}
             </div>
-            <div className="flex flex-col items-center justify-center text-center px-1 border-r">
+            <div className="flex flex-col items-center justify-center text-center px-1 border-r break-inside-avoid">
               <span className="text-[10px] text-muted-foreground font-mono">{formatTime(row.event.time)}</span>
               <span className="text-[11px] font-black">{row.scoreHome} - {row.scoreAway}</span>
             </div>
-            <div className={!isHome ? '' : 'opacity-0'}>
+            <div className={`break-inside-avoid ${!isHome ? '' : 'opacity-0'}`}>
               {!isHome && renderSide(row, 'away')}
             </div>
           </div>
@@ -359,9 +370,12 @@ export function MatchEventTimeline({ data, onEventsUpdate, lockedVideo, readOnly
 
   return (
     <Card>
-      <Accordion type="single" collapsible defaultValue="timeline">
+      <Accordion type="single" collapsible value={accordionOpen ? "timeline" : ""} onValueChange={(v) => setAccordionOpen(v === "timeline")}>
         <AccordionItem value="timeline" className="border-none">
-          <CardHeader className="pb-0">
+          {/* 접었으면 인쇄에서 제목까지 통째로 빠져야 함 — AccordionContent(본문)만 print:hidden으론
+              부족했음, 이 CardHeader/제목은 아코디언 트리거라 항상 렌더되는 별개 요소라서
+              접힘 상태를 직접 반영해 print:hidden을 추가로 걸어줘야 함. */}
+          <CardHeader className={accordionOpen ? "pb-0" : "pb-0 print:hidden"}>
             <AccordionTrigger className="hover:no-underline py-0">
               <div className="text-left">
                 <CardTitle>주요 이벤트 타임라인</CardTitle>
@@ -380,11 +394,14 @@ export function MatchEventTimeline({ data, onEventsUpdate, lockedVideo, readOnly
           </AccordionContent>
         </AccordionItem>
       </Accordion>
-      {/* 화면에서 접힌 상태로 인쇄하더라도, 인쇄물엔 항상 펼쳐진 전체 내용이 나오게 합니다
-          (화면 필터 상태와 무관 — 인쇄에서 정보가 빠지면 안 되니 timeline 전체를 씀). */}
-      <div className="hidden print:block px-6 pb-6">
-        {renderGrid(timeline)}
-      </div>
+      {/* 화면에서 펼쳐놓은 상태일 때만 인쇄에도 포함 — 접어놓으면 이 섹션은 리포트에서 통째로
+          빠짐(사용자 피드백: "접으면 안보이게 해줘"). 펼쳐져 있을 땐 화면의 필터 상태와 무관하게
+          timeline 전체(필터 안 걸린 전체)를 인쇄 — 인쇄본에서 필터 때문에 정보가 빠지면 안 되니까. */}
+      {accordionOpen && (
+        <div className="hidden print:block px-6 pb-6">
+          {renderGrid(timeline)}
+        </div>
+      )}
     </Card>
   )
 }

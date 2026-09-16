@@ -2,9 +2,9 @@
 "use client"
 
 // 리포트의 큰 섹션(제목+아이콘 달린 묶음, 예: "공격 성능 분석")을 화면에서 접었다 펼 수 있게
-// 만드는 공용 래퍼. 인쇄(PDF)할 땐 접힘 상태와 무관하게 항상 펼쳐서 보여줍니다 — 내용을
-// 조건부 렌더링(hidden ? null : children)하지 않고 CSS display만 토글해서, 접힌 채로
-// 인쇄해도 내용이 그대로 나옵니다(react-recharts 등은 마운트 후 CSS로만 숨겨도 정상 동작).
+// 만드는 공용 래퍼. 인쇄(PDF)는 화면에 보이는 그대로 나갑니다 — 접어두면 그 섹션은 리포트에서
+// 통째로 빠짐(예전엔 반대로 접힘 상태와 무관하게 항상 펼쳐서 인쇄했는데, "인쇄 전에 필요 없는
+// 섹션을 접어서 빼고 싶다"는 사용자 피드백으로 뒤집음).
 import { useState, type ReactNode } from "react"
 import { ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -19,8 +19,14 @@ interface CollapsibleSectionProps {
 
 export function CollapsibleSection({ title, icon, children, className, defaultOpen = true }: CollapsibleSectionProps) {
   const [open, setOpen] = useState(defaultOpen)
+  // 예전엔 이 섹션 전체(제목+안의 차트 여러 개)를 통째로 break-inside-avoid로 묶었는데,
+  // 안의 차트들(AttackThreatChart 등)이 이미 각자 자기 Card에 break-inside-avoid를 갖고
+  // 있어서 이중으로 묶는 꼴이었음 — 차트 2개가 남은 페이지 공간에 다 안 들어가면 "둘 다"
+  // 다음 페이지로 밀려버려 앞 페이지에 큰 빈 공간이 생기는 원인이었음. 이제 섹션 자체는
+  // 자연스럽게 흘러가게 두고(각 차트가 알아서 안 잘리게), 제목만 break-after-avoid로
+  // 보호해서 "제목만 페이지 맨 아래 혼자 남고 내용은 다음 페이지" 현상만 막는다.
   return (
-    <div className={cn("break-inside-avoid", className)}>
+    <div className={className}>
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
@@ -29,10 +35,12 @@ export function CollapsibleSection({ title, icon, children, className, defaultOp
         <span className="flex items-center gap-2">{icon}{title}</span>
         <ChevronDown className={cn("h-5 w-5 shrink-0 transition-transform", !open && "-rotate-90")} />
       </button>
-      <div className="hidden print:flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-        {icon}{title}
-      </div>
-      <div className={cn(open ? "pt-4" : "hidden print:block print:pt-4")}>
+      {open && (
+        <div className="hidden print:flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2 break-after-avoid">
+          {icon}{title}
+        </div>
+      )}
+      <div className={cn(open ? "pt-4" : "hidden")}>
         {children}
       </div>
     </div>

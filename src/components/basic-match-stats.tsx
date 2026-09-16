@@ -100,7 +100,8 @@ export function BasicMatchStats({ data, ranks, lockedVideo }: BasicMatchStatsPro
         </div>
         <CollapseToggleButton open={open} onClick={() => setOpen(o => !o)} />
       </CardHeader>
-      <CardContent className={cn(!open && "hidden print:block")}>
+      {/* 접었으면 인쇄에서도 뺌(사용자 피드백) — 예전엔 print:block으로 접힘 상태와 무관하게 항상 인쇄했음 */}
+      <CardContent className={cn(!open && "hidden")}>
         <TooltipProvider delayDuration={200}>
           <div className="flex flex-col gap-4">
             {stats.map((s) => {

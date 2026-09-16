@@ -89,7 +89,8 @@ export function ShotBreakdown({ data, lockedVideo }: ShotBreakdownProps) {
         </div>
         <CollapseToggleButton open={open} onClick={() => setOpen(o => !o)} />
       </CardHeader>
-      <CardContent className={cn(!open && "hidden print:block")}>
+      {/* 접었으면 인쇄에서도 뺌(사용자 피드백) — 예전엔 print:block으로 접힘 상태와 무관하게 항상 인쇄했음 */}
+      <CardContent className={cn(!open && "hidden")}>
         <div className="flex items-center justify-between text-sm font-bold mb-4 pb-3 border-b">
           <span style={{ color: homeTeam.color }}>전체 시도 {grouped.home.total}</span>
           <span className="text-muted-foreground text-xs">슈팅</span>

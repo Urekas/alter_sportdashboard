@@ -92,7 +92,8 @@ export function TurnoverZoneMap({ events, homeTeam, awayTeam }: TurnoverZoneMapP
         </div>
         <CollapseToggleButton open={open} onClick={() => setOpen(o => !o)} />
       </CardHeader>
-      <CardContent className={cn("space-y-4 max-w-xl mx-auto", !open && "hidden print:block")}>
+      {/* 접었으면 인쇄에서도 뺌(사용자 피드백) — 예전엔 print:block으로 접힘 상태와 무관하게 항상 인쇄했음 */}
+      <CardContent className={cn("space-y-4 max-w-xl mx-auto", !open && "hidden")}>
         <ZoneRow team={homeTeam} stats={home} />
         <ZoneRow team={awayTeam} stats={away} />
       </CardContent>

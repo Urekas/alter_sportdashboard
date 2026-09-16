@@ -73,6 +73,10 @@ export function Dashboard() {
   const [cumulativeTitle, setCumulativeTitle] = useState("")
   const [openPlayerName, setOpenPlayerName] = useState<string | null>(null)
   const [circleEntryMode, setCircleEntryMode] = useState<'3' | '5'>('3')
+  // "쿼터별 상세 데이터" 아코디언 — 화면에서 접었으면 인쇄에서도 빠지게 하려고(사용자 피드백)
+  // Radix 비제어 아코디언 대신 직접 열림 상태를 들고 있음(기본은 접힘 — 원래도 defaultValue
+  // 없이 접힘 시작이었음, 그 기본값 그대로 유지).
+  const [quarterlyOpen, setQuarterlyOpen] = useState(false)
   // 저장된 matchData.circleEntries는 zone5 필드가 나중에 추가된 거라 예전 경기엔 없을 수 있음 —
   // 원본 이벤트(locationLabel 보존됨)에서 매번 다시 계산해서 재업로드 없이도 5방향이 정확히 나오게 함.
   const liveCircleEntries = useMemo(
@@ -596,12 +600,12 @@ export function Dashboard() {
               />
             </div>
 
-            <div className="break-inside-avoid">
-              <MatchEventTimeline data={matchData} onEventsUpdate={(events) => setMatchData(md => md ? { ...md, events } : md)} />
-            </div>
+            {/* 이벤트가 많은 경기는 한 페이지에 다 안 들어가므로 여기선 강제로 묶지 않고
+                자연스럽게 흘러가게 둠 — 행 단위 보호는 match-event-timeline.tsx 내부에서 처리 */}
+            <MatchEventTimeline data={matchData} onEventsUpdate={(events) => setMatchData(md => md ? { ...md, events } : md)} />
 
             <div className="break-inside-avoid print:block">
-              <Accordion type="single" collapsible className="print:hidden">
+              <Accordion type="single" collapsible className="print:hidden" value={quarterlyOpen ? "quarterly" : ""} onValueChange={(v) => setQuarterlyOpen(v === "quarterly")}>
                 <AccordionItem value="quarterly" className="border-none">
                   <AccordionTrigger className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2 hover:no-underline [&>svg]:h-6 [&>svg]:w-6">
                     <span className="flex items-center gap-2"><Activity className="h-6 w-6" /> 쿼터별 상세 데이터</span>
@@ -611,13 +615,15 @@ export function Dashboard() {
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
-              {/* 인쇄 시에는 접힘 상태와 무관하게 항상 표시 */}
-              <div className="hidden print:block space-y-8">
-                <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
-                  <Activity className="h-6 w-6" /> 쿼터별 상세 데이터
+              {/* 화면에서 펼쳐놓은 상태일 때만 인쇄에도 포함(접으면 리포트에서 통째로 빠짐) */}
+              {quarterlyOpen && (
+                <div className="hidden print:block space-y-8">
+                  <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2 break-after-avoid">
+                    <Activity className="h-6 w-6" /> 쿼터별 상세 데이터
+                  </div>
+                  <QuarterlyStatsTable data={matchData} />
                 </div>
-                <QuarterlyStatsTable data={matchData} />
-              </div>
+              )}
             </div>
 
             <CollapsibleSection title="공격 성능 분석" icon={<Sword className="h-6 w-6" />} className="space-y-8">
@@ -654,12 +660,15 @@ export function Dashboard() {
             </div>
 
             {aiAnalysis && (
-              <div className="break-inside-avoid space-y-8">
-                <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2">
+              // 카드 5개를 통째로 하나의 break-inside-avoid로 묶으면 전부 합쳐 한 페이지에
+              // 안 들어갈 때 다섯 개가 몽땅 다음 페이지로 밀려 앞 페이지가 텅 빔 — 카드마다
+              // 개별로 안 잘리게만 하고, 섹션 자체는 흘러가게 둬서 자연스럽게 나뉘어 넘어감.
+              <div className="space-y-8">
+                <div className="flex items-center gap-2 text-2xl font-bold text-primary border-b-2 pb-2 break-after-avoid">
                   <Sparkles className="h-6 w-6" /> AI 전술 분석 리포트
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card className="border-2 border-primary/20 md:col-span-2">
+                  <Card className="border-2 border-primary/20 md:col-span-2 break-inside-avoid">
                     <CardHeader className="bg-primary/5">
                       <CardTitle className="text-lg flex items-center gap-2">
                         <Info className="h-5 w-5 text-primary" /> 경기 최종 결과 요약
@@ -669,7 +678,7 @@ export function Dashboard() {
                       <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.matchSummary}</p>
                     </CardContent>
                   </Card>
-                  <Card className="border-2 border-primary/20">
+                  <Card className="border-2 border-primary/20 break-inside-avoid">
                     <CardHeader className="bg-emerald-500/5">
                       <CardTitle className="text-lg flex items-center gap-2">
                         <Target className="h-5 w-5 text-emerald-600" /> 핵심 성능 지표 (KPI) 분석
@@ -679,7 +688,7 @@ export function Dashboard() {
                       <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.kpiAnalysis}</p>
                     </CardContent>
                   </Card>
-                  <Card className="border-2 border-primary/20">
+                  <Card className="border-2 border-primary/20 break-inside-avoid">
                     <CardHeader className="bg-blue-500/5">
                       <CardTitle className="text-lg flex items-center gap-2">
                         <Activity className="h-5 w-5 text-blue-600" /> 데이터 해석 및 전술
@@ -689,7 +698,7 @@ export function Dashboard() {
                       <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{aiAnalysis.dataInterpretation}</p>
                     </CardContent>
                   </Card>
-                  <Card className="border-2 border-primary/20 md:col-span-2">
+                  <Card className="border-2 border-primary/20 md:col-span-2 break-inside-avoid">
                     <CardHeader className="bg-orange-500/5">
                       <CardTitle className="text-lg flex items-center gap-2">
                         <TrendingDown className="h-5 w-5 text-orange-600" /> 쿼터별 세부 특징
@@ -700,7 +709,7 @@ export function Dashboard() {
                     </CardContent>
                   </Card>
                 </div>
-                <Card className="bg-primary text-primary-foreground border-none shadow-xl">
+                <Card className="bg-primary text-primary-foreground border-none shadow-xl break-inside-avoid">
                   <CardContent className="p-6 flex items-center gap-4">
                     <div className="bg-white/20 p-3 rounded-xl shrink-0">
                       <Sparkles className="h-8 w-8 text-white" />
@@ -739,12 +748,15 @@ export function Dashboard() {
               </Card>
             </div>
 
-            <div className="break-inside-avoid pt-12 border-t-4 border-muted">
-              <div className="flex items-center gap-2 text-2xl font-bold text-muted-foreground mb-6">
+            <div className="pt-12 border-t-4 border-muted">
+              <div className="flex items-center gap-2 text-2xl font-bold text-muted-foreground mb-6 break-after-avoid">
                 <Info className="h-6 w-6" /> 지표 정의 및 산출 가이드 (Metrics Definition)
               </div>
+              {/* 예전엔 카드 5개를 이 grid 전체를 감싸는 하나의 break-inside-avoid로 묶어서,
+                  다섯 개가 남은 페이지에 다 안 들어가면 통째로 다음 페이지로 밀리며 앞 페이지에
+                  큰 빈 공간이 생겼음 — 카드마다 개별로 안 잘리게만 하고 grid 자체는 흘러가게 둠. */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <Card className="bg-muted/10 border-none shadow-none">
+                <Card className="bg-muted/10 border-none shadow-none break-inside-avoid">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-bold text-primary uppercase">SPP (Seconds Per Press)</CardTitle>
                   </CardHeader>
@@ -752,7 +764,7 @@ export function Dashboard() {
                     <p className="text-xs leading-relaxed text-muted-foreground">상대 팀의 빌드업 시간(우리 팀의 수비 상황)을 우리 팀의 압박 시도 횟수(상대 실책 유도 + 본인 파울 발생)로 나눈 값입니다. 수치가 낮을수록 압박 강도가 강하고 공격적임을 의미합니다.</p>
                   </CardContent>
                 </Card>
-                <Card className="bg-muted/10 border-none shadow-none">
+                <Card className="bg-muted/10 border-none shadow-none break-inside-avoid">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-bold text-primary uppercase">공격 점유율 (Attack Possession)</CardTitle>
                   </CardHeader>
@@ -760,7 +772,7 @@ export function Dashboard() {
                     <p className="text-xs leading-relaxed text-muted-foreground">양 팀의 공격 구역(ATT) 점유 시간 총합 대비 해당 팀의 공격 구역 점유 비중을 나타냅니다. 실질적인 위협 지역에서의 제어력을 평가합니다.</p>
                   </CardContent>
                 </Card>
-                <Card className="bg-muted/10 border-none shadow-none">
+                <Card className="bg-muted/10 border-none shadow-none break-inside-avoid">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-bold text-primary uppercase">빌드업 성공률 (Build25 Ratio)</CardTitle>
                   </CardHeader>
@@ -768,7 +780,7 @@ export function Dashboard() {
                     <p className="text-xs leading-relaxed text-muted-foreground">우리 팀의 전체 빌드업 시도 중 상대방 25m 구역(A25) 진입에 성공한 비율입니다. 팀의 후방 빌드업 전개 능력과 전진 패스 효율성을 나타냅니다.</p>
                   </CardContent>
                 </Card>
-                <Card className="bg-muted/10 border-none shadow-none">
+                <Card className="bg-muted/10 border-none shadow-none break-inside-avoid">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-bold text-primary uppercase">빌드업 정체 비율 (Stagnation Rate)</CardTitle>
                   </CardHeader>
@@ -776,7 +788,7 @@ export function Dashboard() {
                     <p className="text-xs leading-relaxed text-muted-foreground">팀의 전체 점유 시간 중 공격 구역(ATT)에 진입하지 못하고 후방 및 미드필드에 머무른 시간의 비중입니다. 높을수록 공격 전개 속도가 느림을 의미합니다.</p>
                   </CardContent>
                 </Card>
-                <Card className="bg-muted/10 border-none shadow-none">
+                <Card className="bg-muted/10 border-none shadow-none break-inside-avoid">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-bold text-primary uppercase">CE 1회당 소요 시간 (Time per CE)</CardTitle>
                   </CardHeader>

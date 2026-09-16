@@ -120,7 +120,8 @@ export function LineupSection({ match, onSaved, onPlayerClick }: LineupSectionPr
           {hasLineups && <CollapseToggleButton open={open} onClick={() => setOpen(o => !o)} />}
         </div>
       </CardHeader>
-      <CardContent className={cn("space-y-4", hasLineups && !open && "hidden print:block")}>
+      {/* 접었으면 인쇄에서도 뺌(사용자 피드백) — 예전엔 print:block으로 접힘 상태와 무관하게 항상 인쇄했음 */}
+      <CardContent className={cn("space-y-4", hasLineups && !open && "hidden")}>
         {!editing && match.lineups ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {match.lineups.home && <LineupTable team={match.lineups.home} teamName={match.homeTeam.name} teamColor={match.homeTeam.color} onPlayerClick={onPlayerClick} />}
