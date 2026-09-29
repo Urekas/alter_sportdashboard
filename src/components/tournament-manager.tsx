@@ -19,7 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from "@/components/ui/label"
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, query } from "firebase/firestore"
-import { parseXMLData, parseCSVData, createMatchDataFromUpload, decodeUploadedFile } from "@/lib/parser"
+import { parseXMLData, parseCSVData, createMatchDataFromUpload, decodeUploadedFile, encodeUtf16LEWithBOM } from "@/lib/parser"
 import { VideoMatchService } from "@/lib/video-match-service"
 
 // FIH TMS류 사이트에서 그대로 복사-붙여넣기한 일정표를 파싱합니다.
@@ -525,7 +525,9 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
       toast({ title: "다운로드할 원본 XML이 없어요", description: "이 경기는 원본 파일 없이 등록됐거나 아직 저장 안 됐어요.", variant: "destructive" })
       return
     }
-    const blob = new Blob([m.rawSourceText], { type: "application/octet-stream" })
+    // 구버전 Sportscode가 요구하는 UTF-16LE+BOM으로 다시 인코딩해서 내보냄 — 그냥
+    // new Blob([문자열])로 넣으면 브라우저가 무조건 UTF-8로 바꿔버려서 한글이 깨짐.
+    const blob = new Blob([encodeUtf16LEWithBOM(m.rawSourceText)], { type: "application/octet-stream" })
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
     link.href = url

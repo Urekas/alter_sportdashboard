@@ -17,6 +17,26 @@ export function decodeUploadedFile(ab: ArrayBuffer): string {
   return content;
 }
 
+// decodeUploadedFile의 반대 방향 — 업로드는 BOM 보고 제대로 디코딩하게 고쳤는데(위 함수),
+// "XML 다운로드"로 다시 내보낼 때는 여전히 `new Blob([rawSourceText])`로 그냥 문자열을
+// 넣고 있었음. 브라우저 Blob 생성자는 문자열을 넣으면 무조건 UTF-8로 인코딩해버려서(스펙 자체가
+// 그럼), 원본이 UTF-16LE+BOM(구버전 Sportscode가 실제로 요구하는 인코딩 — alter_coda 쪽에서
+// 2026-09-28에 실제 기기로 확인된 사실)이었어도 재다운로드하면 UTF-8로 바뀌어 한글이 깨짐.
+// JS 문자열은 이미 UTF-16 코드 유닛 배열이라, 그걸 리틀엔디안 바이트로 그대로 펼치고
+// BOM(0xFF 0xFE)만 앞에 붙이면 진짜 UTF-16LE 바이트가 됨 — surrogate pair도 charCodeAt이
+// 이미 16비트 유닛 2개로 주기 때문에 별도 처리 불필요.
+export function encodeUtf16LEWithBOM(str: string): ArrayBuffer {
+  const bytes = new Uint8Array(2 + str.length * 2);
+  bytes[0] = 0xFF;
+  bytes[1] = 0xFE;
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i);
+    bytes[2 + i * 2] = code & 0xFF;
+    bytes[2 + i * 2 + 1] = (code >> 8) & 0xFF;
+  }
+  return bytes.buffer;
+}
+
 export const detectRealTeamNames = (text: string): { home: string, away: string } | null => {
   // 1. 점수가 포함된 패턴 우선 검색 (예: 웨일즈 0 - 스코틀랜드 0) - 가장 확실한 식별자
   const scorePattern = /([가-힣A-Za-z]+)\s*\d+\s*-\s*([가-힣A-Za-z]+)\s*\d+/;

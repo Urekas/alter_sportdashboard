@@ -22,7 +22,7 @@ import { BuildUpEfficiencyChart } from "./build-up-efficiency-chart"
 import { MatchTrajectoryChart } from "./match-trajectory-chart"
 import { TournamentDashboard } from "./tournament-dashboard"
 import { TournamentManager } from "./tournament-manager"
-import { parseXMLData, parseCSVData, createMatchDataFromUpload, decodeUploadedFile, buildCircleEntries } from "@/lib/parser"
+import { parseXMLData, parseCSVData, createMatchDataFromUpload, decodeUploadedFile, encodeUtf16LEWithBOM, buildCircleEntries } from "@/lib/parser"
 import { TournamentService } from "@/lib/tournament-service"
 import { db } from "@/lib/firebase"
 import { Input } from "@/components/ui/input"
@@ -211,7 +211,9 @@ export function Dashboard() {
 
   const handleDownloadRawXml = () => {
     if (!matchData?.rawSourceText) return;
-    const blob = new Blob([matchData.rawSourceText], { type: "application/octet-stream" });
+    // 구버전 Sportscode가 요구하는 UTF-16LE+BOM으로 다시 인코딩해서 내보냄 — 그냥
+    // new Blob([문자열])로 넣으면 브라우저가 무조건 UTF-8로 바꿔버려서 한글이 깨짐.
+    const blob = new Blob([encodeUtf16LEWithBOM(matchData.rawSourceText)], { type: "application/octet-stream" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
