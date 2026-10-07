@@ -461,13 +461,20 @@ export function ShotZoneMap({
   const handleLeave = () => setTooltip(null)
 
   return (
-    <Card ref={containerRef} className="relative break-inside-avoid">
+    // 접어두면 PDF에서도 카드 통째로 뺌 — 예전엔 본문만 숨겨서 제목+범례만 덩그러니 인쇄됐고,
+    // 화면에서도 필터 버튼들이 헤더에 그대로 남아 접어도 공간을 차지해 PDF 확인할 때 방해였음.
+    <Card ref={containerRef} className={cn("relative break-inside-avoid", !open && "print:hidden")}>
       <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
-        <div>
-          <CardTitle>{title}</CardTitle>
-          {description && <CardDescription>{description}</CardDescription>}
+        {/* 접기 버튼을 제목 바로 옆(왼쪽)으로 — 오른쪽 끝은 필터 버튼 10여 개 뒤라 안 보였음.
+            제목을 눌러도 접히고 펼쳐짐. */}
+        <div className="flex items-center gap-3">
+          <CollapseToggleButton open={open} onClick={() => setOpen(o => !o)} />
+          <div className="cursor-pointer select-none" onClick={() => setOpen(o => !o)}>
+            <CardTitle>{title}</CardTitle>
+            {description && <CardDescription>{description}</CardDescription>}
+          </div>
         </div>
-        <div className="flex items-center gap-4">
+        {open && <div className="flex items-center gap-4">
           <div className="flex items-center gap-3 text-[11px] font-bold text-muted-foreground">
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full border-2 border-current" /> 필드슛</span>
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 border-2 border-current rounded-[2px]" /> PC</span>
@@ -510,8 +517,7 @@ export function ShotZoneMap({
             <Switch id="shot-grid-toggle" checked={showGrid} onCheckedChange={setShowGrid} />
             <Label htmlFor="shot-grid-toggle" className="text-xs font-bold cursor-pointer">구역 그리드</Label>
           </div>
-          <CollapseToggleButton open={open} onClick={() => setOpen(o => !o)} />
-        </div>
+        </div>}
       </CardHeader>
       {open && (
         <div className="px-6 pb-4 -mt-2 flex flex-wrap items-center gap-2 print-hidden">
