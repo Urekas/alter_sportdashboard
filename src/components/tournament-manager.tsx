@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useState, useMemo, useRef } from "react"
-import { Trophy, Database, Trash2, Edit3, Save, X, Plus, ChevronRight, RefreshCw, ArrowLeft, ArrowUp, ArrowDown, Eye, Users, Video, CalendarClock, Link2, Settings2, FileDown, Sparkles } from "lucide-react"
+import { Trophy, Database, Trash2, Edit3, Save, X, Plus, ChevronRight, RefreshCw, ArrowLeft, ArrowUp, ArrowDown, Eye, Users, Video, CalendarClock, Link2, Settings2, FileDown, Sparkles, Tags } from "lucide-react"
 import { VideoLinkDialog } from "./video-link-dialog"
 import { VideoLinksPopover } from "./video-links-popover"
 import { TournamentService } from "@/lib/tournament-service"
@@ -1124,6 +1124,9 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
                           <Button variant="outline" size="sm" className={`h-8 text-xs font-bold ${m.videoMatchId ? 'border-orange-500 text-orange-500 hover:bg-orange-50' : 'border-muted-foreground/40 text-muted-foreground hover:bg-muted/50'}`} onClick={() => setVideoLinkMatch(m)}><Video className="h-3 w-3 mr-1" /> 영상</Button>
                           <VideoLinksPopover videoMatchId={m.videoMatchId} />
                           <Button variant="outline" size="sm" className={`h-8 text-xs font-bold ${m.rawSourceText ? 'border-primary text-primary hover:bg-primary/5' : 'border-muted-foreground/30 text-muted-foreground/60'}`} title={m.rawSourceText ? '원본 XML 다운로드' : '저장된 원본 XML 없음'} onClick={() => handleDownloadXml(m)}><FileDown className="h-3 w-3 mr-1" /> XML</Button>
+                          {m.videoMatchId && m.rawSourceText && (
+                            <Button variant="outline" size="sm" className="h-8 text-xs font-bold border-foreground text-foreground hover:bg-foreground/5" title="유튜브 보면서 태그 고치기·추가 (새 탭)" onClick={() => window.open(`/tag/${m.id}`, '_blank')}><Tags className="h-3 w-3 mr-1" /> 태깅</Button>
+                          )}
                           {m.rawSourceText && (
                             <Button variant="outline" size="sm" className="h-8 text-xs font-bold border-violet-600 text-violet-600 hover:bg-violet-50" title="슈팅 태깅 도구에 저장된 XML로 재분석" disabled={reparsingMatchId === m.id} onClick={() => handleReparseFromSaved(m.id!)}><Sparkles className={`h-3 w-3 mr-1 ${reparsingMatchId === m.id ? 'animate-pulse' : ''}`} /> {reparsingMatchId === m.id ? "재분석 중..." : "재분석"}</Button>
                           )}
