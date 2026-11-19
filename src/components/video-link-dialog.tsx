@@ -113,7 +113,7 @@ export function VideoLinkDialog({ match, open, onOpenChange, onSaved }: VideoLin
       await TournamentService.updateVideoMatchId(db, match.id, videoMatchId)
       // 비디오 도구엔 이제 자체 XML/CSV 업로드 경로가 없어서, 대시보드에 이미 파싱돼있는
       // 이벤트가 그쪽 Scenes/Events 탭(클립 라이브러리)의 유일한 데이터 소스입니다.
-      await VideoMatchService.syncEvents(db, videoMatchId, match.events)
+      await VideoMatchService.syncEvents(db, videoMatchId, match.events, match.rawSourceText)
       toast({ title: "영상 연결 저장 완료", description: `이벤트 ${match.events.length}개를 비디오 도구에 동기화했어요.` })
       onSaved?.(videoMatchId)
       onOpenChange(false)

@@ -1,5 +1,5 @@
 import { db, collection, getDocs, addDoc, doc, updateDoc, deleteDoc } from './firebase-config.js';
-import { allEvents, updateCurrentPlaylist, playlistCart, updateCartUI } from './player.js';
+import { allEvents, updateCurrentPlaylist, playlistCart, updateCartUI, eventLabelList, labelKey, matchesLabelFilter, labelGroupsOf, escHtml } from './player.js';
 
 // State
 let matchesData = {};
@@ -40,6 +40,9 @@ function _applyFilters() {
     const selectedMatches = _getSelectedMatches();
     const selectedTeams   = Array.from(filterTeamContainer?.querySelectorAll('.filter-team-cb:checked') || []).map(cb => cb.value);
     const selectedCodes   = Array.from(document.querySelectorAll('.filter-code-cb:checked')).map(cb => cb.value);
+    const selectedLabels  = new Set(Array.from(document.querySelectorAll('.filter-label-cb:checked')).map(cb => cb.value));
+    const countLabelSpan  = document.getElementById('filter-label-count');
+    if (countLabelSpan) countLabelSpan.textContent = selectedLabels.size;
 
     const startDateStr = filterDateStart?.value || '';
     const endDateStr   = filterDateEnd?.value || '';
@@ -66,6 +69,7 @@ function _applyFilters() {
         if (selectedMatches.length > 0 && !selectedMatches.includes(ev.match_id)) return false;
         if (selectedTeams.length > 0 && !selectedTeams.includes(ev.team)) return false;
         if (selectedCodes.length > 0 && !selectedCodes.includes(ev.code)) return false;
+        if (!matchesLabelFilter(ev, selectedLabels)) return false;
         return true;
     });
 
@@ -102,7 +106,8 @@ function _renderResults(filteredEvents, libraryResultsUl) {
                     <span class="clip-team">${ev.team}</span>
                 </div>
                 <div class="clip-match">${matchName}</div>
-                <div class="clip-time">${ev.start_time.toFixed(1)}s ~ ${ev.end_time.toFixed(1)}s (${ev.duration}s)</div>
+                ${eventLabelList(ev).length ? `<div class="clip-match" style="color:var(--text-main)">${escHtml(eventLabelList(ev).map(l => l.text).join(' / '))}</div>` : ''}
+                <div class="clip-time">${ev.start_time.toFixed(1)}s ~ ${ev.end_time.toFixed(1)}s (${Number(ev.duration).toFixed(1)}s)</div>
             </div>
         `;
         const cb = li.querySelector('.clip-checkbox');
@@ -145,6 +150,7 @@ function _renderTournamentCheckboxes() {
         cb.addEventListener('change', () => {
             _renderMatchCheckboxes();
             _renderTeamCheckboxes();
+            _renderLabelCheckboxes();
             _applyFilters();
         })
     );
@@ -178,6 +184,7 @@ function _renderMatchCheckboxes() {
     filterCompetitionContainer.querySelectorAll('.filter-match-cb').forEach(cb =>
         cb.addEventListener('change', () => {
             _renderTeamCheckboxes();
+            _renderLabelCheckboxes();
             _applyFilters();
         })
     );
@@ -233,6 +240,37 @@ function _renderCodeCheckboxes() {
     filterCodeContainer.querySelectorAll('.filter-code-cb').forEach(cb => cb.addEventListener('change', _applyFilters));
 }
 
+// 라벨: 대회·경기 선택으로 좁힌 이벤트에 있는 라벨만, 그룹별로
+function _renderLabelCheckboxes() {
+    const box = document.getElementById('filter-label-container');
+    if (!box) return;
+    const selectedTournaments = _getSelectedTournaments();
+    const selectedMatches = _getSelectedMatches();
+    const prev = new Set(Array.from(box.querySelectorAll('.filter-label-cb:checked')).map(cb => cb.value));
+    const evs = allEvents.filter(ev =>
+        (selectedTournaments.length === 0 || selectedTournaments.includes(getMatchTournamentId(ev.match_id))) &&
+        (selectedMatches.length === 0 || selectedMatches.includes(ev.match_id)));
+    const groups = labelGroupsOf(evs);
+    box.innerHTML = '';
+    if (!groups.length) { box.innerHTML = '<label style="color:var(--text-muted);font-size:0.8em;">라벨 없음</label>'; return; }
+    groups.forEach(g => {
+        const head = document.createElement('div');
+        head.style.cssText = 'font-size:0.72rem;color:var(--text-muted);margin-top:4px;';
+        head.textContent = g.group || '그룹 없음';
+        box.appendChild(head);
+        g.texts.forEach(t => {
+            const k = labelKey({ group: g.group, text: t.text });
+            const label = document.createElement('label');
+            label.className = 'filter-code-label';
+            label.style.display = 'flex'; label.style.gap = '5px';
+            label.innerHTML = `<input type="checkbox" class="filter-label-cb" ${prev.has(k) ? 'checked' : ''}> <span>${escHtml(t.text)} <small style="color:var(--text-muted)">${t.count}</small></span>`;
+            label.querySelector('input').value = k;
+            box.appendChild(label);
+        });
+    });
+    box.querySelectorAll('.filter-label-cb').forEach(cb => cb.addEventListener('change', _applyFilters));
+}
+
 function _populateFilters() {
     if (!document.getElementById('filter-code-container')) return;
 
@@ -240,6 +278,7 @@ function _populateFilters() {
     _renderMatchCheckboxes();
     _renderTeamCheckboxes();
     _renderCodeCheckboxes();
+    _renderLabelCheckboxes();
 
     const dateStart = document.getElementById('filter-date-start');
     const dateEnd   = document.getElementById('filter-date-end');

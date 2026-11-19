@@ -87,6 +87,13 @@
             <label style="color:var(--text-muted);">검색 대기중...</label>
           </div>
         </details>
+
+        <details>
+          <summary style="cursor:pointer; color:var(--text-muted); font-size:0.9rem; margin-bottom:4px; outline:none; font-weight:bold;">라벨(Label) 필터 (<span id="filter-label-count">0</span>) <small style="font-weight:normal">같은 그룹은 또는, 그룹끼리는 그리고</small></summary>
+          <div id="filter-label-container" style="max-height:180px;overflow-y:auto;background:var(--bg);border:1px solid var(--border-color);padding:5px;border-radius:0; font-size:0.85rem; display:flex; flex-direction:column; gap:4px;">
+            <label style="color:var(--text-muted);">검색 대기중...</label>
+          </div>
+        </details>
       </div>
       <div style="display:flex;gap:5px;margin-bottom:10px;">
         <button id="btn-select-all" class="secondary-btn" style="flex:1;font-size:0.75rem;padding:5px;">Check All (전체 선택)</button>
@@ -143,7 +150,11 @@
 
       <div class="right-tab-content" id="right-tab-events">
         <div class="code-tools" style="padding:10px; display:flex; flex-direction:column; gap:8px; border-bottom:1px solid var(--border-color);">
-          <input type="text" id="event-search" placeholder="🔍 이벤트 검색 (코드/라벨)...">
+          <div style="display:flex; gap:5px;">
+            <input type="text" id="event-search" placeholder="🔍 이벤트 검색 (코드/라벨)..." style="flex:1; min-width:0;">
+            <button id="btn-matrix" class="secondary-btn" type="button" title="코드 × 라벨 표 — 칸을 누르면 그 클립만 이어 재생" style="margin:0; padding:0 10px; white-space:nowrap;">▦ 매트릭스</button>
+          </div>
+          <div id="event-label-filter"></div>
           <div style="display:flex; gap:5px;">
             <button id="btn-create-playlist-right" class="primary-btn" style="flex:1; margin:0; padding:8px; background-color:#4caf50; display:none;">🛒 <span class="cart-count-val">0</span> Playlist</button>
             <button id="btn-batch-capture-right" class="primary-btn" style="flex:1; margin:0; padding:8px; background-color:#e67e22; display:none;">🎬 선택 캡처</button>
@@ -297,6 +308,18 @@
         <button id="modal-btn-cancel" class="btn-cancel">취소</button>
         <button id="modal-btn-confirm" class="btn-confirm">저장 및 반영</button>
       </div>
+    </div>
+  </div>
+
+  <!-- 매트릭스: 코드 × 라벨 -->
+  <div id="matrix-modal" class="modal-overlay">
+    <div class="modal-content matrix-content">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <h3 style="margin:0; flex:1;">매트릭스 <small style="color:var(--text-muted); font-weight:normal; font-size:0.8rem;">칸을 누르면 그 클립만 이어 재생</small></h3>
+        <label style="font-size:0.85rem;">라벨 그룹 <select id="matrix-group"></select></label>
+        <button id="matrix-close" class="btn-cancel" type="button">닫기</button>
+      </div>
+      <div id="matrix-body" style="overflow:auto; max-height:70vh;"></div>
     </div>
   </div>
 

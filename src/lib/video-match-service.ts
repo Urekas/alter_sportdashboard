@@ -3,6 +3,7 @@
 
 import { collection, addDoc, doc, getDoc, updateDoc, deleteDoc, getDocs, query, where, writeBatch, Firestore } from 'firebase/firestore';
 import type { MatchEvent } from './types';
+import { buildVideoEvents } from './video-events';
 
 // Alter_sportsplay(비디오 분석 도구)가 쓰는 'Matches'/'Events' 컬렉션과 동일한 스키마입니다.
 // 필드명(match_name, video_urls, match_id, code, start_time 등 snake_case)은 그쪽 코드
@@ -65,40 +66,68 @@ export const VideoMatchService = {
   // 대시보드에 이미 파싱된 이벤트(matchData.events)를 비디오 도구의 'Events' 컬렉션으로 밀어넣습니다.
   // 비디오 도구 자체엔 더 이상 독립적인 XML/CSV 업로드 경로가 없으므로(제거됨), 영상 연결 시
   // 이게 유일한 이벤트 소스입니다 — Scenes/Events 탭의 클립 라이브러리·이벤트 목록이 여길 씁니다.
-  // 재연결(재저장) 시 중복이 쌓이지 않도록 기존 이벤트를 먼저 지우고 다시 씁니다.
-  async syncEvents(db: Firestore, videoMatchId: string, events: MatchEvent[]): Promise<void> {
-    if (!videoMatchId) return;
+  //
+  // 재생목록(Playlists.event_ids)이 Events 문서 ID를 가리키기 때문에:
+  //  - 문서 ID를 경기+코드+팀+시간으로 고정 → 다시 저장해도 같은 이벤트는 같은 ID (재생목록 유지)
+  //  - 시간이 바뀌는 등으로 ID가 달라진 이벤트는, 옛 문서를 지우기 전에 재생목록의 ID를 새 것으로 바꿈
+  //    (예전엔 전부 지우고 새 랜덤 ID로 다시 만들어서, 저장할 때마다 그 경기 재생목록이 빈 목록이 됐음)
+  // rawXml(원본 XML)을 주면 그 태그의 라벨 전부를 label_list로 같이 넣음 — 비디오 도구의 라벨 필터·매트릭스용
+  async syncEvents(db: Firestore, videoMatchId: string, events: MatchEvent[], rawXml?: string): Promise<{ written: number; deleted: number; remappedPlaylists: number }> {
+    if (!videoMatchId) return { written: 0, deleted: 0, remappedPlaylists: 0 };
 
     const existingQ = query(collection(db, VIDEO_EVENTS_COL), where('match_id', '==', videoMatchId));
     const existingSnap = await getDocs(existingQ);
-    for (let i = 0; i < existingSnap.docs.length; i += EVENTS_BATCH_SIZE) {
+    const existing = existingSnap.docs.map((d) => ({ id: d.id, ref: d.ref, ...(d.data() as { code?: string; team?: string; start_time?: number }) }));
+
+    const newDocs = buildVideoEvents(videoMatchId, events, rawXml);
+    const newIds = new Set(newDocs.map((d) => d.id));
+
+    // 없어지는 옛 문서 → 가장 비슷한 새 이벤트(같은 코드·팀, 시간 같음 > 3초 이내 가장 가까움)
+    const remap = new Map<string, string>();
+    for (const o of existing) {
+      if (newIds.has(o.id)) continue;
+      const same = newDocs.filter((n) => n.data.code === o.code && n.data.team === o.team);
+      let best: { id: string; dt: number } | null = null;
+      for (const n of same) {
+        const dt = Math.abs(n.data.start_time - (o.start_time ?? -1e9));
+        if (dt <= 3 && (!best || dt < best.dt)) best = { id: n.id, dt };
+      }
+      if (best) remap.set(o.id, best.id);
+    }
+
+    // 1) 새 이벤트 쓰기 (같은 ID면 덮어씀)
+    for (let i = 0; i < newDocs.length; i += EVENTS_BATCH_SIZE) {
       const batch = writeBatch(db);
-      existingSnap.docs.slice(i, i + EVENTS_BATCH_SIZE).forEach(d => batch.delete(d.ref));
+      newDocs.slice(i, i + EVENTS_BATCH_SIZE).forEach((n) => batch.set(doc(db, VIDEO_EVENTS_COL, n.id), n.data));
       await batch.commit();
     }
 
-    for (let i = 0; i < events.length; i += EVENTS_BATCH_SIZE) {
+    // 2) 지워질 옛 ID를 가리키는 재생목록 고치기
+    const stale = new Set(existing.filter((o) => !newIds.has(o.id)).map((o) => o.id));
+    let remappedPlaylists = 0;
+    if (stale.size) {
+      const pls = await getDocs(collection(db, 'Playlists'));
+      for (const p of pls.docs) {
+        const ids: string[] = Array.isArray(p.data().event_ids) ? p.data().event_ids : [];
+        if (!ids.some((id) => stale.has(id))) continue;
+        const next: string[] = [];
+        for (const id of ids) {
+          const to = stale.has(id) ? remap.get(id) : id;
+          if (to && !next.includes(to)) next.push(to);
+        }
+        await updateDoc(p.ref, { event_ids: next, updated_at: new Date().toISOString() });
+        remappedPlaylists++;
+      }
+    }
+
+    // 3) 이제 안 쓰는 옛 문서 지우기
+    const toDelete = existing.filter((o) => stale.has(o.id));
+    for (let i = 0; i < toDelete.length; i += EVENTS_BATCH_SIZE) {
       const batch = writeBatch(db);
-      events.slice(i, i + EVENTS_BATCH_SIZE).forEach(ev => {
-        const labels: Record<string, string> = {};
-        if (ev.locationLabel) labels['지역'] = ev.locationLabel;
-        if (ev.resultLabel) labels['결과'] = ev.resultLabel;
-        if (ev.shooter) labels['Player'] = ev.shooter;
-        if (ev.defender) labels['GK_Player'] = ev.defender;
-        if (ev.relatedPlayer) labels['관련 선수'] = ev.relatedPlayer;
-        batch.set(doc(collection(db, VIDEO_EVENTS_COL)), {
-          match_id: videoMatchId,
-          code: ev.code,
-          team: ev.team,
-          start_time: ev.time,
-          end_time: ev.time + ev.duration,
-          duration: ev.duration,
-          labels,
-          created_at: new Date().toISOString(),
-        });
-      });
+      toDelete.slice(i, i + EVENTS_BATCH_SIZE).forEach((o) => batch.delete(o.ref));
       await batch.commit();
     }
+    return { written: newDocs.length, deleted: toDelete.length, remappedPlaylists };
   },
 
   // 여러 경기에 걸쳐 필터링된 슈팅 로그로 "재생목록 만들기"를 누르면 경기별로 재생목록이

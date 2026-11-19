@@ -309,22 +309,152 @@ export async function fetchEventsForMatch(matchId) {
   }
 }
 
-export function applyFiltersAndRender() {
+// ── 라벨 ──────────────────────────────────────────────
+// 대시보드가 원본 XML 라벨 전부를 label_list([{group,text}])로 넣어줌. 예전에 동기화된 이벤트는
+// labels({그룹: "값 / 값"})만 있어서 거기서 풀어 씀.
+export function eventLabelList(ev) {
+  if (Array.isArray(ev.label_list)) return ev.label_list;
+  const out = [];
+  Object.entries(ev.labels || {}).forEach(([g, v]) => String(v).split(' / ').forEach(t => { if (t.trim()) out.push({ group: g, text: t.trim() }); }));
+  return out;
+}
+export const labelKey = (l) => `${l.group}\u0000${l.text}`;
+
+// 같은 그룹 안에서는 "또는", 그룹끼리는 "그리고" (스포츠코드 Sorter와 같은 방식)
+export function matchesLabelFilter(ev, keys) {
+  if (!keys || keys.size === 0) return true;
+  const byGroup = new Map();
+  keys.forEach(k => { const g = k.split('\u0000')[0]; byGroup.set(g, [...(byGroup.get(g) || []), k]); });
+  const have = new Set(eventLabelList(ev).map(labelKey));
+  for (const ks of byGroup.values()) if (!ks.some(k => have.has(k))) return false;
+  return true;
+}
+
+/** [{group, texts:[{text,count}]}] — 그룹 이름순, 값은 많은 순 */
+export function labelGroupsOf(events) {
+  const m = new Map();
+  events.forEach(ev => eventLabelList(ev).forEach(l => {
+    const g = m.get(l.group) || new Map();
+    g.set(l.text, (g.get(l.text) || 0) + 1);
+    m.set(l.group, g);
+  }));
+  return [...m.entries()]
+    .map(([group, g]) => ({ group, texts: [...g.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')).map(([text, count]) => ({ text, count })) }))
+    .sort((a, b) => (a.group === '' ? 1 : b.group === '' ? -1 : a.group.localeCompare(b.group, 'ko')));
+}
+
+const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+export const escHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ESC[c]);
+
+let labelFilter = new Set(); // 이벤트 탭 라벨 필터
+let codeFilter = null;       // 매트릭스 칸을 눌렀을 때만: 그 코드 하나
+
+function baseEventsForView() {
   const searchInput = document.getElementById('event-search');
   const searchText = searchInput ? searchInput.value.toLowerCase() : '';
-  
-  currentPlaylist = allEvents.filter(ev => {
+  return allEvents.filter(ev => {
     // 1. 현재 선택된 경기(activeMatchId) 데이터만 표시 (격리)
     if (activeMatchId && ev.match_id !== activeMatchId) return false;
-    
-    // 2. 검색어 필터링
-    const rawSearchTarget = `${ev.code || ''} ${JSON.stringify(ev.labels || {})} ${ev.team || ''}`.toLowerCase();
+    // 2. 검색어 필터링 (코드·라벨·팀)
+    const rawSearchTarget = `${ev.code || ''} ${eventLabelList(ev).map(l => l.text).join(' ')} ${ev.team || ''}`.toLowerCase();
     if (searchText && !rawSearchTarget.includes(searchText)) return false;
-    
     return true;
   });
-  
+}
+
+export function resetEventFilters() { labelFilter = new Set(); codeFilter = null; }
+
+export function applyFiltersAndRender() {
+  const base = baseEventsForView();
+  currentPlaylist = base.filter(ev => (!codeFilter || ev.code === codeFilter) && matchesLabelFilter(ev, labelFilter));
+  renderLabelFilter(base);
   renderCodeViewer(currentPlaylist);
+}
+
+function renderLabelFilter(base) {
+  const box = document.getElementById('event-label-filter');
+  if (!box) return;
+  const groups = labelGroupsOf(base);
+  box.innerHTML = '';
+  if (labelFilter.size > 0 || codeFilter) {
+    const bar = document.createElement('div');
+    bar.className = 'lf-active';
+    const parts = [];
+    if (codeFilter) parts.push(`<span class="lf-chip on" data-clear-code="1">${escHtml(codeFilter)} ✕</span>`);
+    labelFilter.forEach(k => { const [g, t] = k.split('\u0000'); parts.push(`<span class="lf-chip on" data-k data-g="${escHtml(g)}" data-t="${escHtml(t)}">${g ? escHtml(g) + ': ' : ''}${escHtml(t)} ✕</span>`); });
+    bar.innerHTML = parts.join('') + `<button class="lf-clear" type="button">필터 지우기</button>`;
+    box.appendChild(bar);
+  }
+  if (!groups.length) return;
+  const det = document.createElement('details');
+  det.className = 'lf-details';
+  if (box.dataset.open === '1') det.open = true;
+  det.addEventListener('toggle', () => { box.dataset.open = det.open ? '1' : ''; });
+  det.innerHTML = `<summary>라벨로 거르기 <small>(${groups.reduce((n, g) => n + g.texts.length, 0)})</small></summary>` +
+    groups.map(g => `<div class="lf-group"><div class="lf-gname">${escHtml(g.group || '그룹 없음')}</div><div class="lf-chips">` +
+      g.texts.map(t => { const k = labelKey({ group: g.group, text: t.text }); return `<span class="lf-chip${labelFilter.has(k) ? ' on' : ''}" data-k data-g="${escHtml(g.group)}" data-t="${escHtml(t.text)}">${escHtml(t.text)} <small>${t.count}</small></span>`; }).join('') +
+      `</div></div>`).join('');
+  box.appendChild(det);
+  box.querySelectorAll('.lf-chip[data-k]').forEach(el => el.addEventListener('click', () => {
+    // 키의 구분 문자(\u0000)는 HTML 속성에 넣으면 깨져서 그룹·값을 따로 둠
+    const k = labelKey({ group: el.dataset.g, text: el.dataset.t });
+    if (labelFilter.has(k)) labelFilter.delete(k); else labelFilter.add(k);
+    applyFiltersAndRender();
+  }));
+  box.querySelector('[data-clear-code]')?.addEventListener('click', () => { codeFilter = null; applyFiltersAndRender(); });
+  box.querySelector('.lf-clear')?.addEventListener('click', () => { labelFilter.clear(); codeFilter = null; applyFiltersAndRender(); });
+}
+
+// ── 매트릭스: 코드 × 라벨 표, 칸 누르면 그 클립만 걸러서 이어 재생 ──
+let matrixGroup = null;
+export function openMatrix() {
+  const modal = document.getElementById('matrix-modal');
+  if (!modal) return;
+  renderMatrix();
+  modal.classList.add('active');
+}
+function renderMatrix() {
+  const body = document.getElementById('matrix-body');
+  const sel = document.getElementById('matrix-group');
+  if (!body || !sel) return;
+  const base = baseEventsForView();
+  const groups = labelGroupsOf(base);
+  if (!groups.length) {
+    body.innerHTML = '<p style="color:var(--text-muted)">라벨이 있는 이벤트가 없어요. 대시보드 대회 관리에서 이 경기를 한 번 "재분석"하면 원본 라벨이 들어와요.</p>';
+    sel.innerHTML = '';
+    return;
+  }
+  if (!groups.some(g => g.group === matrixGroup)) matrixGroup = (groups.find(g => /결과|result|outcome/i.test(g.group)) || groups[0]).group;
+  sel.innerHTML = groups.map(g => `<option value="${escHtml(g.group)}" ${g.group === matrixGroup ? 'selected' : ''}>${escHtml(g.group || '그룹 없음')}</option>`).join('');
+  const cols = groups.find(g => g.group === matrixGroup).texts.map(t => t.text);
+  const codes = [...new Set(base.map(e => e.code))].sort((a, b) => a.localeCompare(b, 'ko'));
+  const has = (ev, t) => eventLabelList(ev).some(l => l.group === matrixGroup && l.text === t);
+  let html = '<table class="mx"><thead><tr><th>코드</th><th>전체</th>' + cols.map(c => `<th>${escHtml(c)}</th>`).join('') + '</tr></thead><tbody>';
+  codes.forEach(code => {
+    const evs = base.filter(e => e.code === code);
+    html += `<tr><th>${escHtml(code)}</th><td class="mx-c" data-code="${escHtml(code)}">${evs.length}</td>`;
+    cols.forEach(c => {
+      const n = evs.filter(e => has(e, c)).length;
+      html += n ? `<td class="mx-c" data-code="${escHtml(code)}" data-t="${escHtml(c)}">${n}</td>` : '<td class="mx-0">·</td>';
+    });
+    html += '</tr>';
+  });
+  const tot = cols.map(c => base.filter(e => has(e, c)).length);
+  html += `<tr class="mx-tot"><th>합계</th><td class="mx-c">${base.length}</td>` + cols.map((c, i) => tot[i] ? `<td class="mx-c" data-t="${escHtml(c)}">${tot[i]}</td>` : '<td class="mx-0">·</td>').join('') + '</tr>';
+  body.innerHTML = html + '</tbody></table>';
+  body.querySelectorAll('.mx-c').forEach(td => td.addEventListener('click', () => {
+    codeFilter = td.dataset.code || null;
+    labelFilter = new Set(td.dataset.t !== undefined ? [labelKey({ group: matrixGroup, text: td.dataset.t })] : []);
+    document.getElementById('matrix-modal')?.classList.remove('active');
+    applyFiltersAndRender();
+    playOrganizerPlaylist(currentPlaylist);
+  }));
+}
+export function initMatrixUI() {
+  document.getElementById('btn-matrix')?.addEventListener('click', openMatrix);
+  document.getElementById('matrix-close')?.addEventListener('click', () => document.getElementById('matrix-modal')?.classList.remove('active'));
+  document.getElementById('matrix-modal')?.addEventListener('click', (e) => { if (e.target.id === 'matrix-modal') e.target.classList.remove('active'); });
+  document.getElementById('matrix-group')?.addEventListener('change', (e) => { matrixGroup = e.target.value; renderMatrix(); });
 }
 
 export function setActiveMatch(matchId) {
@@ -433,9 +563,8 @@ export function renderCodeViewer(events) {
       li.className = 'event-item';
       li.dataset.index = index;
 
-      const labelText = ev.labels && Object.keys(ev.labels).length > 0 
-          ? Object.values(ev.labels).join(' / ') 
-          : ev.code;
+      const ll = eventLabelList(ev);
+      const labelText = escHtml(ll.length > 0 ? ll.map(l => l.text).join(' / ') : ev.code);
 
       const isChecked = playlistCart.has(ev.id);
       li.innerHTML = `
