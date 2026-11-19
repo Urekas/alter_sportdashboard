@@ -36,6 +36,18 @@ export interface VideoMatchMetadata {
   video_offsets: VideoOffsets;
 }
 
+// 동기화가 쓰는 필드만 비교 (created_at 제외, 키 순서 무관)
+const SYNC_FIELDS = ['match_id', 'code', 'team', 'start_time', 'end_time', 'duration', 'quarter', 'labels', 'label_list'] as const;
+const canon = (v: unknown): string =>
+  v && typeof v === 'object' && !Array.isArray(v)
+    ? '{' + Object.keys(v as object).sort().map((k) => JSON.stringify(k) + ':' + canon((v as Record<string, unknown>)[k])).join(',') + '}'
+    : Array.isArray(v) ? '[' + v.map(canon).join(',') + ']' : JSON.stringify(v ?? null);
+function sameEventDoc(old: Record<string, unknown> | undefined, next: object): boolean {
+  if (!old) return false;
+  const n = next as Record<string, unknown>;
+  return SYNC_FIELDS.every((k) => canon(old[k]) === canon(n[k]));
+}
+
 export const VideoMatchService = {
   async get(db: Firestore, videoMatchId: string): Promise<VideoMatchMetadata | null> {
     if (!videoMatchId) return null;
@@ -77,7 +89,8 @@ export const VideoMatchService = {
 
     const existingQ = query(collection(db, VIDEO_EVENTS_COL), where('match_id', '==', videoMatchId));
     const existingSnap = await getDocs(existingQ);
-    const existing = existingSnap.docs.map((d) => ({ id: d.id, ref: d.ref, ...(d.data() as { code?: string; team?: string; start_time?: number }) }));
+    const existing = existingSnap.docs.map((d) => ({ id: d.id, ref: d.ref, raw: d.data() as Record<string, unknown>, ...(d.data() as { code?: string; team?: string; start_time?: number }) }));
+    const existingById = new Map(existing.map((o) => [o.id, o.raw]));
 
     const newDocs = buildVideoEvents(videoMatchId, events, rawXml);
     const newIds = new Set(newDocs.map((d) => d.id));
@@ -95,10 +108,13 @@ export const VideoMatchService = {
       if (best) remap.set(o.id, best.id);
     }
 
-    // 1) 새 이벤트 쓰기 (같은 ID면 덮어씀)
-    for (let i = 0; i < newDocs.length; i += EVENTS_BATCH_SIZE) {
+    // 1) 새 이벤트 쓰기 — 이미 같은 내용이면 건너뜀 (Firestore 무료 한도가 하루 쓰기 2만 개라,
+    //    태그 몇 개 고치고 저장할 때마다 경기 전체 1000여 개를 다시 쓰면 금방 막힘)
+    const toWrite = newDocs.filter((n) => !sameEventDoc(existingById.get(n.id), n.data));
+    for (let i = 0; i < toWrite.length; i += EVENTS_BATCH_SIZE) {
       const batch = writeBatch(db);
-      newDocs.slice(i, i + EVENTS_BATCH_SIZE).forEach((n) => batch.set(doc(db, VIDEO_EVENTS_COL, n.id), n.data));
+      // merge: 이 동기화가 모르는 필드(다른 도구가 붙인 것)는 지우지 않음
+      toWrite.slice(i, i + EVENTS_BATCH_SIZE).forEach((n) => batch.set(doc(db, VIDEO_EVENTS_COL, n.id), n.data, { merge: true }));
       await batch.commit();
     }
 
@@ -127,7 +143,7 @@ export const VideoMatchService = {
       toDelete.slice(i, i + EVENTS_BATCH_SIZE).forEach((o) => batch.delete(o.ref));
       await batch.commit();
     }
-    return { written: newDocs.length, deleted: toDelete.length, remappedPlaylists };
+    return { written: toWrite.length, deleted: toDelete.length, remappedPlaylists };
   },
 
   // 여러 경기에 걸쳐 필터링된 슈팅 로그로 "재생목록 만들기"를 누르면 경기별로 재생목록이
