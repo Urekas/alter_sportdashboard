@@ -1,5 +1,5 @@
 import { db, collection, getDocs, addDoc, doc, updateDoc, deleteDoc } from './firebase-config.js';
-import { allEvents, updateCurrentPlaylist, playlistCart, updateCartUI, eventLabelList, labelKey, matchesLabelFilter, labelGroupsOf, escHtml } from './player.js';
+import { allEvents, updateCurrentPlaylist, playlistCart, updateCartUI, eventLabelList, labelKey, matchesLabelFilter, labelGroupsOf, escHtml, openMatrix, ensureEventsForMatches } from './player.js';
 
 // State
 let matchesData = {};
@@ -57,7 +57,23 @@ function _applyFilters() {
     if (countTeamSpan) countTeamSpan.textContent = selectedTeams.length;
     if (countCodeSpan) countCodeSpan.textContent = selectedCodes.length;
 
-    const filtered = allEvents.filter(ev => {
+    const filtered = _scopeEvents().filter(ev => {
+        if (selectedCodes.length > 0 && !selectedCodes.includes(ev.code)) return false;
+        if (!matchesLabelFilter(ev, selectedLabels)) return false;
+        return true;
+    });
+    _sortAndRender(filtered, libraryResultsUl);
+}
+
+// 날짜·대회·경기·팀으로 좁힌 이벤트 (코드·라벨 필터는 빼고 — 매트릭스가 이걸로 표를 만듦)
+function _scopeEvents() {
+    const filterTeamContainer = document.getElementById('filter-team-container');
+    const startDateStr = document.getElementById('filter-date-start')?.value || '';
+    const endDateStr   = document.getElementById('filter-date-end')?.value || '';
+    const selectedTournaments = _getSelectedTournaments();
+    const selectedMatches = _getSelectedMatches();
+    const selectedTeams   = Array.from(filterTeamContainer?.querySelectorAll('.filter-team-cb:checked') || []).map(cb => cb.value);
+    return allEvents.filter(ev => {
         const matchInfo = matchesData[ev.match_id];
         if (startDateStr || endDateStr) {
             if (!matchInfo || !matchInfo.match_date) return false;
@@ -68,11 +84,11 @@ function _applyFilters() {
         if (selectedTournaments.length > 0 && !selectedTournaments.includes(getMatchTournamentId(ev.match_id))) return false;
         if (selectedMatches.length > 0 && !selectedMatches.includes(ev.match_id)) return false;
         if (selectedTeams.length > 0 && !selectedTeams.includes(ev.team)) return false;
-        if (selectedCodes.length > 0 && !selectedCodes.includes(ev.code)) return false;
-        if (!matchesLabelFilter(ev, selectedLabels)) return false;
         return true;
     });
+}
 
+function _sortAndRender(filtered, libraryResultsUl) {
     // 가나다 순으로 정렬 표시 (코드명 기준 정렬 후 시간 순)
     filtered.sort((a, b) => {
         const codeCmp = a.code.localeCompare(b.code, 'ko');
@@ -149,9 +165,7 @@ function _renderTournamentCheckboxes() {
     filterTournamentContainer.querySelectorAll('.filter-tournament-cb').forEach(cb =>
         cb.addEventListener('change', () => {
             _renderMatchCheckboxes();
-            _renderTeamCheckboxes();
-            _renderLabelCheckboxes();
-            _applyFilters();
+            _loadScopeThen();
         })
     );
 }
@@ -183,9 +197,7 @@ function _renderMatchCheckboxes() {
     });
     filterCompetitionContainer.querySelectorAll('.filter-match-cb').forEach(cb =>
         cb.addEventListener('change', () => {
-            _renderTeamCheckboxes();
-            _renderLabelCheckboxes();
-            _applyFilters();
+            _loadScopeThen();
         })
     );
 }
@@ -222,6 +234,7 @@ function _renderCodeCheckboxes() {
     const filterCodeContainer = document.getElementById('filter-code-container');
     if (!filterCodeContainer) return;
 
+    const prevCodes = new Set(Array.from(filterCodeContainer.querySelectorAll('.filter-code-cb:checked')).map(cb => cb.value));
     const codes = new Set();
     allEvents.forEach(ev => { if (ev.code) codes.add(ev.code); });
 
@@ -234,7 +247,8 @@ function _renderCodeCheckboxes() {
         const label = document.createElement('label');
         label.className = 'filter-code-label';
         label.style.display = 'flex'; label.style.gap = '5px';
-        label.innerHTML = `<input type="checkbox" value="${code}" class="filter-code-cb"> ${code}`;
+        label.innerHTML = `<input type="checkbox" class="filter-code-cb" ${prevCodes.has(code) ? 'checked' : ''}> ${escHtml(code)}`;
+        label.querySelector('input').value = code;
         filterCodeContainer.appendChild(label);
     });
     filterCodeContainer.querySelectorAll('.filter-code-cb').forEach(cb => cb.addEventListener('change', _applyFilters));
@@ -269,6 +283,48 @@ function _renderLabelCheckboxes() {
         });
     });
     box.querySelectorAll('.filter-label-cb').forEach(cb => cb.addEventListener('change', _applyFilters));
+}
+
+// 라이브러리 매트릭스: 지금 고른 날짜·대회·경기·팀 범위의 코드 × 라벨, 칸을 누르면 그 코드·라벨로 목록을 거름
+async function _openLibraryMatrix() {
+    await ensureEventsForMatches(_scopeMatchIds());
+    const nMatches = new Set(_scopeEvents().map(e => e.match_id)).size;
+    openMatrix({
+        title: `라이브러리 · ${nMatches}경기` + (_scopeMatchIds().length ? '' : ' (일부만 — 대회나 경기를 고르면 전부 불러와요)'),
+        base: _scopeEvents,
+        onCell: (code, label) => {
+            document.querySelectorAll('.filter-code-cb').forEach(cb => { cb.checked = !!code && cb.value === code; });
+            const k = label ? labelKey(label) : null;
+            document.querySelectorAll('.filter-label-cb').forEach(cb => { cb.checked = !!k && cb.value === k; });
+            if (k) document.getElementById('filter-label-container')?.closest('details')?.setAttribute('open', '');
+            _applyFilters();
+            document.getElementById('library-results-ul')?.scrollIntoView({ block: 'start' });
+        },
+    });
+}
+
+// 고른 대회·경기 범위의 경기 id (아무것도 안 골랐으면 빈 배열 = 전체를 다 불러오진 않음)
+function _scopeMatchIds() {
+    const selectedMatches = _getSelectedMatches();
+    if (selectedMatches.length) return selectedMatches;
+    const selectedTournaments = _getSelectedTournaments();
+    if (!selectedTournaments.length) return [];
+    return Object.keys(matchesData).filter(id => selectedTournaments.includes(getMatchTournamentId(id)));
+}
+let _loadSeq = 0;
+async function _loadScopeThen() {
+    const ids = _scopeMatchIds();
+    const seq = ++_loadSeq;
+    const ul = document.getElementById('library-results-ul');
+    const pending = ids.length ? await (async () => {
+        if (ul) ul.innerHTML = '<li style="color:var(--text-muted);font-size:0.9em;">경기 이벤트 불러오는 중...</li>';
+        return ensureEventsForMatches(ids);
+    })() : 0;
+    if (seq !== _loadSeq) return; // 그새 다른 걸 골랐으면 그쪽이 그림
+    if (pending) _renderCodeCheckboxes();
+    _renderTeamCheckboxes();
+    _renderLabelCheckboxes();
+    _applyFilters();
 }
 
 function _populateFilters() {
@@ -330,6 +386,7 @@ export async function initLibrary() {
     }, 500);
 
     // ── 선택 컨트롤 ──
+    document.getElementById('btn-library-matrix')?.addEventListener('click', _openLibraryMatrix);
     btnSelectAll?.addEventListener('click', () => {
         document.querySelectorAll('.clip-checkbox, .event-checkbox').forEach(cb => {
             if (!cb.checked) { cb.checked = true; playlistCart.add(cb.value); cb.closest('.clip-item')?.classList.add('selected'); }

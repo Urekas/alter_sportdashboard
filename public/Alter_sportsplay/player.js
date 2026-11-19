@@ -293,6 +293,14 @@ export async function fetchAndRenderEvents() {
 // "왼쪽 이벤트를 눌러도 그 장면으로 안 간다"는 문제가 바로 이거였음: 리스트에 실제로는 안 뜨거나
 // 잘못 잘린 채 표시되고 있었던 것. 경기를 열 때마다 이 함수로 그 경기 이벤트만 확실하게(캡 없이)
 // 다시 채워서 해결.
+const fullyLoaded = new Set(); // 이벤트를 캡 없이 다 불러온 경기
+// 라이브러리에서 여러 경기를 묶어 볼 때: 아직 다 안 불러온 경기만 불러옴 (처음 로드는 전체 1000개 캡이라 빠짐)
+export async function ensureEventsForMatches(matchIds) {
+  const need = [...new Set(matchIds)].filter(id => id && !fullyLoaded.has(id));
+  for (let i = 0; i < need.length; i += 4) await Promise.all(need.slice(i, i + 4).map(id => fetchEventsForMatch(id)));
+  return need.length;
+}
+
 export async function fetchEventsForMatch(matchId) {
   if (!matchId) return;
   try {
@@ -303,6 +311,7 @@ export async function fetchEventsForMatch(matchId) {
     // 기존에 (전역 1000개 캡으로) 섞여 들어와 있던 이 경기의 불완전한 항목들을 지우고 온전한
     // 세트로 교체 — 다른 경기 항목(Explorer 브라우징용)은 그대로 둠.
     allEvents = allEvents.filter((e) => e.match_id !== matchId).concat(fresh);
+    fullyLoaded.add(matchId);
     applyFiltersAndRender();
   } catch (error) {
     console.error(`Error fetching events for match ${matchId}:`, error);
@@ -407,9 +416,24 @@ function renderLabelFilter(base) {
 
 // ── 매트릭스: 코드 × 라벨 표, 칸 누르면 그 클립만 걸러서 이어 재생 ──
 let matrixGroup = null;
-export function openMatrix() {
+// 어떤 이벤트로 표를 만들고, 칸을 누르면 뭘 할지 — 기본은 이벤트 탭(지금 경기), 라이브러리는 여러 경기 묶음
+const viewSource = {
+  title: '이 경기',
+  base: () => baseEventsForView(),
+  onCell: (code, label) => {
+    codeFilter = code;
+    labelFilter = new Set(label ? [labelKey(label)] : []);
+    applyFiltersAndRender();
+    playOrganizerPlaylist(currentPlaylist);
+  },
+};
+let matrixSource = viewSource;
+export function openMatrix(source) {
   const modal = document.getElementById('matrix-modal');
   if (!modal) return;
+  matrixSource = source || viewSource;
+  const t = document.getElementById('matrix-scope');
+  if (t) t.textContent = matrixSource.title;
   renderMatrix();
   modal.classList.add('active');
 }
@@ -417,7 +441,7 @@ function renderMatrix() {
   const body = document.getElementById('matrix-body');
   const sel = document.getElementById('matrix-group');
   if (!body || !sel) return;
-  const base = baseEventsForView();
+  const base = matrixSource.base();
   const groups = labelGroupsOf(base);
   if (!groups.length) {
     body.innerHTML = '<p style="color:var(--text-muted)">라벨이 있는 이벤트가 없어요. 대시보드 대회 관리에서 이 경기를 한 번 "재분석"하면 원본 라벨이 들어와요.</p>';
@@ -443,15 +467,12 @@ function renderMatrix() {
   html += `<tr class="mx-tot"><th>합계</th><td class="mx-c">${base.length}</td>` + cols.map((c, i) => tot[i] ? `<td class="mx-c" data-t="${escHtml(c)}">${tot[i]}</td>` : '<td class="mx-0">·</td>').join('') + '</tr>';
   body.innerHTML = html + '</tbody></table>';
   body.querySelectorAll('.mx-c').forEach(td => td.addEventListener('click', () => {
-    codeFilter = td.dataset.code || null;
-    labelFilter = new Set(td.dataset.t !== undefined ? [labelKey({ group: matrixGroup, text: td.dataset.t })] : []);
     document.getElementById('matrix-modal')?.classList.remove('active');
-    applyFiltersAndRender();
-    playOrganizerPlaylist(currentPlaylist);
+    matrixSource.onCell(td.dataset.code || null, td.dataset.t !== undefined ? { group: matrixGroup, text: td.dataset.t } : null);
   }));
 }
 export function initMatrixUI() {
-  document.getElementById('btn-matrix')?.addEventListener('click', openMatrix);
+  document.getElementById('btn-matrix')?.addEventListener('click', () => openMatrix());
   document.getElementById('matrix-close')?.addEventListener('click', () => document.getElementById('matrix-modal')?.classList.remove('active'));
   document.getElementById('matrix-modal')?.addEventListener('click', (e) => { if (e.target.id === 'matrix-modal') e.target.classList.remove('active'); });
   document.getElementById('matrix-group')?.addEventListener('change', (e) => { matrixGroup = e.target.value; renderMatrix(); });
