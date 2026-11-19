@@ -1,13 +1,14 @@
 "use client"
 
 // 웹 태깅: 유튜브가 연결되고 원본 XML이 저장된 경기의 태그를 영상 보면서 고치고 더함
-//  - 코드 버튼: 한 번 누르면 시작, 다시 누르면 끝 (Alter Live·Sportscode와 같은 방식)
-//  - 라벨 버튼: 고른 태그에 붙이기/떼기 (그룹이 있으면 그룹당 하나)
+//  - 버튼 동작은 Alter Live 태깅 엔진 그대로 (src/lib/alter/engine.ts): 토글/한 번 누름(lead·lag), 링크(활성·배타·비활성), 라벨
+//  - 코드윈도우: 올린 것(.CWcode2SC / Alter Live JSON)을 고르면 같은 배치·단축키, 안 고르면 XML에 있는 코드·라벨로 간단 버튼
+//  - 라벨: 켜진 태그에 붙음, 켜진 게 없으면 고른(또는 방금 만든) 태그에
 //  - 저장: 고친 XML로 대시보드 분석을 다시 계산해서 덮어씀, 직전 XML은 따로 보관 (되돌리기)
-//  - ?dry=1 이면 저장하지 않고 계산 결과만 보여줌 (테스트용)
+//  - ?dry=1 이면 저장하지 않고 계산 결과만 보여줌 (테스트용, 코드윈도우도 저장 안 함)
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Loader2, Save, Undo2, Redo2, Trash2, Play, Pause, History, Square } from "lucide-react"
+import { ArrowLeft, Loader2, Save, Undo2, Redo2, Trash2, Play, Pause, History, Square, Upload } from "lucide-react"
 import { useFirestore } from "@/firebase"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
@@ -15,10 +16,12 @@ import { TournamentService } from "@/lib/tournament-service"
 import { VideoMatchService, type VideoMatchMetadata } from "@/lib/video-match-service"
 import type { MatchData } from "@/lib/types"
 import { YouTubePlayer, youTubeId, type YouTubeHandle } from "@/components/youtube-player"
-import {
-  autoLabelsAt, codeList, fmtTime, isAutoLabel, labelGroups, newKey, parseScXml, rowColor, serializeScXml, textOn,
-  type ScInstance, type ScLabel, type ScTimeline,
-} from "@/lib/sc-xml"
+import { CodeWindowPanel } from "@/components/code-window-panel"
+import { autoLabelsAt, codeList, fmtTime, isAutoLabel, parseScXml, rowColor, serializeScXml, textOn, type ScInstance, type ScTimeline } from "@/lib/sc-xml"
+import { deactivateAll, press, type EngineState } from "@/lib/alter/engine"
+import type { CodeWindow } from "@/lib/alter/types"
+import { emptyExtras, fromEngine, hotkeyMatches, syntheticCW, teamNamedCW, toEngine, type EngineExtras } from "@/lib/tag-engine"
+import { getCodeWindow, listCodeWindows, readCodeWindowFile, saveCodeWindow, setMatchCodeWindow } from "@/lib/codewindow-service"
 import { loadBackup, saveTagging } from "@/lib/tag-save"
 import { cn } from "@/lib/utils"
 
@@ -30,6 +33,7 @@ const ANGLES: { key: keyof VideoMatchMetadata["video_urls"]; name: string }[] = 
 ]
 const ROW_H = 22
 const NAME_W = 150
+type Snap = { tl: ScTimeline; eng: EngineExtras }
 
 export default function TagPage({ params }: { params: Promise<{ matchId: string }> }) {
   const { matchId } = use(params)
@@ -40,12 +44,11 @@ export default function TagPage({ params }: { params: Promise<{ matchId: string 
   const [tournamentName, setTournamentName] = useState<string>("")
   const [loadError, setLoadError] = useState("")
   const [tl, setTl] = useState<ScTimeline>({ instances: [], rows: [] })
-  const [past, setPast] = useState<ScTimeline[]>([])
-  const [future, setFuture] = useState<ScTimeline[]>([])
+  const [eng, setEng] = useState<EngineExtras>(emptyExtras)
+  const [past, setPast] = useState<Snap[]>([])
+  const [future, setFuture] = useState<Snap[]>([])
   const [savedXml, setSavedXml] = useState("")
   const [selected, setSelected] = useState<string | null>(null)
-  /** 지금 켜져 있는(시작만 하고 아직 안 끝낸) 태그: 코드 → 인스턴스 key */
-  const [open, setOpen] = useState<Record<string, string>>({})
   const [angle, setAngle] = useState<string>("")
   const [clock, setClock] = useState(0)
   const [playing, setPlaying] = useState(false)
@@ -53,8 +56,14 @@ export default function TagPage({ params }: { params: Promise<{ matchId: string 
   const [pps, setPps] = useState(4) // 타임라인 1초당 픽셀
   const [saving, setSaving] = useState(false)
   const [dry, setDry] = useState(false)
+  // 코드윈도우: null = XML 코드로 만든 간단 버튼
+  const [cwList, setCwList] = useState<{ id: string; name: string }[]>([])
+  const [cwId, setCwId] = useState<string>("")
+  const [realCw, setRealCw] = useState<CodeWindow | null>(null)
+  const [cwBusy, setCwBusy] = useState(false)
   const player = useRef<YouTubeHandle>(null)
   const tlScroll = useRef<HTMLDivElement>(null)
+  const fileInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => setDry(new URLSearchParams(window.location.search).get("dry") === "1"), [])
 
@@ -77,6 +86,15 @@ export default function TagPage({ params }: { params: Promise<{ matchId: string 
       setAngle(first.key)
       setTl(parsed)
       setSavedXml(serializeScXml(parsed))
+      listCodeWindows(db).then((l) => !gone && setCwList(l)).catch(() => {})
+      const savedCw = (m as MatchData & { codeWindowId?: string }).codeWindowId
+      if (savedCw) {
+        const c = await getCodeWindow(db, savedCw).catch(() => null)
+        if (!gone && c) {
+          setCwId(c.id)
+          setRealCw(c.cw)
+        }
+      }
       if (m.tournamentId) {
         const ts = await TournamentService.getTournaments()
         if (!gone) setTournamentName(ts.find((t) => t.id === m.tournamentId)?.name ?? m.tournamentName ?? "")
@@ -98,95 +116,142 @@ export default function TagPage({ params }: { params: Promise<{ matchId: string 
     return () => clearInterval(id)
   }, [now])
 
-  // ---- 편집 (모든 변경은 여기를 거쳐서 되돌리기 기록) ----
+  // ---- 상태 바꾸기 (모든 변경은 여기를 거쳐서 되돌리기 기록) ----
   const tlRef = useRef(tl)
   tlRef.current = tl
-  const edit = useCallback((fn: (t: ScTimeline) => ScTimeline) => {
-    const before = tlRef.current
-    const after = fn(before)
-    if (after === before) return
-    setPast((p) => [...p.slice(-199), before])
+  const engRef = useRef(eng)
+  engRef.current = eng
+  const commit = useCallback((nextTl: ScTimeline, nextEng: EngineExtras = engRef.current) => {
+    setPast((p) => [...p.slice(-199), { tl: tlRef.current, eng: engRef.current }])
     setFuture([])
-    setTl(after)
+    tlRef.current = nextTl
+    engRef.current = nextEng
+    setTl(nextTl)
+    setEng(nextEng)
   }, [])
-  const patchInst = (key: string, fn: (i: ScInstance) => ScInstance) =>
-    edit((t) => ({ ...t, instances: t.instances.map((i) => (i.key === key ? fn(i) : i)) }))
+  const patchInst = (key: string, fn: (i: ScInstance) => ScInstance) => commit({ ...tl, instances: tl.instances.map((i) => (i.key === key ? fn(i) : i)) })
 
   const undo = useCallback(() => {
     setPast((p) => {
       if (!p.length) return p
-      setFuture((f) => [tlRef.current, ...f])
-      setTl(p[p.length - 1])
+      const last = p[p.length - 1]
+      setFuture((f) => [{ tl: tlRef.current, eng: engRef.current }, ...f])
+      setTl(last.tl)
+      setEng(last.eng)
       return p.slice(0, -1)
     })
-    setOpen({})
   }, [])
   const redo = useCallback(() => {
     setFuture((f) => {
       if (!f.length) return f
-      setPast((p) => [...p, tlRef.current])
-      setTl(f[0])
+      setPast((p) => [...p, { tl: tlRef.current, eng: engRef.current }])
+      setTl(f[0].tl)
+      setEng(f[0].eng)
       return f.slice(1)
     })
   }, [])
 
-  const codes = useMemo(() => codeList(tl), [tl])
-  const groups = useMemo(() => labelGroups(tl), [tl])
+  const synthetic = useMemo(() => syntheticCW(tl), [tl])
+  // 올린 코드윈도우가 HOME/AWAY 이름이면 이 경기 팀 이름으로 (대시보드 통계가 팀 이름 코드로 계산됨)
+  const namedCw = useMemo(() => (realCw && match ? teamNamedCW(realCw, tl, match.homeTeam.name, match.awayTeam.name) : null), [realCw, match, tl])
+  const cw = namedCw ?? synthetic
   const sel = tl.instances.find((i) => i.key === selected) ?? null
   const dirty = useMemo(() => serializeScXml(tl) !== savedXml, [tl, savedXml])
+  const activeIds = useMemo(() => new Set(eng.active.map((a) => a.buttonId)), [eng])
+  // 타임라인 행: XML 코드 + 지금 켜진 코드
+  const rowsShown = useMemo(() => [...new Set([...codeList(tl), ...eng.active.map((a) => a.rowName)])], [tl, eng])
+  const btnColor = (code: string) => {
+    const r = tl.rows.find((x) => x.code === code)
+    return r ? rowColor(tl.rows, code) : cw.buttons.find((b) => b.kind === "code" && b.name === code)?.color ?? rowColor(tl.rows, code)
+  }
   const duration = useMemo(() => Math.max(player.current?.duration?.() ? player.current.duration() + offset : 0, ...tl.instances.map((i) => i.end), 60) + 30, [tl, offset, clock > 0])
 
-  // 켜져 있는 태그는 끝이 지금 시간을 따라감 (화면에만, 끝낼 때 확정)
-  const shownEnd = (i: ScInstance) => (Object.values(open).includes(i.key) ? Math.max(i.start, clock) : i.end)
-
-  // ---- 코드 버튼 ----
-  const pressCode = (code: string) => {
-    const t = now()
-    const k = open[code]
-    if (k) {
-      patchInst(k, (i) => ({ ...i, end: Math.max(i.start, t) }))
-      const { [code]: _, ...rest } = open
-      setOpen(rest)
-      setSelected(k)
-      return
+  // ---- 엔진으로 버튼 누르기 ----
+  const engineState = (t: number, base: ScTimeline = tlRef.current, e: EngineExtras = engRef.current): EngineState => {
+    const selInst = base.instances.find((i) => i.key === selected)
+    return {
+      timeline: toEngine(base),
+      ...e,
+      // 켜진 태그가 없을 때 라벨은 고른 태그에 붙게
+      lastInstance: selInst ? { rowName: selInst.code, uniqueId: selInst.key } : e.lastInstance,
+      autoLabels: autoLabelsAt(base, t).map((l) => ({ group: l.group ?? "", name: l.text })),
     }
-    const key = newKey()
-    edit((x) => ({ ...x, instances: [...x.instances, { key, start: t, end: t, code, labels: autoLabelsAt(x, t), extra: "" }] }))
-    setOpen((o) => ({ ...o, [code]: key }))
-    setSelected(key)
+  }
+  const apply = (next: EngineState, before: EngineState) => {
+    commit(fromEngine(next.timeline, tlRef.current), { active: next.active, lastInstance: next.lastInstance, open: next.open ?? [] })
+    if (next.lastInstance && next.lastInstance.uniqueId !== before.lastInstance?.uniqueId) setSelected(next.lastInstance.uniqueId)
+  }
+  const pressButton = (id: string) => {
+    const t = now()
+    const before = engineState(t)
+    apply(press(before, cw, id, t), before)
   }
   const endAll = useCallback(() => {
+    if (!engRef.current.active.length) return
     const t = now()
-    const keys = Object.values(open)
-    if (!keys.length) return
-    edit((x) => ({ ...x, instances: x.instances.map((i) => (keys.includes(i.key) ? { ...i, end: Math.max(i.start, t) } : i)) }))
-    setOpen({})
-  }, [open, now, edit])
-
-  // ---- 라벨 버튼: 고른 태그에 붙이기/떼기 ----
-  const toggleLabel = (group: string, text: string) => {
-    if (!sel) return toast({ title: "라벨을 붙일 태그를 먼저 골라 주세요" })
-    patchInst(sel.key, (i) => {
-      const g = group === "" ? undefined : group
-      const has = i.labels.some((l) => (l.group ?? "") === group && l.text === text)
-      if (has) return { ...i, labels: i.labels.filter((l) => !((l.group ?? "") === group && l.text === text)) }
-      // 같은 그룹에 여러 개도 됨 (실제 데이터에 "결과: GK_save + PC" 같은 게 있음)
-      return { ...i, labels: [...i.labels, { ...(g !== undefined ? { group: g } : {}), text }] }
-    })
-  }
+    const before = engineState(t)
+    apply(deactivateAll(before, cw, t), before)
+  }, [cw, now, selected])
 
   const removeSelected = useCallback(() => {
     if (!selected) return
-    edit((x) => ({ ...x, instances: x.instances.filter((i) => i.key !== selected) }))
-    setOpen((o) => Object.fromEntries(Object.entries(o).filter(([, k]) => k !== selected)))
+    commit({ ...tlRef.current, instances: tlRef.current.instances.filter((i) => i.key !== selected) }, { ...engRef.current, lastInstance: null, open: (engRef.current.open ?? []).filter((o) => o.uniqueId !== selected) })
     setSelected(null)
-  }, [selected, edit])
+  }, [selected, commit])
+
+  // ---- 코드윈도우 고르기/올리기 ----
+  const chooseCw = async (id: string) => {
+    if (engRef.current.active.length) endAll()
+    setCwId(id)
+    if (!id) {
+      setRealCw(null)
+    } else {
+      setCwBusy(true)
+      const c = await getCodeWindow(db, id).catch(() => null)
+      setCwBusy(false)
+      if (!c) return toast({ title: "코드윈도우를 불러오지 못했어요", variant: "destructive" })
+      setRealCw(c.cw)
+    }
+    if (!dry) setMatchCodeWindow(db, matchId, id || null).catch(() => {})
+  }
+  const uploadCw = async (file: File) => {
+    setCwBusy(true)
+    try {
+      const c = await readCodeWindowFile(file)
+      if (engRef.current.active.length) endAll()
+      if (dry) {
+        setCwId("__local")
+        setCwList((l) => [{ id: "__local", name: `${c.name} (저장 안 함)` }, ...l.filter((x) => x.id !== "__local")])
+        setRealCw(c)
+      } else {
+        const id = await saveCodeWindow(db, c)
+        setCwList((l) => [{ id, name: c.name }, ...l])
+        setCwId(id)
+        setRealCw(c)
+        setMatchCodeWindow(db, matchId, id).catch(() => {})
+      }
+      toast({ title: `코드윈도우 "${c.name}" — 버튼 ${c.buttons.length}개, 링크 ${c.links.length}개` })
+    } catch (e: any) {
+      toast({ title: "코드윈도우를 읽지 못했어요", description: String(e?.message ?? e), variant: "destructive" })
+    } finally {
+      setCwBusy(false)
+    }
+  }
 
   // ---- 키보드 ----
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return
+      if (e.repeat) return
+      // 코드윈도우 단축키가 먼저
+      if (realCw) {
+        const b = realCw.buttons.find((x) => (x.kind === "code" || x.kind === "label") && hotkeyMatches(x.hotkey, e))
+        if (b) {
+          e.preventDefault()
+          return pressButton(b.id)
+        }
+      }
       const mod = e.ctrlKey || e.metaKey
       if (mod && e.key.toLowerCase() === "z") {
         e.preventDefault()
@@ -219,21 +284,30 @@ export default function TagPage({ params }: { params: Promise<{ matchId: string 
   // 저장 안 하고 나가려 하면 확인
   useEffect(() => {
     const h = (e: BeforeUnloadEvent) => {
-      if (dirty) e.preventDefault()
+      if (dirty || eng.active.length) e.preventDefault()
     }
     window.addEventListener("beforeunload", h)
     return () => window.removeEventListener("beforeunload", h)
-  }, [dirty])
+  }, [dirty, eng])
 
   async function doSave() {
     if (!match || saving) return
-    if (Object.keys(open).length) endAll()
+    // 켜진 태그는 지금 시간에 끝내고 저장
+    let finalTl = tlRef.current
+    if (engRef.current.active.length) {
+      const t = now()
+      const before = engineState(t)
+      const next = deactivateAll(before, cw, t)
+      finalTl = fromEngine(next.timeline, tlRef.current)
+      apply(next, before)
+    }
     setSaving(true)
     try {
-      const xml = serializeScXml(tlRef.current)
+      const xml = serializeScXml(finalTl)
       const r = await saveTagging(db, match, xml, { dry, tournamentName })
       if (r.dry) {
-        toast({ title: `저장 안 함 (테스트) — 이벤트 ${r.events}개로 다시 계산됨`, description: `${r.data.homeTeam.name} ${r.data.matchStats.home.goals.field + r.data.matchStats.home.goals.pc} : ${r.data.matchStats.away.goals.field + r.data.matchStats.away.goals.pc} ${r.data.awayTeam.name}` })
+        const g = r.data.matchStats
+        toast({ title: `저장 안 함 (테스트) — 이벤트 ${r.events}개로 다시 계산됨`, description: `${r.data.homeTeam.name} ${g.home.goals.field + g.home.goals.pc} : ${g.away.goals.field + g.away.goals.pc} ${r.data.awayTeam.name}` })
         ;(window as any).__tagDry = r.data
       } else {
         setMatch({ ...match, ...r.data, id: match.id })
@@ -251,8 +325,7 @@ export default function TagPage({ params }: { params: Promise<{ matchId: string 
     const xml = await loadBackup(db, matchId).catch(() => null)
     if (!xml) return toast({ title: "되돌릴 이전 저장본이 없어요" })
     if (!confirm("직전 저장 전 상태를 불러올까요? (저장을 눌러야 실제로 바뀌어요)")) return
-    edit(() => parseScXml(xml))
-    setOpen({})
+    commit(parseScXml(xml), emptyExtras())
     setSelected(null)
   }
 
@@ -272,7 +345,8 @@ export default function TagPage({ params }: { params: Promise<{ matchId: string 
     )
 
   const anglesWithVideo = ANGLES.filter((a) => youTubeId(video.video_urls?.[a.key] ?? ""))
-  const openKeys = Object.values(open)
+  const labelBtns = synthetic.buttons.filter((b) => b.kind === "label")
+  const labelGroupsShown = [...new Set(labelBtns.map((b) => b.group))]
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -287,12 +361,12 @@ export default function TagPage({ params }: { params: Promise<{ matchId: string 
         <Button variant="outline" size="sm" onClick={undo} disabled={!past.length} title="되돌리기 (Ctrl+Z)"><Undo2 className="h-4 w-4" /></Button>
         <Button variant="outline" size="sm" onClick={redo} disabled={!future.length} title="다시 하기 (Ctrl+Shift+Z)"><Redo2 className="h-4 w-4" /></Button>
         <Button variant="outline" size="sm" onClick={restoreBackup} title="직전 저장 전 상태 불러오기"><History className="h-4 w-4 mr-1" /> 이전 저장본</Button>
-        <Button size="sm" onClick={doSave} disabled={saving || (!dirty && !dry)} title="저장 (Ctrl+S)">
+        <Button size="sm" onClick={doSave} disabled={saving || (!dirty && !dry && !eng.active.length)} title="저장 (Ctrl+S)">
           {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />} 저장
         </Button>
       </div>
 
-      <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+      <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         {/* 영상 + 고른 태그 */}
         <div className="min-w-0 space-y-3">
           {videoId && <YouTubePlayer ref={player} videoId={videoId} onState={setPlaying} onReady={() => player.current?.setRate(rate)} />}
@@ -321,11 +395,10 @@ export default function TagPage({ params }: { params: Promise<{ matchId: string 
             ) : (
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-block h-3 w-3" style={{ background: rowColor(tl.rows, sel.code) }} />
+                  <span className="inline-block h-3 w-3" style={{ background: btnColor(sel.code) }} />
                   <select className="h-8 border border-input bg-background px-2 font-medium" value={sel.code} onChange={(e) => patchInst(sel.key, (i) => ({ ...i, code: e.target.value }))} data-testid="sel-code">
-                    {codes.map((c) => <option key={c} value={c}>{c}</option>)}
+                    {[...new Set([...codeList(tl), ...cw.buttons.filter((b) => b.kind === "code").map((b) => b.name)])].map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
-                  {openKeys.includes(sel.key) && <span className="text-xs text-primary">진행 중</span>}
                   <span className="flex-1" />
                   <Button variant="outline" size="sm" onClick={() => seek(sel.start)}><Play className="h-3 w-3 mr-1" /> 이 장면</Button>
                   <Button variant="outline" size="sm" className="text-destructive" onClick={removeSelected} title="삭제 (Delete)"><Trash2 className="h-3 w-3 mr-1" /> 삭제</Button>
@@ -333,7 +406,7 @@ export default function TagPage({ params }: { params: Promise<{ matchId: string 
                 {(["start", "end"] as const).map((k) => (
                   <div key={k} className="flex flex-wrap items-center gap-1">
                     <span className="w-8 text-muted-foreground">{k === "start" ? "시작" : "끝"}</span>
-                    <span className="w-20 font-mono tabular-nums" data-testid={`sel-${k}`}>{fmtTime(k === "end" ? shownEnd(sel) : sel[k])}</span>
+                    <span className="w-20 font-mono tabular-nums" data-testid={`sel-${k}`}>{fmtTime(sel[k])}</span>
                     {[-1, -0.2, 0.2, 1].map((d) => (
                       <Button key={d} variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => patchInst(sel.key, (i) => fix({ ...i, [k]: i[k] + d }, k))}>{d > 0 ? `+${d}` : d}</Button>
                     ))}
@@ -354,43 +427,61 @@ export default function TagPage({ params }: { params: Promise<{ matchId: string 
           </div>
         </div>
 
-        {/* 코드 · 라벨 버튼 */}
+        {/* 코드윈도우 */}
         <div className="min-w-0 space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">코드</span>
-            <span className="text-xs text-muted-foreground">한 번 = 시작, 다시 = 끝</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium">코드윈도우</span>
+            <select className="h-8 min-w-0 max-w-[220px] border border-input bg-background px-2 text-sm" value={cwId} onChange={(e) => chooseCw(e.target.value)} data-testid="cw-select" disabled={cwBusy}>
+              <option value="">XML 코드로 (간단 버튼)</option>
+              {cwList.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()} disabled={cwBusy} title="Sportscode .CWcode2SC 또는 Alter Live 코드윈도우 JSON">
+              {cwBusy ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Upload className="h-3 w-3 mr-1" />} 올리기
+            </Button>
+            <input ref={fileInput} type="file" accept=".CWcode2SC,.cwcode2sc,.json" className="hidden" data-testid="cw-file"
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadCw(f) }} />
             <span className="flex-1" />
-            <Button variant="outline" size="sm" onClick={endAll} disabled={!openKeys.length} title="켜진 코드 모두 끝 (Tab)"><Square className="h-3 w-3 mr-1" /> 모두 끝{openKeys.length ? ` (${openKeys.length})` : ""}</Button>
+            <Button variant="outline" size="sm" onClick={endAll} disabled={!eng.active.length} title="켜진 코드 모두 끝 (Tab)"><Square className="h-3 w-3 mr-1" /> 모두 끝{eng.active.length ? ` (${eng.active.length})` : ""}</Button>
           </div>
-          <div className="grid grid-cols-2 gap-1 sm:grid-cols-3" data-testid="code-buttons">
-            {codes.map((c) => {
-              const bg = rowColor(tl.rows, c)
-              const on = !!open[c]
-              return (
-                <button key={c} onClick={() => pressCode(c)} className="relative min-h-9 px-2 py-1.5 text-xs font-medium leading-tight" style={{ background: bg, color: textOn(bg) }} data-on={on || undefined}>
-                  {c}
-                  {on && <span className="pointer-events-none absolute inset-0 border-[3px] border-[#201e1d]" />}
-                </button>
-              )
-            })}
-          </div>
-          <div className="space-y-2 pt-1" data-testid="label-buttons">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">라벨</span>
-              <span className="text-xs text-muted-foreground">{sel ? "고른 태그에 붙이기/빼기" : "태그를 먼저 고르세요"}</span>
-            </div>
-            {groups.map((g) => (
-              <div key={g.group} className="flex flex-wrap items-center gap-1">
-                <span className="w-14 shrink-0 text-xs text-muted-foreground">{g.group || "기타"}</span>
-                {g.texts.slice(0, 40).map((t) => {
-                  const on = !!sel?.labels.some((l) => (l.group ?? "") === g.group && l.text === t)
+
+          {realCw ? (
+            <>
+              <CodeWindowPanel cw={namedCw ?? realCw} activeIds={activeIds} onPress={pressButton} />
+              <p className="text-xs text-muted-foreground">단축키·링크·리드/래그는 코드윈도우 설정 그대로 · 라벨은 켜진 태그에, 없으면 고른 태그에 붙어요</p>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-1 sm:grid-cols-3" data-testid="code-buttons">
+                {synthetic.buttons.filter((b) => b.kind === "code").map((b) => {
+                  const bg = btnColor(b.name)
+                  const on = activeIds.has(b.id)
                   return (
-                    <button key={t} onClick={() => toggleLabel(g.group, t)} className={cn("border px-2 py-1 text-xs", on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:border-foreground")}>{t}</button>
+                    <button key={b.id} onClick={() => pressButton(b.id)} className="relative min-h-9 px-2 py-1.5 text-xs font-medium leading-tight" style={{ background: bg, color: textOn(bg) }} data-on={on || undefined}>
+                      {b.name}
+                      {on && <span className="pointer-events-none absolute inset-0 border-[3px] border-[#201e1d]" />}
+                    </button>
                   )
                 })}
               </div>
-            ))}
-          </div>
+              <div className="space-y-2 pt-1" data-testid="label-buttons">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">라벨</span>
+                  <span className="text-xs text-muted-foreground">켜진 태그에, 없으면 고른 태그에 붙어요 (빼기는 위 태그 칸에서 ×)</span>
+                </div>
+                {labelGroupsShown.map((g) => (
+                  <div key={g} className="flex flex-wrap items-center gap-1">
+                    <span className="w-14 shrink-0 text-xs text-muted-foreground">{g || "기타"}</span>
+                    {labelBtns.filter((b) => b.group === g).slice(0, 40).map((b) => {
+                      const on = !!sel?.labels.some((l) => (l.group ?? "") === g && l.text === b.name)
+                      return (
+                        <button key={b.id} onClick={() => pressButton(b.id)} className={cn("border px-2 py-1 text-xs", on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:border-foreground")}>{b.name}</button>
+                      )
+                    })}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -398,13 +489,13 @@ export default function TagPage({ params }: { params: Promise<{ matchId: string 
       <div className="border-t border-border px-4 pb-6 pt-2">
         <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
           <span className="text-sm font-medium text-foreground">타임라인</span>
-          <span>태그 {tl.instances.length}개 · 빈 곳 누르면 그 위치로 · Space 재생 · ←/→ 1초 · Delete 삭제 · Ctrl+Z 되돌리기</span>
+          <span>태그 {tl.instances.length}개 · 빈 곳 누르면 그 위치로 · Space 재생 · ←/→ 1초 · Tab 모두 끝 · Delete 삭제 · Ctrl+Z 되돌리기</span>
           <span className="flex-1" />
           <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => setPps((p) => Math.max(0.5, p / 1.5))}>-</Button>
           <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => setPps((p) => Math.min(60, p * 1.5))}>+</Button>
         </div>
         <div ref={tlScroll} className="relative max-h-[420px] overflow-auto border border-border bg-card" data-testid="timeline">
-          <div style={{ width: NAME_W + duration * pps, height: codes.length * ROW_H + 20 }} className="relative">
+          <div style={{ width: NAME_W + duration * pps, height: rowsShown.length * ROW_H + 20 }} className="relative">
             {/* 시간 눈금 */}
             <div className="sticky top-0 z-20 h-5 border-b border-border bg-card" style={{ width: NAME_W + duration * pps }}
               onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); seek((e.clientX - r.left - NAME_W) / pps) }}>
@@ -412,24 +503,29 @@ export default function TagPage({ params }: { params: Promise<{ matchId: string 
                 <span key={t} className="absolute top-0.5 text-[10px] text-muted-foreground" style={{ left: NAME_W + t * pps + 2 }}>{fmtTime(t).replace(/\.\d$/, "")}</span>
               ))}
             </div>
-            {codes.map((c, r) => (
+            {rowsShown.map((c, r) => (
               <div key={c} className="absolute left-0 flex" style={{ top: 20 + r * ROW_H, height: ROW_H, width: NAME_W + duration * pps }}>
                 <div className="sticky left-0 z-10 flex shrink-0 items-center gap-1 truncate border-b border-r border-border bg-card px-2 text-[11px]" style={{ width: NAME_W }} title={c}>
-                  <span className="inline-block h-2 w-2 shrink-0" style={{ background: rowColor(tl.rows, c) }} />{c}
+                  <span className="inline-block h-2 w-2 shrink-0" style={{ background: btnColor(c) }} />{c}
                 </div>
                 <div className="relative flex-1 border-b border-border/50" onClick={(e) => { const rr = e.currentTarget.getBoundingClientRect(); seek((e.clientX - rr.left) / pps) }}>
                   {tl.instances.filter((i) => i.code === c).map((i) => (
                     <div key={i.key} onClick={(e) => { e.stopPropagation(); setSelected(i.key); seek(i.start) }}
                       className={cn("absolute top-[3px] h-[15px] cursor-pointer", selected === i.key && "outline outline-2 outline-[#201e1d] z-10")}
-                      style={{ left: i.start * pps, width: Math.max(3, (shownEnd(i) - i.start) * pps), background: rowColor(tl.rows, c) }}
+                      style={{ left: i.start * pps, width: Math.max(3, (i.end - i.start) * pps), background: btnColor(c) }}
                       title={`${c} ${fmtTime(i.start)}~${fmtTime(i.end)}\n${i.labels.map((l) => (l.group ? `${l.group}: ` : "") + l.text).join("\n")}`}
                       data-key={i.key} />
+                  ))}
+                  {/* 켜져 있는 코드: 지금까지 늘어나는 막대 */}
+                  {eng.active.filter((a) => a.rowName === c).map((a) => (
+                    <div key={a.buttonId + a.startTime} className="absolute top-[3px] h-[15px] border-2 border-dashed border-[#201e1d]" data-active="1"
+                      style={{ left: a.startTime * pps, width: Math.max(3, (clock - a.startTime) * pps), background: btnColor(c), opacity: 0.7 }} />
                   ))}
                 </div>
               </div>
             ))}
             {/* 재생 위치 */}
-            <div className="pointer-events-none absolute top-0 z-30 w-px bg-primary" style={{ left: NAME_W + clock * pps, height: codes.length * ROW_H + 20 }} />
+            <div className="pointer-events-none absolute top-0 z-30 w-px bg-primary" style={{ left: NAME_W + clock * pps, height: rowsShown.length * ROW_H + 20 }} />
           </div>
         </div>
       </div>
@@ -447,5 +543,3 @@ function tickStep(pps: number): number {
   const steps = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600]
   return steps.find((s) => s * pps >= 70) ?? 600
 }
-
-export type { ScLabel }

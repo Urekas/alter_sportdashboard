@@ -154,9 +154,19 @@ export const isAutoLabel = (l: ScLabel) => l.group === undefined && (/^\d\s*쿼�
  * 대시보드 파서가 쿼터를 "N쿼터" 라벨로 판단하고, 팀 이름을 점수 라벨에서 찾기 때문
  */
 export function autoLabelsAt(tl: ScTimeline, t: number): ScLabel[] {
-  const before = tl.instances.filter((i) => i.start <= t && i.labels.some(isAutoLabel)).sort((a, b) => b.start - a.start)[0];
-  const src = before ?? [...tl.instances].filter((i) => i.labels.some(isAutoLabel)).sort((a, b) => a.start - b.start)[0];
-  return src ? src.labels.filter(isAutoLabel).map((l) => ({ ...l })) : [];
+  // 쿼터와 점수를 따로 찾음 — 실제 데이터에 쿼터만 붙은 태그도 많아서 한 태그에서 둘 다 복사하면 점수가 빠짐
+  const kinds: ((l: ScLabel) => boolean)[] = [
+    (l) => isAutoLabel(l) && /쿼터$/.test(l.text.trim()),
+    (l) => isAutoLabel(l) && !/쿼터$/.test(l.text.trim()),
+  ];
+  const out: ScLabel[] = [];
+  for (const k of kinds) {
+    const has = tl.instances.filter((i) => i.labels.some(k));
+    const src = has.filter((i) => i.start <= t).sort((a, b) => b.start - a.start)[0] ?? has.sort((a, b) => a.start - b.start)[0];
+    const l = src?.labels.find(k);
+    if (l) out.push({ ...l });
+  }
+  return out;
 }
 
 /** 이 타임라인에서 쓰인 라벨: 그룹별 값 목록 (자동 라벨 제외) */
