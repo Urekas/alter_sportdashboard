@@ -188,6 +188,32 @@ export function ClipPlayer({
   const recAll = useRef(false)
   recAll.current = rec === "all"
 
+  const playPause = () => {
+    if (!clip || !player.current) return
+    if (playing) player.current.pause()
+    else if (stopAt.current === null) start()
+    else player.current.play()
+  }
+  // 클립 안에서 앞뒤로 (유튜브 조작 막대 대신)
+  const from = clip ? clip.start - PAD_BEFORE : 0
+  const to = clip ? clip.end + PAD_AFTER : 0
+  const seekTo = (gameT: number) => {
+    if (!clip || !player.current) return
+    stopAt.current = clip.end + PAD_AFTER
+    player.current.seek(gameT - offset)
+    setNow(gameT)
+  }
+  const [rate, setRate] = useState(1)
+  const cycleRate = () => {
+    const r = rate === 1 ? 0.5 : rate === 0.5 ? 0.25 : 1
+    setRate(r)
+    player.current?.setRate(r)
+  }
+  useEffect(() => {
+    if (ready && rate !== 1) player.current?.setRate(rate)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, vid])
+
   const pickAngle = (k: AngleKey) => {
     setAngle(k)
     playedKey.current = ""
@@ -201,22 +227,41 @@ export function ClipPlayer({
     <div className="bg-background">
       <div className="relative" ref={box}>
         {vid ? (
-          <YouTubePlayer ref={player} videoId={vid} onReady={() => setReadyVid(vid)} onState={setPlaying} />
+          <YouTubePlayer ref={player} videoId={vid} onReady={() => setReadyVid(vid)} onState={setPlaying} bare />
         ) : (
           <div className="w-full aspect-video bg-[#201e1d] flex items-center justify-center text-sm text-[#bab6b6] px-6 text-center">
             {!clip ? "아래에서 클립을 고르면 여기서 재생돼요" : noVideo ? "이 경기는 유튜브 영상이 연결돼 있지 않아요" : "영상 불러오는 중…"}
           </div>
         )}
+        {/* 멈추면 유튜브가 영상 한가운데 큰 재생 버튼을 띄움(잘라 낼 수 없는 위치) → 그 자리만 흐리게 덮음 (휴대폰 유튜브는 버튼 없음) */}
+        {vid && !playing && <div className="absolute left-1/2 top-1/2 h-[50px] w-[70px] -translate-x-1/2 -translate-y-1/2 rounded-[14px] backdrop-blur-xl pointer-events-none [@media(pointer:coarse)]:hidden" data-testid="yt-button-cover" />}
         {vid && <InkLayer ref={ink} on={drawing} prefs={inkPrefs} />}
-        {/* 녹화 중엔 마우스가 영상 위에 와도 유튜브 조작 막대가 안 뜨게 덮음 */}
-        {rec && !drawing && <div className="absolute inset-0" />}
+        {/* 유튜브 화면은 직접 못 누르게 덮고, 누르면 재생/정지 */}
+        {vid && !drawing && <div className="absolute inset-0 cursor-pointer" onClick={playPause} data-testid="video-surface" />}
         {rec && <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs font-bold px-2 py-0.5 pointer-events-none">● 녹화 중</span>}
       </div>
+      {clip && vid && (
+        <div className="flex items-center gap-2 px-2 pt-1.5 text-xs text-muted-foreground tabular-nums">
+          <span>{mmss(now)}</span>
+          <input
+            type="range"
+            min={from}
+            max={to}
+            step={0.1}
+            value={Math.min(to, Math.max(from, now))}
+            onChange={(e) => seekTo(Number(e.target.value))}
+            className="flex-1 accent-[#ec3013] h-1"
+            aria-label="클립 안에서 이동"
+            data-testid="scrub"
+          />
+          <span>{mmss(to)}</span>
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-border px-2 py-1.5 text-sm">
         <button className="h-8 w-8 inline-flex items-center justify-center border border-border disabled:opacity-40" onClick={onPrev} disabled={!hasPrev} aria-label="이전 클립">
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <button className="h-8 w-8 inline-flex items-center justify-center border border-border disabled:opacity-40" onClick={() => (playing ? player.current?.pause() : clip && (stopAt.current === null ? start() : player.current?.play()))} disabled={!clip || !vid} aria-label="재생/정지">
+        <button className="h-8 w-8 inline-flex items-center justify-center border border-border disabled:opacity-40" onClick={playPause} disabled={!clip || !vid} aria-label="재생/정지">
           {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
         </button>
         <button className="h-8 w-8 inline-flex items-center justify-center border border-border disabled:opacity-40" onClick={onNext} disabled={!hasNext} aria-label="다음 클립">
@@ -229,7 +274,9 @@ export function ClipPlayer({
         >
           <Repeat className="h-3.5 w-3.5" /> 이어보기
         </button>
-        {clip && <span className="text-xs text-muted-foreground tabular-nums">{mmss(now)}</span>}
+        <button className={cn("h-8 px-2 border text-xs tabular-nums", rate !== 1 ? "border-primary text-primary" : "border-border text-muted-foreground")} onClick={cycleRate} disabled={!vid} title="느리게 보기" data-testid="rate">
+          {rate}x
+        </button>
         <button
           className={cn("h-8 px-2 inline-flex items-center gap-1 border text-xs", drawing ? "bg-primary text-primary-foreground border-primary" : "border-border")}
           onClick={toggleDraw}
