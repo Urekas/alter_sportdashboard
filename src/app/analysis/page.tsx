@@ -53,6 +53,7 @@ export default function AnalysisPage() {
   const [shown, setShown] = useState(MAX_LIST)
   // 클립 목록은 한 군데만 그림 (큰 화면: 영상 아래 / 작은 화면: 매트릭스 아래)
   const [wide, setWide] = useState(false)
+  const [foldMatrix, setFoldMatrix] = useState(false) // 큰 화면: 매트릭스를 접고 클립 목록만
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 1024px)")
     const on = () => setWide(mq.matches)
@@ -206,13 +207,12 @@ export default function AnalysisPage() {
         </button>
       </div>
 
-      <div className="lg:grid lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:gap-0">
+      <div className="lg:grid lg:grid-cols-[minmax(340px,1fr)_minmax(0,1.9fr)] lg:gap-0">
         {/* 영상: 휴대폰에선 위에 고정 */}
         <div className="sticky top-0 z-20 lg:static lg:order-2 lg:border-l lg:border-border">
           <div className="lg:sticky lg:top-0">
             <ClipPlayer db={db} clip={curClip} title={curClip ? clipTitle(curClip) : ""} onPrev={() => go(-1)} onNext={() => go(1)} hasPrev={curIdx > 0} hasNext={curIdx >= 0 && curIdx < list.length - 1} />
             {/* 큰 화면: 클립 목록은 영상 아래 */}
-            {wide && clipList()}
           </div>
         </div>
 
@@ -249,6 +249,11 @@ export default function AnalysisPage() {
             <span className="text-sm text-muted-foreground">{active.length === 1 ? matchLabel(active[0]) : `${active.length}경기 묶음`} · {sideName} 클립 {sideClips.length}</span>
             {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
             <span className="flex-1" />
+            {wide && matrix.rows.length > 0 && (
+              <button onClick={() => setFoldMatrix((f) => !f)} className="h-8 px-2 text-xs border border-border bg-card" data-testid="fold-matrix">
+                {foldMatrix ? "매트릭스 펼치기" : "매트릭스 접기"}
+              </button>
+            )}
             {groups.length > 0 && (
               <label className="text-sm inline-flex items-center gap-1.5">
                 <span className="text-muted-foreground">라벨</span>
@@ -265,7 +270,7 @@ export default function AnalysisPage() {
 
           {/* 큰 화면: 매트릭스 표 */}
           {matrix.rows.length > 0 && (
-            <div className="hidden md:block overflow-auto max-h-[calc(100vh-140px)]" data-testid="matrix">
+            <div className={cn("hidden md:block overflow-auto", foldMatrix ? "lg:hidden" : cell ? "max-h-[45vh]" : "max-h-[calc(100vh-140px)]")} data-testid="matrix">
               <table className="text-sm border-collapse min-w-full">
                 <thead className="sticky top-0 bg-background z-10">
                   <tr>
@@ -297,6 +302,9 @@ export default function AnalysisPage() {
               </table>
             </div>
           )}
+
+          {/* 큰 화면: 클립 목록은 매트릭스 아래 (영상은 오른쪽을 크게) */}
+          {wide && clipList()}
 
           {/* 휴대폰: 액션 아코디언 + 라벨 칩 */}
           <div className="md:hidden" data-testid="matrix-mobile">
@@ -353,7 +361,7 @@ export default function AnalysisPage() {
             </button>
           )}
         </div>
-        <ul className="lg:max-h-[50vh] lg:overflow-y-auto">
+        <ul>
           {list.slice(0, shown).map((c) => {
             const m = byId.get(c.matchId)
             const on = c.key === current
