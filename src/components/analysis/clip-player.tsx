@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { doc, getDoc, type Firestore } from "firebase/firestore"
 import { ChevronLeft, ChevronRight, Circle, ListVideo, Maximize, Minimize, Pause, PenLine, Play, Repeat, Square } from "lucide-react"
-import { canGrabTab, canRecordTab, downloadBlob, grabFrame, nextFrames, startTabRecording, tabSession, type TabRecording } from "@/lib/tab-recorder"
+import { canGrabTab, canRecordTab, downloadBlob, grabFrame, hasTabSession, nextFrames, startTabRecording, tabSession, type TabRecording } from "@/lib/tab-recorder"
 import { InkLayer, InkToolbar, loadInkPrefs, saveInkPrefs, type InkHandle, type InkPrefs } from "./ink-layer"
 import { YouTubePlayer, youTubeId, type YouTubeHandle } from "@/components/youtube-player"
 import type { VideoMatchMetadata } from "@/lib/video-match-service"
@@ -153,20 +153,48 @@ export function ClipPlayer({
       setGrabbing(false)
     }
   }, [])
+  // 그냥 멈출 때도: 공유를 이미 허락받았으면 깨끗한 정지 화면으로 (안 받았으면 묻지 않고 그냥 멈춤)
+  const pauseClean = useCallback(() => {
+    const p = player.current
+    if (!p) return
+    if (hasTabSession() && p.playing()) void freeze()
+    else p.pause()
+  }, [freeze])
+  // 다시 재생: 유튜브가 재생 시작 때 띄우는 표시(가운데 아이콘·제목)가 사라질 때까지 정지 화면을 잠깐 더 덮어 둠
+  //  — 0.7초 앞에서 재생해 두면 정지 화면을 걷을 때 거의 같은 장면에서 이어짐
+  const holdRef = useRef(false)
+  const resumeClean = useCallback(
+    async (go: () => void, rewind: boolean) => {
+      const p = player.current
+      if (!p) return
+      if (!still) return go()
+      holdRef.current = true
+      try {
+        if (rewind) p.seek(Math.max(0, p.time() - 0.7))
+        go()
+        for (let i = 0; i < 120 && !p.playing(); i++) await new Promise((r) => setTimeout(r, 50))
+        await new Promise((r) => setTimeout(r, 700))
+        setStill(false)
+      } finally {
+        holdRef.current = false
+      }
+    },
+    [still],
+  )
   const toggleDraw = () => {
     if (!drawing) void freeze()
-    else setStill(false)
     setDrawing((d) => !d)
   }
   useEffect(() => setStill(false), [clip?.key])
-  // 다시 재생하면 정지 화면 치움 (찍느라 잠깐 재생하는 건 빼고)
+  // 다시 재생하면 정지 화면 치움 (찍느라 잠깐 재생하거나, 재생 시작 표시를 가리는 동안은 빼고)
   useEffect(() => {
-    if (playing && !grabbingRef.current) setStill(false)
+    if (playing && !grabbingRef.current && !holdRef.current) setStill(false)
   }, [playing])
 
   // 녹화: 이 탭의 영상 상자만 (그림 포함). all = 목록 끝까지 녹화하고 자동으로 멈춤
   const box = useRef<HTMLDivElement>(null)
   const recRef = useRef<TabRecording | null>(null)
+  const recFs = useRef(false) // 녹화하며 들어간 전체화면이면 끝날 때 나옴
   const [rec, setRec] = useState<"" | "manual" | "all">("")
   const [recErr, setRecErr] = useState("")
   const [recCan, setRecCan] = useState(false)
@@ -175,6 +203,8 @@ export function ClipPlayer({
     const r = recRef.current
     recRef.current = null
     setRec("")
+    if (recFs.current && document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+    recFs.current = false
     const out = await r?.stop()
     if (out) {
       const d = new Date()
@@ -188,6 +218,11 @@ export function ClipPlayer({
     try {
       const r = await startTabRecording(box.current)
       recRef.current = r
+      // 영상 상자가 클수록 유튜브도 높은 화질을 보내고 녹화도 선명함 → 녹화는 전체화면으로 (안 되면 그대로)
+      if (!document.fullscreenElement) {
+        await root.current?.requestFullscreen?.().catch(() => {})
+        recFs.current = !!document.fullscreenElement
+      }
       r.onEnded(() => void stopRec())
       setRec(mode)
       if (mode === "all") {
@@ -257,21 +292,21 @@ export function ClipPlayer({
         stopAt.current = null
         if (auto && hasNext) next.current()
         else {
-          p.pause()
+          pauseClean()
           if (recAll.current) void stopRec() // 목록 전체 녹화: 마지막 클립이 끝나면 저장
         }
       }
     }, 250)
     return () => clearInterval(t)
-  }, [ready, offset, auto, hasNext, stopRec])
+  }, [ready, offset, auto, hasNext, stopRec, pauseClean])
   const recAll = useRef(false)
   recAll.current = rec === "all"
 
   const playPause = () => {
     if (!clip || !player.current) return
-    if (playing) player.current.pause()
-    else if (stopAt.current === null) start()
-    else player.current.play()
+    if (playing) pauseClean()
+    else if (stopAt.current === null) void resumeClean(start, false)
+    else void resumeClean(() => player.current?.play(), true)
   }
   // 클립 안에서 앞뒤로 (유튜브 조작 막대 대신)
   const from = clip ? clip.start - PAD_BEFORE : 0

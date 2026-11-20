@@ -50,7 +50,8 @@ export function tabSession(): Promise<Session> {
   if (pending) return pending;
   pending = (async () => {
     const stream = await navigator.mediaDevices.getDisplayMedia({
-      video: { displaySurface: 'browser', frameRate: 30 },
+      // 크기를 크게 요청하면 크롬이 탭을 고해상도로 찍음(기본은 화면 픽셀 그대로라 작은 영상 상자는 흐릿함)
+      video: { displaySurface: 'browser', frameRate: 30, width: { ideal: 3840 }, height: { ideal: 2160 } },
       audio: true,
       preferCurrentTab: true,
       selfBrowserSurface: 'include',
@@ -140,7 +141,7 @@ export async function startTabRecording(el: HTMLElement): Promise<TabRecording> 
   }
 
   const { mimeType, ext } = pickMime();
-  const rec = new MediaRecorder(recStream, { ...(mimeType ? { mimeType } : {}), videoBitsPerSecond: 8_000_000 });
+  const rec = new MediaRecorder(recStream, { ...(mimeType ? { mimeType } : {}), videoBitsPerSecond: 16_000_000 });
   const chunks: Blob[] = [];
   rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
   rec.start(1000);
