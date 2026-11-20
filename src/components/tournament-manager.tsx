@@ -666,7 +666,7 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
         // 저장을 다시 안 누르면 이 동기화가 원래 안 일어나고 있었음).
         const videoMatchId = oldMatch?.videoMatchId;
         if (videoMatchId) {
-          await VideoMatchService.syncEvents(db, videoMatchId, updatedData.events);
+          await VideoMatchService.syncEvents(db, videoMatchId, updatedData.events, updatedData.rawSourceText);
         }
         toast({ title: "데이터 교체 완료" + (videoMatchId ? " (연결된 영상 이벤트도 갱신함)" : "") });
         setReplaceMatchId(null);
@@ -708,7 +708,7 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
       await TournamentService.updateMatchData(db, matchId, updatedData);
       const videoMatchId = match.videoMatchId;
       if (videoMatchId) {
-        await VideoMatchService.syncEvents(db, videoMatchId, updatedData.events);
+        await VideoMatchService.syncEvents(db, videoMatchId, updatedData.events, updatedData.rawSourceText);
       }
       toast({ title: "재분석 완료 — 태깅 결과가 리포트에 반영됐어요" + (videoMatchId ? " (연결된 영상 이벤트도 갱신함)" : "") });
     } catch (err: any) {

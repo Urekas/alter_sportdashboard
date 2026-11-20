@@ -54,7 +54,7 @@ export async function saveTagging(db: Firestore, match: MatchData, xml: string, 
     await setDoc(doc(db, BACKUP_COL, match.id), { matchId: match.id, rawSourceText: match.rawSourceText, rawSourceFileName: match.rawSourceFileName ?? null, savedAt: serverTimestamp() });
   }
   await TournamentService.updateMatchData(db, match.id, data);
-  if (match.videoMatchId) await VideoMatchService.syncEvents(db, match.videoMatchId, data.events);
+  if (match.videoMatchId) await VideoMatchService.syncEvents(db, match.videoMatchId, data.events, xml);
   return { data, events: data.events.length, dry: false };
 }
 

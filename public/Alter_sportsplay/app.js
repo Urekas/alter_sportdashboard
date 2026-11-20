@@ -1,6 +1,6 @@
 ﻿import { db, collection, writeBatch, doc, getDocs, orderBy, query, getDoc, deleteDoc, where, updateDoc } from './firebase-config.js';
 
-import { initPlayer, fetchAndRenderEvents, fetchEventsForMatch, updateCurrentPlaylist, allEvents, loadVideoInCam, setActiveMatch, activeMatchId, setCameraOffsets, seekActiveToMatchTime, playOrganizerPlaylist, isPlayerReady } from './player.js';
+import { initPlayer, fetchAndRenderEvents, fetchEventsForMatch, updateCurrentPlaylist, allEvents, loadVideoInCam, setActiveMatch, activeMatchId, setCameraOffsets, seekActiveToMatchTime, playOrganizerPlaylist, isPlayerReady, resetEventFilters, initMatrixUI } from './player.js';
 import { initDrawingBoard } from './drawing.js';
 import { initLibrary } from './library.js';
 
@@ -37,6 +37,7 @@ export function loadMatchForAnalysis(matchId, matchData) {
 
     const searchInput = document.getElementById('event-search');
     if(searchInput) searchInput.value = '';
+    resetEventFilters();
 
     // 이 경기 이벤트를 캡 없이 확실하게 다시 채움 — fetchAndRenderEvents()의 전역 1000개 캡
     // 안에 이 경기 이벤트가 다 안 들어있을 수 있어서(경기가 여러 개 쌓이면 실제로 잘림),
@@ -389,4 +390,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   initLibrary();
   initDrawingBoard();
   initFullscreenToggle();
+  initMatrixUI();
 });
