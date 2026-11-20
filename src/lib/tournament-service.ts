@@ -181,6 +181,8 @@ export const TournamentService = {
     if (!matchId) return;
     const matchRef = doc(dbInstance, MATCHES_COL, matchId);
     await deleteDoc(matchRef);
+    // 통합 영상 분석 요약도 같이 (없으면 그냥 지나감)
+    await Promise.all(['VideoIndex', 'VideoClips'].map((c) => deleteDoc(doc(dbInstance, c, matchId)).catch(() => undefined)));
   },
 
   async deleteTournament(dbInstance: Firestore, tournamentId: string) {
@@ -190,7 +192,7 @@ export const TournamentService = {
     
     const q = query(collection(dbInstance, MATCHES_COL), where('tournamentId', '==', tournamentId));
     const snapshot = await getDocs(q);
-    const deletePromises = snapshot.docs.map(d => deleteDoc(doc(dbInstance, MATCHES_COL, d.id)));
+    const deletePromises = snapshot.docs.flatMap(d => [MATCHES_COL, 'VideoIndex', 'VideoClips'].map((c) => deleteDoc(doc(dbInstance, c, d.id)).catch(() => undefined)));
     await Promise.all(deletePromises);
   }
 };

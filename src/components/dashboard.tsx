@@ -5,8 +5,9 @@ import React, { useState, useRef, useEffect, useMemo } from "react"
 import {
   Upload, FileDown, TrendingDown, Target, Activity, ShieldCheck,
   Sword, Shield, Trophy, Save, Plus, BrainCircuit, Loader2, Sparkles, Info, MessageSquare, Video,
-  ChevronLeft, ChevronRight, Crosshair, Share2
+  ChevronLeft, ChevronRight, Crosshair, Share2, Clapperboard
 } from "lucide-react"
+import Link from "next/link"
 import type { MatchData, MatchEvent, Tournament } from "@/lib/types"
 import { mockMatchData } from "@/lib/data"
 import { Button } from "@/components/ui/button"
@@ -299,6 +300,12 @@ export function Dashboard() {
         <div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <h1 className="text-3xl sm:text-4xl font-extrabold text-primary italic tracking-tight font-headline">Alter_Focus</h1>
+            <Button asChild size="sm" className="h-8 font-bold">
+              <Link href="/analysis">
+                <Clapperboard className="h-4 w-4 mr-2" />
+                영상 분석
+              </Link>
+            </Button>
             <Button
               asChild
               variant="outline"

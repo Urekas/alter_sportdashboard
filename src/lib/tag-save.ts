@@ -5,6 +5,7 @@ import { doc, getDoc, serverTimestamp, setDoc, type Firestore } from 'firebase/f
 import { createMatchDataFromUpload, parseXMLData } from './parser';
 import { TournamentService } from './tournament-service';
 import { VideoMatchService } from './video-match-service';
+import { VideoIndexService } from './video-index-service';
 import type { MatchData, MatchEvent } from './types';
 
 // 경기 문서는 이미 XML+이벤트로 1MB 한도에 가까워서, 직전 XML은 다른 컬렉션에 경기당 한 개만 보관
@@ -54,7 +55,10 @@ export async function saveTagging(db: Firestore, match: MatchData, xml: string, 
     await setDoc(doc(db, BACKUP_COL, match.id), { matchId: match.id, rawSourceText: match.rawSourceText, rawSourceFileName: match.rawSourceFileName ?? null, savedAt: serverTimestamp() });
   }
   await TournamentService.updateMatchData(db, match.id, data);
-  if (match.videoMatchId) await VideoMatchService.syncEvents(db, match.videoMatchId, data.events, xml);
+  if (match.videoMatchId) {
+    await VideoMatchService.syncEvents(db, match.videoMatchId, data.events, xml);
+    await VideoIndexService.save(db, match.id, { ...match, ...data, tournamentId: match.tournamentId, videoMatchId: match.videoMatchId }).catch((e) => console.warn('VideoIndex 저장 실패', e));
+  }
   return { data, events: data.events.length, dry: false };
 }
 

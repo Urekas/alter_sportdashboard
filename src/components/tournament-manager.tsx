@@ -21,6 +21,7 @@ import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, query } from "firebase/firestore"
 import { parseXMLData, parseCSVData, createMatchDataFromUpload, decodeUploadedFile } from "@/lib/parser"
 import { VideoMatchService } from "@/lib/video-match-service"
+import { VideoIndexService } from "@/lib/video-index-service"
 
 // FIH TMS류 사이트에서 그대로 복사-붙여넣기한 일정표를 파싱합니다.
 // 탭 구분(엑셀/TMS 표에서 복사 시 보통 탭)이 기본이고, 없으면 공백 2칸+ 로 대체 분리합니다.
@@ -667,6 +668,7 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
         const videoMatchId = oldMatch?.videoMatchId;
         if (videoMatchId) {
           await VideoMatchService.syncEvents(db, videoMatchId, updatedData.events, updatedData.rawSourceText);
+          await VideoIndexService.save(db, replaceMatchId, { ...oldMatch!, ...updatedData, tournamentId: oldMatch?.tournamentId, videoMatchId }).catch((e) => console.warn('VideoIndex 저장 실패', e));
         }
         toast({ title: "데이터 교체 완료" + (videoMatchId ? " (연결된 영상 이벤트도 갱신함)" : "") });
         setReplaceMatchId(null);
@@ -709,6 +711,7 @@ export function TournamentManager({ onViewMatch, onViewCumulative }: TournamentM
       const videoMatchId = match.videoMatchId;
       if (videoMatchId) {
         await VideoMatchService.syncEvents(db, videoMatchId, updatedData.events, updatedData.rawSourceText);
+        await VideoIndexService.save(db, matchId, { ...match, ...updatedData, tournamentId: match.tournamentId, videoMatchId }).catch((e) => console.warn('VideoIndex 저장 실패', e));
       }
       toast({ title: "재분석 완료 — 태깅 결과가 리포트에 반영됐어요" + (videoMatchId ? " (연결된 영상 이벤트도 갱신함)" : "") });
     } catch (err: any) {
