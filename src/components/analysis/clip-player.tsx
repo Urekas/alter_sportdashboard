@@ -5,7 +5,8 @@
 //  - 클립 끝(+뒤 여유)에 닿으면 멈추거나, 이어보기면 다음 클립으로
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { doc, getDoc, type Firestore } from "firebase/firestore"
-import { ChevronLeft, ChevronRight, Pause, PenLine, Play, Repeat } from "lucide-react"
+import { ChevronLeft, ChevronRight, Circle, ListVideo, Pause, PenLine, Play, Repeat, Square } from "lucide-react"
+import { canRecordTab, downloadBlob, startTabRecording, type TabRecording } from "@/lib/tab-recorder"
 import { InkLayer, InkToolbar, loadInkPrefs, saveInkPrefs, type InkHandle, type InkPrefs } from "./ink-layer"
 import { YouTubePlayer, youTubeId, type YouTubeHandle } from "@/components/youtube-player"
 import type { VideoMatchMetadata } from "@/lib/video-match-service"
@@ -46,6 +47,8 @@ export function ClipPlayer({
   onNext,
   hasPrev,
   hasNext,
+  onFromStart,
+  recordName = "영상분석",
 }: {
   db: Firestore
   clip: Clip | null
@@ -54,6 +57,9 @@ export function ClipPlayer({
   onNext: () => void
   hasPrev: boolean
   hasNext: boolean
+  /** 목록 처음 클립으로 (목록 전체 녹화) */
+  onFromStart?: () => void
+  recordName?: string
 }) {
   const player = useRef<YouTubeHandle>(null)
   const [video, setVideo] = useState<VideoMatchMetadata | null>(null)
@@ -79,6 +85,45 @@ export function ClipPlayer({
     if (!drawing) player.current?.pause()
     setDrawing((d) => !d)
   }
+
+  // 녹화: 이 탭의 영상 상자만 (그림 포함). all = 목록 끝까지 녹화하고 자동으로 멈춤
+  const box = useRef<HTMLDivElement>(null)
+  const recRef = useRef<TabRecording | null>(null)
+  const [rec, setRec] = useState<"" | "manual" | "all">("")
+  const [recErr, setRecErr] = useState("")
+  const [recCan, setRecCan] = useState(false)
+  useEffect(() => setRecCan(canRecordTab()), [])
+  const stopRec = useCallback(async () => {
+    const r = recRef.current
+    recRef.current = null
+    setRec("")
+    const out = await r?.stop()
+    if (out) {
+      const d = new Date()
+      const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}_${String(d.getHours()).padStart(2, "0")}${String(d.getMinutes()).padStart(2, "0")}`
+      downloadBlob(out.blob, `${recordName.replace(/[\/:*?"<>|]+/g, "_")}_${stamp}.${out.ext}`)
+    }
+  }, [recordName])
+  const startRec = async (mode: "manual" | "all") => {
+    setRecErr("")
+    if (!box.current) return
+    try {
+      const r = await startTabRecording(box.current)
+      recRef.current = r
+      r.onEnded(() => void stopRec())
+      setRec(mode)
+      if (mode === "all") {
+        setAuto(true)
+        setDrawing(false)
+        playedKey.current = ""
+        onFromStart?.()
+        setKick((k) => k + 1) // 이미 첫 클립이어도 처음부터 다시
+      }
+    } catch (e) {
+      setRecErr((e as Error)?.name === "NotAllowedError" ? "화면 공유를 허용해야 녹화돼요" : "이 브라우저에서는 녹화가 안 돼요 (크롬·엣지 권장)")
+    }
+  }
+  useEffect(() => () => void recRef.current?.stop(), [])
 
   // 클립의 경기 영상 정보
   useEffect(() => {
@@ -111,13 +156,14 @@ export function ClipPlayer({
 
   // 클립이 바뀌거나(같은 영상) 영상이 준비되면 그 클립 처음부터
   const playedKey = useRef("")
+  const [kick, setKick] = useState(0)
   useEffect(() => {
     if (!clip || !ready || videoFor !== clip.videoMatchId) return
     const k = `${clip.key}|${vid}`
     if (playedKey.current === k) return
     playedKey.current = k
     start()
-  }, [clip, ready, vid, videoFor, start])
+  }, [clip, ready, vid, videoFor, start, kick])
 
   // 클립 끝 감시
   const next = useRef(onNext)
@@ -131,11 +177,16 @@ export function ClipPlayer({
       if (stopAt.current !== null && gameT >= stopAt.current && p.playing()) {
         stopAt.current = null
         if (auto && hasNext) next.current()
-        else p.pause()
+        else {
+          p.pause()
+          if (recAll.current) void stopRec() // 목록 전체 녹화: 마지막 클립이 끝나면 저장
+        }
       }
     }, 250)
     return () => clearInterval(t)
-  }, [ready, offset, auto, hasNext])
+  }, [ready, offset, auto, hasNext, stopRec])
+  const recAll = useRef(false)
+  recAll.current = rec === "all"
 
   const pickAngle = (k: AngleKey) => {
     setAngle(k)
@@ -148,7 +199,7 @@ export function ClipPlayer({
   const noVideo = clip && videoFor === clip.videoMatchId && !vid
   return (
     <div className="bg-background">
-      <div className="relative">
+      <div className="relative" ref={box}>
         {vid ? (
           <YouTubePlayer ref={player} videoId={vid} onReady={() => setReadyVid(vid)} onState={setPlaying} />
         ) : (
@@ -157,6 +208,9 @@ export function ClipPlayer({
           </div>
         )}
         {vid && <InkLayer ref={ink} on={drawing} prefs={inkPrefs} />}
+        {/* 녹화 중엔 마우스가 영상 위에 와도 유튜브 조작 막대가 안 뜨게 덮음 */}
+        {rec && !drawing && <div className="absolute inset-0" />}
+        {rec && <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs font-bold px-2 py-0.5 pointer-events-none">● 녹화 중</span>}
       </div>
       <div className="flex flex-wrap items-center gap-1.5 border-b border-border px-2 py-1.5 text-sm">
         <button className="h-8 w-8 inline-flex items-center justify-center border border-border disabled:opacity-40" onClick={onPrev} disabled={!hasPrev} aria-label="이전 클립">
@@ -185,6 +239,23 @@ export function ClipPlayer({
         >
           <PenLine className="h-3.5 w-3.5" /> 그리기
         </button>
+        {recCan &&
+          (rec ? (
+            <button className="h-8 px-2 inline-flex items-center gap-1 border text-xs bg-primary text-primary-foreground border-primary" onClick={() => void stopRec()} data-testid="rec-stop">
+              <Square className="h-3.5 w-3.5" /> 녹화 끝내고 저장
+            </button>
+          ) : (
+            <>
+              <button className="h-8 px-2 inline-flex items-center gap-1 border border-border text-xs disabled:opacity-40" onClick={() => void startRec("manual")} disabled={!vid} title="지금부터 녹화 (그림 포함) — 끝내기를 누르면 파일로 저장" data-testid="rec-start">
+                <Circle className="h-3.5 w-3.5 text-primary" /> 녹화
+              </button>
+              {onFromStart && (
+                <button className="h-8 px-2 inline-flex items-center gap-1 border border-border text-xs disabled:opacity-40" onClick={() => void startRec("all")} disabled={!hasNext && !hasPrev && !clip} title="목록 처음부터 끝까지 이어서 재생하며 녹화 → 파일 하나" data-testid="rec-all">
+                  <ListVideo className="h-3.5 w-3.5" /> 목록 전체 녹화
+                </button>
+              )}
+            </>
+          ))}
         <span className="flex-1" />
         {available.length > 1 &&
           available.map((a) => (
@@ -204,6 +275,8 @@ export function ClipPlayer({
           onClear={() => ink.current?.clear()}
         />
       )}
+      {recErr && <div className="px-2 py-1 text-xs text-primary border-b border-border">{recErr}</div>}
+      {rec && <div className="px-2 py-1 text-xs text-muted-foreground border-b border-border">녹화 중엔 이 탭을 그대로 두세요. 다른 탭으로 가면 그 화면이 녹화돼요.</div>}
       {clip && title && <div className="px-2 py-1 text-xs text-muted-foreground truncate border-b border-border" data-testid="now-playing">{title}</div>}
     </div>
   )
