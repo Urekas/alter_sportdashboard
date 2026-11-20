@@ -5,7 +5,7 @@
 //  - 클립 끝(+뒤 여유)에 닿으면 멈추거나, 이어보기면 다음 클립으로
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { doc, getDoc, type Firestore } from "firebase/firestore"
-import { ChevronLeft, ChevronRight, Circle, ListVideo, Pause, PenLine, Play, Repeat, Square } from "lucide-react"
+import { ChevronLeft, ChevronRight, Circle, ListVideo, Maximize, Minimize, Pause, PenLine, Play, Repeat, Square } from "lucide-react"
 import { canRecordTab, downloadBlob, startTabRecording, type TabRecording } from "@/lib/tab-recorder"
 import { InkLayer, InkToolbar, loadInkPrefs, saveInkPrefs, type InkHandle, type InkPrefs } from "./ink-layer"
 import { YouTubePlayer, youTubeId, type YouTubeHandle } from "@/components/youtube-player"
@@ -81,6 +81,31 @@ export function ClipPlayer({
   const [inkPrefs, setInkPrefs] = useState<InkPrefs>({ tool: "arrow", size: 1, color: "#ff3b30" })
   useEffect(() => setInkPrefs(loadInkPrefs()), [])
   useEffect(() => ink.current?.clear(), [clip?.key])
+  // 전체화면: 영상만이 아니라 아래 조작 줄·그리기 도구까지 같이 (F 키)
+  const root = useRef<HTMLDivElement>(null)
+  const [fs, setFs] = useState(false)
+  useEffect(() => {
+    const on = () => setFs(document.fullscreenElement === root.current && !!root.current)
+    document.addEventListener("fullscreenchange", on)
+    return () => document.removeEventListener("fullscreenchange", on)
+  }, [])
+  const toggleFs = useCallback(() => {
+    if (document.fullscreenElement) void document.exitFullscreen()
+    else void root.current?.requestFullscreen?.().catch(() => {})
+  }, [])
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null
+      if (e.ctrlKey || e.metaKey || e.altKey || (t && (t.isContentEditable || /^(TEXTAREA|SELECT)$/.test(t.tagName) || (t.tagName === "INPUT" && !/^(range|checkbox)$/.test((t as HTMLInputElement).type))))) return
+      if (e.key === "f" || e.key === "F" || e.key === "ㄹ") {
+        e.preventDefault()
+        toggleFs()
+      }
+    }
+    window.addEventListener("keydown", key)
+    return () => window.removeEventListener("keydown", key)
+  }, [toggleFs])
+
   const toggleDraw = () => {
     if (!drawing) player.current?.pause()
     setDrawing((d) => !d)
@@ -224,8 +249,8 @@ export function ClipPlayer({
 
   const noVideo = clip && videoFor === clip.videoMatchId && !vid
   return (
-    <div className="bg-background">
-      <div className="relative" ref={box}>
+    <div ref={root} className={cn("bg-background", fs && "h-full flex flex-col justify-center bg-black text-foreground [&>*:not(:first-child)]:bg-background")}>
+      <div className="relative w-full mx-auto" ref={box} style={fs ? { maxWidth: `calc((100vh - ${drawing ? 190 : 110}px) * 16 / 9)` } : undefined}>
         {vid ? (
           <YouTubePlayer ref={player} videoId={vid} onReady={() => setReadyVid(vid)} onState={setPlaying} bare />
         ) : (
@@ -233,8 +258,9 @@ export function ClipPlayer({
             {!clip ? "아래에서 클립을 고르면 여기서 재생돼요" : noVideo ? "이 경기는 유튜브 영상이 연결돼 있지 않아요" : "영상 불러오는 중…"}
           </div>
         )}
-        {/* 멈추면 유튜브가 영상 한가운데 큰 재생 버튼을 띄움(잘라 낼 수 없는 위치) → 그 자리만 흐리게 덮음 (휴대폰 유튜브는 버튼 없음) */}
-        {vid && !playing && <div className="absolute left-1/2 top-1/2 h-[50px] w-[70px] -translate-x-1/2 -translate-y-1/2 rounded-[14px] backdrop-blur-xl pointer-events-none [@media(pointer:coarse)]:hidden" data-testid="yt-button-cover" />}
+        {/* 그리기 + 멈춤: 유튜브가 멈춤 화면(가운데 재생 버튼 등)을 띄움 → 예전 그리기 도구처럼 영상 전체를 어둡게 깔아 감춤
+            (재생 중엔 원래 밝기 그대로) */}
+        {vid && drawing && !playing && <div className="absolute inset-0 bg-black/55 pointer-events-none" data-testid="draw-dim" />}
         {vid && <InkLayer ref={ink} on={drawing} prefs={inkPrefs} />}
         {/* 유튜브 화면은 직접 못 누르게 덮고, 누르면 재생/정지 */}
         {vid && !drawing && <div className="absolute inset-0 cursor-pointer" onClick={playPause} data-testid="video-surface" />}
@@ -304,6 +330,9 @@ export function ClipPlayer({
             </>
           ))}
         <span className="flex-1" />
+        <button className="h-8 w-8 inline-flex items-center justify-center border border-border order-last" onClick={toggleFs} title="전체화면 (F)" aria-label="전체화면" data-testid="fullscreen">
+          {fs ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+        </button>
         {available.length > 1 &&
           available.map((a) => (
             <button key={a.key} onClick={() => pickAngle(a.key)} className={cn("h-7 px-2 text-xs border", a.key === useAngle ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground")}>
