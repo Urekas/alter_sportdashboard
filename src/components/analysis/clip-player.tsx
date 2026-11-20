@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { doc, getDoc, type Firestore } from "firebase/firestore"
 import { ChevronLeft, ChevronRight, Circle, ListVideo, Maximize, Minimize, Pause, PenLine, Play, Repeat, Square } from "lucide-react"
-import { canRecordTab, downloadBlob, startTabRecording, type TabRecording } from "@/lib/tab-recorder"
+import { canGrabTab, canRecordTab, downloadBlob, grabFrame, nextFrames, startTabRecording, tabSession, type TabRecording } from "@/lib/tab-recorder"
 import { InkLayer, InkToolbar, loadInkPrefs, saveInkPrefs, type InkHandle, type InkPrefs } from "./ink-layer"
 import { YouTubePlayer, youTubeId, type YouTubeHandle } from "@/components/youtube-player"
 import type { VideoMatchMetadata } from "@/lib/video-match-service"
@@ -106,10 +106,63 @@ export function ClipPlayer({
     return () => window.removeEventListener("keydown", key)
   }, [toggleFs])
 
+  // 정지 화면: 유튜브는 멈추면 제목·가운데 재생 버튼·로고를 영상 위에 띄움(끌 방법 없음, iframe 픽셀도 못 읽음)
+  //  → 탭 화면 공유로 "재생 중인 깨끗한 화면"을 찍어 캔버스로 덮고 멈춤. 그 위에 그림
+  //  (휴대폰은 화면 공유가 없지만 휴대폰 유튜브는 멈춤 표시가 거의 없어서 그냥 멈춤)
+  const stillRef = useRef<HTMLCanvasElement>(null)
+  const [still, setStill] = useState(false)
+  const [grabbing, setGrabbing] = useState(false)
+  const grabbingRef = useRef(false)
+  const [stillNote, setStillNote] = useState("")
+  const freeze = useCallback(async () => {
+    const p = player.current
+    if (!p || !box.current || !stillRef.current) return
+    const coarse = typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse)").matches
+    if (!canGrabTab() || coarse) return p.pause()
+    try {
+      await tabSession()
+      setStillNote("")
+    } catch {
+      setStillNote("화면 공유를 허용하면 멈춘 화면에 유튜브 표시가 안 보여요")
+      return p.pause()
+    }
+    grabbingRef.current = true
+    setGrabbing(true) // 찍는 동안 그림·정지 화면은 잠깐 숨김 (같이 찍히지 않게)
+    try {
+      if (!p.playing()) {
+        // 멈춘 상태엔 유튜브 표시가 떠 있음 → 조금 앞에서 다시 재생해 표시가 사라진 뒤 지금 장면을 찍음
+        const t0 = p.time()
+        p.seek(Math.max(0, t0 - 0.9))
+        p.play()
+        for (let i = 0; i < 120 && !p.playing(); i++) await new Promise((r) => setTimeout(r, 50)) // 불러오는 중이면 최대 6초
+        if (!p.playing()) return p.pause()
+        await new Promise((r) => setTimeout(r, 850))
+      }
+      await nextFrames(3)
+      const ok = grabFrame(box.current, stillRef.current)
+      p.pause()
+      // 유튜브가 pause를 늦게 받는 경우가 있어 확실히 멈출 때까지 (그동안 재생 감지로 정지 화면이 치워지지 않게)
+      for (let i = 0; i < 20 && p.playing(); i++) {
+        await new Promise((r) => setTimeout(r, 100))
+        p.pause()
+      }
+      await new Promise((r) => setTimeout(r, 150))
+      setStill(ok)
+    } finally {
+      grabbingRef.current = false
+      setGrabbing(false)
+    }
+  }, [])
   const toggleDraw = () => {
-    if (!drawing) player.current?.pause()
+    if (!drawing) void freeze()
+    else setStill(false)
     setDrawing((d) => !d)
   }
+  useEffect(() => setStill(false), [clip?.key])
+  // 다시 재생하면 정지 화면 치움 (찍느라 잠깐 재생하는 건 빼고)
+  useEffect(() => {
+    if (playing && !grabbingRef.current) setStill(false)
+  }, [playing])
 
   // 녹화: 이 탭의 영상 상자만 (그림 포함). all = 목록 끝까지 녹화하고 자동으로 멈춤
   const box = useRef<HTMLDivElement>(null)
@@ -140,6 +193,7 @@ export function ClipPlayer({
       if (mode === "all") {
         setAuto(true)
         setDrawing(false)
+        setStill(false)
         playedKey.current = ""
         onFromStart?.()
         setKick((k) => k + 1) // 이미 첫 클립이어도 처음부터 다시
@@ -227,7 +281,13 @@ export function ClipPlayer({
     stopAt.current = clip.end + PAD_AFTER
     player.current.seek(gameT - offset)
     setNow(gameT)
+    if (drawing) {
+      setStill(false)
+      clearTimeout(refreeze.current)
+      refreeze.current = setTimeout(() => void freeze(), 400)
+    }
   }
+  const refreeze = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [rate, setRate] = useState(1)
   const cycleRate = () => {
     const r = rate === 1 ? 0.5 : rate === 0.5 ? 0.25 : 1
@@ -258,13 +318,11 @@ export function ClipPlayer({
             {!clip ? "아래에서 클립을 고르면 여기서 재생돼요" : noVideo ? "이 경기는 유튜브 영상이 연결돼 있지 않아요" : "영상 불러오는 중…"}
           </div>
         )}
-        {/* 그리기 + 멈춤: 유튜브가 멈춤 화면(가운데 재생 버튼 등)을 띄움 → 예전 그리기 도구처럼 영상 전체를 어둡게 깔아 감춤
-            (재생 중엔 원래 밝기 그대로) */}
-        {vid && drawing && !playing && <div className="absolute inset-0 bg-black/55 pointer-events-none" data-testid="draw-dim" />}
-        {vid && <InkLayer ref={ink} on={drawing} prefs={inkPrefs} />}
+        <canvas ref={stillRef} className={cn("absolute inset-0 w-full h-full pointer-events-none", (!still || grabbing || !vid) && "invisible")} data-testid="still" />
+        <div className={cn(grabbing && "invisible")}>{vid && <InkLayer ref={ink} on={drawing} prefs={inkPrefs} />}</div>
         {/* 유튜브 화면은 직접 못 누르게 덮고, 누르면 재생/정지 */}
         {vid && !drawing && <div className="absolute inset-0 cursor-pointer" onClick={playPause} data-testid="video-surface" />}
-        {rec && <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs font-bold px-2 py-0.5 pointer-events-none">● 녹화 중</span>}
+        {rec && !grabbing && <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs font-bold px-2 py-0.5 pointer-events-none">● 녹화 중</span>}
       </div>
       {clip && vid && (
         <div className="flex items-center gap-2 px-2 pt-1.5 text-xs text-muted-foreground tabular-nums">
@@ -352,6 +410,7 @@ export function ClipPlayer({
         />
       )}
       {recErr && <div className="px-2 py-1 text-xs text-primary border-b border-border">{recErr}</div>}
+      {stillNote && drawing && <div className="px-2 py-1 text-xs text-muted-foreground border-b border-border">{stillNote}</div>}
       {rec && <div className="px-2 py-1 text-xs text-muted-foreground border-b border-border">녹화 중엔 이 탭을 그대로 두세요. 다른 탭으로 가면 그 화면이 녹화돼요.</div>}
       {clip && title && <div className="px-2 py-1 text-xs text-muted-foreground truncate border-b border-border" data-testid="now-playing">{title}</div>}
     </div>
